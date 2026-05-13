@@ -5,8 +5,6 @@ set -e
 INSTALL_DIR="/opt/sub2api"
 CONFIG_DIR="/etc/sub2api"
 SERVICE_USER="sub2api"
-SERVER_HOST="${SERVER_HOST:-0.0.0.0}"
-SERVER_PORT="${SERVER_PORT:-8080}"
 BINARY="${1:-./sub2api}"
 
 # ============ 检查 root ============
@@ -63,8 +61,6 @@ PrivateTmp=true
 ReadWritePaths=/opt/sub2api
 
 Environment=GIN_MODE=release
-Environment=SERVER_HOST=${SERVER_HOST}
-Environment=SERVER_PORT=${SERVER_PORT}
 
 [Install]
 WantedBy=multi-user.target
@@ -79,8 +75,8 @@ echo ""
 echo "=============================="
 echo " Sub2API 安装完成"
 echo "=============================="
-echo " 监听: ${SERVER_HOST}:${SERVER_PORT}"
-echo " 设置向导: http://$(hostname -I | awk '{print $1}'):${SERVER_PORT}"
+echo " 配置文件: $CONFIG_DIR/config.yaml"
+echo " 设置向导: http://$(hostname -I | awk '{print $1}'):<config.yaml 中的端口>"
 echo ""
 echo " 常用命令:"
 echo "   systemctl status sub2api"
