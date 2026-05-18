@@ -709,8 +709,8 @@
         <a class="or-nav-link" href="#models">模型</a>
         <a class="or-nav-link" href="#code">接入</a>
         <a class="or-nav-link" href="#providers">供应商</a>
-        <a class="or-nav-link" href="/login">登录</a>
-        <a class="or-btn or-btn-primary" href="/login">免费注册 →</a>
+        {{#if auth}}{{else}}<a class="or-nav-link" href="/login">登录</a>{{/if}}
+        <a class="or-btn or-btn-primary" href="{{ cta_href }}">{{ cta_text }} →</a>
       </div>
     </nav>
 
@@ -946,8 +946,8 @@
       <h2 class="or-cta-title">5 分钟接入,按 token 付费</h2>
       <p class="or-cta-sub">无需绑定信用卡,注册即送测试额度。改一行 baseURL,即可平滑迁移。</p>
       <div class="or-cta-actions">
-        <a class="or-btn or-btn-primary or-btn-lg" href="/login">立即获取 API Key →</a>
-        <a class="or-btn or-btn-lg" href="/login">登录控制台</a>
+        {{#if auth}}<a class="or-btn or-btn-primary or-btn-lg" href="{{ cta_href }}">进入控制台 →</a>{{else}}<a class="or-btn or-btn-primary or-btn-lg" href="/login">立即获取 API Key →</a>
+        <a class="or-btn or-btn-lg" href="/login">登录控制台</a>{{/if}}
       </div>
     </section>
 

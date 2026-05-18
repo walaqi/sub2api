@@ -425,11 +425,21 @@ const homeContent = computed(() => {
   const raw = appStore.cachedPublicSettings?.home_content || ''
   if (!raw) return ''
   const s = appStore.cachedPublicSettings || ({} as Record<string, any>)
-  return raw
+  const authed = authStore.isAuthenticated
+  const dashPath = authStore.isAdmin ? '/admin/dashboard' : '/dashboard'
+  const ctaHref = authed ? dashPath : '/login'
+  const ctaText = authed ? '控制台' : '免费注册'
+  // {{#if auth}}A{{else}}B{{/if}} — minimal block conditional, non-greedy
+  const conditional = (input: string) =>
+    input.replace(/\{\{#if\s+auth\s*\}\}([\s\S]*?)\{\{else\}\}([\s\S]*?)\{\{\/if\}\}/g,
+      (_m, a, b) => (authed ? a : b))
+  return conditional(raw)
     .replace(/\{\{\s*site_name\s*\}\}/g, s.site_name || '')
     .replace(/\{\{\s*site_logo\s*\}\}/g, s.site_logo || '')
     .replace(/\{\{\s*site_subtitle\s*\}\}/g, s.site_subtitle || '')
     .replace(/\{\{\s*doc_url\s*\}\}/g, s.doc_url || '')
+    .replace(/\{\{\s*cta_href\s*\}\}/g, ctaHref)
+    .replace(/\{\{\s*cta_text\s*\}\}/g, ctaText)
 })
 
 // Check if homeContent is a URL (for iframe display)
