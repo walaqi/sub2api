@@ -421,7 +421,16 @@ const siteName = computed(() => appStore.cachedPublicSettings?.site_name || appS
 const siteLogo = computed(() => appStore.cachedPublicSettings?.site_logo || appStore.siteLogo || '')
 const siteSubtitle = computed(() => appStore.cachedPublicSettings?.site_subtitle || 'AI API Gateway Platform')
 const docUrl = computed(() => appStore.cachedPublicSettings?.doc_url || appStore.docUrl || '')
-const homeContent = computed(() => appStore.cachedPublicSettings?.home_content || '')
+const homeContent = computed(() => {
+  const raw = appStore.cachedPublicSettings?.home_content || ''
+  if (!raw) return ''
+  const s = appStore.cachedPublicSettings || ({} as Record<string, any>)
+  return raw
+    .replace(/\{\{\s*site_name\s*\}\}/g, s.site_name || '')
+    .replace(/\{\{\s*site_logo\s*\}\}/g, s.site_logo || '')
+    .replace(/\{\{\s*site_subtitle\s*\}\}/g, s.site_subtitle || '')
+    .replace(/\{\{\s*doc_url\s*\}\}/g, s.doc_url || '')
+})
 
 // Check if homeContent is a URL (for iframe display)
 const isHomeContentUrl = computed(() => {

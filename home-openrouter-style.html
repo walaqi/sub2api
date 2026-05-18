@@ -1,0 +1,964 @@
+<!--
+  Sub2API · OpenRouter-style Home (v-html embeddable)
+  使用方法:
+    1. 进入后台 → 系统设置 → 首页内容 (home_content)
+    2. 把下面 <style>...</style> + <div class="or-root">...</div> 整段粘贴进去
+    3. 保存,刷新首页
+  说明:
+    - 整段是自包含的 HTML+CSS,不依赖 Tailwind / Vue
+    - 暗色靠 :where(.dark) .or-root 触发,跟原站点主题切换联动
+    - 模型 chip / 代码语言 tab 都是纯 CSS(radio + :checked),无 JS
+    - 所有可变文案放在 HTML 文本里,直接改即可
+-->
+
+<style>
+  /* ============== Tokens ============== */
+  .or-root {
+    --or-bg: #ffffff;
+    --or-bg-soft: #f7f8fa;
+    --or-bg-card: #ffffff;
+    --or-border: rgba(15, 23, 42, 0.08);
+    --or-border-strong: rgba(15, 23, 42, 0.14);
+    --or-text: #0f172a;
+    --or-text-soft: #475569;
+    --or-text-mute: #94a3b8;
+    --or-accent: #14b8a6;
+    --or-accent-2: #0ea5e9;
+    --or-accent-3: #8b5cf6;
+    --or-accent-4: #ec4899;
+    --or-code-bg: #0b1220;
+    --or-code-text: #e2e8f0;
+    --or-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
+    --or-shadow-md: 0 6px 24px rgba(15, 23, 42, 0.06), 0 2px 6px rgba(15, 23, 42, 0.04);
+    --or-shadow-lg: 0 24px 60px rgba(15, 23, 42, 0.10), 0 8px 18px rgba(15, 23, 42, 0.06);
+  }
+  :where(.dark) .or-root {
+    --or-bg: #07090d;
+    --or-bg-soft: #0b0f15;
+    --or-bg-card: #0f141c;
+    --or-border: rgba(255, 255, 255, 0.08);
+    --or-border-strong: rgba(255, 255, 255, 0.16);
+    --or-text: #f1f5f9;
+    --or-text-soft: #cbd5e1;
+    --or-text-mute: #64748b;
+    --or-code-bg: #050810;
+    --or-shadow-md: 0 6px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+    --or-shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.5), 0 8px 18px rgba(0, 0, 0, 0.35);
+  }
+
+  /* ============== Layout root ============== */
+  .or-root {
+    min-height: 100vh;
+    background: var(--or-bg);
+    color: var(--or-text);
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    position: relative;
+    line-height: 1.5;
+  }
+
+  /* Background field: subtle grid + corner glows */
+  .or-bg-deco {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 0;
+  }
+  .or-bg-deco::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(20, 184, 166, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(20, 184, 166, 0.05) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 30%, transparent 75%);
+  }
+  .or-glow {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(80px);
+    opacity: 0.55;
+  }
+  .or-glow-a { top: -180px; left: -120px; width: 480px; height: 480px; background: radial-gradient(circle, #14b8a6 0%, transparent 65%); }
+  .or-glow-b { top: 120px; right: -160px; width: 520px; height: 520px; background: radial-gradient(circle, #8b5cf6 0%, transparent 65%); opacity: 0.4; }
+  .or-glow-c { top: 60vh; left: 30%; width: 420px; height: 420px; background: radial-gradient(circle, #0ea5e9 0%, transparent 65%); opacity: 0.35; }
+  :where(.dark) .or-root .or-glow { opacity: 0.35; }
+  :where(.dark) .or-root .or-glow-b { opacity: 0.25; }
+  :where(.dark) .or-root .or-glow-c { opacity: 0.22; }
+
+  .or-shell {
+    position: relative;
+    z-index: 1;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ============== Top nav ============== */
+  .or-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 0;
+  }
+  .or-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--or-text);
+    text-decoration: none;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .or-brand-mark {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #14b8a6 0%, #0ea5e9 60%, #8b5cf6 120%);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+  }
+  img.or-brand-mark {
+    background: transparent;
+    object-fit: contain;
+  }
+  .or-nav-links {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .or-nav-link {
+    padding: 8px 12px;
+    color: var(--or-text-soft);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: color 0.18s, background 0.18s;
+  }
+  .or-nav-link:hover { color: var(--or-text); background: var(--or-bg-soft); }
+
+  /* ============== Buttons ============== */
+  .or-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1px solid var(--or-border);
+    background: var(--or-bg-card);
+    color: var(--or-text);
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.18s, border-color 0.18s, background 0.18s;
+  }
+  .or-btn:hover { border-color: var(--or-border-strong); box-shadow: var(--or-shadow-sm); }
+  .or-btn-primary {
+    background: linear-gradient(135deg, #14b8a6 0%, #0ea5e9 100%);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 8px 22px rgba(20, 184, 166, 0.32);
+  }
+  .or-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 12px 28px rgba(20, 184, 166, 0.42); }
+  .or-btn-lg { padding: 14px 22px; font-size: 16px; border-radius: 12px; }
+  .or-btn-ghost { background: transparent; }
+
+  /* ============== Hero ============== */
+  .or-hero {
+    padding: 56px 0 48px;
+    text-align: center;
+  }
+  .or-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    margin-bottom: 28px;
+    background: var(--or-bg-card);
+    border: 1px solid var(--or-border);
+    color: var(--or-text-soft);
+    border-radius: 9999px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: var(--or-shadow-sm);
+  }
+  .or-pulse {
+    position: relative;
+    display: inline-flex;
+    width: 8px;
+    height: 8px;
+  }
+  .or-pulse::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: #14b8a6;
+    border-radius: 9999px;
+    animation: or-ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+    opacity: 0.7;
+  }
+  .or-pulse::after {
+    content: "";
+    position: relative;
+    width: 8px;
+    height: 8px;
+    background: #14b8a6;
+    border-radius: 9999px;
+  }
+  @keyframes or-ping {
+    75%, 100% { transform: scale(2.4); opacity: 0; }
+  }
+
+  .or-hero-title {
+    margin: 0 0 18px;
+    font-size: clamp(40px, 7vw, 76px);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.02;
+  }
+  .or-grad-text {
+    background: linear-gradient(120deg, #14b8a6 0%, #0ea5e9 35%, #8b5cf6 70%, #ec4899 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: or-grad-shift 9s ease infinite;
+  }
+  @keyframes or-grad-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  .or-hero-sub {
+    max-width: 640px;
+    margin: 0 auto 36px;
+    color: var(--or-text-soft);
+    font-size: clamp(15px, 1.6vw, 18px);
+  }
+
+  /* ============== Prompt box ============== */
+  .or-prompt {
+    max-width: 720px;
+    margin: 0 auto 24px;
+    background: var(--or-bg-card);
+    border: 1px solid var(--or-border);
+    border-radius: 18px;
+    padding: 14px 16px;
+    box-shadow: var(--or-shadow-md);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: border-color 0.18s, box-shadow 0.18s;
+  }
+  .or-prompt:focus-within {
+    border-color: rgba(20, 184, 166, 0.5);
+    box-shadow: 0 12px 36px rgba(20, 184, 166, 0.18), 0 4px 10px rgba(0, 0, 0, 0.06);
+  }
+  .or-prompt-icon {
+    display: inline-flex;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #14b8a6, #0ea5e9);
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .or-prompt-input {
+    flex: 1;
+    border: 0;
+    outline: none;
+    background: transparent;
+    font-size: 16px;
+    color: var(--or-text);
+    padding: 8px 6px;
+  }
+  .or-prompt-input::placeholder { color: var(--or-text-mute); }
+  .or-prompt-send {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: 0;
+    background: linear-gradient(135deg, #14b8a6, #0ea5e9);
+    color: #fff;
+    cursor: pointer;
+    font-size: 18px;
+    transition: transform 0.15s, box-shadow 0.18s;
+  }
+  .or-prompt-send:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(20, 184, 166, 0.35); }
+
+  /* ============== Quick model chips (CSS radio tabs) ============== */
+  .or-tabs { position: relative; }
+  .or-tabs input[type="radio"] { position: absolute; opacity: 0; pointer-events: none; }
+
+  .or-chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin: 0 auto 12px;
+    max-width: 760px;
+  }
+  .or-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border-radius: 9999px;
+    background: var(--or-bg-card);
+    border: 1px solid var(--or-border);
+    color: var(--or-text-soft);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    user-select: none;
+  }
+  .or-chip:hover {
+    color: var(--or-text);
+    border-color: var(--or-border-strong);
+    transform: translateY(-1px);
+    box-shadow: var(--or-shadow-sm);
+  }
+  .or-chip-dot {
+    width: 16px; height: 16px;
+    border-radius: 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+  }
+  .or-chip-c .or-chip-dot { background: linear-gradient(135deg, #fb923c, #f97316); }
+  .or-chip-g .or-chip-dot { background: linear-gradient(135deg, #22c55e, #16a34a); }
+  .or-chip-m .or-chip-dot { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+  .or-chip-a .or-chip-dot { background: linear-gradient(135deg, #f43f5e, #db2777); }
+  .or-chips-hint {
+    text-align: center;
+    color: var(--or-text-mute);
+    font-size: 12px;
+    margin: 0 0 32px;
+  }
+
+  /* Active chip state — driven by checked radio */
+  #or-m-c:checked ~ .or-chips label[for="or-m-c"],
+  #or-m-g:checked ~ .or-chips label[for="or-m-g"],
+  #or-m-m:checked ~ .or-chips label[for="or-m-m"],
+  #or-m-a:checked ~ .or-chips label[for="or-m-a"] {
+    color: var(--or-text);
+    background: linear-gradient(135deg, rgba(20, 184, 166, 0.15), rgba(14, 165, 233, 0.10));
+    border-color: rgba(20, 184, 166, 0.4);
+    box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.12);
+  }
+
+  /* Code panes — show only the one matching the checked chip */
+  .or-code-pane { display: none; }
+  #or-m-c:checked ~ .or-code-card .or-code-pane-c,
+  #or-m-g:checked ~ .or-code-card .or-code-pane-g,
+  #or-m-m:checked ~ .or-code-card .or-code-pane-m,
+  #or-m-a:checked ~ .or-code-card .or-code-pane-a { display: block; }
+
+  /* ============== Stats row ============== */
+  .or-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin: 24px auto 64px;
+    max-width: 880px;
+  }
+  .or-stat {
+    background: var(--or-bg-card);
+    border: 1px solid var(--or-border);
+    border-radius: 14px;
+    padding: 18px 16px;
+    text-align: left;
+    transition: border-color 0.18s, transform 0.18s;
+  }
+  .or-stat:hover { border-color: var(--or-border-strong); transform: translateY(-2px); }
+  .or-stat-num {
+    font-size: 28px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #14b8a6, #0ea5e9);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    line-height: 1.1;
+  }
+  .or-stat-label {
+    margin-top: 6px;
+    color: var(--or-text-soft);
+    font-size: 13px;
+  }
+  @media (max-width: 720px) {
+    .or-stats { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* ============== Sections ============== */
+  .or-section {
+    padding: 56px 0;
+  }
+  .or-section-head {
+    text-align: center;
+    margin-bottom: 36px;
+  }
+  .or-section-eyebrow {
+    color: var(--or-accent);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .or-section-title {
+    font-size: clamp(28px, 4vw, 40px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin: 0 0 10px;
+  }
+  .or-section-sub {
+    color: var(--or-text-soft);
+    font-size: 16px;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  /* ============== Featured models grid ============== */
+  .or-models-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+  @media (max-width: 1024px) {
+    .or-models-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 540px) {
+    .or-models-grid { grid-template-columns: 1fr; }
+  }
+  .or-model-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px;
+    background: var(--or-bg-card);
+    border: 1px solid var(--or-border);
+    border-radius: 16px;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.18s ease, border-color 0.18s, box-shadow 0.18s;
+    position: relative;
+    overflow: hidden;
+  }
+  .or-model-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    padding: 1px;
+    background: linear-gradient(135deg, transparent 30%, rgba(20, 184, 166, 0.4) 50%, transparent 70%);
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.25s;
+  }
+  .or-model-card:hover { transform: translateY(-3px); box-shadow: var(--or-shadow-lg); border-color: var(--or-border-strong); }
+  .or-model-card:hover::before { opacity: 1; }
+  .or-model-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .or-model-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+  .or-model-name { font-size: 15px; font-weight: 700; }
+  .or-model-vendor { font-size: 12px; color: var(--or-text-mute); margin-top: 2px; }
+  .or-model-desc {
+    font-size: 13px;
+    color: var(--or-text-soft);
+    line-height: 1.55;
+    flex: 1;
+  }
+  .or-model-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .or-tag {
+    font-size: 11px;
+    padding: 3px 8px;
+    background: var(--or-bg-soft);
+    border: 1px solid var(--or-border);
+    border-radius: 6px;
+    color: var(--or-text-soft);
+    font-weight: 500;
+  }
+  :where(.dark) .or-root .or-tag { background: rgba(255, 255, 255, 0.04); }
+
+  /* ============== Code card ============== */
+  .or-code-card {
+    max-width: 880px;
+    margin: 0 auto;
+    background: var(--or-code-bg);
+    border: 1px solid var(--or-border-strong);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: var(--or-shadow-lg);
+  }
+  .or-code-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .or-code-dots { display: flex; gap: 6px; }
+  .or-code-dots span { width: 11px; height: 11px; border-radius: 50%; }
+  .or-code-dots span:nth-child(1) { background: #ff5f56; }
+  .or-code-dots span:nth-child(2) { background: #ffbd2e; }
+  .or-code-dots span:nth-child(3) { background: #27c93f; }
+  .or-code-title {
+    color: #94a3b8;
+    font-family: ui-monospace, "SF Mono", monospace;
+    font-size: 12px;
+  }
+  .or-code-pane {
+    margin: 0;
+    padding: 22px 24px;
+    font-family: ui-monospace, "SF Mono", "Fira Code", monospace;
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: var(--or-code-text);
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .or-c-comment { color: #64748b; font-style: italic; }
+  .or-c-prompt { color: #14b8a6; user-select: none; }
+  .or-c-cmd { color: #f1f5f9; }
+  .or-c-flag { color: #c084fc; }
+  .or-c-url { color: #38bdf8; }
+  .or-c-string { color: #fbbf24; }
+  .or-c-key { color: #94a3b8; }
+  .or-c-model { color: #14b8a6; font-weight: 700; }
+  .or-c-fn { color: #c084fc; }
+  .or-c-var { color: #f472b6; }
+
+  .or-code-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    color: #94a3b8;
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+  }
+  .or-code-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .or-code-status::before {
+    content: "";
+    display: inline-block;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.7);
+    animation: or-pulse-dot 2s ease-in-out infinite;
+  }
+  @keyframes or-pulse-dot {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50%      { transform: scale(1.25); opacity: 0.6; }
+  }
+
+  /* ============== Provider strip ============== */
+  .or-providers {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    max-width: 880px;
+    margin: 0 auto;
+  }
+  @media (max-width: 720px) { .or-providers { grid-template-columns: repeat(2, 1fr); } }
+  .or-provider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--or-bg-card);
+    border: 1px solid var(--or-border);
+    border-radius: 12px;
+    transition: border-color 0.18s, transform 0.18s;
+  }
+  .or-provider:hover { border-color: var(--or-border-strong); transform: translateY(-2px); }
+  .or-provider-name { font-size: 14px; font-weight: 600; }
+  .or-provider-meta { font-size: 12px; color: var(--or-text-mute); margin-top: 2px; }
+
+  /* ============== CTA strip ============== */
+  .or-cta {
+    margin: 24px auto;
+    padding: 48px 24px;
+    text-align: center;
+    background: linear-gradient(135deg, rgba(20, 184, 166, 0.12), rgba(14, 165, 233, 0.10) 50%, rgba(139, 92, 246, 0.10));
+    border: 1px solid var(--or-border);
+    border-radius: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .or-cta::before {
+    content: "";
+    position: absolute;
+    top: -120px; left: 50%;
+    transform: translateX(-50%);
+    width: 480px; height: 240px;
+    background: radial-gradient(ellipse, rgba(20, 184, 166, 0.45), transparent 70%);
+    filter: blur(40px);
+    pointer-events: none;
+  }
+  .or-cta-title {
+    position: relative;
+    margin: 0 0 10px;
+    font-size: clamp(26px, 3.5vw, 36px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .or-cta-sub {
+    position: relative;
+    margin: 0 0 24px;
+    color: var(--or-text-soft);
+    font-size: 16px;
+  }
+  .or-cta-actions {
+    position: relative;
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  /* ============== Footer ============== */
+  .or-foot {
+    border-top: 1px solid var(--or-border);
+    padding: 24px 0 36px;
+    margin-top: 32px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--or-text-mute);
+    font-size: 13px;
+  }
+  .or-foot-links { display: flex; gap: 18px; }
+  .or-foot-links a { color: var(--or-text-mute); text-decoration: none; transition: color 0.18s; }
+  .or-foot-links a:hover { color: var(--or-text); }
+
+  /* Hide nav links on mobile to keep nav clean */
+  @media (max-width: 640px) {
+    .or-nav-links .or-nav-link { display: none; }
+    .or-nav-links .or-btn { display: inline-flex; }
+  }
+</style>
+
+<div class="or-root">
+  <!-- Background -->
+  <div class="or-bg-deco">
+    <div class="or-glow or-glow-a"></div>
+    <div class="or-glow or-glow-b"></div>
+    <div class="or-glow or-glow-c"></div>
+  </div>
+
+  <!-- Top nav -->
+  <div class="or-shell">
+    <nav class="or-nav">
+      <a class="or-brand" href="/">
+        <img class="or-brand-mark" src="{{ site_logo }}" alt="" />
+        <span>{{ site_name }}</span>
+      </a>
+      <div class="or-nav-links">
+        <a class="or-nav-link" href="#models">模型</a>
+        <a class="or-nav-link" href="#code">接入</a>
+        <a class="or-nav-link" href="#providers">供应商</a>
+        <a class="or-nav-link" href="/login">登录</a>
+        <a class="or-btn or-btn-primary" href="/login">免费注册 →</a>
+      </div>
+    </nav>
+
+    <!-- Hero (with CSS-only model tabs) -->
+    <section class="or-hero or-tabs">
+      <input type="radio" name="or-model" id="or-m-c" checked>
+      <input type="radio" name="or-model" id="or-m-g">
+      <input type="radio" name="or-model" id="or-m-m">
+      <input type="radio" name="or-model" id="or-m-a">
+
+      <div class="or-eyebrow">
+        <span class="or-pulse"></span>
+        <span>{{ site_subtitle }}</span>
+      </div>
+
+      <h1 class="or-hero-title">
+        一个 API,<br>
+        <span class="or-grad-text">畅用所有 AI 模型</span>
+      </h1>
+      <p class="or-hero-sub">
+        Claude · GPT · Gemini · Antigravity 全部统一接入。按量计费,无需绑卡,5 分钟拿到密钥即可上线。
+      </p>
+
+      <!-- Prompt-style search box -->
+      <form class="or-prompt" action="/login" method="get">
+        <span class="or-prompt-icon">✦</span>
+        <input class="or-prompt-input" name="q" placeholder="输入一个提示词,试试看..." />
+        <button class="or-prompt-send" type="submit" title="试一试,免费注册">→</button>
+      </form>
+
+      <!-- Model chips (also act as tabs) -->
+      <div class="or-chips">
+        <label class="or-chip or-chip-c" for="or-m-c"><span class="or-chip-dot">C</span> Claude Sonnet 4.5</label>
+        <label class="or-chip or-chip-g" for="or-m-g"><span class="or-chip-dot">G</span> GPT-4o</label>
+        <label class="or-chip or-chip-m" for="or-m-m"><span class="or-chip-dot">M</span> Gemini 2.5 Pro</label>
+        <label class="or-chip or-chip-a" for="or-m-a"><span class="or-chip-dot">A</span> Antigravity</label>
+      </div>
+      <p class="or-chips-hint">点击切换 → 下方代码示例会同步更新</p>
+
+      <!-- Code card (shows pane matching checked chip) -->
+      <div class="or-code-card" id="code">
+        <div class="or-code-head">
+          <div class="or-code-dots"><span></span><span></span><span></span></div>
+          <span class="or-code-title">POST /v1/messages</span>
+          <span style="width:48px"></span>
+        </div>
+
+        <pre class="or-code-pane or-code-pane-c"><span class="or-c-comment"># 一个密钥,调用任意已接入的模型</span>
+<span class="or-c-prompt">$</span> <span class="or-c-cmd">curl</span> <span class="or-c-flag">-X POST</span> <span class="or-c-url">https://api.your-domain.com/v1/messages</span> \
+  -H <span class="or-c-string">"Authorization: Bearer $YOUR_KEY"</span> \
+  -H <span class="or-c-string">"Content-Type: application/json"</span> \
+  -d <span class="or-c-string">'{
+    <span class="or-c-key">"model"</span>: <span class="or-c-model">"claude-sonnet-4-5"</span>,
+    <span class="or-c-key">"max_tokens"</span>: 1024,
+    <span class="or-c-key">"messages"</span>: [
+      { <span class="or-c-key">"role"</span>: <span class="or-c-string">"user"</span>, <span class="or-c-key">"content"</span>: <span class="or-c-string">"用一句话解释 API 网关"</span> }
+    ]
+  }'</span></pre>
+
+        <pre class="or-code-pane or-code-pane-g"><span class="or-c-comment"># OpenAI 兼容协议,直接换 model 即可</span>
+<span class="or-c-prompt">$</span> <span class="or-c-cmd">curl</span> <span class="or-c-flag">-X POST</span> <span class="or-c-url">https://api.your-domain.com/v1/chat/completions</span> \
+  -H <span class="or-c-string">"Authorization: Bearer $YOUR_KEY"</span> \
+  -H <span class="or-c-string">"Content-Type: application/json"</span> \
+  -d <span class="or-c-string">'{
+    <span class="or-c-key">"model"</span>: <span class="or-c-model">"gpt-4o"</span>,
+    <span class="or-c-key">"messages"</span>: [
+      { <span class="or-c-key">"role"</span>: <span class="or-c-string">"user"</span>, <span class="or-c-key">"content"</span>: <span class="or-c-string">"用一句话解释 API 网关"</span> }
+    ]
+  }'</span></pre>
+
+        <pre class="or-code-pane or-code-pane-m"><span class="or-c-comment"># 同一个端点,Gemini 也能跑</span>
+<span class="or-c-prompt">$</span> <span class="or-c-cmd">curl</span> <span class="or-c-flag">-X POST</span> <span class="or-c-url">https://api.your-domain.com/v1/messages</span> \
+  -H <span class="or-c-string">"Authorization: Bearer $YOUR_KEY"</span> \
+  -H <span class="or-c-string">"Content-Type: application/json"</span> \
+  -d <span class="or-c-string">'{
+    <span class="or-c-key">"model"</span>: <span class="or-c-model">"gemini-2.5-pro"</span>,
+    <span class="or-c-key">"max_tokens"</span>: 1024,
+    <span class="or-c-key">"messages"</span>: [
+      { <span class="or-c-key">"role"</span>: <span class="or-c-string">"user"</span>, <span class="or-c-key">"content"</span>: <span class="or-c-string">"用一句话解释 API 网关"</span> }
+    ]
+  }'</span></pre>
+
+        <pre class="or-code-pane or-code-pane-a"><span class="or-c-comment"># Antigravity — 来自 Google Labs 的实验性长上下文模型</span>
+<span class="or-c-prompt">$</span> <span class="or-c-cmd">curl</span> <span class="or-c-flag">-X POST</span> <span class="or-c-url">https://api.your-domain.com/v1/messages</span> \
+  -H <span class="or-c-string">"Authorization: Bearer $YOUR_KEY"</span> \
+  -H <span class="or-c-string">"Content-Type: application/json"</span> \
+  -d <span class="or-c-string">'{
+    <span class="or-c-key">"model"</span>: <span class="or-c-model">"antigravity-1"</span>,
+    <span class="or-c-key">"max_tokens"</span>: 2048,
+    <span class="or-c-key">"messages"</span>: [
+      { <span class="or-c-key">"role"</span>: <span class="or-c-string">"user"</span>, <span class="or-c-key">"content"</span>: <span class="or-c-string">"用一句话解释 API 网关"</span> }
+    ]
+  }'</span></pre>
+
+        <div class="or-code-foot">
+          <span class="or-code-status">200 OK · 142 tokens · 1.2s</span>
+          <span>cURL · Python / Node 同样兼容</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="or-stats" id="stats">
+      <div class="or-stat">
+        <div class="or-stat-num">4</div>
+        <div class="or-stat-label">模型供应商</div>
+      </div>
+      <div class="or-stat">
+        <div class="or-stat-num">20+</div>
+        <div class="or-stat-label">可用模型</div>
+      </div>
+      <div class="or-stat">
+        <div class="or-stat-num">99.9%</div>
+        <div class="or-stat-label">服务可用性</div>
+      </div>
+      <div class="or-stat">
+        <div class="or-stat-num">~1.2s</div>
+        <div class="or-stat-label">平均延迟</div>
+      </div>
+    </section>
+
+    <!-- Featured Models -->
+    <section class="or-section" id="models">
+      <div class="or-section-head">
+        <div class="or-section-eyebrow">Featured Models</div>
+        <h2 class="or-section-title">即开即用的旗舰模型</h2>
+        <p class="or-section-sub">用同一套接口规范,在主流模型间秒级切换。</p>
+      </div>
+      <div class="or-models-grid">
+        <a class="or-model-card" href="/login">
+          <div class="or-model-head">
+            <span class="or-model-icon" style="background:linear-gradient(135deg,#fb923c,#f97316);">C</span>
+            <div>
+              <div class="or-model-name">Claude Sonnet 4.5</div>
+              <div class="or-model-vendor">by Anthropic</div>
+            </div>
+          </div>
+          <p class="or-model-desc">推理 / 代码 / 视觉全能,200K 上下文,日常生产首选。</p>
+          <div class="or-model-stats">
+            <span class="or-tag">200K context</span>
+            <span class="or-tag">$3 / 1M in</span>
+          </div>
+        </a>
+
+        <a class="or-model-card" href="/login">
+          <div class="or-model-head">
+            <span class="or-model-icon" style="background:linear-gradient(135deg,#22c55e,#16a34a);">G</span>
+            <div>
+              <div class="or-model-name">GPT-4o</div>
+              <div class="or-model-vendor">by OpenAI</div>
+            </div>
+          </div>
+          <p class="or-model-desc">多模态原生 + 最快首字延迟,适合实时对话与流式输出。</p>
+          <div class="or-model-stats">
+            <span class="or-tag">128K context</span>
+            <span class="or-tag">$5 / 1M in</span>
+          </div>
+        </a>
+
+        <a class="or-model-card" href="/login">
+          <div class="or-model-head">
+            <span class="or-model-icon" style="background:linear-gradient(135deg,#3b82f6,#2563eb);">M</span>
+            <div>
+              <div class="or-model-name">Gemini 2.5 Pro</div>
+              <div class="or-model-vendor">by Google</div>
+            </div>
+          </div>
+          <p class="or-model-desc">超长上下文 + 原生多模态,文档/代码库级别的检索分析。</p>
+          <div class="or-model-stats">
+            <span class="or-tag">1M context</span>
+            <span class="or-tag">$1.25 / 1M in</span>
+          </div>
+        </a>
+
+        <a class="or-model-card" href="/login">
+          <div class="or-model-head">
+            <span class="or-model-icon" style="background:linear-gradient(135deg,#f43f5e,#db2777);">A</span>
+            <div>
+              <div class="or-model-name">Antigravity</div>
+              <div class="or-model-vendor">by Google Labs</div>
+            </div>
+          </div>
+          <p class="or-model-desc">实验性长链路推理模型,擅长跨文件代码改造与复杂规划。</p>
+          <div class="or-model-stats">
+            <span class="or-tag">Preview</span>
+            <span class="or-tag">Cost-efficient</span>
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <!-- Providers strip -->
+    <section class="or-section" id="providers" style="padding-top:0">
+      <div class="or-section-head">
+        <div class="or-section-eyebrow">Connected Providers</div>
+        <h2 class="or-section-title">已接入的官方供应商</h2>
+        <p class="or-section-sub">直连官方,不做中间人。Token 用量与官方账单严格一致。</p>
+      </div>
+      <div class="or-providers">
+        <div class="or-provider">
+          <span class="or-model-icon" style="background:linear-gradient(135deg,#fb923c,#f97316);">C</span>
+          <div>
+            <div class="or-provider-name">Anthropic</div>
+            <div class="or-provider-meta">claude-sonnet-4-5 · 4-opus</div>
+          </div>
+        </div>
+        <div class="or-provider">
+          <span class="or-model-icon" style="background:linear-gradient(135deg,#22c55e,#16a34a);">G</span>
+          <div>
+            <div class="or-provider-name">OpenAI</div>
+            <div class="or-provider-meta">gpt-4o · gpt-4o-mini</div>
+          </div>
+        </div>
+        <div class="or-provider">
+          <span class="or-model-icon" style="background:linear-gradient(135deg,#3b82f6,#2563eb);">M</span>
+          <div>
+            <div class="or-provider-name">Google AI</div>
+            <div class="or-provider-meta">gemini-2.5-pro · flash</div>
+          </div>
+        </div>
+        <div class="or-provider">
+          <span class="or-model-icon" style="background:linear-gradient(135deg,#f43f5e,#db2777);">A</span>
+          <div>
+            <div class="or-provider-name">Google Labs</div>
+            <div class="or-provider-meta">antigravity-1 (preview)</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="or-cta">
+      <h2 class="or-cta-title">5 分钟接入,按 token 付费</h2>
+      <p class="or-cta-sub">无需绑定信用卡,注册即送测试额度。改一行 baseURL,即可平滑迁移。</p>
+      <div class="or-cta-actions">
+        <a class="or-btn or-btn-primary or-btn-lg" href="/login">立即获取 API Key →</a>
+        <a class="or-btn or-btn-lg" href="/login">登录控制台</a>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="or-foot">
+      <span>© 2026 Sub2API · 一个 API,畅用所有 AI 模型</span>
+      <div class="or-foot-links">
+        <a href="#models">模型</a>
+        <a href="#providers">供应商</a>
+        <a href="/login">控制台</a>
+      </div>
+    </footer>
+  </div>
+</div>
