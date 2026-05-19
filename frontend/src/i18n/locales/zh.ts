@@ -5632,6 +5632,8 @@ export default {
         remove: '删除',
         moveUp: '上移',
         moveDown: '下移',
+        injectCredentials: '注入登录身份',
+        injectCredentialsHint: '开启后，会把当前用户的 token、user_id 以及来源 URL 作为 query 参数传给目标页面。仅当目标页面是本系统的内部页面、需要识别登录用户时才开启。指向外部站点（如文档、博客、Cloudflare Pages 等）时务必保持关闭，否则可能泄漏 token 或被对方 CDN/WAF 拦截。',
       },
       payment: {
         title: '支付设置',

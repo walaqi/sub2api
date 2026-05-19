@@ -4441,6 +4441,30 @@
                       @update:model-value="(v: string) => (item.icon_svg = v)"
                     />
                   </div>
+
+                  <!-- Inject Credentials Toggle (full width) -->
+                  <div
+                    class="flex items-start justify-between gap-3 sm:col-span-2"
+                  >
+                    <div class="min-w-0 flex-1">
+                      <label
+                        class="block text-xs font-medium text-gray-600 dark:text-gray-400"
+                      >
+                        {{ t("admin.settings.customMenu.injectCredentials") }}
+                      </label>
+                      <p class="mt-1 text-xs text-gray-500 dark:text-gray-500">
+                        {{
+                          t("admin.settings.customMenu.injectCredentialsHint")
+                        }}
+                      </p>
+                    </div>
+                    <Toggle
+                      :model-value="item.inject_credentials ?? false"
+                      @update:model-value="
+                        (v: boolean) => (item.inject_credentials = v)
+                      "
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -6492,6 +6516,7 @@ const form = reactive<SettingsForm>({
     url: string;
     visibility: "user" | "admin";
     sort_order: number;
+    inject_credentials: boolean;
   }>,
   custom_endpoints: [] as Array<{
     name: string;
@@ -7095,6 +7120,7 @@ function addMenuItem() {
     url: "",
     visibility: "user",
     sort_order: form.custom_menu_items.length,
+    inject_credentials: false,
   });
 }
 
@@ -7236,6 +7262,11 @@ async function loadSettings() {
         ? settings.table_page_size_options
         : [10, 20, 50, 100],
     );
+    if (Array.isArray(form.custom_menu_items)) {
+      form.custom_menu_items.forEach((item) => {
+        item.inject_credentials = item.inject_credentials ?? false;
+      });
+    }
     registrationEmailSuffixWhitelistDraft.value = "";
     form.smtp_password = "";
     smtpPasswordManuallyEdited.value = false;

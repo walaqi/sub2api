@@ -25,13 +25,14 @@ describe('embedded-url', () => {
     vi.restoreAllMocks()
   })
 
-  it('adds embedded query parameters including locale and source context', () => {
+  it('adds embedded query parameters including locale and source context when injectCredentials is true', () => {
     const result = buildEmbeddedUrl(
       'https://pay.example.com/checkout?plan=pro',
       42,
       'token-123',
       'dark',
       'zh-CN',
+      true,
     )
 
     const url = new URL(result)
@@ -54,6 +55,28 @@ describe('embedded-url', () => {
     expect(url.searchParams.has('user_id')).toBe(false)
     expect(url.searchParams.has('token')).toBe(false)
     expect(url.searchParams.has('lang')).toBe(false)
+    expect(url.searchParams.has('src_host')).toBe(false)
+    expect(url.searchParams.has('src_url')).toBe(false)
+  })
+
+  it('omits credential params when injectCredentials is false', () => {
+    const result = buildEmbeddedUrl(
+      'https://docs.example.com/page',
+      42,
+      'token-123',
+      'light',
+      'en',
+      false,
+    )
+
+    const url = new URL(result)
+    expect(url.searchParams.get('theme')).toBe('light')
+    expect(url.searchParams.get('lang')).toBe('en')
+    expect(url.searchParams.get('ui_mode')).toBe('embedded')
+    expect(url.searchParams.has('user_id')).toBe(false)
+    expect(url.searchParams.has('token')).toBe(false)
+    expect(url.searchParams.has('src_host')).toBe(false)
+    expect(url.searchParams.has('src_url')).toBe(false)
   })
 
   it('returns original string for invalid url input', () => {

@@ -1,7 +1,13 @@
 /**
  * Shared URL builder for iframe-embedded pages.
- * Used by PurchaseSubscriptionView and CustomPageView to build consistent URLs
- * with user_id, token, theme, lang, ui_mode, src_host, and src parameters.
+ * Used by CustomPageView for embedded custom menu pages to build URLs with
+ * theme, lang, ui_mode, and (optionally) user_id, token, src_host, src_url.
+ *
+ * Identity-bearing params (user_id / token / src_host / src_url) are only
+ * appended when the caller passes injectCredentials=true. They MUST stay off
+ * for external sites — leaking a JWT into a third-party CDN's logs/referrer
+ * is a security issue, and many WAFs (e.g. Cloudflare Managed Rules) will
+ * block requests carrying token-shaped query params.
  */
 
 const EMBEDDED_USER_ID_QUERY_KEY = 'user_id'
@@ -19,25 +25,27 @@ export function buildEmbeddedUrl(
   authToken?: string | null,
   theme: 'light' | 'dark' = 'light',
   lang?: string,
+  injectCredentials: boolean = false,
 ): string {
   if (!baseUrl) return baseUrl
   try {
     const url = new URL(baseUrl)
-    if (userId) {
-      url.searchParams.set(EMBEDDED_USER_ID_QUERY_KEY, String(userId))
-    }
-    if (authToken) {
-      url.searchParams.set(EMBEDDED_AUTH_TOKEN_QUERY_KEY, authToken)
-    }
     url.searchParams.set(EMBEDDED_THEME_QUERY_KEY, theme)
     if (lang) {
       url.searchParams.set(EMBEDDED_LANG_QUERY_KEY, lang)
     }
     url.searchParams.set(EMBEDDED_UI_MODE_QUERY_KEY, EMBEDDED_UI_MODE_VALUE)
-    // Source tracking: let the embedded page know where it's being loaded from
-    if (typeof window !== 'undefined') {
-      url.searchParams.set(EMBEDDED_SRC_HOST_QUERY_KEY, window.location.origin)
-      url.searchParams.set(EMBEDDED_SRC_QUERY_KEY, window.location.href)
+    if (injectCredentials) {
+      if (userId) {
+        url.searchParams.set(EMBEDDED_USER_ID_QUERY_KEY, String(userId))
+      }
+      if (authToken) {
+        url.searchParams.set(EMBEDDED_AUTH_TOKEN_QUERY_KEY, authToken)
+      }
+      if (typeof window !== 'undefined') {
+        url.searchParams.set(EMBEDDED_SRC_HOST_QUERY_KEY, window.location.origin)
+        url.searchParams.set(EMBEDDED_SRC_QUERY_KEY, window.location.href)
+      }
     }
     return url.toString()
   } catch {

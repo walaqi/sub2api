@@ -180,6 +180,7 @@ const embeddedUrl = computed(() => {
     authStore.token,
     pageTheme.value,
     locale.value,
+    menuItem.value.inject_credentials ?? false,
   )
 })
 

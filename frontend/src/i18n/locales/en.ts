@@ -5471,6 +5471,8 @@ export default {
         remove: 'Remove',
         moveUp: 'Move Up',
         moveDown: 'Move Down',
+        injectCredentials: 'Inject Login Identity',
+        injectCredentialsHint: 'When enabled, the current user\'s token, user_id, and source URL are appended as query parameters to the target page. Only enable for internal pages that need to recognize the logged-in user. Keep this off for external sites (docs, blogs, Cloudflare Pages, etc.) — otherwise the token may leak or be blocked by the target CDN/WAF.',
       },
       payment: {
         title: 'Payment Settings',
