@@ -371,6 +371,16 @@ const routes: RouteRecordRaw[] = [
       titleKey: 'customPage.title',
     }
   },
+  // 自定义功能：API Key 池绑定页面（独立 view，公开访问，未登录可粘贴预留并就地注册/登录完成绑定）
+  {
+    path: '/bind-key',
+    name: 'BindKey',
+    component: () => import('@/views/BindKeyView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Bind API Key',
+    }
+  },
 
   // ==================== Admin Routes ====================
   {
