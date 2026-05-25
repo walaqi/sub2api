@@ -14,6 +14,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -43,6 +44,7 @@ var (
 	ErrNoEligibleKey         = infraerrors.NotFound("BIND_KEY_NO_ELIGIBLE", "no eligible key found in the provided list")
 	ErrReservationExpired    = infraerrors.NotFound("BIND_KEY_RESERVATION_EXPIRED", "reservation has expired or does not exist")
 	ErrPoolKeyAlreadyClaimed = infraerrors.Conflict("BIND_KEY_RACE", "key has already been claimed by another user")
+	ErrAlreadyParticipated   = infraerrors.Forbidden("BIND_KEY_ALREADY_PARTICIPATED", "you have already bound a key this month")
 )
 
 // ReservationResult is returned to the client after a successful Reserve.
@@ -60,12 +62,23 @@ type CommitResult struct {
 	MaskedKey string `json:"masked_key"`
 }
 
+// EligibilityResult tells the UI whether the caller may participate this
+// month and, if not, when the next natural-month reset happens so it can
+// render a countdown.
+type EligibilityResult struct {
+	Eligible            bool   `json:"eligible"`
+	AlreadyParticipated bool   `json:"already_participated"`
+	NextResetUnixMs     int64  `json:"next_reset_unix_ms"`
+	Reason              string `json:"reason,omitempty"`
+}
+
 // Service implements the bind-key feature.
 type Service struct {
-	client       *ent.Client
-	redis        *redis.Client
-	poolUserID   int64 // 0 if not configured (feature disabled)
-	configErrMsg string
+	client        *ent.Client
+	redis         *redis.Client
+	poolUserID    int64 // 0 if not configured (feature disabled)
+	configErrMsg  string
+	participation *ParticipationStore
 }
 
 // NewService constructs a Service. It resolves the pool user once at
@@ -73,8 +86,12 @@ type Service struct {
 // email is empty or the lookup fails, the service is constructed in a
 // "disabled" state where every call returns ErrPoolUserNotConfigured.
 // This keeps the feature's failure mode isolated from server startup.
-func NewService(ctx context.Context, client *ent.Client, redisClient *redis.Client, poolUserEmail string) *Service {
-	svc := &Service{client: client, redis: redisClient}
+func NewService(ctx context.Context, client *ent.Client, redisClient *redis.Client, poolUserEmail string, dataDir string) *Service {
+	svc := &Service{
+		client:        client,
+		redis:         redisClient,
+		participation: NewParticipationStore(dataDir),
+	}
 
 	email := strings.TrimSpace(strings.ToLower(poolUserEmail))
 	if email == "" {
@@ -100,6 +117,31 @@ func NewService(ctx context.Context, client *ent.Client, redisClient *redis.Clie
 // Enabled reports whether the feature is operational.
 func (s *Service) Enabled() bool {
 	return s != nil && s.poolUserID > 0
+}
+
+// CheckEligibility reports whether userID can bind a key this month.
+// Anonymous callers (userID <= 0) are reported as eligible; the actual
+// monthly-limit gate runs at Commit time once JWT identifies the user.
+func (s *Service) CheckEligibility(ctx context.Context, userID int64) (*EligibilityResult, error) {
+	res := &EligibilityResult{
+		NextResetUnixMs: s.participation.NextResetUnixMs(),
+	}
+	if !s.Enabled() {
+		res.Eligible = false
+		res.Reason = "feature_disabled"
+		return res, nil
+	}
+	if userID <= 0 {
+		res.Eligible = true
+		return res, nil
+	}
+	already, err := s.participation.HasParticipated(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	res.AlreadyParticipated = already
+	res.Eligible = !already
+	return res, nil
 }
 
 // Reserve walks the input keys top-to-bottom and reserves the first one that:
@@ -207,6 +249,18 @@ func (s *Service) Commit(ctx context.Context, userID int64, reservationID string
 		return nil, fmt.Errorf("invalid reservation payload: %w", err)
 	}
 
+	// Monthly-limit gate: enforced here because anonymous /reserve cannot
+	// know the caller's identity. We drop the reservation so a queued key
+	// is freed up for someone else; the lock entry expires naturally.
+	already, err := s.participation.HasParticipated(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if already {
+		_ = s.redis.Del(ctx, resKey).Err()
+		return nil, ErrAlreadyParticipated
+	}
+
 	// TOCTOU guard: only update if the row is still owned by the pool user
 	// and still matches the active/non-deleted invariants.
 	affected, err := s.client.APIKey.Update().
@@ -227,6 +281,13 @@ func (s *Service) Commit(ctx context.Context, userID int64, reservationID string
 		// reserve and commit. Clean up the reservation so the user retries.
 		_ = s.redis.Del(ctx, resKey, redisLockedKeyPrefix+intToStr(keyID)).Err()
 		return nil, ErrPoolKeyAlreadyClaimed
+	}
+
+	// Record participation. Lenient on failure: the key is already
+	// transferred, so refusing the response would be a worse UX than the
+	// (rare) case of a user slipping through twice in a month.
+	if err := s.participation.MarkParticipated(ctx, userID); err != nil {
+		log.Printf("[keybind] mark participation failed for user %d: %v", userID, err)
 	}
 
 	// Fetch the now-claimed row for the response. Lookup error is non-fatal.

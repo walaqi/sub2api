@@ -120,5 +120,5 @@ func registerRoutes(
 	handler.RegisterPageRoutes(v1, cfg.Pricing.DataDir, gin.HandlerFunc(jwtAuth), gin.HandlerFunc(adminAuth), settingService)
 
 	// 自定义功能：API Key 池绑定（独立包，主干仅一行注册）
-	keybind.RegisterRoutes(v1, entClient, redisClient, jwtAuth)
+	keybind.RegisterRoutes(v1, entClient, redisClient, jwtAuth, cfg.Pricing.DataDir)
 }

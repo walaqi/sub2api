@@ -1,9 +1,9 @@
 <template>
   <component :is="layoutComponent">
-    <div class="mx-auto max-w-2xl space-y-6 p-4">
+    <div class="mx-auto w-full max-w-2xl md:max-w-3xl xl:max-w-5xl space-y-6 p-4 md:p-6">
       <!-- Title card -->
       <div class="card overflow-hidden">
-        <div class="bg-gradient-to-br from-primary-500 to-primary-600 px-6 py-8 text-center">
+        <div class="bg-gradient-to-br from-primary-500 to-primary-600 px-6 py-8 md:py-10 text-center">
           <div
             class="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm"
           >
@@ -43,198 +43,265 @@
 
       <!-- Main flow (only when storage works) -->
       <template v-else>
-        <!-- Pending reservation banner -->
+        <!-- Eligibility checking spinner -->
+        <div v-if="loadingEligibility" class="card">
+          <div class="p-6 flex items-center gap-3 text-sm text-gray-600 dark:text-dark-300">
+            <Icon name="clock" size="md" class="text-primary-500 animate-pulse" />
+            {{ tr.eligibilityChecking }}
+          </div>
+        </div>
+
+        <!-- Feature disabled card -->
         <div
-          v-if="pending"
-          class="card border-primary-200 bg-primary-50 dark:border-primary-800/50 dark:bg-primary-900/20"
+          v-else-if="featureDisabled"
+          class="card border-gray-200 bg-gray-50 dark:border-dark-700 dark:bg-dark-800/40"
         >
-          <div class="p-6 space-y-3">
-            <div class="flex items-center gap-3">
-              <Icon name="clock" size="md" class="text-primary-600 dark:text-primary-400" />
-              <h3 class="text-sm font-semibold text-primary-800 dark:text-primary-300">
-                {{ tr.pendingTitle }}
-              </h3>
-            </div>
-            <p class="text-sm text-primary-700 dark:text-primary-400">
-              {{ tr.pendingMatched }}: <span class="font-mono">{{ pending.masked_key }}</span>
-            </p>
-            <p class="text-sm text-primary-700 dark:text-primary-400">
-              {{ tr.pendingExpires }}: <span class="font-mono">{{ remainingMmSs }}</span>
-            </p>
-            <div class="flex flex-wrap gap-2 pt-2">
-              <button
-                v-if="isAuthenticated"
-                class="btn btn-primary"
-                :disabled="committing"
-                @click="commitReservation"
-              >
-                {{ committing ? tr.committing : tr.confirmBind }}
-              </button>
-              <button class="btn btn-ghost" @click="cancelPending">
-                {{ tr.cancelPending }}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Paste & reserve form -->
-        <div v-if="!pending" class="card">
-          <div class="p-6">
-            <form class="space-y-5" @submit.prevent="reserveKeys">
-              <div>
-                <label for="bindkey-textarea" class="input-label">{{ tr.pasteLabel }}</label>
-                <textarea
-                  id="bindkey-textarea"
-                  v-model="rawInput"
-                  :placeholder="tr.pastePlaceholder"
-                  :disabled="reserving"
-                  rows="6"
-                  class="input mt-1 font-mono text-sm"
-                ></textarea>
-                <p class="input-hint">{{ tr.pasteHint }}</p>
-              </div>
-
-              <button
-                type="submit"
-                class="btn btn-primary w-full py-3"
-                :disabled="!hasInput || reserving"
-              >
-                <Icon v-if="!reserving" name="key" size="md" class="mr-2" />
-                {{ reserving ? tr.reserving : tr.bindButton }}
-              </button>
-            </form>
-          </div>
-        </div>
-
-        <!-- Inline auth panel for anonymous user with a pending reservation -->
-        <div v-if="pending && !isAuthenticated" class="card">
-          <div class="p-6 space-y-4">
-            <div class="flex gap-2">
-              <button
-                class="btn"
-                :class="authMode === 'login' ? 'btn-primary' : 'btn-ghost'"
-                @click="authMode = 'login'"
-              >
-                {{ tr.loginTab }}
-              </button>
-              <button
-                class="btn"
-                :class="authMode === 'register' ? 'btn-primary' : 'btn-ghost'"
-                @click="authMode = 'register'"
-              >
-                {{ tr.registerTab }}
-              </button>
-            </div>
-
-            <form class="space-y-4" @submit.prevent="submitAuth">
-              <div>
-                <label for="bindkey-email" class="input-label">{{ tr.emailLabel }}</label>
-                <input
-                  id="bindkey-email"
-                  v-model="authEmail"
-                  type="email"
-                  required
-                  :placeholder="tr.emailPlaceholder"
-                  :disabled="authing"
-                  class="input mt-1"
-                />
-              </div>
-              <div>
-                <label for="bindkey-password" class="input-label">{{ tr.passwordLabel }}</label>
-                <input
-                  id="bindkey-password"
-                  v-model="authPassword"
-                  type="password"
-                  required
-                  :placeholder="tr.passwordPlaceholder"
-                  :disabled="authing"
-                  class="input mt-1"
-                />
-              </div>
-              <button type="submit" class="btn btn-primary w-full py-3" :disabled="authing">
-                {{ authing ? tr.authing : authMode === 'login' ? tr.loginButton : tr.registerButton }}
-              </button>
-            </form>
-
-            <p class="text-xs text-gray-500 dark:text-dark-400">
-              {{ tr.authFooterHint }}
-            </p>
-          </div>
-        </div>
-
-        <!-- Success message -->
-        <transition name="fade">
-          <div
-            v-if="successMessage"
-            class="card border-emerald-200 bg-emerald-50 dark:border-emerald-800/50 dark:bg-emerald-900/20"
-          >
-            <div class="p-6">
-              <div class="flex items-start gap-4">
-                <div
-                  class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/30"
-                >
-                  <Icon name="checkCircle" size="md" class="text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <div class="flex-1">
-                  <h3 class="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
-                    {{ tr.successTitle }}
-                  </h3>
-                  <p class="mt-2 text-sm text-emerald-700 dark:text-emerald-400">
-                    {{ successMessage }}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </transition>
-
-        <!-- Error message -->
-        <transition name="fade">
-          <div
-            v-if="errorMessage"
-            class="card border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-900/20"
-          >
-            <div class="p-6">
-              <div class="flex items-start gap-4">
-                <div
-                  class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-red-100 dark:bg-red-900/30"
-                >
-                  <Icon name="exclamationCircle" size="md" class="text-red-600 dark:text-red-400" />
-                </div>
-                <div class="flex-1">
-                  <h3 class="text-sm font-semibold text-red-800 dark:text-red-300">
-                    {{ tr.errorTitle }}
-                  </h3>
-                  <p class="mt-2 text-sm text-red-700 dark:text-red-400">{{ errorMessage }}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </transition>
-
-        <!-- Info card -->
-        <div
-          class="card border-primary-200 bg-primary-50 dark:border-primary-800/50 dark:bg-primary-900/20"
-        >
-          <div class="p-6">
+          <div class="p-6 md:p-8">
             <div class="flex items-start gap-4">
               <div
-                class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary-100 dark:bg-primary-900/30"
+                class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gray-200 dark:bg-dark-700"
               >
-                <Icon name="infoCircle" size="md" class="text-primary-600 dark:text-primary-400" />
+                <Icon name="exclamationCircle" size="md" class="text-gray-600 dark:text-dark-300" />
               </div>
               <div class="flex-1">
-                <h3 class="text-sm font-semibold text-primary-800 dark:text-primary-300">
-                  {{ tr.howItWorksTitle }}
+                <h3 class="text-sm font-semibold text-gray-800 dark:text-dark-100">
+                  {{ tr.featureDisabledTitle }}
                 </h3>
-                <ul
-                  class="mt-2 list-inside list-disc space-y-1 text-sm text-primary-700 dark:text-primary-400"
+                <p class="mt-2 text-sm text-gray-700 dark:text-dark-300">
+                  {{ tr.featureDisabledBody }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Monthly limit reached -->
+        <div
+          v-else-if="monthlyBlocked"
+          class="card border-purple-200 bg-purple-50 dark:border-purple-800/50 dark:bg-purple-900/20"
+        >
+          <div class="p-6 md:p-8">
+            <div class="flex items-start gap-4">
+              <div
+                class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-900/30"
+              >
+                <Icon name="checkCircle" size="md" class="text-purple-600 dark:text-purple-400" />
+              </div>
+              <div class="flex-1">
+                <h3 class="text-sm font-semibold text-purple-800 dark:text-purple-300">
+                  {{ tr.monthlyLimitTitle }}
+                </h3>
+                <p class="mt-2 text-sm text-purple-700 dark:text-purple-400">
+                  {{ tr.monthlyLimitBody }}
+                </p>
+                <p
+                  v-if="resetCountdown"
+                  class="mt-3 text-sm text-purple-700 dark:text-purple-400"
                 >
-                  <li>{{ tr.howItWorks1 }}</li>
-                  <li>{{ tr.howItWorks2 }}</li>
-                  <li>{{ tr.howItWorks3 }}</li>
-                  <li>{{ tr.howItWorks4 }}</li>
-                </ul>
+                  {{ tr.nextResetLabel }}:
+                  <span class="font-mono font-semibold">{{ resetCountdown }}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-else class="xl:grid xl:grid-cols-3 xl:gap-6 space-y-6 xl:space-y-0">
+          <div class="xl:col-span-2 space-y-6">
+            <!-- Pending reservation banner -->
+            <div
+              v-if="pending"
+              class="card border-primary-200 bg-primary-50 dark:border-primary-800/50 dark:bg-primary-900/20"
+            >
+              <div class="p-6 md:p-8 space-y-3">
+                <div class="flex items-center gap-3">
+                  <Icon name="clock" size="md" class="text-primary-600 dark:text-primary-400" />
+                  <h3 class="text-sm font-semibold text-primary-800 dark:text-primary-300">
+                    {{ tr.pendingTitle }}
+                  </h3>
+                </div>
+                <p class="text-sm text-primary-700 dark:text-primary-400">
+                  {{ tr.pendingMatched }}: <span class="font-mono">{{ pending.masked_key }}</span>
+                </p>
+                <p class="text-sm text-primary-700 dark:text-primary-400">
+                  {{ tr.pendingExpires }}: <span class="font-mono">{{ remainingMmSs }}</span>
+                </p>
+                <div class="flex flex-wrap gap-2 pt-2">
+                  <button
+                    v-if="isAuthenticated"
+                    class="btn btn-primary"
+                    :disabled="committing"
+                    @click="commitReservation"
+                  >
+                    {{ committing ? tr.committing : tr.confirmBind }}
+                  </button>
+                  <button class="btn btn-ghost" @click="cancelPending">
+                    {{ tr.cancelPending }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Paste & reserve form -->
+            <div v-if="!pending" class="card">
+              <div class="p-6 md:p-8">
+                <form class="space-y-5" @submit.prevent="reserveKeys">
+                  <div>
+                    <label for="bindkey-textarea" class="input-label">{{ tr.pasteLabel }}</label>
+                    <textarea
+                      id="bindkey-textarea"
+                      v-model="rawInput"
+                      :placeholder="tr.pastePlaceholder"
+                      :disabled="reserving"
+                      rows="6"
+                      class="input mt-1 font-mono text-sm"
+                    ></textarea>
+                    <p class="input-hint">{{ tr.pasteHint }}</p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    class="btn btn-primary w-full py-3"
+                    :disabled="!hasInput || reserving"
+                  >
+                    <Icon v-if="!reserving" name="key" size="md" class="mr-2" />
+                    {{ reserving ? tr.reserving : tr.bindButton }}
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <!-- Inline auth panel for anonymous user with a pending reservation -->
+            <div v-if="pending && !isAuthenticated" class="card">
+              <div class="p-6 md:p-8 space-y-4">
+                <div class="flex gap-2">
+                  <button
+                    class="btn"
+                    :class="authMode === 'login' ? 'btn-primary' : 'btn-ghost'"
+                    @click="authMode = 'login'"
+                  >
+                    {{ tr.loginTab }}
+                  </button>
+                  <button
+                    class="btn"
+                    :class="authMode === 'register' ? 'btn-primary' : 'btn-ghost'"
+                    @click="authMode = 'register'"
+                  >
+                    {{ tr.registerTab }}
+                  </button>
+                </div>
+
+                <form class="space-y-4" @submit.prevent="submitAuth">
+                  <div>
+                    <label for="bindkey-email" class="input-label">{{ tr.emailLabel }}</label>
+                    <input
+                      id="bindkey-email"
+                      v-model="authEmail"
+                      type="email"
+                      required
+                      :placeholder="tr.emailPlaceholder"
+                      :disabled="authing"
+                      class="input mt-1"
+                    />
+                  </div>
+                  <div>
+                    <label for="bindkey-password" class="input-label">{{ tr.passwordLabel }}</label>
+                    <input
+                      id="bindkey-password"
+                      v-model="authPassword"
+                      type="password"
+                      required
+                      :placeholder="tr.passwordPlaceholder"
+                      :disabled="authing"
+                      class="input mt-1"
+                    />
+                  </div>
+                  <button type="submit" class="btn btn-primary w-full py-3" :disabled="authing">
+                    {{ authing ? tr.authing : authMode === 'login' ? tr.loginButton : tr.registerButton }}
+                  </button>
+                </form>
+
+                <p class="text-xs text-gray-500 dark:text-dark-400">
+                  {{ tr.authFooterHint }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Success message -->
+            <transition name="fade">
+              <div
+                v-if="successMessage"
+                class="card border-emerald-200 bg-emerald-50 dark:border-emerald-800/50 dark:bg-emerald-900/20"
+              >
+                <div class="p-6 md:p-8">
+                  <div class="flex items-start gap-4">
+                    <div
+                      class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/30"
+                    >
+                      <Icon name="checkCircle" size="md" class="text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div class="flex-1">
+                      <h3 class="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+                        {{ tr.successTitle }}
+                      </h3>
+                      <p class="mt-2 text-sm text-emerald-700 dark:text-emerald-400">
+                        {{ successMessage }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </transition>
+
+            <!-- Error message -->
+            <transition name="fade">
+              <div
+                v-if="errorMessage"
+                class="card border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-900/20"
+              >
+                <div class="p-6 md:p-8">
+                  <div class="flex items-start gap-4">
+                    <div
+                      class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-red-100 dark:bg-red-900/30"
+                    >
+                      <Icon name="exclamationCircle" size="md" class="text-red-600 dark:text-red-400" />
+                    </div>
+                    <div class="flex-1">
+                      <h3 class="text-sm font-semibold text-red-800 dark:text-red-300">
+                        {{ tr.errorTitle }}
+                      </h3>
+                      <p class="mt-2 text-sm text-red-700 dark:text-red-400">{{ errorMessage }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </transition>
+          </div>
+
+          <!-- Info card -->
+          <div
+            class="card border-primary-200 bg-primary-50 dark:border-primary-800/50 dark:bg-primary-900/20 xl:self-start"
+          >
+            <div class="p-6 md:p-8">
+              <div class="flex items-start gap-4">
+                <div
+                  class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary-100 dark:bg-primary-900/30"
+                >
+                  <Icon name="infoCircle" size="md" class="text-primary-600 dark:text-primary-400" />
+                </div>
+                <div class="flex-1">
+                  <h3 class="text-sm font-semibold text-primary-800 dark:text-primary-300">
+                    {{ tr.howItWorksTitle }}
+                  </h3>
+                  <ul
+                    class="mt-2 list-inside list-disc space-y-1 text-sm text-primary-700 dark:text-primary-400"
+                  >
+                    <li>{{ tr.howItWorks1 }}</li>
+                    <li>{{ tr.howItWorks2 }}</li>
+                    <li>{{ tr.howItWorks3 }}</li>
+                    <li>{{ tr.howItWorks4 }}</li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>
@@ -294,6 +361,15 @@ const en: Copy = {
   noEligible: 'No eligible key found in your list. The keys may already be claimed or have less than 50% quota left.',
   emptyInput: 'Please paste at least one key.',
   successBound: 'The key {key} is now bound to your account.',
+  monthlyLimitTitle: 'You have already bound a key this month',
+  monthlyLimitBody: 'Each account can claim one key per natural month. Eligibility resets on the 1st of next month.',
+  nextResetLabel: 'Next reset in',
+  daysShort: 'd',
+  hoursShort: 'h',
+  minutesShort: 'm',
+  featureDisabledTitle: 'This feature is currently unavailable',
+  featureDisabledBody: 'The key pool has not been configured by the administrator. Please try again later.',
+  eligibilityChecking: 'Checking your eligibility…',
 }
 const zh: Copy = {
   title: '绑定 API Key',
@@ -334,6 +410,15 @@ const zh: Copy = {
   noEligible: '列表中没有可用的 Key。这些 Key 可能已被绑定，或剩余配额不足 50%。',
   emptyInput: '请至少粘贴一个 Key。',
   successBound: 'Key {key} 已成功绑定到你的账户。',
+  monthlyLimitTitle: '本月已参与绑定',
+  monthlyLimitBody: '每个账号每个自然月只能领取一次。下月 1 日 0 点自动恢复资格。',
+  nextResetLabel: '下次重置',
+  daysShort: '天',
+  hoursShort: '小时',
+  minutesShort: '分钟',
+  featureDisabledTitle: '该功能当前未开启',
+  featureDisabledBody: '管理员尚未配置 Key 池，请稍后再试。',
+  eligibilityChecking: '正在检查参与资格…',
 }
 
 const { locale } = useI18n()
@@ -414,6 +499,20 @@ const errorMessage = ref('')
 const successMessage = ref('')
 const pending = ref<Pending | null>(null)
 
+type Eligibility = {
+  eligible: boolean
+  already_participated: boolean
+  next_reset_unix_ms: number
+  reason?: string
+}
+const eligibility = ref<Eligibility | null>(null)
+const loadingEligibility = ref(false)
+
+const featureDisabled = computed(
+  () => eligibility.value?.eligible === false && eligibility.value?.reason === 'feature_disabled'
+)
+const monthlyBlocked = computed(() => eligibility.value?.already_participated === true)
+
 const hasInput = computed(() => rawInput.value.trim().length > 0)
 
 // ----- Countdown -----
@@ -447,6 +546,40 @@ function extractError(e: any): string {
     'unknown error'
   )
 }
+
+async function fetchEligibility(): Promise<void> {
+  if (!isAuthenticated.value) {
+    eligibility.value = null
+    return
+  }
+  loadingEligibility.value = true
+  try {
+    const { data } = await apiClient.get<ApiEnvelope<Eligibility>>('/bind-key/eligibility')
+    const result = ((data as any).data ?? data) as Eligibility
+    eligibility.value = result
+  } catch (e: any) {
+    // Non-fatal: fall back to letting the user attempt the flow; commit will gate.
+    eligibility.value = null
+  } finally {
+    loadingEligibility.value = false
+  }
+}
+
+const resetCountdown = computed(() => {
+  const ts = eligibility.value?.next_reset_unix_ms
+  if (!ts) return ''
+  const ms = ts - now.value
+  if (ms <= 0) return ''
+  const totalMin = Math.floor(ms / 60000)
+  const days = Math.floor(totalMin / (60 * 24))
+  const hours = Math.floor((totalMin % (60 * 24)) / 60)
+  const minutes = totalMin % 60
+  const parts: string[] = []
+  if (days > 0) parts.push(`${days}${tr.value.daysShort}`)
+  if (hours > 0 || days > 0) parts.push(`${hours}${tr.value.hoursShort}`)
+  parts.push(`${minutes}${tr.value.minutesShort}`)
+  return parts.join(' ')
+})
 
 async function reserveKeys(): Promise<void> {
   errorMessage.value = ''
@@ -505,6 +638,19 @@ async function commitReservation(): Promise<void> {
       errorMessage.value = tr.value.expired
       clearPending()
       pending.value = null
+    } else if (code === 'BIND_KEY_ALREADY_PARTICIPATED') {
+      // Server-side gate fired (e.g. user opened two tabs). Flip the UI
+      // into the monthly-limit state so it's consistent with refresh.
+      eligibility.value = {
+        eligible: false,
+        already_participated: true,
+        next_reset_unix_ms:
+          e?.response?.data?.data?.next_reset_unix_ms ??
+          eligibility.value?.next_reset_unix_ms ??
+          0,
+      }
+      clearPending()
+      pending.value = null
     } else {
       errorMessage.value = extractError(e)
     }
@@ -542,13 +688,30 @@ async function submitAuth(): Promise<void> {
 onMounted(async () => {
   if (!storageOk.value) return
   pending.value = readPending()
-  // Auto-commit if we returned to the page already logged in with a live pending.
-  if (pending.value && isAuthenticated.value) {
+  if (isAuthenticated.value) {
+    await fetchEligibility()
+  }
+  // Auto-commit if we returned to the page already logged in with a live
+  // pending and we still have eligibility.
+  if (
+    pending.value &&
+    isAuthenticated.value &&
+    !featureDisabled.value &&
+    !monthlyBlocked.value
+  ) {
     await commitReservation()
   }
   timer = setInterval(() => {
     now.value = Date.now()
   }, 1000)
+})
+
+watch(isAuthenticated, async (v) => {
+  if (v) {
+    await fetchEligibility()
+  } else {
+    eligibility.value = null
+  }
 })
 
 onBeforeUnmount(() => {

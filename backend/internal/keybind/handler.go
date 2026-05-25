@@ -65,3 +65,20 @@ func (h *Handler) Commit(c *gin.Context) {
 	}
 	response.Success(c, result)
 }
+
+// Eligibility handles GET /api/v1/bind-key/eligibility.
+// Requires JWT auth — anonymous callers don't have a stable identity to
+// gate on, and the client only renders this in the authenticated flow.
+func (h *Handler) Eligibility(c *gin.Context) {
+	subject, ok := servermiddleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "user not authenticated")
+		return
+	}
+	res, err := h.svc.CheckEligibility(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, res)
+}

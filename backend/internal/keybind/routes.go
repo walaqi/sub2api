@@ -36,6 +36,7 @@ func RegisterRoutes(
 	client *ent.Client,
 	redisClient *redis.Client,
 	jwtAuth servermiddleware.JWTAuthMiddleware,
+	dataDir string,
 ) {
 	if client == nil || redisClient == nil {
 		log.Printf("[keybind] disabled: missing ent client or redis client")
@@ -46,7 +47,7 @@ func RegisterRoutes(
 	if poolEmail == "" {
 		poolEmail = DefaultPoolUserEmail
 	}
-	svc := NewService(context.Background(), client, redisClient, poolEmail)
+	svc := NewService(context.Background(), client, redisClient, poolEmail, dataDir)
 	if !svc.Enabled() {
 		log.Printf("[keybind] feature is disabled (pool user %q not found; create the user or override via %s)", poolEmail, PoolUserEmailEnv)
 	} else {
@@ -55,6 +56,7 @@ func RegisterRoutes(
 
 	h := NewHandler(svc)
 	g := v1.Group("/bind-key")
-	g.POST("/reserve", h.Reserve)                         // public
-	g.POST("/commit", gin.HandlerFunc(jwtAuth), h.Commit) // requires JWT
+	g.POST("/reserve", h.Reserve)                                   // public
+	g.POST("/commit", gin.HandlerFunc(jwtAuth), h.Commit)           // requires JWT
+	g.GET("/eligibility", gin.HandlerFunc(jwtAuth), h.Eligibility) // requires JWT
 }
