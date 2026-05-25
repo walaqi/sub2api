@@ -1,6 +1,6 @@
 <template>
   <component :is="layoutComponent">
-    <div class="mx-auto w-full max-w-2xl md:max-w-3xl xl:max-w-5xl space-y-6 p-4 md:p-6">
+    <div class="mx-auto w-full max-w-2xl md:max-w-3xl space-y-6 p-4 md:p-6">
       <!-- Title card -->
       <div class="card overflow-hidden">
         <div class="bg-gradient-to-br from-primary-500 to-primary-600 px-6 py-8 md:py-10 text-center">
@@ -106,9 +106,8 @@
           </div>
         </div>
 
-        <div v-else class="xl:grid xl:grid-cols-3 xl:gap-6 space-y-6 xl:space-y-0">
-          <div class="xl:col-span-2 space-y-6">
-            <!-- Pending reservation banner -->
+        <div v-else class="space-y-6">
+          <!-- Pending reservation banner -->
             <div
               v-if="pending"
               class="card border-primary-200 bg-primary-50 dark:border-primary-800/50 dark:bg-primary-900/20"
@@ -276,11 +275,10 @@
                 </div>
               </div>
             </transition>
-          </div>
 
           <!-- Info card -->
           <div
-            class="card border-primary-200 bg-primary-50 dark:border-primary-800/50 dark:bg-primary-900/20 xl:self-start"
+            class="card border-primary-200 bg-primary-50 dark:border-primary-800/50 dark:bg-primary-900/20"
           >
             <div class="p-6 md:p-8">
               <div class="flex items-start gap-4">
@@ -312,13 +310,50 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiClient } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import AppLayout from '@/components/layout/AppLayout.vue'
-import AuthLayout from '@/components/layout/AuthLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
+
+// Anonymous wrapper: gives the page a full-width canvas without clamping
+// content to AuthLayout's max-w-md (which is sized for login cards).
+const AnonShell = defineComponent({
+  name: 'BindKeyAnonShell',
+  setup(_, { slots }) {
+    return () =>
+      h(
+        'div',
+        { class: 'relative min-h-screen bg-gray-50 dark:bg-dark-950' },
+        [
+          h('div', {
+            class:
+              'pointer-events-none fixed inset-0 bg-gradient-to-br from-gray-50 via-primary-50/30 to-gray-100 dark:from-dark-950 dark:via-dark-900 dark:to-dark-950',
+          }),
+          h(
+            'div',
+            { class: 'pointer-events-none fixed inset-0 overflow-hidden' },
+            [
+              h('div', {
+                class:
+                  'absolute -right-40 -top-40 h-80 w-80 rounded-full bg-primary-400/20 blur-3xl',
+              }),
+              h('div', {
+                class:
+                  'absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-primary-500/15 blur-3xl',
+              }),
+              h('div', {
+                class:
+                  'absolute inset-0 bg-[linear-gradient(rgba(20,184,166,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(20,184,166,0.03)_1px,transparent_1px)] bg-[size:64px_64px]',
+              }),
+            ]
+          ),
+          h('main', { class: 'relative z-10 p-4 md:p-6 lg:p-8' }, slots.default?.()),
+        ]
+      )
+  },
+})
 
 // ----- Bilingual copy (kept inline so we don't touch i18n locale files) -----
 type Copy = Record<string, string>
@@ -447,7 +482,7 @@ function recheckStorage(): void {
 // ----- Auth state -----
 const authStore = useAuthStore()
 const isAuthenticated = computed(() => authStore.isAuthenticated)
-const layoutComponent = computed(() => (isAuthenticated.value ? AppLayout : AuthLayout))
+const layoutComponent = computed(() => (isAuthenticated.value ? AppLayout : AnonShell))
 
 // ----- Component state -----
 type Pending = {
