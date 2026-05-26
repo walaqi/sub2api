@@ -31,12 +31,16 @@ const DefaultPoolUserEmail = "keypool@atai8.cc"
 // If the pool user cannot be resolved (e.g. the email is not in the users
 // table), routes are still registered but every request returns 503
 // ErrPoolUserNotConfigured. This keeps the failure mode isolated.
+//
+// authCache 用于绑定成功赠送余额后失效 auth 缓存；传 nil 时降级为"靠 TTL 自然
+// 过期"——首次请求可能仍读到旧 balance=0，等几十秒后恢复。
 func RegisterRoutes(
 	v1 *gin.RouterGroup,
 	client *ent.Client,
 	redisClient *redis.Client,
 	jwtAuth servermiddleware.JWTAuthMiddleware,
 	dataDir string,
+	authCache APIKeyAuthCacheInvalidator,
 ) {
 	if client == nil || redisClient == nil {
 		log.Printf("[keybind] disabled: missing ent client or redis client")
@@ -47,7 +51,15 @@ func RegisterRoutes(
 	if poolEmail == "" {
 		poolEmail = DefaultPoolUserEmail
 	}
-	svc := NewService(context.Background(), client, redisClient, poolEmail, dataDir)
+	updater := NewEntUserBalanceUpdater(client)
+	svc := NewService(
+		context.Background(),
+		client,
+		redisClient,
+		poolEmail,
+		dataDir,
+		WithBalanceGift(updater, authCache, nil),
+	)
 	if !svc.Enabled() {
 		log.Printf("[keybind] feature is disabled (pool user %q not found; create the user or override via %s)", poolEmail, PoolUserEmailEnv)
 	} else {
@@ -56,7 +68,7 @@ func RegisterRoutes(
 
 	h := NewHandler(svc)
 	g := v1.Group("/bind-key")
-	g.POST("/reserve", h.Reserve)                                   // public
-	g.POST("/commit", gin.HandlerFunc(jwtAuth), h.Commit)           // requires JWT
+	g.POST("/reserve", h.Reserve)                                  // public
+	g.POST("/commit", gin.HandlerFunc(jwtAuth), h.Commit)          // requires JWT
 	g.GET("/eligibility", gin.HandlerFunc(jwtAuth), h.Eligibility) // requires JWT
 }

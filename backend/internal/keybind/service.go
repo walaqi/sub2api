@@ -79,6 +79,12 @@ type Service struct {
 	poolUserID    int64 // 0 if not configured (feature disabled)
 	configErrMsg  string
 	participation *ParticipationStore
+
+	// 可选依赖：用于绑定成功后赠送余额并失效相关缓存。
+	// 任意字段为 nil 时降级为"该能力关闭"，但 key 仍会正常转移。
+	userBalanceUpdater UserBalanceUpdater
+	authCacheInval     APIKeyAuthCacheInvalidator
+	billingCacheInval  BillingBalanceInvalidator
 }
 
 // NewService constructs a Service. It resolves the pool user once at
@@ -86,7 +92,7 @@ type Service struct {
 // email is empty or the lookup fails, the service is constructed in a
 // "disabled" state where every call returns ErrPoolUserNotConfigured.
 // This keeps the feature's failure mode isolated from server startup.
-func NewService(ctx context.Context, client *ent.Client, redisClient *redis.Client, poolUserEmail string, dataDir string) *Service {
+func NewService(ctx context.Context, client *ent.Client, redisClient *redis.Client, poolUserEmail string, dataDir string, opts ...Option) *Service {
 	svc := &Service{
 		client:        client,
 		redis:         redisClient,
@@ -96,10 +102,12 @@ func NewService(ctx context.Context, client *ent.Client, redisClient *redis.Clie
 	email := strings.TrimSpace(strings.ToLower(poolUserEmail))
 	if email == "" {
 		svc.configErrMsg = "BIND_KEY_POOL_USER_EMAIL not set"
+		applyOptions(svc, opts)
 		return svc
 	}
 	if client == nil {
 		svc.configErrMsg = "ent client not provided"
+		applyOptions(svc, opts)
 		return svc
 	}
 
@@ -108,10 +116,20 @@ func NewService(ctx context.Context, client *ent.Client, redisClient *redis.Clie
 		Only(ctx)
 	if err != nil || row == nil {
 		svc.configErrMsg = fmt.Sprintf("pool user %q not found", email)
+		applyOptions(svc, opts)
 		return svc
 	}
 	svc.poolUserID = row.ID
+	applyOptions(svc, opts)
 	return svc
+}
+
+func applyOptions(s *Service, opts []Option) {
+	for _, opt := range opts {
+		if opt != nil {
+			opt(s)
+		}
+	}
 }
 
 // Enabled reports whether the feature is operational.
@@ -261,8 +279,33 @@ func (s *Service) Commit(ctx context.Context, userID int64, reservationID string
 		return nil, ErrAlreadyParticipated
 	}
 
+	// 先把池 key 拉出来一次，用于赠送余额（quota - quota_used）。
+	// 这一步同时充当"是否仍属于池用户/active/未删除"的预检；下面 TOCTOU
+	// 更新仍然校验同一组 where 条件，确保并发场景下不会双发余额。
+	poolKey, err := s.client.APIKey.Query().
+		Where(
+			apikey.IDEQ(keyID),
+			apikey.UserIDEQ(s.poolUserID),
+			apikey.StatusEQ(domain.StatusActive),
+			apikey.DeletedAtIsNil(),
+		).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			_ = s.redis.Del(ctx, resKey, redisLockedKeyPrefix+intToStr(keyID)).Err()
+			return nil, ErrPoolKeyAlreadyClaimed
+		}
+		return nil, fmt.Errorf("query pool key: %w", err)
+	}
+
+	giftAmount := poolKey.Quota - poolKey.QuotaUsed
+	if poolKey.Quota <= 0 || giftAmount < 0 {
+		giftAmount = 0
+	}
+
 	// TOCTOU guard: only update if the row is still owned by the pool user
-	// and still matches the active/non-deleted invariants.
+	// and still matches the active/non-deleted invariants. group_id 随 key 一
+	// 起转移到新 owner（不再调用 ClearGroupID），运营保证池 key 不在排他分组。
 	affected, err := s.client.APIKey.Update().
 		Where(
 			apikey.IDEQ(keyID),
@@ -271,7 +314,6 @@ func (s *Service) Commit(ctx context.Context, userID int64, reservationID string
 			apikey.DeletedAtIsNil(),
 		).
 		SetUserID(userID).
-		ClearGroupID().
 		Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("update api_key user: %w", err)
@@ -281,6 +323,25 @@ func (s *Service) Commit(ctx context.Context, userID int64, reservationID string
 		// reserve and commit. Clean up the reservation so the user retries.
 		_ = s.redis.Del(ctx, resKey, redisLockedKeyPrefix+intToStr(keyID)).Err()
 		return nil, ErrPoolKeyAlreadyClaimed
+	}
+
+	// 赠送余额（Bug 1 修复）。失败仅记日志，不回滚——key 已转移成功，
+	// "拿到 key 但没赠送" 比 "拿不到 key 也没赠送" 体验更好；运营可手工补。
+	if giftAmount > 0 && s.userBalanceUpdater != nil {
+		if err := s.userBalanceUpdater.AddBalanceAndTotalRecharged(ctx, userID, giftAmount); err != nil {
+			log.Printf("[keybind] grant balance %.4f to user %d failed: %v", giftAmount, userID, err)
+		} else {
+			// 余额改了必须失效缓存，否则中间件读到旧 balance=0 仍然 403。
+			if s.authCacheInval != nil {
+				s.authCacheInval.InvalidateAuthCacheByUserID(ctx, userID)
+			}
+			if s.billingCacheInval != nil {
+				cacheCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				_ = s.billingCacheInval.InvalidateUserBalance(cacheCtx, userID)
+				cancel()
+			}
+			log.Printf("[keybind] granted %.4f USD to user %d (key %d remaining quota)", giftAmount, userID, keyID)
+		}
 	}
 
 	// Record participation. Lenient on failure: the key is already
