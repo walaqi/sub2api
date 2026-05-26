@@ -199,7 +199,7 @@
                       type="email"
                       required
                       :placeholder="tr.emailPlaceholder"
-                      :disabled="authing"
+                      :disabled="authing || verifyStep === 'code'"
                       class="input mt-1"
                     />
                   </div>
@@ -211,17 +211,84 @@
                       type="password"
                       required
                       :placeholder="tr.passwordPlaceholder"
-                      :disabled="authing"
+                      :disabled="authing || verifyStep === 'code'"
                       class="input mt-1"
                     />
                   </div>
-                  <button type="submit" class="btn btn-primary w-full py-3" :disabled="authing">
-                    {{ authing ? tr.authing : authMode === 'login' ? tr.loginButton : tr.registerButton }}
+
+                  <!-- Turnstile (rendered when enabled and we still need a token) -->
+                  <div
+                    v-if="turnstileEnabled && turnstileSiteKey && (authMode === 'login' || verifyStep === 'credentials')"
+                  >
+                    <TurnstileWidget
+                      :key="turnstileWidgetKey"
+                      :site-key="turnstileSiteKey"
+                      @verify="(t: string) => (turnstileToken = t)"
+                      @expire="turnstileToken = ''"
+                      @error="turnstileToken = ''"
+                    />
+                  </div>
+
+                  <!-- Verification code step (register + email_verify_enabled) -->
+                  <div v-if="authMode === 'register' && emailVerifyEnabled && verifyStep === 'code'">
+                    <label for="bindkey-verify-code" class="input-label">
+                      {{ tr.verifyCodeLabel }}
+                    </label>
+                    <input
+                      id="bindkey-verify-code"
+                      v-model="verifyCode"
+                      type="text"
+                      inputmode="numeric"
+                      maxlength="6"
+                      required
+                      :placeholder="tr.verifyCodePlaceholder"
+                      :disabled="authing"
+                      class="input mt-1 font-mono tracking-widest"
+                    />
+                    <p class="input-hint">{{ tr.codeSentHint }}</p>
+                    <div class="mt-2 flex items-center justify-between text-xs">
+                      <button
+                        type="button"
+                        class="text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50 disabled:no-underline"
+                        :disabled="codeSending || codeCountdown > 0"
+                        @click="sendRegisterCode"
+                      >
+                        {{
+                          codeSending
+                            ? tr.sendingCode
+                            : codeCountdown > 0
+                              ? tr.resendCodeIn.replace('{s}', String(codeCountdown))
+                              : tr.resendCode
+                        }}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button type="submit" class="btn btn-primary w-full py-3" :disabled="authing || codeSending">
+                    {{
+                      authing
+                        ? tr.authing
+                        : authMode === 'login'
+                          ? tr.loginButton
+                          : emailVerifyEnabled
+                            ? verifyStep === 'credentials'
+                              ? (codeSending ? tr.sendingCode : tr.sendCodeButton)
+                              : tr.verifyAndRegisterButton
+                            : tr.registerButton
+                    }}
                   </button>
                 </form>
 
                 <p class="text-xs text-gray-500 dark:text-dark-400">
                   {{ tr.authFooterHint }}
+                </p>
+                <p class="text-xs text-gray-500 dark:text-dark-400">
+                  {{ tr.fullRegisterHintPrefix }}
+                  <a
+                    :href="fullRegisterUrl"
+                    class="text-primary-600 hover:underline dark:text-primary-400"
+                    >{{ fullRegisterUrl }}</a
+                  >
                 </p>
               </div>
             </div>
@@ -313,9 +380,11 @@
 import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiClient } from '@/api/client'
+import { getPublicSettings, sendVerifyCode } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
+import TurnstileWidget from '@/components/TurnstileWidget.vue'
 
 // Anonymous wrapper: gives the page a full-width canvas without clamping
 // content to AuthLayout's max-w-md (which is sized for login cards).
@@ -381,6 +450,7 @@ const en: Copy = {
   registerButton: 'Register & Bind',
   authing: 'Processing…',
   authFooterHint: 'Your reservation is held for up to 5 minutes. Login or register to claim it.',
+  fullRegisterHintPrefix: 'For the full registration flow, visit',
   successTitle: 'Key bound successfully',
   errorTitle: 'Something went wrong',
   storageUnavailableTitle: 'Browser storage is unavailable',
@@ -405,6 +475,17 @@ const en: Copy = {
   featureDisabledTitle: 'This feature is currently unavailable',
   featureDisabledBody: 'The key pool has not been configured by the administrator. Please try again later.',
   eligibilityChecking: 'Checking your eligibility…',
+  verifyCodeLabel: 'Verification Code',
+  verifyCodePlaceholder: '6-digit code',
+  sendCodeButton: 'Send Code',
+  sendingCode: 'Sending…',
+  resendCodeIn: 'Resend in {s}s',
+  resendCode: 'Resend',
+  verifyAndRegisterButton: 'Verify & Register',
+  codeSentHint: 'A 6-digit code has been sent to your email. It expires in a few minutes.',
+  codeRequired: 'Please enter the 6-digit verification code.',
+  invalidCode: 'The code must be 6 digits.',
+  turnstileRequired: 'Please complete the human verification.',
 }
 const zh: Copy = {
   title: '绑定 API Key',
@@ -430,6 +511,7 @@ const zh: Copy = {
   registerButton: '注册并完成绑定',
   authing: '处理中…',
   authFooterHint: '你的预留有效期为 5 分钟，请登录或注册以完成绑定。',
+  fullRegisterHintPrefix: '如果需要完整注册流程请访问',
   successTitle: '绑定成功',
   errorTitle: '出现错误',
   storageUnavailableTitle: '浏览器本地存储不可用',
@@ -454,10 +536,23 @@ const zh: Copy = {
   featureDisabledTitle: '该功能当前未开启',
   featureDisabledBody: '管理员尚未配置 Key 池，请稍后再试。',
   eligibilityChecking: '正在检查参与资格…',
+  verifyCodeLabel: '邮箱验证码',
+  verifyCodePlaceholder: '6 位验证码',
+  sendCodeButton: '发送验证码',
+  sendingCode: '发送中…',
+  resendCodeIn: '{s} 秒后可重发',
+  resendCode: '重新发送',
+  verifyAndRegisterButton: '验证并注册',
+  codeSentHint: '6 位验证码已发送到你的邮箱，几分钟内有效。',
+  codeRequired: '请输入 6 位验证码。',
+  invalidCode: '验证码必须为 6 位数字。',
+  turnstileRequired: '请先完成人机验证。',
 }
 
 const { locale } = useI18n()
 const tr = computed<Copy>(() => (String(locale.value).startsWith('zh') ? zh : en))
+
+const fullRegisterUrl = computed(() => `${window.location.origin}/register`)
 
 // ----- Storage availability detection -----
 const STORAGE_KEY = 'bindkey_pending'
@@ -534,6 +629,23 @@ const errorMessage = ref('')
 const successMessage = ref('')
 const pending = ref<Pending | null>(null)
 
+// Public settings (loaded on mount): drives whether registration requires
+// email verification and/or Turnstile. Defaults are conservative (off) so
+// the existing single-step flow keeps working when settings fail to load.
+const emailVerifyEnabled = ref(false)
+const turnstileEnabled = ref(false)
+const turnstileSiteKey = ref('')
+
+// Two-step register state. When emailVerifyEnabled is true, submitAuth()
+// transitions credentials → code instead of calling register directly.
+const verifyStep = ref<'credentials' | 'code'>('credentials')
+const verifyCode = ref('')
+const codeSending = ref(false)
+const codeCountdown = ref(0)
+let codeCountdownTimer: ReturnType<typeof setInterval> | null = null
+const turnstileToken = ref('')
+const turnstileWidgetKey = ref(0)
+
 type Eligibility = {
   eligible: boolean
   already_participated: boolean
@@ -575,9 +687,9 @@ watch(remainingMs, (v) => {
 type ApiEnvelope<T> = { code: number; data: T; message?: string }
 function extractError(e: any): string {
   return (
+    e?.message ||
     e?.response?.data?.message ||
     e?.response?.data?.detail ||
-    e?.message ||
     'unknown error'
   )
 }
@@ -640,7 +752,7 @@ async function reserveKeys(): Promise<void> {
       await commitReservation()
     }
   } catch (e: any) {
-    const code = e?.response?.data?.reason
+    const code = e?.reason ?? e?.response?.data?.reason
     if (code === 'BIND_KEY_NO_ELIGIBLE') {
       errorMessage.value = tr.value.noEligible
     } else {
@@ -668,7 +780,7 @@ async function commitReservation(): Promise<void> {
     clearPending()
     pending.value = null
   } catch (e: any) {
-    const code = e?.response?.data?.reason
+    const code = e?.reason ?? e?.response?.data?.reason
     if (code === 'BIND_KEY_RESERVATION_EXPIRED') {
       errorMessage.value = tr.value.expired
       clearPending()
@@ -680,6 +792,7 @@ async function commitReservation(): Promise<void> {
         eligible: false,
         already_participated: true,
         next_reset_unix_ms:
+          e?.metadata?.next_reset_unix_ms ??
           e?.response?.data?.data?.next_reset_unix_ms ??
           eligibility.value?.next_reset_unix_ms ??
           0,
@@ -699,14 +812,89 @@ function cancelPending(): void {
   pending.value = null
 }
 
+function startCodeCountdown(seconds: number): void {
+  if (codeCountdownTimer) {
+    clearInterval(codeCountdownTimer)
+    codeCountdownTimer = null
+  }
+  codeCountdown.value = Math.max(0, Math.floor(seconds))
+  if (codeCountdown.value <= 0) return
+  codeCountdownTimer = setInterval(() => {
+    if (codeCountdown.value > 0) {
+      codeCountdown.value--
+    } else if (codeCountdownTimer) {
+      clearInterval(codeCountdownTimer)
+      codeCountdownTimer = null
+    }
+  }, 1000)
+}
+
+async function sendRegisterCode(): Promise<void> {
+  errorMessage.value = ''
+  const email = authEmail.value.trim()
+  if (!email) {
+    errorMessage.value = tr.value.emailLabel
+    return
+  }
+  if (turnstileEnabled.value && !turnstileToken.value) {
+    errorMessage.value = tr.value.turnstileRequired
+    return
+  }
+  codeSending.value = true
+  try {
+    const resp = await sendVerifyCode({
+      email,
+      turnstile_token: turnstileToken.value || undefined,
+    })
+    verifyStep.value = 'code'
+    startCodeCountdown(resp.countdown || 60)
+    // Token is single-use; force a re-render so the next resend asks anew.
+    turnstileToken.value = ''
+    turnstileWidgetKey.value++
+  } catch (e: any) {
+    errorMessage.value = extractError(e)
+  } finally {
+    codeSending.value = false
+  }
+}
+
 async function submitAuth(): Promise<void> {
   errorMessage.value = ''
   authing.value = true
   try {
     if (authMode.value === 'login') {
-      await authStore.login({ email: authEmail.value.trim(), password: authPassword.value })
+      await authStore.login({
+        email: authEmail.value.trim(),
+        password: authPassword.value,
+        turnstile_token: turnstileEnabled.value ? turnstileToken.value || undefined : undefined,
+      })
+    } else if (emailVerifyEnabled.value) {
+      // Two-step: first click sends code, second click submits register with code.
+      if (verifyStep.value === 'credentials') {
+        await sendRegisterCode()
+        return
+      }
+      const code = verifyCode.value.trim()
+      if (!code) {
+        errorMessage.value = tr.value.codeRequired
+        return
+      }
+      if (!/^\d{6}$/.test(code)) {
+        errorMessage.value = tr.value.invalidCode
+        return
+      }
+      await authStore.register({
+        email: authEmail.value.trim(),
+        password: authPassword.value,
+        verify_code: code,
+      })
     } else {
-      await authStore.register({ email: authEmail.value.trim(), password: authPassword.value })
+      // Single-step register (email verify disabled).
+      await authStore.register({
+        email: authEmail.value.trim(),
+        password: authPassword.value,
+        turnstile_token: turnstileEnabled.value ? turnstileToken.value || undefined : undefined,
+      })
     }
     // After successful auth, isAuthenticated should be true; commit the reservation.
     if (isAuthenticated.value && pending.value) {
@@ -723,6 +911,17 @@ async function submitAuth(): Promise<void> {
 onMounted(async () => {
   if (!storageOk.value) return
   pending.value = readPending()
+  // Load public settings to know whether registration requires email
+  // verification or Turnstile. Failures are non-fatal: we keep the
+  // single-step flow and let the backend reject if needed.
+  try {
+    const settings = await getPublicSettings()
+    emailVerifyEnabled.value = !!settings.email_verify_enabled
+    turnstileEnabled.value = !!settings.turnstile_enabled
+    turnstileSiteKey.value = settings.turnstile_site_key || ''
+  } catch {
+    /* ignore */
+  }
   if (isAuthenticated.value) {
     await fetchEligibility()
   }
@@ -741,6 +940,18 @@ onMounted(async () => {
   }, 1000)
 })
 
+// Switching login/register tab resets the two-step verify state.
+watch(authMode, () => {
+  verifyStep.value = 'credentials'
+  verifyCode.value = ''
+  errorMessage.value = ''
+  if (codeCountdownTimer) {
+    clearInterval(codeCountdownTimer)
+    codeCountdownTimer = null
+  }
+  codeCountdown.value = 0
+})
+
 watch(isAuthenticated, async (v) => {
   if (v) {
     await fetchEligibility()
@@ -751,6 +962,7 @@ watch(isAuthenticated, async (v) => {
 
 onBeforeUnmount(() => {
   if (timer) clearInterval(timer)
+  if (codeCountdownTimer) clearInterval(codeCountdownTimer)
 })
 </script>
 
