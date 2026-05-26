@@ -43,6 +43,33 @@
 
       <!-- Main flow (only when storage works) -->
       <template v-else>
+        <!-- Success message (shown across eligibility branches so users see
+             confirmation even after we flip to the monthly-blocked card). -->
+        <transition name="fade">
+          <div
+            v-if="successMessage"
+            class="card border-emerald-200 bg-emerald-50 dark:border-emerald-800/50 dark:bg-emerald-900/20"
+          >
+            <div class="p-6 md:p-8">
+              <div class="flex items-start gap-4">
+                <div
+                  class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/30"
+                >
+                  <Icon name="checkCircle" size="md" class="text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div class="flex-1">
+                  <h3 class="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+                    {{ tr.successTitle }}
+                  </h3>
+                  <p class="mt-2 text-sm text-emerald-700 dark:text-emerald-400">
+                    {{ successMessage }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </transition>
+
         <!-- Eligibility checking spinner -->
         <div v-if="loadingEligibility" class="card">
           <div class="p-6 flex items-center gap-3 text-sm text-gray-600 dark:text-dark-300">
@@ -292,32 +319,6 @@
                 </p>
               </div>
             </div>
-
-            <!-- Success message -->
-            <transition name="fade">
-              <div
-                v-if="successMessage"
-                class="card border-emerald-200 bg-emerald-50 dark:border-emerald-800/50 dark:bg-emerald-900/20"
-              >
-                <div class="p-6 md:p-8">
-                  <div class="flex items-start gap-4">
-                    <div
-                      class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/30"
-                    >
-                      <Icon name="checkCircle" size="md" class="text-emerald-600 dark:text-emerald-400" />
-                    </div>
-                    <div class="flex-1">
-                      <h3 class="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
-                        {{ tr.successTitle }}
-                      </h3>
-                      <p class="mt-2 text-sm text-emerald-700 dark:text-emerald-400">
-                        {{ successMessage }}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </transition>
 
             <!-- Error message -->
             <transition name="fade">
@@ -660,6 +661,15 @@ const featureDisabled = computed(
 )
 const monthlyBlocked = computed(() => eligibility.value?.already_participated === true)
 
+// Local fallback when the backend's next_reset_unix_ms isn't available
+// (e.g. eligibility request failed). Mirrors the server's "1st of next
+// natural month at 00:00 server-local" semantics closely enough for UI
+// countdown — the source of truth refreshes on next page load.
+function computeNextNaturalMonthMs(): number {
+  const d = new Date()
+  return new Date(d.getFullYear(), d.getMonth() + 1, 1, 0, 0, 0, 0).getTime()
+}
+
 const hasInput = computed(() => rawInput.value.trim().length > 0)
 
 // ----- Countdown -----
@@ -779,6 +789,17 @@ async function commitReservation(): Promise<void> {
     )
     clearPending()
     pending.value = null
+    rawInput.value = ''
+    errorMessage.value = ''
+    // Reflect the just-recorded monthly participation in the UI so the form
+    // is replaced by the "本月已参与" card. Otherwise re-pasting the same key
+    // would hit /reserve and surface a misleading "no eligible key" error.
+    eligibility.value = {
+      eligible: false,
+      already_participated: true,
+      next_reset_unix_ms:
+        eligibility.value?.next_reset_unix_ms ?? computeNextNaturalMonthMs(),
+    }
   } catch (e: any) {
     const code = e?.reason ?? e?.response?.data?.reason
     if (code === 'BIND_KEY_RESERVATION_EXPIRED') {
@@ -896,9 +917,20 @@ async function submitAuth(): Promise<void> {
         turnstile_token: turnstileEnabled.value ? turnstileToken.value || undefined : undefined,
       })
     }
-    // After successful auth, isAuthenticated should be true; commit the reservation.
-    if (isAuthenticated.value && pending.value) {
-      await commitReservation()
+    // After successful auth, isAuthenticated should be true. Refresh
+    // eligibility before committing so anonymous users who already
+    // participated this month see the monthly-limit card directly,
+    // instead of hitting /commit and bouncing through an error state.
+    if (isAuthenticated.value) {
+      await fetchEligibility()
+      if (monthlyBlocked.value || featureDisabled.value) {
+        clearPending()
+        pending.value = null
+        return
+      }
+      if (pending.value) {
+        await commitReservation()
+      }
     }
   } catch (e: any) {
     errorMessage.value = extractError(e)
