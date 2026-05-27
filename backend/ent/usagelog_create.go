@@ -337,6 +337,34 @@ func (_c *UsageLogCreate) SetNillableActualCost(v *float64) *UsageLogCreate {
 	return _c
 }
 
+// SetGiftCost sets the "gift_cost" field.
+func (_c *UsageLogCreate) SetGiftCost(v float64) *UsageLogCreate {
+	_c.mutation.SetGiftCost(v)
+	return _c
+}
+
+// SetNillableGiftCost sets the "gift_cost" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableGiftCost(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetGiftCost(*v)
+	}
+	return _c
+}
+
+// SetRechargeCost sets the "recharge_cost" field.
+func (_c *UsageLogCreate) SetRechargeCost(v float64) *UsageLogCreate {
+	_c.mutation.SetRechargeCost(v)
+	return _c
+}
+
+// SetNillableRechargeCost sets the "recharge_cost" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableRechargeCost(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetRechargeCost(*v)
+	}
+	return _c
+}
+
 // SetRateMultiplier sets the "rate_multiplier" field.
 func (_c *UsageLogCreate) SetRateMultiplier(v float64) *UsageLogCreate {
 	_c.mutation.SetRateMultiplier(v)
@@ -661,6 +689,14 @@ func (_c *UsageLogCreate) defaults() {
 		v := usagelog.DefaultActualCost
 		_c.mutation.SetActualCost(v)
 	}
+	if _, ok := _c.mutation.GiftCost(); !ok {
+		v := usagelog.DefaultGiftCost
+		_c.mutation.SetGiftCost(v)
+	}
+	if _, ok := _c.mutation.RechargeCost(); !ok {
+		v := usagelog.DefaultRechargeCost
+		_c.mutation.SetRechargeCost(v)
+	}
 	if _, ok := _c.mutation.RateMultiplier(); !ok {
 		v := usagelog.DefaultRateMultiplier
 		_c.mutation.SetRateMultiplier(v)
@@ -774,6 +810,12 @@ func (_c *UsageLogCreate) check() error {
 	}
 	if _, ok := _c.mutation.ActualCost(); !ok {
 		return &ValidationError{Name: "actual_cost", err: errors.New(`ent: missing required field "UsageLog.actual_cost"`)}
+	}
+	if _, ok := _c.mutation.GiftCost(); !ok {
+		return &ValidationError{Name: "gift_cost", err: errors.New(`ent: missing required field "UsageLog.gift_cost"`)}
+	}
+	if _, ok := _c.mutation.RechargeCost(); !ok {
+		return &ValidationError{Name: "recharge_cost", err: errors.New(`ent: missing required field "UsageLog.recharge_cost"`)}
 	}
 	if _, ok := _c.mutation.RateMultiplier(); !ok {
 		return &ValidationError{Name: "rate_multiplier", err: errors.New(`ent: missing required field "UsageLog.rate_multiplier"`)}
@@ -938,6 +980,14 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ActualCost(); ok {
 		_spec.SetField(usagelog.FieldActualCost, field.TypeFloat64, value)
 		_node.ActualCost = value
+	}
+	if value, ok := _c.mutation.GiftCost(); ok {
+		_spec.SetField(usagelog.FieldGiftCost, field.TypeFloat64, value)
+		_node.GiftCost = value
+	}
+	if value, ok := _c.mutation.RechargeCost(); ok {
+		_spec.SetField(usagelog.FieldRechargeCost, field.TypeFloat64, value)
+		_node.RechargeCost = value
 	}
 	if value, ok := _c.mutation.RateMultiplier(); ok {
 		_spec.SetField(usagelog.FieldRateMultiplier, field.TypeFloat64, value)
@@ -1563,6 +1613,42 @@ func (u *UsageLogUpsert) UpdateActualCost() *UsageLogUpsert {
 // AddActualCost adds v to the "actual_cost" field.
 func (u *UsageLogUpsert) AddActualCost(v float64) *UsageLogUpsert {
 	u.Add(usagelog.FieldActualCost, v)
+	return u
+}
+
+// SetGiftCost sets the "gift_cost" field.
+func (u *UsageLogUpsert) SetGiftCost(v float64) *UsageLogUpsert {
+	u.Set(usagelog.FieldGiftCost, v)
+	return u
+}
+
+// UpdateGiftCost sets the "gift_cost" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateGiftCost() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldGiftCost)
+	return u
+}
+
+// AddGiftCost adds v to the "gift_cost" field.
+func (u *UsageLogUpsert) AddGiftCost(v float64) *UsageLogUpsert {
+	u.Add(usagelog.FieldGiftCost, v)
+	return u
+}
+
+// SetRechargeCost sets the "recharge_cost" field.
+func (u *UsageLogUpsert) SetRechargeCost(v float64) *UsageLogUpsert {
+	u.Set(usagelog.FieldRechargeCost, v)
+	return u
+}
+
+// UpdateRechargeCost sets the "recharge_cost" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateRechargeCost() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldRechargeCost)
+	return u
+}
+
+// AddRechargeCost adds v to the "recharge_cost" field.
+func (u *UsageLogUpsert) AddRechargeCost(v float64) *UsageLogUpsert {
+	u.Add(usagelog.FieldRechargeCost, v)
 	return u
 }
 
@@ -2381,6 +2467,48 @@ func (u *UsageLogUpsertOne) AddActualCost(v float64) *UsageLogUpsertOne {
 func (u *UsageLogUpsertOne) UpdateActualCost() *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateActualCost()
+	})
+}
+
+// SetGiftCost sets the "gift_cost" field.
+func (u *UsageLogUpsertOne) SetGiftCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetGiftCost(v)
+	})
+}
+
+// AddGiftCost adds v to the "gift_cost" field.
+func (u *UsageLogUpsertOne) AddGiftCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddGiftCost(v)
+	})
+}
+
+// UpdateGiftCost sets the "gift_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateGiftCost() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateGiftCost()
+	})
+}
+
+// SetRechargeCost sets the "recharge_cost" field.
+func (u *UsageLogUpsertOne) SetRechargeCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetRechargeCost(v)
+	})
+}
+
+// AddRechargeCost adds v to the "recharge_cost" field.
+func (u *UsageLogUpsertOne) AddRechargeCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddRechargeCost(v)
+	})
+}
+
+// UpdateRechargeCost sets the "recharge_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateRechargeCost() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateRechargeCost()
 	})
 }
 
@@ -3411,6 +3539,48 @@ func (u *UsageLogUpsertBulk) AddActualCost(v float64) *UsageLogUpsertBulk {
 func (u *UsageLogUpsertBulk) UpdateActualCost() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateActualCost()
+	})
+}
+
+// SetGiftCost sets the "gift_cost" field.
+func (u *UsageLogUpsertBulk) SetGiftCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetGiftCost(v)
+	})
+}
+
+// AddGiftCost adds v to the "gift_cost" field.
+func (u *UsageLogUpsertBulk) AddGiftCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddGiftCost(v)
+	})
+}
+
+// UpdateGiftCost sets the "gift_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateGiftCost() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateGiftCost()
+	})
+}
+
+// SetRechargeCost sets the "recharge_cost" field.
+func (u *UsageLogUpsertBulk) SetRechargeCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetRechargeCost(v)
+	})
+}
+
+// AddRechargeCost adds v to the "recharge_cost" field.
+func (u *UsageLogUpsertBulk) AddRechargeCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddRechargeCost(v)
+	})
+}
+
+// UpdateRechargeCost sets the "recharge_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateRechargeCost() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateRechargeCost()
 	})
 }
 

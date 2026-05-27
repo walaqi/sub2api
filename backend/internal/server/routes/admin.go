@@ -97,6 +97,9 @@ func RegisterAdminRoutes(
 
 		// 邀请返利（专属用户管理）
 		registerAffiliateRoutes(admin, h)
+
+		// 赠金子系统运维 API（外部 ops 服务调用）
+		registerGiftOpsRoutes(admin, h)
 	}
 }
 
@@ -640,5 +643,33 @@ func registerAffiliateRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 			users.PUT("/:user_id", h.Admin.Affiliate.UpdateUserSettings)
 			users.DELETE("/:user_id", h.Admin.Affiliate.ClearUserSettings)
 		}
+	}
+}
+
+// registerGiftOpsRoutes 注册赠金子系统的运维 API（外部 ops 服务调用）
+func registerGiftOpsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	ops := admin.Group("/ops")
+	{
+		// A. 表 A: bind-key 赠金配置
+		bindKeyGifts := ops.Group("/bind-key-gifts")
+		{
+			bindKeyGifts.POST("", h.Admin.GiftOps.UpsertBindKeyGiftSetting)
+			bindKeyGifts.GET("", h.Admin.GiftOps.ListBindKeyGiftSettings)
+			bindKeyGifts.GET("/:api_key_id", h.Admin.GiftOps.GetBindKeyGiftSetting)
+			bindKeyGifts.DELETE("/:api_key_id", h.Admin.GiftOps.DeleteBindKeyGiftSetting)
+		}
+
+		// B. 赠金账本
+		gifts := ops.Group("/gifts")
+		{
+			gifts.POST("/grant", h.Admin.GiftOps.GrantGift)
+			gifts.GET("", h.Admin.GiftOps.ListGifts)
+			gifts.GET("/:gift_id", h.Admin.GiftOps.GetGift)
+			gifts.POST("/:gift_id/revoke", h.Admin.GiftOps.RevokeGift)
+			gifts.POST("/users/:user_id/recharge", h.Admin.GiftOps.RechargeUser)
+		}
+
+		// C. 用户余额拆分查询
+		ops.GET("/users/:user_id/balance", h.Admin.GiftOps.GetUserBalance)
 	}
 }

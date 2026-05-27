@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/gift"
 
 	entsql "entgo.io/ent/dialect/sql"
 )
@@ -78,8 +79,22 @@ ON CONFLICT (user_id, provider_type, grant_reason) DO NOTHING`,
 	}
 
 	if providerDefaults.Balance != 0 {
-		if err := client.User.UpdateOneID(userID).AddBalance(providerDefaults.Balance).Exec(ctx); err != nil {
-			return fmt.Errorf("apply first bind balance default: %w", err)
+		// 走赠金引擎：首登赠送的余额作为 priority 类赠金，不再污染 total_recharged。
+		// providerDefaults.Balance < 0 是历史允许形态（管理员可配置扣减），但 gift.Grant 仅接受正值，
+		// 这里保留旧的 ent UpdateOneID 路径以兼容负值场景。
+		if providerDefaults.Balance > 0 && s.giftEngine != nil {
+			if _, err := s.giftEngine.Grant(ctx, gift.GrantInput{
+				UserID: userID,
+				Amount: providerDefaults.Balance,
+				Mode:   gift.DeductionModePriority,
+				Source: gift.SourceOAuthFirstBind,
+			}); err != nil {
+				return fmt.Errorf("apply first bind balance default: %w", err)
+			}
+		} else {
+			if err := client.User.UpdateOneID(userID).AddBalance(providerDefaults.Balance).Exec(ctx); err != nil {
+				return fmt.Errorf("apply first bind balance default: %w", err)
+			}
 		}
 	}
 	if providerDefaults.Concurrency != 0 {

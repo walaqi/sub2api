@@ -85,7 +85,11 @@ export interface User {
   oidc_bound?: boolean
   wechat_bound?: boolean
   role: 'admin' | 'user' // User role for authorization
-  balance: number // User balance for API usage
+  balance: number // User balance for API usage (= recharge_balance + gift_balance)
+  // 赠金余额拆分（后端 Phase 2/3 引入）。老前端忽略不影响展示。
+  gift_balance?: number // Σ(active gifts.remaining)
+  recharge_balance?: number // balance - gift_balance
+  gift_expiring_soon?: number // gift_balance 中 120 小时内即将过期的部分
   concurrency: number // Allowed concurrent requests
   rpm_limit?: number // User-level RPM cap (0 = unlimited); effective as fallback when group has no rpm_limit
   status: 'active' | 'disabled' // Account status
@@ -1198,6 +1202,10 @@ export interface UsageLog {
   cache_read_cost: number
   total_cost: number
   actual_cost: number
+  /** 本次扣费分摊到赠金的部分；不变量：gift_cost + recharge_cost = actual_cost。 */
+  gift_cost?: number
+  /** 本次扣费分摊到充值池的部分。 */
+  recharge_cost?: number
   rate_multiplier: number
   billing_type: number
 

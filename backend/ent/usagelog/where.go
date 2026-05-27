@@ -180,6 +180,16 @@ func ActualCost(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldActualCost, v))
 }
 
+// GiftCost applies equality check predicate on the "gift_cost" field. It's identical to GiftCostEQ.
+func GiftCost(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldGiftCost, v))
+}
+
+// RechargeCost applies equality check predicate on the "recharge_cost" field. It's identical to RechargeCostEQ.
+func RechargeCost(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldRechargeCost, v))
+}
+
 // RateMultiplier applies equality check predicate on the "rate_multiplier" field. It's identical to RateMultiplierEQ.
 func RateMultiplier(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldRateMultiplier, v))
@@ -1408,6 +1418,86 @@ func ActualCostLT(v float64) predicate.UsageLog {
 // ActualCostLTE applies the LTE predicate on the "actual_cost" field.
 func ActualCostLTE(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldLTE(FieldActualCost, v))
+}
+
+// GiftCostEQ applies the EQ predicate on the "gift_cost" field.
+func GiftCostEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldGiftCost, v))
+}
+
+// GiftCostNEQ applies the NEQ predicate on the "gift_cost" field.
+func GiftCostNEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldGiftCost, v))
+}
+
+// GiftCostIn applies the In predicate on the "gift_cost" field.
+func GiftCostIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldGiftCost, vs...))
+}
+
+// GiftCostNotIn applies the NotIn predicate on the "gift_cost" field.
+func GiftCostNotIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldGiftCost, vs...))
+}
+
+// GiftCostGT applies the GT predicate on the "gift_cost" field.
+func GiftCostGT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldGiftCost, v))
+}
+
+// GiftCostGTE applies the GTE predicate on the "gift_cost" field.
+func GiftCostGTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldGiftCost, v))
+}
+
+// GiftCostLT applies the LT predicate on the "gift_cost" field.
+func GiftCostLT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldGiftCost, v))
+}
+
+// GiftCostLTE applies the LTE predicate on the "gift_cost" field.
+func GiftCostLTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldGiftCost, v))
+}
+
+// RechargeCostEQ applies the EQ predicate on the "recharge_cost" field.
+func RechargeCostEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldRechargeCost, v))
+}
+
+// RechargeCostNEQ applies the NEQ predicate on the "recharge_cost" field.
+func RechargeCostNEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldRechargeCost, v))
+}
+
+// RechargeCostIn applies the In predicate on the "recharge_cost" field.
+func RechargeCostIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldRechargeCost, vs...))
+}
+
+// RechargeCostNotIn applies the NotIn predicate on the "recharge_cost" field.
+func RechargeCostNotIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldRechargeCost, vs...))
+}
+
+// RechargeCostGT applies the GT predicate on the "recharge_cost" field.
+func RechargeCostGT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldRechargeCost, v))
+}
+
+// RechargeCostGTE applies the GTE predicate on the "recharge_cost" field.
+func RechargeCostGTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldRechargeCost, v))
+}
+
+// RechargeCostLT applies the LT predicate on the "recharge_cost" field.
+func RechargeCostLT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldRechargeCost, v))
+}
+
+// RechargeCostLTE applies the LTE predicate on the "recharge_cost" field.
+func RechargeCostLTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldRechargeCost, v))
 }
 
 // RateMultiplierEQ applies the EQ predicate on the "rate_multiplier" field.

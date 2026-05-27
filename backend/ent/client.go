@@ -22,6 +22,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/ent/authidentitychannel"
+	"github.com/Wei-Shaw/sub2api/ent/bindkeygiftsetting"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitor"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitordailyrollup"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
@@ -48,6 +49,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/userallowedgroup"
 	"github.com/Wei-Shaw/sub2api/ent/userattributedefinition"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
+	"github.com/Wei-Shaw/sub2api/ent/usergift"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 
 	stdsql "database/sql"
@@ -72,6 +74,8 @@ type Client struct {
 	AuthIdentity *AuthIdentityClient
 	// AuthIdentityChannel is the client for interacting with the AuthIdentityChannel builders.
 	AuthIdentityChannel *AuthIdentityChannelClient
+	// BindKeyGiftSetting is the client for interacting with the BindKeyGiftSetting builders.
+	BindKeyGiftSetting *BindKeyGiftSettingClient
 	// ChannelMonitor is the client for interacting with the ChannelMonitor builders.
 	ChannelMonitor *ChannelMonitorClient
 	// ChannelMonitorDailyRollup is the client for interacting with the ChannelMonitorDailyRollup builders.
@@ -124,6 +128,8 @@ type Client struct {
 	UserAttributeDefinition *UserAttributeDefinitionClient
 	// UserAttributeValue is the client for interacting with the UserAttributeValue builders.
 	UserAttributeValue *UserAttributeValueClient
+	// UserGift is the client for interacting with the UserGift builders.
+	UserGift *UserGiftClient
 	// UserSubscription is the client for interacting with the UserSubscription builders.
 	UserSubscription *UserSubscriptionClient
 }
@@ -144,6 +150,7 @@ func (c *Client) init() {
 	c.AnnouncementRead = NewAnnouncementReadClient(c.config)
 	c.AuthIdentity = NewAuthIdentityClient(c.config)
 	c.AuthIdentityChannel = NewAuthIdentityChannelClient(c.config)
+	c.BindKeyGiftSetting = NewBindKeyGiftSettingClient(c.config)
 	c.ChannelMonitor = NewChannelMonitorClient(c.config)
 	c.ChannelMonitorDailyRollup = NewChannelMonitorDailyRollupClient(c.config)
 	c.ChannelMonitorHistory = NewChannelMonitorHistoryClient(c.config)
@@ -170,6 +177,7 @@ func (c *Client) init() {
 	c.UserAllowedGroup = NewUserAllowedGroupClient(c.config)
 	c.UserAttributeDefinition = NewUserAttributeDefinitionClient(c.config)
 	c.UserAttributeValue = NewUserAttributeValueClient(c.config)
+	c.UserGift = NewUserGiftClient(c.config)
 	c.UserSubscription = NewUserSubscriptionClient(c.config)
 }
 
@@ -270,6 +278,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		AnnouncementRead:              NewAnnouncementReadClient(cfg),
 		AuthIdentity:                  NewAuthIdentityClient(cfg),
 		AuthIdentityChannel:           NewAuthIdentityChannelClient(cfg),
+		BindKeyGiftSetting:            NewBindKeyGiftSettingClient(cfg),
 		ChannelMonitor:                NewChannelMonitorClient(cfg),
 		ChannelMonitorDailyRollup:     NewChannelMonitorDailyRollupClient(cfg),
 		ChannelMonitorHistory:         NewChannelMonitorHistoryClient(cfg),
@@ -296,6 +305,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		UserAllowedGroup:              NewUserAllowedGroupClient(cfg),
 		UserAttributeDefinition:       NewUserAttributeDefinitionClient(cfg),
 		UserAttributeValue:            NewUserAttributeValueClient(cfg),
+		UserGift:                      NewUserGiftClient(cfg),
 		UserSubscription:              NewUserSubscriptionClient(cfg),
 	}, nil
 }
@@ -323,6 +333,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		AnnouncementRead:              NewAnnouncementReadClient(cfg),
 		AuthIdentity:                  NewAuthIdentityClient(cfg),
 		AuthIdentityChannel:           NewAuthIdentityChannelClient(cfg),
+		BindKeyGiftSetting:            NewBindKeyGiftSettingClient(cfg),
 		ChannelMonitor:                NewChannelMonitorClient(cfg),
 		ChannelMonitorDailyRollup:     NewChannelMonitorDailyRollupClient(cfg),
 		ChannelMonitorHistory:         NewChannelMonitorHistoryClient(cfg),
@@ -349,6 +360,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		UserAllowedGroup:              NewUserAllowedGroupClient(cfg),
 		UserAttributeDefinition:       NewUserAttributeDefinitionClient(cfg),
 		UserAttributeValue:            NewUserAttributeValueClient(cfg),
+		UserGift:                      NewUserGiftClient(cfg),
 		UserSubscription:              NewUserSubscriptionClient(cfg),
 	}, nil
 }
@@ -380,7 +392,7 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.APIKey, c.Account, c.AccountGroup, c.Announcement, c.AnnouncementRead,
-		c.AuthIdentity, c.AuthIdentityChannel, c.ChannelMonitor,
+		c.AuthIdentity, c.AuthIdentityChannel, c.BindKeyGiftSetting, c.ChannelMonitor,
 		c.ChannelMonitorDailyRollup, c.ChannelMonitorHistory,
 		c.ChannelMonitorRequestTemplate, c.ErrorPassthroughRule, c.Group,
 		c.IdempotencyRecord, c.IdentityAdoptionDecision, c.PaymentAuditLog,
@@ -388,7 +400,7 @@ func (c *Client) Use(hooks ...Hook) {
 		c.PromoCodeUsage, c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting,
 		c.SubscriptionPlan, c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog,
 		c.User, c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
-		c.UserSubscription,
+		c.UserGift, c.UserSubscription,
 	} {
 		n.Use(hooks...)
 	}
@@ -399,7 +411,7 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.APIKey, c.Account, c.AccountGroup, c.Announcement, c.AnnouncementRead,
-		c.AuthIdentity, c.AuthIdentityChannel, c.ChannelMonitor,
+		c.AuthIdentity, c.AuthIdentityChannel, c.BindKeyGiftSetting, c.ChannelMonitor,
 		c.ChannelMonitorDailyRollup, c.ChannelMonitorHistory,
 		c.ChannelMonitorRequestTemplate, c.ErrorPassthroughRule, c.Group,
 		c.IdempotencyRecord, c.IdentityAdoptionDecision, c.PaymentAuditLog,
@@ -407,7 +419,7 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.PromoCodeUsage, c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting,
 		c.SubscriptionPlan, c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog,
 		c.User, c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
-		c.UserSubscription,
+		c.UserGift, c.UserSubscription,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -430,6 +442,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.AuthIdentity.mutate(ctx, m)
 	case *AuthIdentityChannelMutation:
 		return c.AuthIdentityChannel.mutate(ctx, m)
+	case *BindKeyGiftSettingMutation:
+		return c.BindKeyGiftSetting.mutate(ctx, m)
 	case *ChannelMonitorMutation:
 		return c.ChannelMonitor.mutate(ctx, m)
 	case *ChannelMonitorDailyRollupMutation:
@@ -482,6 +496,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.UserAttributeDefinition.mutate(ctx, m)
 	case *UserAttributeValueMutation:
 		return c.UserAttributeValue.mutate(ctx, m)
+	case *UserGiftMutation:
+		return c.UserGift.mutate(ctx, m)
 	case *UserSubscriptionMutation:
 		return c.UserSubscription.mutate(ctx, m)
 	default:
@@ -1628,6 +1644,139 @@ func (c *AuthIdentityChannelClient) mutate(ctx context.Context, m *AuthIdentityC
 		return (&AuthIdentityChannelDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown AuthIdentityChannel mutation op: %q", m.Op())
+	}
+}
+
+// BindKeyGiftSettingClient is a client for the BindKeyGiftSetting schema.
+type BindKeyGiftSettingClient struct {
+	config
+}
+
+// NewBindKeyGiftSettingClient returns a client for the BindKeyGiftSetting from the given config.
+func NewBindKeyGiftSettingClient(c config) *BindKeyGiftSettingClient {
+	return &BindKeyGiftSettingClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `bindkeygiftsetting.Hooks(f(g(h())))`.
+func (c *BindKeyGiftSettingClient) Use(hooks ...Hook) {
+	c.hooks.BindKeyGiftSetting = append(c.hooks.BindKeyGiftSetting, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `bindkeygiftsetting.Intercept(f(g(h())))`.
+func (c *BindKeyGiftSettingClient) Intercept(interceptors ...Interceptor) {
+	c.inters.BindKeyGiftSetting = append(c.inters.BindKeyGiftSetting, interceptors...)
+}
+
+// Create returns a builder for creating a BindKeyGiftSetting entity.
+func (c *BindKeyGiftSettingClient) Create() *BindKeyGiftSettingCreate {
+	mutation := newBindKeyGiftSettingMutation(c.config, OpCreate)
+	return &BindKeyGiftSettingCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of BindKeyGiftSetting entities.
+func (c *BindKeyGiftSettingClient) CreateBulk(builders ...*BindKeyGiftSettingCreate) *BindKeyGiftSettingCreateBulk {
+	return &BindKeyGiftSettingCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *BindKeyGiftSettingClient) MapCreateBulk(slice any, setFunc func(*BindKeyGiftSettingCreate, int)) *BindKeyGiftSettingCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &BindKeyGiftSettingCreateBulk{err: fmt.Errorf("calling to BindKeyGiftSettingClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*BindKeyGiftSettingCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &BindKeyGiftSettingCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for BindKeyGiftSetting.
+func (c *BindKeyGiftSettingClient) Update() *BindKeyGiftSettingUpdate {
+	mutation := newBindKeyGiftSettingMutation(c.config, OpUpdate)
+	return &BindKeyGiftSettingUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *BindKeyGiftSettingClient) UpdateOne(_m *BindKeyGiftSetting) *BindKeyGiftSettingUpdateOne {
+	mutation := newBindKeyGiftSettingMutation(c.config, OpUpdateOne, withBindKeyGiftSetting(_m))
+	return &BindKeyGiftSettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *BindKeyGiftSettingClient) UpdateOneID(id int64) *BindKeyGiftSettingUpdateOne {
+	mutation := newBindKeyGiftSettingMutation(c.config, OpUpdateOne, withBindKeyGiftSettingID(id))
+	return &BindKeyGiftSettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for BindKeyGiftSetting.
+func (c *BindKeyGiftSettingClient) Delete() *BindKeyGiftSettingDelete {
+	mutation := newBindKeyGiftSettingMutation(c.config, OpDelete)
+	return &BindKeyGiftSettingDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *BindKeyGiftSettingClient) DeleteOne(_m *BindKeyGiftSetting) *BindKeyGiftSettingDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *BindKeyGiftSettingClient) DeleteOneID(id int64) *BindKeyGiftSettingDeleteOne {
+	builder := c.Delete().Where(bindkeygiftsetting.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &BindKeyGiftSettingDeleteOne{builder}
+}
+
+// Query returns a query builder for BindKeyGiftSetting.
+func (c *BindKeyGiftSettingClient) Query() *BindKeyGiftSettingQuery {
+	return &BindKeyGiftSettingQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeBindKeyGiftSetting},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a BindKeyGiftSetting entity by its id.
+func (c *BindKeyGiftSettingClient) Get(ctx context.Context, id int64) (*BindKeyGiftSetting, error) {
+	return c.Query().Where(bindkeygiftsetting.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *BindKeyGiftSettingClient) GetX(ctx context.Context, id int64) *BindKeyGiftSetting {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *BindKeyGiftSettingClient) Hooks() []Hook {
+	return c.hooks.BindKeyGiftSetting
+}
+
+// Interceptors returns the client interceptors.
+func (c *BindKeyGiftSettingClient) Interceptors() []Interceptor {
+	return c.inters.BindKeyGiftSetting
+}
+
+func (c *BindKeyGiftSettingClient) mutate(ctx context.Context, m *BindKeyGiftSettingMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&BindKeyGiftSettingCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&BindKeyGiftSettingUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&BindKeyGiftSettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&BindKeyGiftSettingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown BindKeyGiftSetting mutation op: %q", m.Op())
 	}
 }
 
@@ -5341,6 +5490,22 @@ func (c *UserClient) QueryPendingAuthSessions(_m *User) *PendingAuthSessionQuery
 	return query
 }
 
+// QueryGifts queries the gifts edge of a User.
+func (c *UserClient) QueryGifts(_m *User) *UserGiftQuery {
+	query := (&UserGiftClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(usergift.Table, usergift.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.GiftsTable, user.GiftsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryUserAllowedGroups queries the user_allowed_groups edge of a User.
 func (c *UserClient) QueryUserAllowedGroups(_m *User) *UserAllowedGroupQuery {
 	query := (&UserAllowedGroupClient{config: c.config}).Query()
@@ -5816,6 +5981,155 @@ func (c *UserAttributeValueClient) mutate(ctx context.Context, m *UserAttributeV
 	}
 }
 
+// UserGiftClient is a client for the UserGift schema.
+type UserGiftClient struct {
+	config
+}
+
+// NewUserGiftClient returns a client for the UserGift from the given config.
+func NewUserGiftClient(c config) *UserGiftClient {
+	return &UserGiftClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `usergift.Hooks(f(g(h())))`.
+func (c *UserGiftClient) Use(hooks ...Hook) {
+	c.hooks.UserGift = append(c.hooks.UserGift, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `usergift.Intercept(f(g(h())))`.
+func (c *UserGiftClient) Intercept(interceptors ...Interceptor) {
+	c.inters.UserGift = append(c.inters.UserGift, interceptors...)
+}
+
+// Create returns a builder for creating a UserGift entity.
+func (c *UserGiftClient) Create() *UserGiftCreate {
+	mutation := newUserGiftMutation(c.config, OpCreate)
+	return &UserGiftCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of UserGift entities.
+func (c *UserGiftClient) CreateBulk(builders ...*UserGiftCreate) *UserGiftCreateBulk {
+	return &UserGiftCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *UserGiftClient) MapCreateBulk(slice any, setFunc func(*UserGiftCreate, int)) *UserGiftCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &UserGiftCreateBulk{err: fmt.Errorf("calling to UserGiftClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*UserGiftCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &UserGiftCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for UserGift.
+func (c *UserGiftClient) Update() *UserGiftUpdate {
+	mutation := newUserGiftMutation(c.config, OpUpdate)
+	return &UserGiftUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *UserGiftClient) UpdateOne(_m *UserGift) *UserGiftUpdateOne {
+	mutation := newUserGiftMutation(c.config, OpUpdateOne, withUserGift(_m))
+	return &UserGiftUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *UserGiftClient) UpdateOneID(id int64) *UserGiftUpdateOne {
+	mutation := newUserGiftMutation(c.config, OpUpdateOne, withUserGiftID(id))
+	return &UserGiftUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for UserGift.
+func (c *UserGiftClient) Delete() *UserGiftDelete {
+	mutation := newUserGiftMutation(c.config, OpDelete)
+	return &UserGiftDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *UserGiftClient) DeleteOne(_m *UserGift) *UserGiftDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *UserGiftClient) DeleteOneID(id int64) *UserGiftDeleteOne {
+	builder := c.Delete().Where(usergift.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &UserGiftDeleteOne{builder}
+}
+
+// Query returns a query builder for UserGift.
+func (c *UserGiftClient) Query() *UserGiftQuery {
+	return &UserGiftQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeUserGift},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a UserGift entity by its id.
+func (c *UserGiftClient) Get(ctx context.Context, id int64) (*UserGift, error) {
+	return c.Query().Where(usergift.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *UserGiftClient) GetX(ctx context.Context, id int64) *UserGift {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a UserGift.
+func (c *UserGiftClient) QueryUser(_m *UserGift) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(usergift.Table, usergift.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, usergift.UserTable, usergift.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *UserGiftClient) Hooks() []Hook {
+	return c.hooks.UserGift
+}
+
+// Interceptors returns the client interceptors.
+func (c *UserGiftClient) Interceptors() []Interceptor {
+	return c.inters.UserGift
+}
+
+func (c *UserGiftClient) mutate(ctx context.Context, m *UserGiftMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&UserGiftCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&UserGiftUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&UserGiftUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&UserGiftDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown UserGift mutation op: %q", m.Op())
+	}
+}
+
 // UserSubscriptionClient is a client for the UserSubscription schema.
 type UserSubscriptionClient struct {
 	config
@@ -6019,23 +6333,25 @@ func (c *UserSubscriptionClient) mutate(ctx context.Context, m *UserSubscription
 type (
 	hooks struct {
 		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, AuthIdentity,
-		AuthIdentityChannel, ChannelMonitor, ChannelMonitorDailyRollup,
-		ChannelMonitorHistory, ChannelMonitorRequestTemplate, ErrorPassthroughRule,
-		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
-		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
-		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
-		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
-		UserAttributeDefinition, UserAttributeValue, UserSubscription []ent.Hook
+		AuthIdentityChannel, BindKeyGiftSetting, ChannelMonitor,
+		ChannelMonitorDailyRollup, ChannelMonitorHistory,
+		ChannelMonitorRequestTemplate, ErrorPassthroughRule, Group, IdempotencyRecord,
+		IdentityAdoptionDecision, PaymentAuditLog, PaymentOrder,
+		PaymentProviderInstance, PendingAuthSession, PromoCode, PromoCodeUsage, Proxy,
+		RedeemCode, SecuritySecret, Setting, SubscriptionPlan, TLSFingerprintProfile,
+		UsageCleanupTask, UsageLog, User, UserAllowedGroup, UserAttributeDefinition,
+		UserAttributeValue, UserGift, UserSubscription []ent.Hook
 	}
 	inters struct {
 		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, AuthIdentity,
-		AuthIdentityChannel, ChannelMonitor, ChannelMonitorDailyRollup,
-		ChannelMonitorHistory, ChannelMonitorRequestTemplate, ErrorPassthroughRule,
-		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
-		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
-		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
-		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
-		UserAttributeDefinition, UserAttributeValue, UserSubscription []ent.Interceptor
+		AuthIdentityChannel, BindKeyGiftSetting, ChannelMonitor,
+		ChannelMonitorDailyRollup, ChannelMonitorHistory,
+		ChannelMonitorRequestTemplate, ErrorPassthroughRule, Group, IdempotencyRecord,
+		IdentityAdoptionDecision, PaymentAuditLog, PaymentOrder,
+		PaymentProviderInstance, PendingAuthSession, PromoCode, PromoCodeUsage, Proxy,
+		RedeemCode, SecuritySecret, Setting, SubscriptionPlan, TLSFingerprintProfile,
+		UsageCleanupTask, UsageLog, User, UserAllowedGroup, UserAttributeDefinition,
+		UserAttributeValue, UserGift, UserSubscription []ent.Interceptor
 	}
 )
 

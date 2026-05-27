@@ -7995,6 +7995,10 @@ func (p *postUsageBillingParams) shouldUpdateAccountQuota() bool {
 // postUsageBilling is the legacy fallback billing path used when the unified
 // billing repo is unavailable (nil). Production uses applyUsageBilling → repo.Apply
 // for atomic billing. This path only runs in tests or degraded mode.
+//
+// TODO(gift-subsystem): legacy fallback 仍走 userRepo.DeductBalance（直接扣 users.balance），
+// 不经过赠金引擎。生产主路径 applyUsageBilling → repo.Apply 已接入赠金子账本。
+// 后续若 fallback 真在生产复活，需同步改为 giftEngine.AllocateAndDeductSimple。
 func postUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *billingDeps) {
 	billingCtx, cancel := detachedBillingContext(ctx)
 	defer cancel()
@@ -8151,6 +8155,18 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 	if result == nil || !result.Applied {
 		deps.deferredService.ScheduleLastUsedUpdate(p.Account.ID)
 		return false, nil
+	}
+
+	// 把赠金引擎返回的 breakdown 写到 usageLog，由 writeUsageLogBestEffort 落库到
+	// usage_logs.gift_cost / recharge_cost 列，供使用记录前端展示。
+	// 不变量：gift_cost + recharge_cost = actual_cost（订阅扣费下两者均为 0）。
+	if usageLog != nil {
+		if result.GiftCost != nil {
+			usageLog.GiftCost = *result.GiftCost
+		}
+		if result.RechargeCost != nil {
+			usageLog.RechargeCost = *result.RechargeCost
+		}
 	}
 
 	if result.APIKeyQuotaExhausted {

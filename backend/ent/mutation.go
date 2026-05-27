@@ -19,6 +19,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/ent/authidentitychannel"
+	"github.com/Wei-Shaw/sub2api/ent/bindkeygiftsetting"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitor"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitordailyrollup"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
@@ -46,6 +47,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/userallowedgroup"
 	"github.com/Wei-Shaw/sub2api/ent/userattributedefinition"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
+	"github.com/Wei-Shaw/sub2api/ent/usergift"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 	"github.com/Wei-Shaw/sub2api/internal/domain"
 )
@@ -66,6 +68,7 @@ const (
 	TypeAnnouncementRead              = "AnnouncementRead"
 	TypeAuthIdentity                  = "AuthIdentity"
 	TypeAuthIdentityChannel           = "AuthIdentityChannel"
+	TypeBindKeyGiftSetting            = "BindKeyGiftSetting"
 	TypeChannelMonitor                = "ChannelMonitor"
 	TypeChannelMonitorDailyRollup     = "ChannelMonitorDailyRollup"
 	TypeChannelMonitorHistory         = "ChannelMonitorHistory"
@@ -92,6 +95,7 @@ const (
 	TypeUserAllowedGroup              = "UserAllowedGroup"
 	TypeUserAttributeDefinition       = "UserAttributeDefinition"
 	TypeUserAttributeValue            = "UserAttributeValue"
+	TypeUserGift                      = "UserGift"
 	TypeUserSubscription              = "UserSubscription"
 )
 
@@ -8740,6 +8744,747 @@ func (m *AuthIdentityChannelMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown AuthIdentityChannel edge %s", name)
+}
+
+// BindKeyGiftSettingMutation represents an operation that mutates the BindKeyGiftSetting nodes in the graph.
+type BindKeyGiftSettingMutation struct {
+	config
+	op                    Op
+	typ                   string
+	id                    *int64
+	created_at            *time.Time
+	updated_at            *time.Time
+	api_key_id            *int64
+	addapi_key_id         *int64
+	deduction_mode        *string
+	ratio_recharge        *float64
+	addratio_recharge     *float64
+	expires_after_days    *int
+	addexpires_after_days *int
+	clearedFields         map[string]struct{}
+	done                  bool
+	oldValue              func(context.Context) (*BindKeyGiftSetting, error)
+	predicates            []predicate.BindKeyGiftSetting
+}
+
+var _ ent.Mutation = (*BindKeyGiftSettingMutation)(nil)
+
+// bindkeygiftsettingOption allows management of the mutation configuration using functional options.
+type bindkeygiftsettingOption func(*BindKeyGiftSettingMutation)
+
+// newBindKeyGiftSettingMutation creates new mutation for the BindKeyGiftSetting entity.
+func newBindKeyGiftSettingMutation(c config, op Op, opts ...bindkeygiftsettingOption) *BindKeyGiftSettingMutation {
+	m := &BindKeyGiftSettingMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeBindKeyGiftSetting,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withBindKeyGiftSettingID sets the ID field of the mutation.
+func withBindKeyGiftSettingID(id int64) bindkeygiftsettingOption {
+	return func(m *BindKeyGiftSettingMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *BindKeyGiftSetting
+		)
+		m.oldValue = func(ctx context.Context) (*BindKeyGiftSetting, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().BindKeyGiftSetting.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withBindKeyGiftSetting sets the old BindKeyGiftSetting of the mutation.
+func withBindKeyGiftSetting(node *BindKeyGiftSetting) bindkeygiftsettingOption {
+	return func(m *BindKeyGiftSettingMutation) {
+		m.oldValue = func(context.Context) (*BindKeyGiftSetting, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m BindKeyGiftSettingMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m BindKeyGiftSettingMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *BindKeyGiftSettingMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *BindKeyGiftSettingMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().BindKeyGiftSetting.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *BindKeyGiftSettingMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *BindKeyGiftSettingMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the BindKeyGiftSetting entity.
+// If the BindKeyGiftSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BindKeyGiftSettingMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *BindKeyGiftSettingMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *BindKeyGiftSettingMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *BindKeyGiftSettingMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the BindKeyGiftSetting entity.
+// If the BindKeyGiftSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BindKeyGiftSettingMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *BindKeyGiftSettingMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetAPIKeyID sets the "api_key_id" field.
+func (m *BindKeyGiftSettingMutation) SetAPIKeyID(i int64) {
+	m.api_key_id = &i
+	m.addapi_key_id = nil
+}
+
+// APIKeyID returns the value of the "api_key_id" field in the mutation.
+func (m *BindKeyGiftSettingMutation) APIKeyID() (r int64, exists bool) {
+	v := m.api_key_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAPIKeyID returns the old "api_key_id" field's value of the BindKeyGiftSetting entity.
+// If the BindKeyGiftSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BindKeyGiftSettingMutation) OldAPIKeyID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAPIKeyID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAPIKeyID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAPIKeyID: %w", err)
+	}
+	return oldValue.APIKeyID, nil
+}
+
+// AddAPIKeyID adds i to the "api_key_id" field.
+func (m *BindKeyGiftSettingMutation) AddAPIKeyID(i int64) {
+	if m.addapi_key_id != nil {
+		*m.addapi_key_id += i
+	} else {
+		m.addapi_key_id = &i
+	}
+}
+
+// AddedAPIKeyID returns the value that was added to the "api_key_id" field in this mutation.
+func (m *BindKeyGiftSettingMutation) AddedAPIKeyID() (r int64, exists bool) {
+	v := m.addapi_key_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAPIKeyID resets all changes to the "api_key_id" field.
+func (m *BindKeyGiftSettingMutation) ResetAPIKeyID() {
+	m.api_key_id = nil
+	m.addapi_key_id = nil
+}
+
+// SetDeductionMode sets the "deduction_mode" field.
+func (m *BindKeyGiftSettingMutation) SetDeductionMode(s string) {
+	m.deduction_mode = &s
+}
+
+// DeductionMode returns the value of the "deduction_mode" field in the mutation.
+func (m *BindKeyGiftSettingMutation) DeductionMode() (r string, exists bool) {
+	v := m.deduction_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeductionMode returns the old "deduction_mode" field's value of the BindKeyGiftSetting entity.
+// If the BindKeyGiftSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BindKeyGiftSettingMutation) OldDeductionMode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeductionMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeductionMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeductionMode: %w", err)
+	}
+	return oldValue.DeductionMode, nil
+}
+
+// ResetDeductionMode resets all changes to the "deduction_mode" field.
+func (m *BindKeyGiftSettingMutation) ResetDeductionMode() {
+	m.deduction_mode = nil
+}
+
+// SetRatioRecharge sets the "ratio_recharge" field.
+func (m *BindKeyGiftSettingMutation) SetRatioRecharge(f float64) {
+	m.ratio_recharge = &f
+	m.addratio_recharge = nil
+}
+
+// RatioRecharge returns the value of the "ratio_recharge" field in the mutation.
+func (m *BindKeyGiftSettingMutation) RatioRecharge() (r float64, exists bool) {
+	v := m.ratio_recharge
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRatioRecharge returns the old "ratio_recharge" field's value of the BindKeyGiftSetting entity.
+// If the BindKeyGiftSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BindKeyGiftSettingMutation) OldRatioRecharge(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRatioRecharge is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRatioRecharge requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRatioRecharge: %w", err)
+	}
+	return oldValue.RatioRecharge, nil
+}
+
+// AddRatioRecharge adds f to the "ratio_recharge" field.
+func (m *BindKeyGiftSettingMutation) AddRatioRecharge(f float64) {
+	if m.addratio_recharge != nil {
+		*m.addratio_recharge += f
+	} else {
+		m.addratio_recharge = &f
+	}
+}
+
+// AddedRatioRecharge returns the value that was added to the "ratio_recharge" field in this mutation.
+func (m *BindKeyGiftSettingMutation) AddedRatioRecharge() (r float64, exists bool) {
+	v := m.addratio_recharge
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearRatioRecharge clears the value of the "ratio_recharge" field.
+func (m *BindKeyGiftSettingMutation) ClearRatioRecharge() {
+	m.ratio_recharge = nil
+	m.addratio_recharge = nil
+	m.clearedFields[bindkeygiftsetting.FieldRatioRecharge] = struct{}{}
+}
+
+// RatioRechargeCleared returns if the "ratio_recharge" field was cleared in this mutation.
+func (m *BindKeyGiftSettingMutation) RatioRechargeCleared() bool {
+	_, ok := m.clearedFields[bindkeygiftsetting.FieldRatioRecharge]
+	return ok
+}
+
+// ResetRatioRecharge resets all changes to the "ratio_recharge" field.
+func (m *BindKeyGiftSettingMutation) ResetRatioRecharge() {
+	m.ratio_recharge = nil
+	m.addratio_recharge = nil
+	delete(m.clearedFields, bindkeygiftsetting.FieldRatioRecharge)
+}
+
+// SetExpiresAfterDays sets the "expires_after_days" field.
+func (m *BindKeyGiftSettingMutation) SetExpiresAfterDays(i int) {
+	m.expires_after_days = &i
+	m.addexpires_after_days = nil
+}
+
+// ExpiresAfterDays returns the value of the "expires_after_days" field in the mutation.
+func (m *BindKeyGiftSettingMutation) ExpiresAfterDays() (r int, exists bool) {
+	v := m.expires_after_days
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAfterDays returns the old "expires_after_days" field's value of the BindKeyGiftSetting entity.
+// If the BindKeyGiftSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BindKeyGiftSettingMutation) OldExpiresAfterDays(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAfterDays is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAfterDays requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAfterDays: %w", err)
+	}
+	return oldValue.ExpiresAfterDays, nil
+}
+
+// AddExpiresAfterDays adds i to the "expires_after_days" field.
+func (m *BindKeyGiftSettingMutation) AddExpiresAfterDays(i int) {
+	if m.addexpires_after_days != nil {
+		*m.addexpires_after_days += i
+	} else {
+		m.addexpires_after_days = &i
+	}
+}
+
+// AddedExpiresAfterDays returns the value that was added to the "expires_after_days" field in this mutation.
+func (m *BindKeyGiftSettingMutation) AddedExpiresAfterDays() (r int, exists bool) {
+	v := m.addexpires_after_days
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearExpiresAfterDays clears the value of the "expires_after_days" field.
+func (m *BindKeyGiftSettingMutation) ClearExpiresAfterDays() {
+	m.expires_after_days = nil
+	m.addexpires_after_days = nil
+	m.clearedFields[bindkeygiftsetting.FieldExpiresAfterDays] = struct{}{}
+}
+
+// ExpiresAfterDaysCleared returns if the "expires_after_days" field was cleared in this mutation.
+func (m *BindKeyGiftSettingMutation) ExpiresAfterDaysCleared() bool {
+	_, ok := m.clearedFields[bindkeygiftsetting.FieldExpiresAfterDays]
+	return ok
+}
+
+// ResetExpiresAfterDays resets all changes to the "expires_after_days" field.
+func (m *BindKeyGiftSettingMutation) ResetExpiresAfterDays() {
+	m.expires_after_days = nil
+	m.addexpires_after_days = nil
+	delete(m.clearedFields, bindkeygiftsetting.FieldExpiresAfterDays)
+}
+
+// Where appends a list predicates to the BindKeyGiftSettingMutation builder.
+func (m *BindKeyGiftSettingMutation) Where(ps ...predicate.BindKeyGiftSetting) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the BindKeyGiftSettingMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *BindKeyGiftSettingMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.BindKeyGiftSetting, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *BindKeyGiftSettingMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *BindKeyGiftSettingMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (BindKeyGiftSetting).
+func (m *BindKeyGiftSettingMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *BindKeyGiftSettingMutation) Fields() []string {
+	fields := make([]string, 0, 6)
+	if m.created_at != nil {
+		fields = append(fields, bindkeygiftsetting.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, bindkeygiftsetting.FieldUpdatedAt)
+	}
+	if m.api_key_id != nil {
+		fields = append(fields, bindkeygiftsetting.FieldAPIKeyID)
+	}
+	if m.deduction_mode != nil {
+		fields = append(fields, bindkeygiftsetting.FieldDeductionMode)
+	}
+	if m.ratio_recharge != nil {
+		fields = append(fields, bindkeygiftsetting.FieldRatioRecharge)
+	}
+	if m.expires_after_days != nil {
+		fields = append(fields, bindkeygiftsetting.FieldExpiresAfterDays)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *BindKeyGiftSettingMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case bindkeygiftsetting.FieldCreatedAt:
+		return m.CreatedAt()
+	case bindkeygiftsetting.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case bindkeygiftsetting.FieldAPIKeyID:
+		return m.APIKeyID()
+	case bindkeygiftsetting.FieldDeductionMode:
+		return m.DeductionMode()
+	case bindkeygiftsetting.FieldRatioRecharge:
+		return m.RatioRecharge()
+	case bindkeygiftsetting.FieldExpiresAfterDays:
+		return m.ExpiresAfterDays()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *BindKeyGiftSettingMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case bindkeygiftsetting.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case bindkeygiftsetting.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case bindkeygiftsetting.FieldAPIKeyID:
+		return m.OldAPIKeyID(ctx)
+	case bindkeygiftsetting.FieldDeductionMode:
+		return m.OldDeductionMode(ctx)
+	case bindkeygiftsetting.FieldRatioRecharge:
+		return m.OldRatioRecharge(ctx)
+	case bindkeygiftsetting.FieldExpiresAfterDays:
+		return m.OldExpiresAfterDays(ctx)
+	}
+	return nil, fmt.Errorf("unknown BindKeyGiftSetting field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *BindKeyGiftSettingMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case bindkeygiftsetting.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case bindkeygiftsetting.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case bindkeygiftsetting.FieldAPIKeyID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAPIKeyID(v)
+		return nil
+	case bindkeygiftsetting.FieldDeductionMode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeductionMode(v)
+		return nil
+	case bindkeygiftsetting.FieldRatioRecharge:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRatioRecharge(v)
+		return nil
+	case bindkeygiftsetting.FieldExpiresAfterDays:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAfterDays(v)
+		return nil
+	}
+	return fmt.Errorf("unknown BindKeyGiftSetting field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *BindKeyGiftSettingMutation) AddedFields() []string {
+	var fields []string
+	if m.addapi_key_id != nil {
+		fields = append(fields, bindkeygiftsetting.FieldAPIKeyID)
+	}
+	if m.addratio_recharge != nil {
+		fields = append(fields, bindkeygiftsetting.FieldRatioRecharge)
+	}
+	if m.addexpires_after_days != nil {
+		fields = append(fields, bindkeygiftsetting.FieldExpiresAfterDays)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *BindKeyGiftSettingMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case bindkeygiftsetting.FieldAPIKeyID:
+		return m.AddedAPIKeyID()
+	case bindkeygiftsetting.FieldRatioRecharge:
+		return m.AddedRatioRecharge()
+	case bindkeygiftsetting.FieldExpiresAfterDays:
+		return m.AddedExpiresAfterDays()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *BindKeyGiftSettingMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case bindkeygiftsetting.FieldAPIKeyID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAPIKeyID(v)
+		return nil
+	case bindkeygiftsetting.FieldRatioRecharge:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRatioRecharge(v)
+		return nil
+	case bindkeygiftsetting.FieldExpiresAfterDays:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddExpiresAfterDays(v)
+		return nil
+	}
+	return fmt.Errorf("unknown BindKeyGiftSetting numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *BindKeyGiftSettingMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(bindkeygiftsetting.FieldRatioRecharge) {
+		fields = append(fields, bindkeygiftsetting.FieldRatioRecharge)
+	}
+	if m.FieldCleared(bindkeygiftsetting.FieldExpiresAfterDays) {
+		fields = append(fields, bindkeygiftsetting.FieldExpiresAfterDays)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *BindKeyGiftSettingMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *BindKeyGiftSettingMutation) ClearField(name string) error {
+	switch name {
+	case bindkeygiftsetting.FieldRatioRecharge:
+		m.ClearRatioRecharge()
+		return nil
+	case bindkeygiftsetting.FieldExpiresAfterDays:
+		m.ClearExpiresAfterDays()
+		return nil
+	}
+	return fmt.Errorf("unknown BindKeyGiftSetting nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *BindKeyGiftSettingMutation) ResetField(name string) error {
+	switch name {
+	case bindkeygiftsetting.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case bindkeygiftsetting.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case bindkeygiftsetting.FieldAPIKeyID:
+		m.ResetAPIKeyID()
+		return nil
+	case bindkeygiftsetting.FieldDeductionMode:
+		m.ResetDeductionMode()
+		return nil
+	case bindkeygiftsetting.FieldRatioRecharge:
+		m.ResetRatioRecharge()
+		return nil
+	case bindkeygiftsetting.FieldExpiresAfterDays:
+		m.ResetExpiresAfterDays()
+		return nil
+	}
+	return fmt.Errorf("unknown BindKeyGiftSetting field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *BindKeyGiftSettingMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *BindKeyGiftSettingMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *BindKeyGiftSettingMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *BindKeyGiftSettingMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *BindKeyGiftSettingMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *BindKeyGiftSettingMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *BindKeyGiftSettingMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown BindKeyGiftSetting unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *BindKeyGiftSettingMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown BindKeyGiftSetting edge %s", name)
 }
 
 // ChannelMonitorMutation represents an operation that mutates the ChannelMonitor nodes in the graph.
@@ -34425,6 +35170,10 @@ type UsageLogMutation struct {
 	addtotal_cost               *float64
 	actual_cost                 *float64
 	addactual_cost              *float64
+	gift_cost                   *float64
+	addgift_cost                *float64
+	recharge_cost               *float64
+	addrecharge_cost            *float64
 	rate_multiplier             *float64
 	addrate_multiplier          *float64
 	account_rate_multiplier     *float64
@@ -35826,6 +36575,118 @@ func (m *UsageLogMutation) ResetActualCost() {
 	m.addactual_cost = nil
 }
 
+// SetGiftCost sets the "gift_cost" field.
+func (m *UsageLogMutation) SetGiftCost(f float64) {
+	m.gift_cost = &f
+	m.addgift_cost = nil
+}
+
+// GiftCost returns the value of the "gift_cost" field in the mutation.
+func (m *UsageLogMutation) GiftCost() (r float64, exists bool) {
+	v := m.gift_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGiftCost returns the old "gift_cost" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldGiftCost(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGiftCost is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGiftCost requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGiftCost: %w", err)
+	}
+	return oldValue.GiftCost, nil
+}
+
+// AddGiftCost adds f to the "gift_cost" field.
+func (m *UsageLogMutation) AddGiftCost(f float64) {
+	if m.addgift_cost != nil {
+		*m.addgift_cost += f
+	} else {
+		m.addgift_cost = &f
+	}
+}
+
+// AddedGiftCost returns the value that was added to the "gift_cost" field in this mutation.
+func (m *UsageLogMutation) AddedGiftCost() (r float64, exists bool) {
+	v := m.addgift_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetGiftCost resets all changes to the "gift_cost" field.
+func (m *UsageLogMutation) ResetGiftCost() {
+	m.gift_cost = nil
+	m.addgift_cost = nil
+}
+
+// SetRechargeCost sets the "recharge_cost" field.
+func (m *UsageLogMutation) SetRechargeCost(f float64) {
+	m.recharge_cost = &f
+	m.addrecharge_cost = nil
+}
+
+// RechargeCost returns the value of the "recharge_cost" field in the mutation.
+func (m *UsageLogMutation) RechargeCost() (r float64, exists bool) {
+	v := m.recharge_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRechargeCost returns the old "recharge_cost" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldRechargeCost(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRechargeCost is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRechargeCost requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRechargeCost: %w", err)
+	}
+	return oldValue.RechargeCost, nil
+}
+
+// AddRechargeCost adds f to the "recharge_cost" field.
+func (m *UsageLogMutation) AddRechargeCost(f float64) {
+	if m.addrecharge_cost != nil {
+		*m.addrecharge_cost += f
+	} else {
+		m.addrecharge_cost = &f
+	}
+}
+
+// AddedRechargeCost returns the value that was added to the "recharge_cost" field in this mutation.
+func (m *UsageLogMutation) AddedRechargeCost() (r float64, exists bool) {
+	v := m.addrecharge_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRechargeCost resets all changes to the "recharge_cost" field.
+func (m *UsageLogMutation) ResetRechargeCost() {
+	m.recharge_cost = nil
+	m.addrecharge_cost = nil
+}
+
 // SetRateMultiplier sets the "rate_multiplier" field.
 func (m *UsageLogMutation) SetRateMultiplier(f float64) {
 	m.rate_multiplier = &f
@@ -36824,7 +37685,7 @@ func (m *UsageLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageLogMutation) Fields() []string {
-	fields := make([]string, 0, 41)
+	fields := make([]string, 0, 43)
 	if m.user != nil {
 		fields = append(fields, usagelog.FieldUserID)
 	}
@@ -36899,6 +37760,12 @@ func (m *UsageLogMutation) Fields() []string {
 	}
 	if m.actual_cost != nil {
 		fields = append(fields, usagelog.FieldActualCost)
+	}
+	if m.gift_cost != nil {
+		fields = append(fields, usagelog.FieldGiftCost)
+	}
+	if m.recharge_cost != nil {
+		fields = append(fields, usagelog.FieldRechargeCost)
 	}
 	if m.rate_multiplier != nil {
 		fields = append(fields, usagelog.FieldRateMultiplier)
@@ -37006,6 +37873,10 @@ func (m *UsageLogMutation) Field(name string) (ent.Value, bool) {
 		return m.TotalCost()
 	case usagelog.FieldActualCost:
 		return m.ActualCost()
+	case usagelog.FieldGiftCost:
+		return m.GiftCost()
+	case usagelog.FieldRechargeCost:
+		return m.RechargeCost()
 	case usagelog.FieldRateMultiplier:
 		return m.RateMultiplier()
 	case usagelog.FieldAccountRateMultiplier:
@@ -37097,6 +37968,10 @@ func (m *UsageLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldTotalCost(ctx)
 	case usagelog.FieldActualCost:
 		return m.OldActualCost(ctx)
+	case usagelog.FieldGiftCost:
+		return m.OldGiftCost(ctx)
+	case usagelog.FieldRechargeCost:
+		return m.OldRechargeCost(ctx)
 	case usagelog.FieldRateMultiplier:
 		return m.OldRateMultiplier(ctx)
 	case usagelog.FieldAccountRateMultiplier:
@@ -37313,6 +38188,20 @@ func (m *UsageLogMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetActualCost(v)
 		return nil
+	case usagelog.FieldGiftCost:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGiftCost(v)
+		return nil
+	case usagelog.FieldRechargeCost:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRechargeCost(v)
+		return nil
 	case usagelog.FieldRateMultiplier:
 		v, ok := value.(float64)
 		if !ok {
@@ -37472,6 +38361,12 @@ func (m *UsageLogMutation) AddedFields() []string {
 	if m.addactual_cost != nil {
 		fields = append(fields, usagelog.FieldActualCost)
 	}
+	if m.addgift_cost != nil {
+		fields = append(fields, usagelog.FieldGiftCost)
+	}
+	if m.addrecharge_cost != nil {
+		fields = append(fields, usagelog.FieldRechargeCost)
+	}
 	if m.addrate_multiplier != nil {
 		fields = append(fields, usagelog.FieldRateMultiplier)
 	}
@@ -37524,6 +38419,10 @@ func (m *UsageLogMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedTotalCost()
 	case usagelog.FieldActualCost:
 		return m.AddedActualCost()
+	case usagelog.FieldGiftCost:
+		return m.AddedGiftCost()
+	case usagelog.FieldRechargeCost:
+		return m.AddedRechargeCost()
 	case usagelog.FieldRateMultiplier:
 		return m.AddedRateMultiplier()
 	case usagelog.FieldAccountRateMultiplier:
@@ -37635,6 +38534,20 @@ func (m *UsageLogMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddActualCost(v)
+		return nil
+	case usagelog.FieldGiftCost:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddGiftCost(v)
+		return nil
+	case usagelog.FieldRechargeCost:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRechargeCost(v)
 		return nil
 	case usagelog.FieldRateMultiplier:
 		v, ok := value.(float64)
@@ -37890,6 +38803,12 @@ func (m *UsageLogMutation) ResetField(name string) error {
 		return nil
 	case usagelog.FieldActualCost:
 		m.ResetActualCost()
+		return nil
+	case usagelog.FieldGiftCost:
+		m.ResetGiftCost()
+		return nil
+	case usagelog.FieldRechargeCost:
+		m.ResetRechargeCost()
 		return nil
 	case usagelog.FieldRateMultiplier:
 		m.ResetRateMultiplier()
@@ -38160,6 +39079,9 @@ type UserMutation struct {
 	pending_auth_sessions         map[int64]struct{}
 	removedpending_auth_sessions  map[int64]struct{}
 	clearedpending_auth_sessions  bool
+	gifts                         map[int64]struct{}
+	removedgifts                  map[int64]struct{}
+	clearedgifts                  bool
 	done                          bool
 	oldValue                      func(context.Context) (*User, error)
 	predicates                    []predicate.User
@@ -39918,6 +40840,60 @@ func (m *UserMutation) ResetPendingAuthSessions() {
 	m.removedpending_auth_sessions = nil
 }
 
+// AddGiftIDs adds the "gifts" edge to the UserGift entity by ids.
+func (m *UserMutation) AddGiftIDs(ids ...int64) {
+	if m.gifts == nil {
+		m.gifts = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.gifts[ids[i]] = struct{}{}
+	}
+}
+
+// ClearGifts clears the "gifts" edge to the UserGift entity.
+func (m *UserMutation) ClearGifts() {
+	m.clearedgifts = true
+}
+
+// GiftsCleared reports if the "gifts" edge to the UserGift entity was cleared.
+func (m *UserMutation) GiftsCleared() bool {
+	return m.clearedgifts
+}
+
+// RemoveGiftIDs removes the "gifts" edge to the UserGift entity by IDs.
+func (m *UserMutation) RemoveGiftIDs(ids ...int64) {
+	if m.removedgifts == nil {
+		m.removedgifts = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.gifts, ids[i])
+		m.removedgifts[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedGifts returns the removed IDs of the "gifts" edge to the UserGift entity.
+func (m *UserMutation) RemovedGiftsIDs() (ids []int64) {
+	for id := range m.removedgifts {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// GiftsIDs returns the "gifts" edge IDs in the mutation.
+func (m *UserMutation) GiftsIDs() (ids []int64) {
+	for id := range m.gifts {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetGifts resets all changes to the "gifts" edge.
+func (m *UserMutation) ResetGifts() {
+	m.gifts = nil
+	m.clearedgifts = false
+	m.removedgifts = nil
+}
+
 // Where appends a list predicates to the UserMutation builder.
 func (m *UserMutation) Where(ps ...predicate.User) {
 	m.predicates = append(m.predicates, ps...)
@@ -40527,7 +41503,7 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 12)
+	edges := make([]string, 0, 13)
 	if m.api_keys != nil {
 		edges = append(edges, user.EdgeAPIKeys)
 	}
@@ -40563,6 +41539,9 @@ func (m *UserMutation) AddedEdges() []string {
 	}
 	if m.pending_auth_sessions != nil {
 		edges = append(edges, user.EdgePendingAuthSessions)
+	}
+	if m.gifts != nil {
+		edges = append(edges, user.EdgeGifts)
 	}
 	return edges
 }
@@ -40643,13 +41622,19 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeGifts:
+		ids := make([]ent.Value, 0, len(m.gifts))
+		for id := range m.gifts {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 12)
+	edges := make([]string, 0, 13)
 	if m.removedapi_keys != nil {
 		edges = append(edges, user.EdgeAPIKeys)
 	}
@@ -40685,6 +41670,9 @@ func (m *UserMutation) RemovedEdges() []string {
 	}
 	if m.removedpending_auth_sessions != nil {
 		edges = append(edges, user.EdgePendingAuthSessions)
+	}
+	if m.removedgifts != nil {
+		edges = append(edges, user.EdgeGifts)
 	}
 	return edges
 }
@@ -40765,13 +41753,19 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeGifts:
+		ids := make([]ent.Value, 0, len(m.removedgifts))
+		for id := range m.removedgifts {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 12)
+	edges := make([]string, 0, 13)
 	if m.clearedapi_keys {
 		edges = append(edges, user.EdgeAPIKeys)
 	}
@@ -40808,6 +41802,9 @@ func (m *UserMutation) ClearedEdges() []string {
 	if m.clearedpending_auth_sessions {
 		edges = append(edges, user.EdgePendingAuthSessions)
 	}
+	if m.clearedgifts {
+		edges = append(edges, user.EdgeGifts)
+	}
 	return edges
 }
 
@@ -40839,6 +41836,8 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 		return m.clearedauth_identities
 	case user.EdgePendingAuthSessions:
 		return m.clearedpending_auth_sessions
+	case user.EdgeGifts:
+		return m.clearedgifts
 	}
 	return false
 }
@@ -40890,6 +41889,9 @@ func (m *UserMutation) ResetEdge(name string) error {
 		return nil
 	case user.EdgePendingAuthSessions:
 		m.ResetPendingAuthSessions()
+		return nil
+	case user.EdgeGifts:
+		m.ResetGifts()
 		return nil
 	}
 	return fmt.Errorf("unknown User edge %s", name)
@@ -43109,6 +44111,1089 @@ func (m *UserAttributeValueMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown UserAttributeValue edge %s", name)
+}
+
+// UserGiftMutation represents an operation that mutates the UserGift nodes in the graph.
+type UserGiftMutation struct {
+	config
+	op                Op
+	typ               string
+	id                *int64
+	created_at        *time.Time
+	updated_at        *time.Time
+	amount            *float64
+	addamount         *float64
+	remaining         *float64
+	addremaining      *float64
+	deduction_mode    *string
+	ratio_recharge    *float64
+	addratio_recharge *float64
+	expires_at        *time.Time
+	source            *string
+	source_ref        *string
+	status            *string
+	clearedFields     map[string]struct{}
+	user              *int64
+	cleareduser       bool
+	done              bool
+	oldValue          func(context.Context) (*UserGift, error)
+	predicates        []predicate.UserGift
+}
+
+var _ ent.Mutation = (*UserGiftMutation)(nil)
+
+// usergiftOption allows management of the mutation configuration using functional options.
+type usergiftOption func(*UserGiftMutation)
+
+// newUserGiftMutation creates new mutation for the UserGift entity.
+func newUserGiftMutation(c config, op Op, opts ...usergiftOption) *UserGiftMutation {
+	m := &UserGiftMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeUserGift,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withUserGiftID sets the ID field of the mutation.
+func withUserGiftID(id int64) usergiftOption {
+	return func(m *UserGiftMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *UserGift
+		)
+		m.oldValue = func(ctx context.Context) (*UserGift, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().UserGift.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withUserGift sets the old UserGift of the mutation.
+func withUserGift(node *UserGift) usergiftOption {
+	return func(m *UserGiftMutation) {
+		m.oldValue = func(context.Context) (*UserGift, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m UserGiftMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m UserGiftMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *UserGiftMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *UserGiftMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().UserGift.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *UserGiftMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *UserGiftMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the UserGift entity.
+// If the UserGift object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserGiftMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *UserGiftMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *UserGiftMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *UserGiftMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the UserGift entity.
+// If the UserGift object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserGiftMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *UserGiftMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetUserID sets the "user_id" field.
+func (m *UserGiftMutation) SetUserID(i int64) {
+	m.user = &i
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *UserGiftMutation) UserID() (r int64, exists bool) {
+	v := m.user
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the UserGift entity.
+// If the UserGift object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserGiftMutation) OldUserID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *UserGiftMutation) ResetUserID() {
+	m.user = nil
+}
+
+// SetAmount sets the "amount" field.
+func (m *UserGiftMutation) SetAmount(f float64) {
+	m.amount = &f
+	m.addamount = nil
+}
+
+// Amount returns the value of the "amount" field in the mutation.
+func (m *UserGiftMutation) Amount() (r float64, exists bool) {
+	v := m.amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAmount returns the old "amount" field's value of the UserGift entity.
+// If the UserGift object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserGiftMutation) OldAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAmount: %w", err)
+	}
+	return oldValue.Amount, nil
+}
+
+// AddAmount adds f to the "amount" field.
+func (m *UserGiftMutation) AddAmount(f float64) {
+	if m.addamount != nil {
+		*m.addamount += f
+	} else {
+		m.addamount = &f
+	}
+}
+
+// AddedAmount returns the value that was added to the "amount" field in this mutation.
+func (m *UserGiftMutation) AddedAmount() (r float64, exists bool) {
+	v := m.addamount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAmount resets all changes to the "amount" field.
+func (m *UserGiftMutation) ResetAmount() {
+	m.amount = nil
+	m.addamount = nil
+}
+
+// SetRemaining sets the "remaining" field.
+func (m *UserGiftMutation) SetRemaining(f float64) {
+	m.remaining = &f
+	m.addremaining = nil
+}
+
+// Remaining returns the value of the "remaining" field in the mutation.
+func (m *UserGiftMutation) Remaining() (r float64, exists bool) {
+	v := m.remaining
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRemaining returns the old "remaining" field's value of the UserGift entity.
+// If the UserGift object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserGiftMutation) OldRemaining(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRemaining is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRemaining requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRemaining: %w", err)
+	}
+	return oldValue.Remaining, nil
+}
+
+// AddRemaining adds f to the "remaining" field.
+func (m *UserGiftMutation) AddRemaining(f float64) {
+	if m.addremaining != nil {
+		*m.addremaining += f
+	} else {
+		m.addremaining = &f
+	}
+}
+
+// AddedRemaining returns the value that was added to the "remaining" field in this mutation.
+func (m *UserGiftMutation) AddedRemaining() (r float64, exists bool) {
+	v := m.addremaining
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRemaining resets all changes to the "remaining" field.
+func (m *UserGiftMutation) ResetRemaining() {
+	m.remaining = nil
+	m.addremaining = nil
+}
+
+// SetDeductionMode sets the "deduction_mode" field.
+func (m *UserGiftMutation) SetDeductionMode(s string) {
+	m.deduction_mode = &s
+}
+
+// DeductionMode returns the value of the "deduction_mode" field in the mutation.
+func (m *UserGiftMutation) DeductionMode() (r string, exists bool) {
+	v := m.deduction_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeductionMode returns the old "deduction_mode" field's value of the UserGift entity.
+// If the UserGift object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserGiftMutation) OldDeductionMode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeductionMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeductionMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeductionMode: %w", err)
+	}
+	return oldValue.DeductionMode, nil
+}
+
+// ResetDeductionMode resets all changes to the "deduction_mode" field.
+func (m *UserGiftMutation) ResetDeductionMode() {
+	m.deduction_mode = nil
+}
+
+// SetRatioRecharge sets the "ratio_recharge" field.
+func (m *UserGiftMutation) SetRatioRecharge(f float64) {
+	m.ratio_recharge = &f
+	m.addratio_recharge = nil
+}
+
+// RatioRecharge returns the value of the "ratio_recharge" field in the mutation.
+func (m *UserGiftMutation) RatioRecharge() (r float64, exists bool) {
+	v := m.ratio_recharge
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRatioRecharge returns the old "ratio_recharge" field's value of the UserGift entity.
+// If the UserGift object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserGiftMutation) OldRatioRecharge(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRatioRecharge is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRatioRecharge requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRatioRecharge: %w", err)
+	}
+	return oldValue.RatioRecharge, nil
+}
+
+// AddRatioRecharge adds f to the "ratio_recharge" field.
+func (m *UserGiftMutation) AddRatioRecharge(f float64) {
+	if m.addratio_recharge != nil {
+		*m.addratio_recharge += f
+	} else {
+		m.addratio_recharge = &f
+	}
+}
+
+// AddedRatioRecharge returns the value that was added to the "ratio_recharge" field in this mutation.
+func (m *UserGiftMutation) AddedRatioRecharge() (r float64, exists bool) {
+	v := m.addratio_recharge
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearRatioRecharge clears the value of the "ratio_recharge" field.
+func (m *UserGiftMutation) ClearRatioRecharge() {
+	m.ratio_recharge = nil
+	m.addratio_recharge = nil
+	m.clearedFields[usergift.FieldRatioRecharge] = struct{}{}
+}
+
+// RatioRechargeCleared returns if the "ratio_recharge" field was cleared in this mutation.
+func (m *UserGiftMutation) RatioRechargeCleared() bool {
+	_, ok := m.clearedFields[usergift.FieldRatioRecharge]
+	return ok
+}
+
+// ResetRatioRecharge resets all changes to the "ratio_recharge" field.
+func (m *UserGiftMutation) ResetRatioRecharge() {
+	m.ratio_recharge = nil
+	m.addratio_recharge = nil
+	delete(m.clearedFields, usergift.FieldRatioRecharge)
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (m *UserGiftMutation) SetExpiresAt(t time.Time) {
+	m.expires_at = &t
+}
+
+// ExpiresAt returns the value of the "expires_at" field in the mutation.
+func (m *UserGiftMutation) ExpiresAt() (r time.Time, exists bool) {
+	v := m.expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAt returns the old "expires_at" field's value of the UserGift entity.
+// If the UserGift object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserGiftMutation) OldExpiresAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAt: %w", err)
+	}
+	return oldValue.ExpiresAt, nil
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (m *UserGiftMutation) ClearExpiresAt() {
+	m.expires_at = nil
+	m.clearedFields[usergift.FieldExpiresAt] = struct{}{}
+}
+
+// ExpiresAtCleared returns if the "expires_at" field was cleared in this mutation.
+func (m *UserGiftMutation) ExpiresAtCleared() bool {
+	_, ok := m.clearedFields[usergift.FieldExpiresAt]
+	return ok
+}
+
+// ResetExpiresAt resets all changes to the "expires_at" field.
+func (m *UserGiftMutation) ResetExpiresAt() {
+	m.expires_at = nil
+	delete(m.clearedFields, usergift.FieldExpiresAt)
+}
+
+// SetSource sets the "source" field.
+func (m *UserGiftMutation) SetSource(s string) {
+	m.source = &s
+}
+
+// Source returns the value of the "source" field in the mutation.
+func (m *UserGiftMutation) Source() (r string, exists bool) {
+	v := m.source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSource returns the old "source" field's value of the UserGift entity.
+// If the UserGift object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserGiftMutation) OldSource(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSource: %w", err)
+	}
+	return oldValue.Source, nil
+}
+
+// ResetSource resets all changes to the "source" field.
+func (m *UserGiftMutation) ResetSource() {
+	m.source = nil
+}
+
+// SetSourceRef sets the "source_ref" field.
+func (m *UserGiftMutation) SetSourceRef(s string) {
+	m.source_ref = &s
+}
+
+// SourceRef returns the value of the "source_ref" field in the mutation.
+func (m *UserGiftMutation) SourceRef() (r string, exists bool) {
+	v := m.source_ref
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceRef returns the old "source_ref" field's value of the UserGift entity.
+// If the UserGift object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserGiftMutation) OldSourceRef(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceRef is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceRef requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceRef: %w", err)
+	}
+	return oldValue.SourceRef, nil
+}
+
+// ClearSourceRef clears the value of the "source_ref" field.
+func (m *UserGiftMutation) ClearSourceRef() {
+	m.source_ref = nil
+	m.clearedFields[usergift.FieldSourceRef] = struct{}{}
+}
+
+// SourceRefCleared returns if the "source_ref" field was cleared in this mutation.
+func (m *UserGiftMutation) SourceRefCleared() bool {
+	_, ok := m.clearedFields[usergift.FieldSourceRef]
+	return ok
+}
+
+// ResetSourceRef resets all changes to the "source_ref" field.
+func (m *UserGiftMutation) ResetSourceRef() {
+	m.source_ref = nil
+	delete(m.clearedFields, usergift.FieldSourceRef)
+}
+
+// SetStatus sets the "status" field.
+func (m *UserGiftMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *UserGiftMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the UserGift entity.
+// If the UserGift object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserGiftMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *UserGiftMutation) ResetStatus() {
+	m.status = nil
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (m *UserGiftMutation) ClearUser() {
+	m.cleareduser = true
+	m.clearedFields[usergift.FieldUserID] = struct{}{}
+}
+
+// UserCleared reports if the "user" edge to the User entity was cleared.
+func (m *UserGiftMutation) UserCleared() bool {
+	return m.cleareduser
+}
+
+// UserIDs returns the "user" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// UserID instead. It exists only for internal usage by the builders.
+func (m *UserGiftMutation) UserIDs() (ids []int64) {
+	if id := m.user; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetUser resets all changes to the "user" edge.
+func (m *UserGiftMutation) ResetUser() {
+	m.user = nil
+	m.cleareduser = false
+}
+
+// Where appends a list predicates to the UserGiftMutation builder.
+func (m *UserGiftMutation) Where(ps ...predicate.UserGift) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the UserGiftMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *UserGiftMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.UserGift, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *UserGiftMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *UserGiftMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (UserGift).
+func (m *UserGiftMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *UserGiftMutation) Fields() []string {
+	fields := make([]string, 0, 11)
+	if m.created_at != nil {
+		fields = append(fields, usergift.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, usergift.FieldUpdatedAt)
+	}
+	if m.user != nil {
+		fields = append(fields, usergift.FieldUserID)
+	}
+	if m.amount != nil {
+		fields = append(fields, usergift.FieldAmount)
+	}
+	if m.remaining != nil {
+		fields = append(fields, usergift.FieldRemaining)
+	}
+	if m.deduction_mode != nil {
+		fields = append(fields, usergift.FieldDeductionMode)
+	}
+	if m.ratio_recharge != nil {
+		fields = append(fields, usergift.FieldRatioRecharge)
+	}
+	if m.expires_at != nil {
+		fields = append(fields, usergift.FieldExpiresAt)
+	}
+	if m.source != nil {
+		fields = append(fields, usergift.FieldSource)
+	}
+	if m.source_ref != nil {
+		fields = append(fields, usergift.FieldSourceRef)
+	}
+	if m.status != nil {
+		fields = append(fields, usergift.FieldStatus)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *UserGiftMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case usergift.FieldCreatedAt:
+		return m.CreatedAt()
+	case usergift.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case usergift.FieldUserID:
+		return m.UserID()
+	case usergift.FieldAmount:
+		return m.Amount()
+	case usergift.FieldRemaining:
+		return m.Remaining()
+	case usergift.FieldDeductionMode:
+		return m.DeductionMode()
+	case usergift.FieldRatioRecharge:
+		return m.RatioRecharge()
+	case usergift.FieldExpiresAt:
+		return m.ExpiresAt()
+	case usergift.FieldSource:
+		return m.Source()
+	case usergift.FieldSourceRef:
+		return m.SourceRef()
+	case usergift.FieldStatus:
+		return m.Status()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *UserGiftMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case usergift.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case usergift.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case usergift.FieldUserID:
+		return m.OldUserID(ctx)
+	case usergift.FieldAmount:
+		return m.OldAmount(ctx)
+	case usergift.FieldRemaining:
+		return m.OldRemaining(ctx)
+	case usergift.FieldDeductionMode:
+		return m.OldDeductionMode(ctx)
+	case usergift.FieldRatioRecharge:
+		return m.OldRatioRecharge(ctx)
+	case usergift.FieldExpiresAt:
+		return m.OldExpiresAt(ctx)
+	case usergift.FieldSource:
+		return m.OldSource(ctx)
+	case usergift.FieldSourceRef:
+		return m.OldSourceRef(ctx)
+	case usergift.FieldStatus:
+		return m.OldStatus(ctx)
+	}
+	return nil, fmt.Errorf("unknown UserGift field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UserGiftMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case usergift.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case usergift.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case usergift.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case usergift.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAmount(v)
+		return nil
+	case usergift.FieldRemaining:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRemaining(v)
+		return nil
+	case usergift.FieldDeductionMode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeductionMode(v)
+		return nil
+	case usergift.FieldRatioRecharge:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRatioRecharge(v)
+		return nil
+	case usergift.FieldExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAt(v)
+		return nil
+	case usergift.FieldSource:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSource(v)
+		return nil
+	case usergift.FieldSourceRef:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceRef(v)
+		return nil
+	case usergift.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UserGift field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *UserGiftMutation) AddedFields() []string {
+	var fields []string
+	if m.addamount != nil {
+		fields = append(fields, usergift.FieldAmount)
+	}
+	if m.addremaining != nil {
+		fields = append(fields, usergift.FieldRemaining)
+	}
+	if m.addratio_recharge != nil {
+		fields = append(fields, usergift.FieldRatioRecharge)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *UserGiftMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case usergift.FieldAmount:
+		return m.AddedAmount()
+	case usergift.FieldRemaining:
+		return m.AddedRemaining()
+	case usergift.FieldRatioRecharge:
+		return m.AddedRatioRecharge()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UserGiftMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case usergift.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAmount(v)
+		return nil
+	case usergift.FieldRemaining:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRemaining(v)
+		return nil
+	case usergift.FieldRatioRecharge:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRatioRecharge(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UserGift numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *UserGiftMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(usergift.FieldRatioRecharge) {
+		fields = append(fields, usergift.FieldRatioRecharge)
+	}
+	if m.FieldCleared(usergift.FieldExpiresAt) {
+		fields = append(fields, usergift.FieldExpiresAt)
+	}
+	if m.FieldCleared(usergift.FieldSourceRef) {
+		fields = append(fields, usergift.FieldSourceRef)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *UserGiftMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *UserGiftMutation) ClearField(name string) error {
+	switch name {
+	case usergift.FieldRatioRecharge:
+		m.ClearRatioRecharge()
+		return nil
+	case usergift.FieldExpiresAt:
+		m.ClearExpiresAt()
+		return nil
+	case usergift.FieldSourceRef:
+		m.ClearSourceRef()
+		return nil
+	}
+	return fmt.Errorf("unknown UserGift nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *UserGiftMutation) ResetField(name string) error {
+	switch name {
+	case usergift.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case usergift.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case usergift.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case usergift.FieldAmount:
+		m.ResetAmount()
+		return nil
+	case usergift.FieldRemaining:
+		m.ResetRemaining()
+		return nil
+	case usergift.FieldDeductionMode:
+		m.ResetDeductionMode()
+		return nil
+	case usergift.FieldRatioRecharge:
+		m.ResetRatioRecharge()
+		return nil
+	case usergift.FieldExpiresAt:
+		m.ResetExpiresAt()
+		return nil
+	case usergift.FieldSource:
+		m.ResetSource()
+		return nil
+	case usergift.FieldSourceRef:
+		m.ResetSourceRef()
+		return nil
+	case usergift.FieldStatus:
+		m.ResetStatus()
+		return nil
+	}
+	return fmt.Errorf("unknown UserGift field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *UserGiftMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.user != nil {
+		edges = append(edges, usergift.EdgeUser)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *UserGiftMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case usergift.EdgeUser:
+		if id := m.user; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *UserGiftMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *UserGiftMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *UserGiftMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.cleareduser {
+		edges = append(edges, usergift.EdgeUser)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *UserGiftMutation) EdgeCleared(name string) bool {
+	switch name {
+	case usergift.EdgeUser:
+		return m.cleareduser
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *UserGiftMutation) ClearEdge(name string) error {
+	switch name {
+	case usergift.EdgeUser:
+		m.ClearUser()
+		return nil
+	}
+	return fmt.Errorf("unknown UserGift unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *UserGiftMutation) ResetEdge(name string) error {
+	switch name {
+	case usergift.EdgeUser:
+		m.ResetUser()
+		return nil
+	}
+	return fmt.Errorf("unknown UserGift edge %s", name)
 }
 
 // UserSubscriptionMutation represents an operation that mutates the UserSubscription nodes in the graph.

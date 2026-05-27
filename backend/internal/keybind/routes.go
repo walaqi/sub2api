@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/gift"
 	servermiddleware "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 
 	"github.com/gin-gonic/gin"
@@ -41,6 +42,7 @@ func RegisterRoutes(
 	jwtAuth servermiddleware.JWTAuthMiddleware,
 	dataDir string,
 	authCache APIKeyAuthCacheInvalidator,
+	giftEngine *gift.Engine,
 ) {
 	if client == nil || redisClient == nil {
 		log.Printf("[keybind] disabled: missing ent client or redis client")
@@ -51,7 +53,7 @@ func RegisterRoutes(
 	if poolEmail == "" {
 		poolEmail = DefaultPoolUserEmail
 	}
-	updater := NewEntUserBalanceUpdater(client)
+	updater := NewGiftEngineUpdater(giftEngine, NewBindKeyGiftSettingResolver(client))
 	svc := NewService(
 		context.Background(),
 		client,

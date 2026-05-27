@@ -69,6 +69,19 @@
                 <p class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
                   {{ formatCurrency(user?.balance || 0) }}
                 </p>
+                <p
+                  v-if="(user?.gift_balance ?? 0) > 0"
+                  data-testid="profile-overview-metric-gift-balance"
+                  class="mt-1 text-xs font-medium text-amber-600 dark:text-amber-400"
+                >
+                  {{ t('profile.giftBalance') }} {{ formatCurrency(user?.gift_balance || 0) }}
+                  <span
+                    v-if="(user?.gift_expiring_soon ?? 0) > 0"
+                    class="ml-1 text-[11px] font-normal text-orange-600 dark:text-orange-400"
+                  >
+                    {{ t('profile.giftExpiringSoonHint', { amount: formatCurrency(user?.gift_expiring_soon || 0) }) }}
+                  </span>
+                </p>
               </div>
               <div
                 data-testid="profile-overview-metric-concurrency"

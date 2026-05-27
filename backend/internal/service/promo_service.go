@@ -9,6 +9,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/gift"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 )
@@ -29,6 +30,7 @@ type PromoService struct {
 	billingCacheService  *BillingCacheService
 	entClient            *dbent.Client
 	authCacheInvalidator APIKeyAuthCacheInvalidator
+	giftEngine           *gift.Engine
 }
 
 // NewPromoService 创建优惠码服务实例
@@ -38,6 +40,7 @@ func NewPromoService(
 	billingCacheService *BillingCacheService,
 	entClient *dbent.Client,
 	authCacheInvalidator APIKeyAuthCacheInvalidator,
+	giftEngine *gift.Engine,
 ) *PromoService {
 	return &PromoService{
 		promoRepo:            promoRepo,
@@ -45,6 +48,7 @@ func NewPromoService(
 		billingCacheService:  billingCacheService,
 		entClient:            entClient,
 		authCacheInvalidator: authCacheInvalidator,
+		giftEngine:           giftEngine,
 	}
 }
 
@@ -123,9 +127,24 @@ func (s *PromoService) ApplyPromoCode(ctx context.Context, userID int64, code st
 		return ErrPromoCodeAlreadyUsed
 	}
 
-	// 增加用户余额
-	if err := s.userRepo.UpdateBalance(txCtx, userID, promoCode.BonusAmount); err != nil {
-		return fmt.Errorf("update user balance: %w", err)
+	// 增加用户余额（走赠金引擎：promo 注册赠送作为 priority 类赠金，不污染 total_recharged）
+	// 沿用 promo_code 自身的 ExpiresAt 作为赠金有效期；过期未消费部分作废。
+	if s.giftEngine != nil {
+		sourceRef := fmt.Sprintf("promo_code:%d", promoCode.ID)
+		if _, err := s.giftEngine.Grant(txCtx, gift.GrantInput{
+			UserID:    userID,
+			Amount:    promoCode.BonusAmount,
+			Mode:      gift.DeductionModePriority,
+			ExpiresAt: promoCode.ExpiresAt,
+			Source:    gift.SourcePromoCode,
+			SourceRef: &sourceRef,
+		}); err != nil {
+			return fmt.Errorf("grant promo bonus: %w", err)
+		}
+	} else {
+		if err := s.userRepo.UpdateBalance(txCtx, userID, promoCode.BonusAmount); err != nil {
+			return fmt.Errorf("update user balance: %w", err)
+		}
 	}
 
 	// 创建使用记录

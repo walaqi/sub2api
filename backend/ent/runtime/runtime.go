@@ -12,6 +12,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/ent/authidentitychannel"
+	"github.com/Wei-Shaw/sub2api/ent/bindkeygiftsetting"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitor"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitordailyrollup"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
@@ -39,6 +40,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/userallowedgroup"
 	"github.com/Wei-Shaw/sub2api/ent/userattributedefinition"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
+	"github.com/Wei-Shaw/sub2api/ent/usergift"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 	"github.com/Wei-Shaw/sub2api/internal/domain"
 )
@@ -431,6 +433,25 @@ func init() {
 	authidentitychannelDescMetadata := authidentitychannelFields[6].Descriptor()
 	// authidentitychannel.DefaultMetadata holds the default value on creation for the metadata field.
 	authidentitychannel.DefaultMetadata = authidentitychannelDescMetadata.Default.(func() map[string]interface{})
+	bindkeygiftsettingMixin := schema.BindKeyGiftSetting{}.Mixin()
+	bindkeygiftsettingMixinFields0 := bindkeygiftsettingMixin[0].Fields()
+	_ = bindkeygiftsettingMixinFields0
+	bindkeygiftsettingFields := schema.BindKeyGiftSetting{}.Fields()
+	_ = bindkeygiftsettingFields
+	// bindkeygiftsettingDescCreatedAt is the schema descriptor for created_at field.
+	bindkeygiftsettingDescCreatedAt := bindkeygiftsettingMixinFields0[0].Descriptor()
+	// bindkeygiftsetting.DefaultCreatedAt holds the default value on creation for the created_at field.
+	bindkeygiftsetting.DefaultCreatedAt = bindkeygiftsettingDescCreatedAt.Default.(func() time.Time)
+	// bindkeygiftsettingDescUpdatedAt is the schema descriptor for updated_at field.
+	bindkeygiftsettingDescUpdatedAt := bindkeygiftsettingMixinFields0[1].Descriptor()
+	// bindkeygiftsetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	bindkeygiftsetting.DefaultUpdatedAt = bindkeygiftsettingDescUpdatedAt.Default.(func() time.Time)
+	// bindkeygiftsetting.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	bindkeygiftsetting.UpdateDefaultUpdatedAt = bindkeygiftsettingDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// bindkeygiftsettingDescDeductionMode is the schema descriptor for deduction_mode field.
+	bindkeygiftsettingDescDeductionMode := bindkeygiftsettingFields[1].Descriptor()
+	// bindkeygiftsetting.DeductionModeValidator is a validator for the "deduction_mode" field. It is called by the builders before save.
+	bindkeygiftsetting.DeductionModeValidator = bindkeygiftsettingDescDeductionMode.Validators[0].(func(string) error)
 	channelmonitorMixin := schema.ChannelMonitor{}.Mixin()
 	channelmonitorMixinFields0 := channelmonitorMixin[0].Fields()
 	_ = channelmonitorMixinFields0
@@ -1706,52 +1727,60 @@ func init() {
 	usagelogDescActualCost := usagelogFields[24].Descriptor()
 	// usagelog.DefaultActualCost holds the default value on creation for the actual_cost field.
 	usagelog.DefaultActualCost = usagelogDescActualCost.Default.(float64)
+	// usagelogDescGiftCost is the schema descriptor for gift_cost field.
+	usagelogDescGiftCost := usagelogFields[25].Descriptor()
+	// usagelog.DefaultGiftCost holds the default value on creation for the gift_cost field.
+	usagelog.DefaultGiftCost = usagelogDescGiftCost.Default.(float64)
+	// usagelogDescRechargeCost is the schema descriptor for recharge_cost field.
+	usagelogDescRechargeCost := usagelogFields[26].Descriptor()
+	// usagelog.DefaultRechargeCost holds the default value on creation for the recharge_cost field.
+	usagelog.DefaultRechargeCost = usagelogDescRechargeCost.Default.(float64)
 	// usagelogDescRateMultiplier is the schema descriptor for rate_multiplier field.
-	usagelogDescRateMultiplier := usagelogFields[25].Descriptor()
+	usagelogDescRateMultiplier := usagelogFields[27].Descriptor()
 	// usagelog.DefaultRateMultiplier holds the default value on creation for the rate_multiplier field.
 	usagelog.DefaultRateMultiplier = usagelogDescRateMultiplier.Default.(float64)
 	// usagelogDescBillingType is the schema descriptor for billing_type field.
-	usagelogDescBillingType := usagelogFields[27].Descriptor()
+	usagelogDescBillingType := usagelogFields[29].Descriptor()
 	// usagelog.DefaultBillingType holds the default value on creation for the billing_type field.
 	usagelog.DefaultBillingType = usagelogDescBillingType.Default.(int8)
 	// usagelogDescStream is the schema descriptor for stream field.
-	usagelogDescStream := usagelogFields[28].Descriptor()
+	usagelogDescStream := usagelogFields[30].Descriptor()
 	// usagelog.DefaultStream holds the default value on creation for the stream field.
 	usagelog.DefaultStream = usagelogDescStream.Default.(bool)
 	// usagelogDescUserAgent is the schema descriptor for user_agent field.
-	usagelogDescUserAgent := usagelogFields[31].Descriptor()
+	usagelogDescUserAgent := usagelogFields[33].Descriptor()
 	// usagelog.UserAgentValidator is a validator for the "user_agent" field. It is called by the builders before save.
 	usagelog.UserAgentValidator = usagelogDescUserAgent.Validators[0].(func(string) error)
 	// usagelogDescIPAddress is the schema descriptor for ip_address field.
-	usagelogDescIPAddress := usagelogFields[32].Descriptor()
+	usagelogDescIPAddress := usagelogFields[34].Descriptor()
 	// usagelog.IPAddressValidator is a validator for the "ip_address" field. It is called by the builders before save.
 	usagelog.IPAddressValidator = usagelogDescIPAddress.Validators[0].(func(string) error)
 	// usagelogDescImageCount is the schema descriptor for image_count field.
-	usagelogDescImageCount := usagelogFields[33].Descriptor()
+	usagelogDescImageCount := usagelogFields[35].Descriptor()
 	// usagelog.DefaultImageCount holds the default value on creation for the image_count field.
 	usagelog.DefaultImageCount = usagelogDescImageCount.Default.(int)
 	// usagelogDescImageSize is the schema descriptor for image_size field.
-	usagelogDescImageSize := usagelogFields[34].Descriptor()
+	usagelogDescImageSize := usagelogFields[36].Descriptor()
 	// usagelog.ImageSizeValidator is a validator for the "image_size" field. It is called by the builders before save.
 	usagelog.ImageSizeValidator = usagelogDescImageSize.Validators[0].(func(string) error)
 	// usagelogDescImageInputSize is the schema descriptor for image_input_size field.
-	usagelogDescImageInputSize := usagelogFields[35].Descriptor()
+	usagelogDescImageInputSize := usagelogFields[37].Descriptor()
 	// usagelog.ImageInputSizeValidator is a validator for the "image_input_size" field. It is called by the builders before save.
 	usagelog.ImageInputSizeValidator = usagelogDescImageInputSize.Validators[0].(func(string) error)
 	// usagelogDescImageOutputSize is the schema descriptor for image_output_size field.
-	usagelogDescImageOutputSize := usagelogFields[36].Descriptor()
+	usagelogDescImageOutputSize := usagelogFields[38].Descriptor()
 	// usagelog.ImageOutputSizeValidator is a validator for the "image_output_size" field. It is called by the builders before save.
 	usagelog.ImageOutputSizeValidator = usagelogDescImageOutputSize.Validators[0].(func(string) error)
 	// usagelogDescImageSizeSource is the schema descriptor for image_size_source field.
-	usagelogDescImageSizeSource := usagelogFields[37].Descriptor()
+	usagelogDescImageSizeSource := usagelogFields[39].Descriptor()
 	// usagelog.ImageSizeSourceValidator is a validator for the "image_size_source" field. It is called by the builders before save.
 	usagelog.ImageSizeSourceValidator = usagelogDescImageSizeSource.Validators[0].(func(string) error)
 	// usagelogDescCacheTTLOverridden is the schema descriptor for cache_ttl_overridden field.
-	usagelogDescCacheTTLOverridden := usagelogFields[39].Descriptor()
+	usagelogDescCacheTTLOverridden := usagelogFields[41].Descriptor()
 	// usagelog.DefaultCacheTTLOverridden holds the default value on creation for the cache_ttl_overridden field.
 	usagelog.DefaultCacheTTLOverridden = usagelogDescCacheTTLOverridden.Default.(bool)
 	// usagelogDescCreatedAt is the schema descriptor for created_at field.
-	usagelogDescCreatedAt := usagelogFields[40].Descriptor()
+	usagelogDescCreatedAt := usagelogFields[42].Descriptor()
 	// usagelog.DefaultCreatedAt holds the default value on creation for the created_at field.
 	usagelog.DefaultCreatedAt = usagelogDescCreatedAt.Default.(func() time.Time)
 	userMixin := schema.User{}.Mixin()
@@ -1997,6 +2026,39 @@ func init() {
 	userattributevalueDescValue := userattributevalueFields[2].Descriptor()
 	// userattributevalue.DefaultValue holds the default value on creation for the value field.
 	userattributevalue.DefaultValue = userattributevalueDescValue.Default.(string)
+	usergiftMixin := schema.UserGift{}.Mixin()
+	usergiftMixinFields0 := usergiftMixin[0].Fields()
+	_ = usergiftMixinFields0
+	usergiftFields := schema.UserGift{}.Fields()
+	_ = usergiftFields
+	// usergiftDescCreatedAt is the schema descriptor for created_at field.
+	usergiftDescCreatedAt := usergiftMixinFields0[0].Descriptor()
+	// usergift.DefaultCreatedAt holds the default value on creation for the created_at field.
+	usergift.DefaultCreatedAt = usergiftDescCreatedAt.Default.(func() time.Time)
+	// usergiftDescUpdatedAt is the schema descriptor for updated_at field.
+	usergiftDescUpdatedAt := usergiftMixinFields0[1].Descriptor()
+	// usergift.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	usergift.DefaultUpdatedAt = usergiftDescUpdatedAt.Default.(func() time.Time)
+	// usergift.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	usergift.UpdateDefaultUpdatedAt = usergiftDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// usergiftDescDeductionMode is the schema descriptor for deduction_mode field.
+	usergiftDescDeductionMode := usergiftFields[3].Descriptor()
+	// usergift.DeductionModeValidator is a validator for the "deduction_mode" field. It is called by the builders before save.
+	usergift.DeductionModeValidator = usergiftDescDeductionMode.Validators[0].(func(string) error)
+	// usergiftDescSource is the schema descriptor for source field.
+	usergiftDescSource := usergiftFields[6].Descriptor()
+	// usergift.SourceValidator is a validator for the "source" field. It is called by the builders before save.
+	usergift.SourceValidator = usergiftDescSource.Validators[0].(func(string) error)
+	// usergiftDescSourceRef is the schema descriptor for source_ref field.
+	usergiftDescSourceRef := usergiftFields[7].Descriptor()
+	// usergift.SourceRefValidator is a validator for the "source_ref" field. It is called by the builders before save.
+	usergift.SourceRefValidator = usergiftDescSourceRef.Validators[0].(func(string) error)
+	// usergiftDescStatus is the schema descriptor for status field.
+	usergiftDescStatus := usergiftFields[8].Descriptor()
+	// usergift.DefaultStatus holds the default value on creation for the status field.
+	usergift.DefaultStatus = usergiftDescStatus.Default.(string)
+	// usergift.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	usergift.StatusValidator = usergiftDescStatus.Validators[0].(func(string) error)
 	usersubscriptionMixin := schema.UserSubscription{}.Mixin()
 	usersubscriptionMixinHooks1 := usersubscriptionMixin[1].Hooks()
 	usersubscription.Hooks[0] = usersubscriptionMixinHooks1[0]

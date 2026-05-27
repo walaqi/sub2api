@@ -116,6 +116,11 @@ type UsageBillingApplyResult struct {
 	APIKeyQuotaExhausted bool
 	NewBalance           *float64           // post-deduction balance (nil = no balance deduction)
 	QuotaState           *AccountQuotaState // post-increment quota state (nil = no quota increment)
+	// GiftCost / RechargeCost 是赠金引擎本次扣费的分摊明细（仅 BalanceCost > 0 时填充）。
+	// 用于把"赠金扣减 / 充值池扣减"持久化到 usage_logs。
+	// 不变量：GiftCost + RechargeCost = BalanceCost（订阅扣费路径下两者均为 0）。
+	GiftCost     *float64
+	RechargeCost *float64
 }
 
 type UsageBillingRepository interface {

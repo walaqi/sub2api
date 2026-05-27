@@ -521,6 +521,48 @@ func (_u *UsageLogUpdate) AddActualCost(v float64) *UsageLogUpdate {
 	return _u
 }
 
+// SetGiftCost sets the "gift_cost" field.
+func (_u *UsageLogUpdate) SetGiftCost(v float64) *UsageLogUpdate {
+	_u.mutation.ResetGiftCost()
+	_u.mutation.SetGiftCost(v)
+	return _u
+}
+
+// SetNillableGiftCost sets the "gift_cost" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableGiftCost(v *float64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetGiftCost(*v)
+	}
+	return _u
+}
+
+// AddGiftCost adds value to the "gift_cost" field.
+func (_u *UsageLogUpdate) AddGiftCost(v float64) *UsageLogUpdate {
+	_u.mutation.AddGiftCost(v)
+	return _u
+}
+
+// SetRechargeCost sets the "recharge_cost" field.
+func (_u *UsageLogUpdate) SetRechargeCost(v float64) *UsageLogUpdate {
+	_u.mutation.ResetRechargeCost()
+	_u.mutation.SetRechargeCost(v)
+	return _u
+}
+
+// SetNillableRechargeCost sets the "recharge_cost" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableRechargeCost(v *float64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetRechargeCost(*v)
+	}
+	return _u
+}
+
+// AddRechargeCost adds value to the "recharge_cost" field.
+func (_u *UsageLogUpdate) AddRechargeCost(v float64) *UsageLogUpdate {
+	_u.mutation.AddRechargeCost(v)
+	return _u
+}
+
 // SetRateMultiplier sets the "rate_multiplier" field.
 func (_u *UsageLogUpdate) SetRateMultiplier(v float64) *UsageLogUpdate {
 	_u.mutation.ResetRateMultiplier()
@@ -1119,6 +1161,18 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedActualCost(); ok {
 		_spec.AddField(usagelog.FieldActualCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.GiftCost(); ok {
+		_spec.SetField(usagelog.FieldGiftCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedGiftCost(); ok {
+		_spec.AddField(usagelog.FieldGiftCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.RechargeCost(); ok {
+		_spec.SetField(usagelog.FieldRechargeCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedRechargeCost(); ok {
+		_spec.AddField(usagelog.FieldRechargeCost, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.RateMultiplier(); ok {
 		_spec.SetField(usagelog.FieldRateMultiplier, field.TypeFloat64, value)
@@ -1867,6 +1921,48 @@ func (_u *UsageLogUpdateOne) AddActualCost(v float64) *UsageLogUpdateOne {
 	return _u
 }
 
+// SetGiftCost sets the "gift_cost" field.
+func (_u *UsageLogUpdateOne) SetGiftCost(v float64) *UsageLogUpdateOne {
+	_u.mutation.ResetGiftCost()
+	_u.mutation.SetGiftCost(v)
+	return _u
+}
+
+// SetNillableGiftCost sets the "gift_cost" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableGiftCost(v *float64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetGiftCost(*v)
+	}
+	return _u
+}
+
+// AddGiftCost adds value to the "gift_cost" field.
+func (_u *UsageLogUpdateOne) AddGiftCost(v float64) *UsageLogUpdateOne {
+	_u.mutation.AddGiftCost(v)
+	return _u
+}
+
+// SetRechargeCost sets the "recharge_cost" field.
+func (_u *UsageLogUpdateOne) SetRechargeCost(v float64) *UsageLogUpdateOne {
+	_u.mutation.ResetRechargeCost()
+	_u.mutation.SetRechargeCost(v)
+	return _u
+}
+
+// SetNillableRechargeCost sets the "recharge_cost" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableRechargeCost(v *float64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetRechargeCost(*v)
+	}
+	return _u
+}
+
+// AddRechargeCost adds value to the "recharge_cost" field.
+func (_u *UsageLogUpdateOne) AddRechargeCost(v float64) *UsageLogUpdateOne {
+	_u.mutation.AddRechargeCost(v)
+	return _u
+}
+
 // SetRateMultiplier sets the "rate_multiplier" field.
 func (_u *UsageLogUpdateOne) SetRateMultiplier(v float64) *UsageLogUpdateOne {
 	_u.mutation.ResetRateMultiplier()
@@ -2495,6 +2591,18 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	}
 	if value, ok := _u.mutation.AddedActualCost(); ok {
 		_spec.AddField(usagelog.FieldActualCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.GiftCost(); ok {
+		_spec.SetField(usagelog.FieldGiftCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedGiftCost(); ok {
+		_spec.AddField(usagelog.FieldGiftCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.RechargeCost(); ok {
+		_spec.SetField(usagelog.FieldRechargeCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedRechargeCost(); ok {
+		_spec.AddField(usagelog.FieldRechargeCost, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.RateMultiplier(); ok {
 		_spec.SetField(usagelog.FieldRateMultiplier, field.TypeFloat64, value)

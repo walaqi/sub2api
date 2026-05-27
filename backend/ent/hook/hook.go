@@ -93,6 +93,18 @@ func (f AuthIdentityChannelFunc) Mutate(ctx context.Context, m ent.Mutation) (en
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AuthIdentityChannelMutation", m)
 }
 
+// The BindKeyGiftSettingFunc type is an adapter to allow the use of ordinary
+// function as BindKeyGiftSetting mutator.
+type BindKeyGiftSettingFunc func(context.Context, *ent.BindKeyGiftSettingMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f BindKeyGiftSettingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.BindKeyGiftSettingMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BindKeyGiftSettingMutation", m)
+}
+
 // The ChannelMonitorFunc type is an adapter to allow the use of ordinary
 // function as ChannelMonitor mutator.
 type ChannelMonitorFunc func(context.Context, *ent.ChannelMonitorMutation) (ent.Value, error)
@@ -403,6 +415,18 @@ func (f UserAttributeValueFunc) Mutate(ctx context.Context, m ent.Mutation) (ent
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserAttributeValueMutation", m)
+}
+
+// The UserGiftFunc type is an adapter to allow the use of ordinary
+// function as UserGift mutator.
+type UserGiftFunc func(context.Context, *ent.UserGiftMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f UserGiftFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.UserGiftMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserGiftMutation", m)
 }
 
 // The UserSubscriptionFunc type is an adapter to allow the use of ordinary

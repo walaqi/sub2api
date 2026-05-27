@@ -278,26 +278,35 @@
           </template>
 
           <template #cell-cost="{ row }">
-            <div class="flex items-center gap-1.5 text-sm">
-              <span class="font-medium text-green-600 dark:text-green-400">
-                ${{ row.actual_cost.toFixed(6) }}
-              </span>
-              <!-- Cost Detail Tooltip -->
-              <div
-                class="group relative"
-                @mouseenter="showTooltip($event, row)"
-                @mouseleave="hideTooltip"
-              >
+            <div class="flex flex-col gap-0.5 text-sm">
+              <div class="flex items-center gap-1.5">
+                <span class="font-medium text-green-600 dark:text-green-400">
+                  ${{ row.actual_cost.toFixed(6) }}
+                </span>
+                <!-- Cost Detail Tooltip -->
                 <div
-                  class="flex h-4 w-4 cursor-help items-center justify-center rounded-full bg-gray-100 transition-colors group-hover:bg-blue-100 dark:bg-gray-700 dark:group-hover:bg-blue-900/50"
+                  class="group relative"
+                  @mouseenter="showTooltip($event, row)"
+                  @mouseleave="hideTooltip"
                 >
-                  <Icon
-                    name="infoCircle"
-                    size="xs"
-                    class="text-gray-400 group-hover:text-blue-500 dark:text-gray-500 dark:group-hover:text-blue-400"
-                  />
+                  <div
+                    class="flex h-4 w-4 cursor-help items-center justify-center rounded-full bg-gray-100 transition-colors group-hover:bg-blue-100 dark:bg-gray-700 dark:group-hover:bg-blue-900/50"
+                  >
+                    <Icon
+                      name="infoCircle"
+                      size="xs"
+                      class="text-gray-400 group-hover:text-blue-500 dark:text-gray-500 dark:group-hover:text-blue-400"
+                    />
+                  </div>
                 </div>
               </div>
+              <!-- 赠金扣减行：仅当本次扣费用了赠金时显示，颜色与主余额区分。 -->
+              <span
+                v-if="row.gift_cost && row.gift_cost > 0"
+                class="text-xs text-amber-600 dark:text-amber-400"
+              >
+                {{ t('usage.giftDeducted') }} ${{ row.gift_cost.toFixed(6) }}
+              </span>
             </div>
           </template>
 
@@ -527,6 +536,21 @@
               >${{ tooltipData?.actual_cost.toFixed(6) }}</span
             >
           </div>
+          <!-- 赠金 / 充值池扣减拆分：仅当本次用了赠金时显示，与计费颜色区分。 -->
+          <template v-if="tooltipData && tooltipData.gift_cost && tooltipData.gift_cost > 0">
+            <div class="flex items-center justify-between gap-6">
+              <span class="text-gray-400">{{ t('usage.giftDeducted') }}</span>
+              <span class="font-medium text-amber-300"
+                >${{ tooltipData.gift_cost.toFixed(6) }}</span
+              >
+            </div>
+            <div class="flex items-center justify-between gap-6">
+              <span class="text-gray-400">{{ t('usage.rechargeDeducted') }}</span>
+              <span class="font-medium text-sky-300"
+                >${{ (tooltipData.recharge_cost || 0).toFixed(6) }}</span
+              >
+            </div>
+          </template>
         </div>
         <!-- Tooltip Arrow (left side) -->
         <div

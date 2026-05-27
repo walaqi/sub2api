@@ -22,6 +22,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
+	"github.com/Wei-Shaw/sub2api/ent/usergift"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 )
 
@@ -517,6 +518,21 @@ func (_c *UserCreate) AddPendingAuthSessions(v ...*PendingAuthSession) *UserCrea
 		ids[i] = v[i].ID
 	}
 	return _c.AddPendingAuthSessionIDs(ids...)
+}
+
+// AddGiftIDs adds the "gifts" edge to the UserGift entity by IDs.
+func (_c *UserCreate) AddGiftIDs(ids ...int64) *UserCreate {
+	_c.mutation.AddGiftIDs(ids...)
+	return _c
+}
+
+// AddGifts adds the "gifts" edges to the UserGift entity.
+func (_c *UserCreate) AddGifts(v ...*UserGift) *UserCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddGiftIDs(ids...)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -1016,6 +1032,22 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(pendingauthsession.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.GiftsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.GiftsTable,
+			Columns: []string{user.GiftsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usergift.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

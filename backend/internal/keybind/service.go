@@ -327,8 +327,9 @@ func (s *Service) Commit(ctx context.Context, userID int64, reservationID string
 
 	// 赠送余额（Bug 1 修复）。失败仅记日志，不回滚——key 已转移成功，
 	// "拿到 key 但没赠送" 比 "拿不到 key 也没赠送" 体验更好；运营可手工补。
+	// Phase 3：把 apiKeyID 一并传下去，由 updater 读表 A 决定 mode/ratio_recharge/expires_after_days。
 	if giftAmount > 0 && s.userBalanceUpdater != nil {
-		if err := s.userBalanceUpdater.AddBalanceAndTotalRecharged(ctx, userID, giftAmount); err != nil {
+		if err := s.userBalanceUpdater.GrantForBindKey(ctx, userID, giftAmount, keyID); err != nil {
 			log.Printf("[keybind] grant balance %.4f to user %d failed: %v", giftAmount, userID, err)
 		} else {
 			// 余额改了必须失效缓存，否则中间件读到旧 balance=0 仍然 403。

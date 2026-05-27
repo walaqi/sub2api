@@ -97,6 +97,15 @@ func (UsageLog) Fields() []ent.Field {
 		field.Float("actual_cost").
 			Default(0).
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}),
+		// gift_cost: 本次扣费分摊到赠金的部分；recharge_cost: 分摊到充值池的部分。
+		// 不变量：gift_cost + recharge_cost = actual_cost（订阅扣费路径下两者均为 0）。
+		// 由 gift.Engine.AllocateAndDeductWithBreakdown 计算并写入。
+		field.Float("gift_cost").
+			Default(0).
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}),
+		field.Float("recharge_cost").
+			Default(0).
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}),
 		field.Float("rate_multiplier").
 			Default(1).
 			SchemaType(map[string]string{dialect.Postgres: "decimal(10,4)"}),

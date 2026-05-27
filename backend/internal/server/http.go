@@ -3,6 +3,7 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"log"
 	"log/slog"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/gift"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/websearch"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -23,9 +25,25 @@ import (
 
 // ProviderSet 提供服务器层的依赖
 var ProviderSet = wire.NewSet(
+	ProvideGiftEngine,
+	ProvideGiftExpirerService,
 	ProvideRouter,
 	ProvideHTTPServer,
 )
+
+// ProvideGiftEngine 构造赠金引擎实例。
+// entClient 与 sqlDB 由 repository.ProviderSet 提供，二者共享同一 PG 连接池。
+func ProvideGiftEngine(entClient *dbent.Client, sqlDB *sql.DB) *gift.Engine {
+	return gift.NewEngine(entClient, sqlDB)
+}
+
+// ProvideGiftExpirerService 构造并启动赠金过期清理服务。
+// 默认 10 分钟扫描一次，把 expires_at 已到的赠金置 expired 并同步扣减 users.balance。
+func ProvideGiftExpirerService(sqlDB *sql.DB) *gift.ExpirerService {
+	svc := gift.NewExpirerService(sqlDB, gift.DefaultExpirerInterval)
+	svc.Start()
+	return svc
+}
 
 // ProvideRouter 提供路由器
 func ProvideRouter(
@@ -40,6 +58,7 @@ func ProvideRouter(
 	settingService *service.SettingService,
 	redisClient *redis.Client,
 	entClient *dbent.Client,
+	giftEngine *gift.Engine,
 ) *gin.Engine {
 	if cfg.Server.Mode == "release" {
 		gin.SetMode(gin.ReleaseMode)
@@ -96,7 +115,7 @@ func ProvideRouter(
 		service.SetWebSearchManager(websearch.NewManager(configs, redisClient))
 	})
 
-	return SetupRouter(r, handlers, jwtAuth, adminAuth, apiKeyAuth, apiKeyService, subscriptionService, opsService, settingService, cfg, redisClient, entClient)
+	return SetupRouter(r, handlers, jwtAuth, adminAuth, apiKeyAuth, apiKeyService, subscriptionService, opsService, settingService, cfg, redisClient, entClient, giftEngine)
 }
 
 // ProvideHTTPServer 提供 HTTP 服务器

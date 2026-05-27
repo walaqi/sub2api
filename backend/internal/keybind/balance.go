@@ -2,15 +2,21 @@ package keybind
 
 import (
 	"context"
+	"errors"
+	"strconv"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/ent"
-	dbuser "github.com/Wei-Shaw/sub2api/ent/user"
+	"github.com/Wei-Shaw/sub2api/internal/gift"
 )
 
-// UserBalanceUpdater 抽象出"给用户加余额并同步累加 total_recharged"的最小动作。
-// 由 keybind 包内的 entUserBalanceUpdater 实现，避免 keybind 反向依赖 repository/service。
+// UserBalanceUpdater 抽象出"绑 key 成功后给用户发放赠金"的最小动作。
+//
+// 历史：早期实现叫 AddBalanceAndTotalRecharged，把赠金错记进 total_recharged（commit 32df9534）。
+// Phase 1 改为通过 gift.Engine.Grant 发放 priority 类赠金，不再动 total_recharged。
+// Phase 3 进一步把 api_key_id 一起传下来，由实现读表 A 决定 mode/ratio_recharge/expires_after_days。
 type UserBalanceUpdater interface {
-	AddBalanceAndTotalRecharged(ctx context.Context, userID int64, amount float64) error
+	GrantForBindKey(ctx context.Context, userID int64, amount float64, apiKeyID int64) error
 }
 
 // APIKeyAuthCacheInvalidator 与 service.APIKeyAuthCacheInvalidator 结构等价。
@@ -41,24 +47,73 @@ func WithBalanceGift(updater UserBalanceUpdater, authCache APIKeyAuthCacheInvali
 	}
 }
 
-// entUserBalanceUpdater 直接走 ent.Client，单条 UPDATE 同时改 balance 与 total_recharged。
-type entUserBalanceUpdater struct {
-	client *ent.Client
+// giftEngineUpdater 通过 gift.Engine 发放赠金。
+// 实际发放参数（mode / ratio_recharge / expires_at）由 resolver 按 api_key_id 查表 A 决定。
+// 表中无对应行 → 走默认 priority、永不过期。
+type giftEngineUpdater struct {
+	engine   *gift.Engine
+	resolver BindKeyGiftSettingResolver
 }
 
-// NewEntUserBalanceUpdater 返回基于 *ent.Client 的默认实现。
-func NewEntUserBalanceUpdater(client *ent.Client) UserBalanceUpdater {
-	return &entUserBalanceUpdater{client: client}
+// NewGiftEngineUpdater 返回基于 gift.Engine + 表 A resolver 的赠金更新器。
+// resolver 可以为 nil（等同于"全部走默认 priority + 永不过期"）。
+func NewGiftEngineUpdater(engine *gift.Engine, resolver BindKeyGiftSettingResolver) UserBalanceUpdater {
+	if engine == nil {
+		return nil
+	}
+	return &giftEngineUpdater{engine: engine, resolver: resolver}
 }
 
-func (u *entUserBalanceUpdater) AddBalanceAndTotalRecharged(ctx context.Context, userID int64, amount float64) error {
+// NewEntUserBalanceUpdater 是历史命名，保留以避免破坏调用点（已无生产使用）。
+//
+// Deprecated: use NewGiftEngineUpdater(engine, resolver).
+func NewEntUserBalanceUpdater(_ *ent.Client) UserBalanceUpdater {
+	return nil
+}
+
+func (u *giftEngineUpdater) GrantForBindKey(ctx context.Context, userID int64, amount float64, apiKeyID int64) error {
 	if amount <= 0 {
 		return nil
 	}
-	_, err := u.client.User.Update().
-		Where(dbuser.IDEQ(userID)).
-		AddBalance(amount).
-		AddTotalRecharged(amount).
-		Save(ctx)
+	if u == nil || u.engine == nil {
+		return errors.New("giftEngineUpdater: engine is nil")
+	}
+
+	// 默认 priority、永不过期
+	input := gift.GrantInput{
+		UserID: userID,
+		Amount: amount,
+		Mode:   gift.DeductionModePriority,
+		Source: gift.SourceKeybind,
+	}
+	if ref := apiKeyRef(apiKeyID); ref != "" {
+		input.SourceRef = &ref
+	}
+
+	// 查表 A 覆盖默认参数
+	if u.resolver != nil && apiKeyID > 0 {
+		setting, err := u.resolver.Resolve(ctx, apiKeyID)
+		if err != nil {
+			return err
+		}
+		if setting != nil {
+			input.Mode = setting.DeductionMode
+			input.RatioRecharge = setting.RatioRecharge
+			if setting.ExpiresAfterDays != nil && *setting.ExpiresAfterDays > 0 {
+				exp := time.Now().Add(time.Duration(*setting.ExpiresAfterDays) * 24 * time.Hour)
+				input.ExpiresAt = &exp
+			}
+		}
+	}
+
+	_, err := u.engine.Grant(ctx, input)
 	return err
+}
+
+// apiKeyRef 把 api_key_id 编码为 gift.source_ref，便于后续审计/对账。
+func apiKeyRef(apiKeyID int64) string {
+	if apiKeyID <= 0 {
+		return ""
+	}
+	return "api_key:" + strconv.FormatInt(apiKeyID, 10)
 }

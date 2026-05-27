@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/Wei-Shaw/sub2api/internal/gift"
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -19,6 +20,7 @@ type UserHandler struct {
 	emailService     *service.EmailService
 	emailCache       service.EmailCache
 	affiliateService *service.AffiliateService
+	giftEngine       *gift.Engine
 }
 
 // NewUserHandler creates a new UserHandler
@@ -28,6 +30,7 @@ func NewUserHandler(
 	emailService *service.EmailService,
 	emailCache service.EmailCache,
 	affiliateService *service.AffiliateService,
+	giftEngine *gift.Engine,
 ) *UserHandler {
 	return &UserHandler{
 		userService:      userService,
@@ -35,6 +38,7 @@ func NewUserHandler(
 		emailService:     emailService,
 		emailCache:       emailCache,
 		affiliateService: affiliateService,
+		giftEngine:       giftEngine,
 	}
 }
 
@@ -504,7 +508,17 @@ func (h *UserHandler) buildUserProfileResponse(ctx context.Context, userID int64
 	if err != nil {
 		return userProfileResponse{}, err
 	}
-	return userProfileResponseFromService(user, identities), nil
+	resp := userProfileResponseFromService(user, identities)
+	// 拆分 balance：gift_balance = Σ(active gifts.remaining)；recharge_balance = balance - gift_balance。
+	// gift_expiring_soon = 120 小时内即将过期的赠金额。失败时静默降级，不阻塞 profile 返回。
+	if h.giftEngine != nil {
+		if giftBal, expiringSoon, gerr := h.giftEngine.GetGiftBalanceBreakdown(ctx, userID); gerr == nil {
+			resp.GiftBalance = giftBal
+			resp.RechargeBalance = resp.Balance - giftBal
+			resp.GiftExpiringSoon = expiringSoon
+		}
+	}
+	return resp, nil
 }
 
 func userProfileResponseFromService(user *service.User, identities service.UserIdentitySummarySet) userProfileResponse {

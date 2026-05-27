@@ -64,6 +64,10 @@ const (
 	FieldTotalCost = "total_cost"
 	// FieldActualCost holds the string denoting the actual_cost field in the database.
 	FieldActualCost = "actual_cost"
+	// FieldGiftCost holds the string denoting the gift_cost field in the database.
+	FieldGiftCost = "gift_cost"
+	// FieldRechargeCost holds the string denoting the recharge_cost field in the database.
+	FieldRechargeCost = "recharge_cost"
 	// FieldRateMultiplier holds the string denoting the rate_multiplier field in the database.
 	FieldRateMultiplier = "rate_multiplier"
 	// FieldAccountRateMultiplier holds the string denoting the account_rate_multiplier field in the database.
@@ -173,6 +177,8 @@ var Columns = []string{
 	FieldCacheReadCost,
 	FieldTotalCost,
 	FieldActualCost,
+	FieldGiftCost,
+	FieldRechargeCost,
 	FieldRateMultiplier,
 	FieldAccountRateMultiplier,
 	FieldBillingType,
@@ -240,6 +246,10 @@ var (
 	DefaultTotalCost float64
 	// DefaultActualCost holds the default value on creation for the "actual_cost" field.
 	DefaultActualCost float64
+	// DefaultGiftCost holds the default value on creation for the "gift_cost" field.
+	DefaultGiftCost float64
+	// DefaultRechargeCost holds the default value on creation for the "recharge_cost" field.
+	DefaultRechargeCost float64
 	// DefaultRateMultiplier holds the default value on creation for the "rate_multiplier" field.
 	DefaultRateMultiplier float64
 	// DefaultBillingType holds the default value on creation for the "billing_type" field.
@@ -397,6 +407,16 @@ func ByTotalCost(opts ...sql.OrderTermOption) OrderOption {
 // ByActualCost orders the results by the actual_cost field.
 func ByActualCost(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldActualCost, opts...).ToFunc()
+}
+
+// ByGiftCost orders the results by the gift_cost field.
+func ByGiftCost(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGiftCost, opts...).ToFunc()
+}
+
+// ByRechargeCost orders the results by the recharge_cost field.
+func ByRechargeCost(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRechargeCost, opts...).ToFunc()
 }
 
 // ByRateMultiplier orders the results by the rate_multiplier field.

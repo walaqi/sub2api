@@ -269,7 +269,18 @@ func (s *PaymentService) prepDeduct(ctx context.Context, o *dbent.PaymentOrder, 
 		return nil
 	}
 	p.DeductionType = payment.DeductionTypeBalance
-	p.BalanceToDeduct = math.Min(p.RefundAmount, u.Balance)
+	// 退款只能扣"充值池"（balance - Σ active gifts.remaining），赠金不联动。
+	// 评估阶段无锁查询；ExecuteRefund 在事务内 FOR UPDATE 重校验上限以杜绝并发竞态。
+	cap := u.Balance
+	if s.giftEngine != nil {
+		if pool, gerr := s.giftEngine.GetRechargePool(ctx, o.UserID); gerr == nil {
+			cap = pool
+		}
+	}
+	if cap < 0 {
+		cap = 0
+	}
+	p.BalanceToDeduct = math.Min(p.RefundAmount, cap)
 	return nil
 }
 
@@ -285,9 +296,21 @@ func (s *PaymentService) ExecuteRefund(ctx context.Context, p *RefundPlan) (*Ref
 		// Skip balance deduction on retry if previous attempt already deducted
 		// but failed to roll back (REFUND_ROLLBACK_FAILED in audit log).
 		if !s.hasAuditLog(ctx, p.OrderID, "REFUND_ROLLBACK_FAILED") {
-			if err := s.userRepo.DeductBalance(ctx, p.Order.UserID, p.BalanceToDeduct); err != nil {
-				s.restoreStatus(ctx, p)
-				return nil, fmt.Errorf("deduction: %w", err)
+			// 事务内重校验充值池上限，按 min(BalanceToDeduct, recharge_pool) 实际扣减；赠金不动。
+			// 杜绝评估阶段与执行阶段之间的并发扣费引发的赠金透支。
+			if s.giftEngine != nil {
+				actual, err := s.giftEngine.DeductFromRechargePool(ctx, p.Order.UserID, p.BalanceToDeduct)
+				if err != nil {
+					s.restoreStatus(ctx, p)
+					return nil, fmt.Errorf("deduction: %w", err)
+				}
+				// 真实扣减额回写：审计日志、回滚均依据该值
+				p.BalanceToDeduct = actual
+			} else {
+				if err := s.userRepo.DeductBalance(ctx, p.Order.UserID, p.BalanceToDeduct); err != nil {
+					s.restoreStatus(ctx, p)
+					return nil, fmt.Errorf("deduction: %w", err)
+				}
 			}
 		} else {
 			slog.Warn("skipping balance deduction on retry (previous rollback failed)", "orderID", p.OrderID)

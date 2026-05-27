@@ -16,6 +16,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/gift"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 
@@ -74,6 +75,7 @@ type AuthService struct {
 	promoService       *PromoService
 	affiliateService   *AffiliateService
 	defaultSubAssigner DefaultSubscriptionAssigner
+	giftEngine         *gift.Engine
 }
 
 type DefaultSubscriptionAssigner interface {
@@ -100,6 +102,7 @@ func NewAuthService(
 	promoService *PromoService,
 	defaultSubAssigner DefaultSubscriptionAssigner,
 	affiliateService *AffiliateService,
+	giftEngine *gift.Engine,
 ) *AuthService {
 	return &AuthService{
 		entClient:          entClient,
@@ -114,6 +117,7 @@ func NewAuthService(
 		promoService:       promoService,
 		affiliateService:   affiliateService,
 		defaultSubAssigner: defaultSubAssigner,
+		giftEngine:         giftEngine,
 	}
 }
 

@@ -7,16 +7,19 @@ import (
 	"strings"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/gift"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
 type usageBillingRepository struct {
-	db *sql.DB
+	db          *sql.DB
+	giftEngine  *gift.Engine
 }
 
-func NewUsageBillingRepository(_ *dbent.Client, sqlDB *sql.DB) service.UsageBillingRepository {
-	return &usageBillingRepository{db: sqlDB}
+// NewUsageBillingRepository 接收 gift.Engine 以接管 BalanceCost 维度的扣费分摊（赠金子系统）。
+func NewUsageBillingRepository(_ *dbent.Client, sqlDB *sql.DB, giftEngine *gift.Engine) service.UsageBillingRepository {
+	return &usageBillingRepository{db: sqlDB, giftEngine: giftEngine}
 }
 
 func (r *usageBillingRepository) Apply(ctx context.Context, cmd *service.UsageBillingCommand) (_ *service.UsageBillingApplyResult, err error) {
@@ -113,11 +116,19 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 	}
 
 	if cmd.BalanceCost > 0 {
-		newBalance, err := deductUsageBillingBalance(ctx, tx, cmd.UserID, cmd.BalanceCost)
+		// 走赠金引擎：按 priority/ratio/recharge 三阶段分摊本次扣费，
+		// 同时维护 user_gifts 子账本与 ratio 联动作废。
+		// users.balance 仍是单条 UPDATE，保持现有不变量与缓存层语义。
+		// breakdown 透传到 result，由 gateway_service 写入 usage_log.
+		newBalance, breakdown, err := r.giftEngine.AllocateAndDeductWithBreakdown(ctx, tx, cmd.UserID, cmd.BalanceCost)
 		if err != nil {
 			return err
 		}
 		result.NewBalance = &newBalance
+		gc := breakdown.GiftCost
+		rc := breakdown.RechargeCost
+		result.GiftCost = &gc
+		result.RechargeCost = &rc
 	}
 
 	if cmd.APIKeyQuotaCost > 0 {
