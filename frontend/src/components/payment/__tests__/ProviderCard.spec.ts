@@ -64,4 +64,9 @@ describe('ProviderCard name fallback', () => {
     const wrapper = mountCard(providerFactory({ name: '   ' }))
     expect(wrapper.text()).toContain('易支付')
   })
+
+  it('does not crash when supported_types is null', () => {
+    const provider = providerFactory({ supported_types: null as unknown as string[] })
+    expect(() => mountCard(provider)).not.toThrow()
+  })
 })
