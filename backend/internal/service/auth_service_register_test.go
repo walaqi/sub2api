@@ -213,6 +213,7 @@ func newAuthService(repo *userRepoStub, settings map[string]string, emailCache E
 		nil, // promoService
 		nil, // defaultSubAssigner
 		nil, // affiliateService
+		nil, // gift.Engine
 	)
 }
 
@@ -677,7 +678,7 @@ func newAuthServiceWithDingTalkCfg(settings map[string]string, dtCfg config.Ding
 		DingTalk: dtCfg,
 	}
 	settingService := NewSettingService(&settingRepoStub{values: settings}, cfg)
-	return NewAuthService(nil, nil, nil, nil, cfg, settingService, nil, nil, nil, nil, nil, nil)
+	return NewAuthService(nil, nil, nil, nil, cfg, settingService, nil, nil, nil, nil, nil, nil, nil)
 }
 
 // minDingTalkURLs 返回一个包含必填字段的基础 DingTalkConnectConfig（不设 Enabled/BypassRegistration/Policy）。
