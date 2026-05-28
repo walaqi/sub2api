@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/gift"
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
@@ -27,13 +28,14 @@ type AuthHandler struct {
 	redeemService        *service.RedeemService
 	totpService          *service.TotpService
 	userAttributeService *service.UserAttributeService
+	giftEngine           *gift.Engine
 
 	dingTalkClientInstance *DingTalkClient
 	dingTalkClientMu       sync.Mutex
 }
 
 // NewAuthHandler creates a new AuthHandler
-func NewAuthHandler(cfg *config.Config, authService *service.AuthService, userService *service.UserService, settingService *service.SettingService, promoService *service.PromoService, redeemService *service.RedeemService, totpService *service.TotpService, userAttributeService *service.UserAttributeService) *AuthHandler {
+func NewAuthHandler(cfg *config.Config, authService *service.AuthService, userService *service.UserService, settingService *service.SettingService, promoService *service.PromoService, redeemService *service.RedeemService, totpService *service.TotpService, userAttributeService *service.UserAttributeService, giftEngine *gift.Engine) *AuthHandler {
 	return &AuthHandler{
 		cfg:                  cfg,
 		authService:          authService,
@@ -43,6 +45,7 @@ func NewAuthHandler(cfg *config.Config, authService *service.AuthService, userSe
 		redeemService:        redeemService,
 		totpService:          totpService,
 		userAttributeService: userAttributeService,
+		giftEngine:           giftEngine,
 	}
 }
 
@@ -431,8 +434,11 @@ func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
 		runMode = h.cfg.RunMode
 	}
 
+	resp := userProfileResponseFromService(user, identities)
+	applyGiftBalanceBreakdown(c.Request.Context(), h.giftEngine, subject.UserID, &resp)
+
 	response.Success(c, UserResponse{
-		userProfileResponse: userProfileResponseFromService(user, identities),
+		userProfileResponse: resp,
 		RunMode:             runMode,
 	})
 }

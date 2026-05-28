@@ -509,16 +509,25 @@ func (h *UserHandler) buildUserProfileResponse(ctx context.Context, userID int64
 		return userProfileResponse{}, err
 	}
 	resp := userProfileResponseFromService(user, identities)
-	// 拆分 balance：gift_balance = Σ(active gifts.remaining)；recharge_balance = balance - gift_balance。
-	// gift_expiring_soon = 120 小时内即将过期的赠金额。失败时静默降级，不阻塞 profile 返回。
-	if h.giftEngine != nil {
-		if giftBal, expiringSoon, gerr := h.giftEngine.GetGiftBalanceBreakdown(ctx, userID); gerr == nil {
-			resp.GiftBalance = giftBal
-			resp.RechargeBalance = resp.Balance - giftBal
-			resp.GiftExpiringSoon = expiringSoon
-		}
-	}
+	applyGiftBalanceBreakdown(ctx, h.giftEngine, userID, &resp)
 	return resp, nil
+}
+
+// applyGiftBalanceBreakdown 把赠金拆分注入 userProfileResponse。
+// gift_balance = Σ(active gifts.remaining)；recharge_balance = balance - gift_balance；
+// gift_expiring_soon = 120h 内即将过期的赠金额。失败时静默降级，不阻塞 profile 返回。
+// 同时供 AuthHandler.GetCurrentUser 复用，避免 /auth/me 与 /user/profile 行为不一致。
+func applyGiftBalanceBreakdown(ctx context.Context, engine *gift.Engine, userID int64, resp *userProfileResponse) {
+	if engine == nil || resp == nil {
+		return
+	}
+	giftBal, expiringSoon, err := engine.GetGiftBalanceBreakdown(ctx, userID)
+	if err != nil {
+		return
+	}
+	resp.GiftBalance = giftBal
+	resp.RechargeBalance = resp.Balance - giftBal
+	resp.GiftExpiringSoon = expiringSoon
 }
 
 func userProfileResponseFromService(user *service.User, identities service.UserIdentitySummarySet) userProfileResponse {
