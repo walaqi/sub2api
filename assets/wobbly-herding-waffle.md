@@ -1,0 +1,201 @@
+# 生产环境 balance 拆分迁移方案（一次性 SQL，不改代码）
+
+## Context
+
+赠金子系统（Phase 1~3）已上线，但旧数据全部进了 `users.balance` 单字段，没有走 `user_gifts` 子账本。现在需要把生产环境中**满足条件的用户**的余额按 3:7 拆成"充值余额 + 赠金"，给老用户一个过渡期：
+- 30% 留在 `users.balance`（**实际不动 balance 字段**，靠子账本反推得到）
+- 70% 写入 `user_gifts`，模式 `ratio`、`ratio_recharge=2.0`（每扣 1 元充值同步扣 2 元赠金）
+- 统一过期时间 `2026-06-30 23:59:59 UTC`
+- 来源 `source='manual'`、`source_ref='migration_2026-05-28_balance_split'`，便于审计与一键回滚
+
+**关键不变量**：`users.balance ≡ recharge_pool + Σ(active gifts.remaining)`。本方案**不动 `users.balance`**，靠 `user_gifts` 行的 `remaining = 0.7 * balance`，自然得到 `recharge_pool = balance - 0.7 * balance = 0.3 * balance ≥ 0`，不变量天然成立。
+
+## 适用范围
+
+`users` 表中同时满足：
+- `balance > 20`
+- `deleted_at IS NULL`（未软删）
+- `status = 'active'`（未禁用，对照 [domain/constants.go:5](backend/internal/domain/constants.go#L5)）
+- `id NOT IN (SELECT user_id FROM user_gifts WHERE status='active' AND source_ref='migration_2026-05-28_balance_split')`（**幂等保护**，防止脚本误重跑导致重复发放）
+
+> 不排除"用户已有其他来源 active 赠金"的情况：那些是真实业务数据，本次再叠一笔 ratio 赠金是合理的——他们在 ratio 阶段会按 `(ratio_recharge ASC, expires_at ASC, id ASC)` 自然排序参与扣费。
+
+## 赠金参数
+
+| 字段 | 值 |
+|------|-----|
+| `user_id` | 目标用户 |
+| `amount` | `ROUND(users.balance * 0.7, 8)` |
+| `remaining` | 同 `amount` |
+| `deduction_mode` | `'ratio'` |
+| `ratio_recharge` | `2.0`（赠金消耗 : 充值消耗 = 2 : 1） |
+| `expires_at` | `'2026-06-30 23:59:59+00'` |
+| `source` | `'manual'` |
+| `source_ref` | `'migration_2026-05-28_balance_split'` |
+| `status` | `'active'` |
+
+> ratio 模式下用户每发起一次扣费 T，分摊为 `gift_part = T·2/3, recharge_part = T/3`。例：balance=100，发 70 赠金；扣 30 时赠金减 20、充值减 10；扣 90 时赠金减 60、充值减 30，扣完后 `recharge_pool=0`，剩余 10 赠金触发 [allocator.go:163-179](backend/internal/gift/allocator.go#L163-L179) 的"充值池触底联动作废"逻辑——该路径是当前算法的标准行为，本次迁移**接受这个语义**。
+
+## 操作步骤（按序执行）
+
+### 0. 离线快照（必做，回滚兜底）
+
+```sql
+-- 在执行迁移前，把目标用户当前 balance 全部备份。
+-- 表名带日期，与 source_ref 对齐，便于人工对账。
+CREATE TABLE balance_split_snapshot_2026_05_28 AS
+SELECT id AS user_id, balance, status, deleted_at, NOW() AS snapshot_at
+FROM users
+WHERE balance > 20
+  AND deleted_at IS NULL
+  AND status = 'active';
+```
+
+### 1. 预检：人工肉眼审
+
+```sql
+-- 计数 + 总额
+SELECT
+  COUNT(*)                                       AS user_count,
+  COALESCE(SUM(balance), 0)::numeric(20,8)       AS total_balance,
+  COALESCE(SUM(balance * 0.7), 0)::numeric(20,8) AS total_gift_to_grant,
+  COALESCE(SUM(balance * 0.3), 0)::numeric(20,8) AS total_recharge_pool_after
+FROM users
+WHERE balance > 20
+  AND deleted_at IS NULL
+  AND status = 'active'
+  AND id NOT IN (
+    SELECT user_id FROM user_gifts
+    WHERE status='active' AND source_ref='migration_2026-05-28_balance_split'
+  );
+
+-- 极值人工抽查
+SELECT id, balance, ROUND(balance * 0.7, 8) AS gift_amount
+FROM users
+WHERE balance > 20 AND deleted_at IS NULL AND status = 'active'
+ORDER BY balance DESC LIMIT 20;
+```
+
+> 数字与产品/财务对账后再执行 step 2。
+
+### 2. 执行迁移（单事务，幂等）
+
+```sql
+BEGIN;
+
+-- 锁定目标用户行（防止迁移期间 balance 被改写导致 70% 计算偏差）
+-- 实际生产 balance 写入点：扣费 worker / Grant / 退款 / affiliate / redeem 等。
+-- FOR UPDATE 期间这些写入会阻塞，确保快照一致性。
+WITH targets AS (
+  SELECT id, balance
+  FROM users
+  WHERE balance > 20
+    AND deleted_at IS NULL
+    AND status = 'active'
+    AND id NOT IN (
+      SELECT user_id FROM user_gifts
+      WHERE status='active' AND source_ref='migration_2026-05-28_balance_split'
+    )
+  ORDER BY id ASC      -- 与 gift engine 加锁顺序一致，防死锁
+  FOR UPDATE
+)
+INSERT INTO user_gifts (
+  user_id, amount, remaining,
+  deduction_mode, ratio_recharge, expires_at,
+  source, source_ref, status,
+  created_at, updated_at
+)
+SELECT
+  id,
+  ROUND(balance * 0.7, 8) AS amount,
+  ROUND(balance * 0.7, 8) AS remaining,
+  'ratio',
+  2.0,
+  '2026-06-30 23:59:59+00'::timestamptz,
+  'manual',
+  'migration_2026-05-28_balance_split',
+  'active',
+  NOW(),
+  NOW()
+FROM targets;
+
+-- 校验 1：插入条数 = 预检 user_count
+-- 校验 2：本次插入的 amount 合计 = 预检 total_gift_to_grant
+SELECT COUNT(*), COALESCE(SUM(amount),0)::numeric(20,8)
+FROM user_gifts
+WHERE source_ref = 'migration_2026-05-28_balance_split';
+
+-- 不变量自检：每个目标用户都应满足 balance >= Σ(active gifts.remaining)
+SELECT u.id, u.balance,
+       COALESCE(SUM(g.remaining), 0)::numeric(20,8) AS gift_sum,
+       (u.balance - COALESCE(SUM(g.remaining), 0))::numeric(20,8) AS recharge_pool_after
+FROM users u
+LEFT JOIN user_gifts g
+  ON g.user_id = u.id AND g.status = 'active'
+  AND (g.expires_at IS NULL OR g.expires_at > NOW())
+WHERE u.id IN (
+  SELECT user_id FROM user_gifts WHERE source_ref='migration_2026-05-28_balance_split'
+)
+GROUP BY u.id, u.balance
+HAVING (u.balance - COALESCE(SUM(g.remaining), 0)) < 0;
+-- 期望：0 行返回（任何返回行都意味着不变量被破坏，必须 ROLLBACK）
+
+COMMIT;
+```
+
+### 3. 后置烟雾
+
+随机抽 5 个用户 → 调 `/user/profile`，验证：
+- `gift_balance ≈ 0.7 * balance`
+- `recharge_balance ≈ 0.3 * balance`
+- `gift_expiring_soon` 在 2026-06-25 之后开始非零（120h 提前提示窗口）
+
+抽 1 个用户跑一次小额请求（构造一个 `actual_cost = 0.03` 的测试调用），DB 直查 `usage_logs` 最新行：
+- `gift_cost ≈ 0.02` (T·2/3)
+- `recharge_cost ≈ 0.01` (T/3)
+
+## 回滚方案
+
+完整回滚（**只能在用户尚未消费过这笔赠金时执行**，否则回滚会让 `users.balance` 与子账本不再守恒）：
+
+```sql
+BEGIN;
+
+-- 1. 抽查：本次发放的赠金中是否已有 remaining < amount（被消费过）
+SELECT COUNT(*) AS partially_consumed
+FROM user_gifts
+WHERE source_ref = 'migration_2026-05-28_balance_split'
+  AND remaining < amount;
+-- 若 > 0：不能简单 DELETE，需走"逐用户对账 + balance 补偿"流程，单独评估
+
+-- 2. 完整回滚（仅未消费场景）
+DELETE FROM user_gifts
+WHERE source_ref = 'migration_2026-05-28_balance_split'
+  AND remaining = amount
+  AND status = 'active';
+
+COMMIT;
+```
+
+部分消费场景的回滚（极端兜底）：
+- 用 `balance_split_snapshot_2026_05_28` 表 + 当前 `user_gifts` 行做差，把"已消费的赠金对应充值池减量"折算成 `users.balance` 的补偿；逐用户审计，**不在本方案里自动处理**。
+
+## 风险与缓解
+
+| 风险 | 缓解 |
+|------|------|
+| 单事务行数过大导致长锁 | 目标用户 < 1 万人时单事务 < 5s 可接受；若预检 `user_count > 5 万`，把 `WITH targets` 改成 `LIMIT 10000` 分批，每批一个事务 |
+| 迁移期间扣费/Grant 并发 | `FOR UPDATE` + 与扣费引擎相同的 `id ASC` 加锁顺序，无死锁风险；并发请求最多等待迁移事务完成 |
+| 70% 舍入误差 | `ROUND(balance * 0.7, 8)` 与 `decimal(20,8)` 列对齐；`recharge_pool = balance - 0.7·balance` 自然 ≥ 0，不变量不破 |
+| 用户已有其他 active 赠金 | 不阻塞迁移；新旧赠金按算法在 `ratio_recharge ASC` / `expires_at ASC` 内自然排序，不需特殊处理 |
+| 用户在迁移后立即耗尽充值池 | 触发 [allocator.go:163](backend/internal/gift/allocator.go#L163) 的 ratio 联动作废，残余赠金被作废（与产品策略一致，已在 Phase 1 设计中） |
+| 误重跑 | `id NOT IN (... source_ref=...)` 幂等过滤；重跑会查到 0 行待处理用户 |
+
+## 验证清单（执行人逐条勾选）
+
+- [ ] 备份表 `balance_split_snapshot_2026_05_28` 已建立且行数 = 预检 user_count
+- [ ] 预检 SQL 输出已与产品/财务对账
+- [ ] 单事务执行后，"不变量自检"返回 0 行
+- [ ] 抽 5 用户 `/user/profile` 字段正确
+- [ ] 抽 1 用户跑测试请求，`usage_logs.gift_cost / recharge_cost` 拆分正确
+- [ ] 监控 Prometheus 指标 `gift_consumed_total{deduction_mode="ratio"}` 在迁移后开始增长
