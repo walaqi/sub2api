@@ -165,7 +165,7 @@ func (e *EasyPay) createAPIPayment(ctx context.Context, req payment.CreatePaymen
 	params["sign"] = easyPaySign(params, e.config["pkey"])
 	params["sign_type"] = signTypeMD5
 
-	body, err := e.post(ctx, e.apiBase()+"/mapi.php", params)
+	body, status, err := e.postRaw(ctx, e.apiBase()+"/mapi.php", params)
 	if err != nil {
 		return nil, fmt.Errorf("easypay create: %w", err)
 	}
@@ -177,8 +177,8 @@ func (e *EasyPay) createAPIPayment(ctx context.Context, req payment.CreatePaymen
 		PayURL2 string `json:"payurl2"` // H5 mobile payment URL
 		QRCode  string `json:"qrcode"`
 	}
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, fmt.Errorf("easypay parse: %w", err)
+	if err := parseEasyPayJSONResponse("create", status, body, &resp); err != nil {
+		return nil, err
 	}
 	if resp.Code != easypayCodeSuccess {
 		return nil, fmt.Errorf("easypay error: %s", resp.Msg)
@@ -209,7 +209,7 @@ func (e *EasyPay) QueryOrder(ctx context.Context, tradeNo string) (*payment.Quer
 		"act": "order", "pid": e.config["pid"],
 		"key": e.config["pkey"], "out_trade_no": tradeNo,
 	}
-	body, err := e.post(ctx, e.apiBase()+"/api.php", params)
+	body, status, err := e.postRaw(ctx, e.apiBase()+"/api.php", params)
 	if err != nil {
 		return nil, fmt.Errorf("easypay query: %w", err)
 	}
@@ -219,17 +219,17 @@ func (e *EasyPay) QueryOrder(ctx context.Context, tradeNo string) (*payment.Quer
 		Status int    `json:"status"`
 		Money  string `json:"money"`
 	}
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, fmt.Errorf("easypay parse query: %w", err)
+	if err := parseEasyPayJSONResponse("query", status, body, &resp); err != nil {
+		return nil, err
 	}
-	status := payment.ProviderStatusPending
+	orderStatus := payment.ProviderStatusPending
 	if resp.Status == easypayStatusPaid {
-		status = payment.ProviderStatusPaid
+		orderStatus = payment.ProviderStatusPaid
 	}
 	amount, _ := strconv.ParseFloat(resp.Money, 64)
 	return &payment.QueryOrderResponse{
 		TradeNo:  tradeNo,
-		Status:   status,
+		Status:   orderStatus,
 		Amount:   amount,
 		Metadata: e.MerchantIdentityMetadata(),
 	}, nil
@@ -337,6 +337,30 @@ func isEasyPayRefundOrderNotFound(err error) bool {
 		strings.Contains(msg, "订单不存在") ||
 		strings.Contains(lower, "order not found") ||
 		strings.Contains(lower, "not exist")
+}
+
+// parseEasyPayJSONResponse decodes an EasyPay JSON response, surfacing HTTP-level
+// failures and HTML error pages with a body summary so callers (and admins
+// looking at logs) can diagnose misconfigured apiBase / pid / pkey instead of
+// seeing only "invalid character '<'".
+func parseEasyPayJSONResponse(op string, status int, body []byte, out any) error {
+	summary := summarizeEasyPayResponse(body)
+	if status < http.StatusOK || status >= http.StatusMultipleChoices {
+		return fmt.Errorf("easypay %s HTTP %d: %s", op, status, summary)
+	}
+	trimmed := strings.TrimSpace(string(body))
+	if trimmed == "" {
+		return fmt.Errorf("easypay %s empty response (HTTP %d)", op, status)
+	}
+	lower := strings.ToLower(trimmed)
+	if strings.HasPrefix(lower, "<!doctype html") || strings.HasPrefix(lower, "<html") ||
+		(strings.HasPrefix(lower, "<") && strings.Contains(lower, "html")) {
+		return fmt.Errorf("easypay %s non-JSON response (HTTP %d, check apiBase/pid/pkey): %s", op, status, summary)
+	}
+	if err := json.Unmarshal(body, out); err != nil {
+		return fmt.Errorf("easypay %s parse (HTTP %d): %w; body=%s", op, status, err, summary)
+	}
+	return nil
 }
 
 func parseEasyPayRefundResponse(status int, body []byte) error {

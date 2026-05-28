@@ -299,6 +299,52 @@ func TestUpdateProviderInstanceAllowsEnablingVisibleMethodProviderFromDifferentS
 	require.NoError(t, err)
 }
 
+func TestUpdateProviderInstanceRejectsEmptyName(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	svc := &PaymentConfigService{
+		entClient:     client,
+		encryptionKey: []byte("0123456789abcdef0123456789abcdef"),
+	}
+
+	instance, err := svc.CreateProviderInstance(ctx, CreateProviderInstanceRequest{
+		ProviderKey: "easypay",
+		Name:        "EasyPay",
+		Config: map[string]string{
+			"pid":       "5001",
+			"pkey":      "pkey-5001",
+			"apiBase":   "https://pay.example.com",
+			"notifyUrl": "https://merchant.example.com/notify",
+			"returnUrl": "https://merchant.example.com/return",
+		},
+		SupportedTypes: []string{"alipay"},
+		Enabled:        false,
+	})
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		name  string
+		value string
+	}{
+		{name: "empty", value: ""},
+		{name: "whitespace", value: "   "},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := svc.UpdateProviderInstance(ctx, instance.ID, UpdateProviderInstanceRequest{
+				Name: stringPtrValue(tc.value),
+			})
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "provider name is required")
+
+			saved, gerr := client.PaymentProviderInstance.Get(ctx, instance.ID)
+			require.NoError(t, gerr)
+			require.Equal(t, "EasyPay", saved.Name, "name must remain unchanged after rejected update")
+		})
+	}
+}
+
 func TestUpdateProviderInstancePersistsEnabledAndSupportedTypes(t *testing.T) {
 	t.Parallel()
 
@@ -651,6 +697,10 @@ func validStripeProviderConfig(t *testing.T) map[string]string {
 }
 
 func boolPtrValue(v bool) *bool {
+	return &v
+}
+
+func stringPtrValue(v string) *string {
 	return &v
 }
 

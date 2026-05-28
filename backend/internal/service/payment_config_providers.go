@@ -300,6 +300,9 @@ func (s *PaymentConfigService) UpdateProviderInstance(ctx context.Context, id in
 	}
 	u := s.entClient.PaymentProviderInstance.UpdateOneID(id)
 	if req.Name != nil {
+		if strings.TrimSpace(*req.Name) == "" {
+			return nil, infraerrors.BadRequest("VALIDATION_ERROR", "provider name is required")
+		}
 		u.SetName(*req.Name)
 	}
 	if mergedConfig != nil {

@@ -22,7 +22,7 @@
             :class="provider.enabled && enabled ? 'text-green-600 dark:text-green-400' : 'text-gray-400'"
           />
         </div>
-        <span class="text-sm font-medium text-gray-900 dark:text-white">{{ provider.name }}</span>
+        <span class="text-sm font-medium text-gray-900 dark:text-white">{{ provider.name?.trim() || keyLabel }}</span>
         <span class="text-xs text-gray-400 dark:text-gray-500">{{ keyLabel }}</span>
         <span v-if="provider.payment_mode" class="text-xs text-gray-400 dark:text-gray-500">· {{ modeLabel }}</span>
         <span v-if="enabled && availableTypes.length" class="text-xs text-gray-300 dark:text-gray-600">|</span>
