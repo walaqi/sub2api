@@ -64,6 +64,23 @@
                   <p class="mt-2 text-sm text-emerald-700 dark:text-emerald-400">
                     {{ successMessage }}
                   </p>
+                  <div
+                    v-if="grantedGift && grantedGift.amount > 0"
+                    class="mt-4 space-y-2 rounded-lg border border-emerald-200 bg-emerald-50/60 p-4 text-sm dark:border-emerald-900/40 dark:bg-emerald-900/20"
+                  >
+                    <div class="flex items-baseline justify-between gap-3">
+                      <span class="text-gray-600 dark:text-dark-300">{{ tr.giftReceivedLabel }}</span>
+                      <span class="font-mono font-semibold text-emerald-700 dark:text-emerald-300">{{ giftAmountText }}</span>
+                    </div>
+                    <div class="flex items-baseline justify-between gap-3">
+                      <span class="text-gray-600 dark:text-dark-300">{{ tr.giftExpiryLabel }}</span>
+                      <span class="text-right text-emerald-700 dark:text-emerald-300">{{ giftExpiryText }}</span>
+                    </div>
+                    <div class="flex items-baseline justify-between gap-3">
+                      <span class="text-gray-600 dark:text-dark-300">{{ tr.giftDeductionLabel }}</span>
+                      <span class="text-right text-emerald-700 dark:text-emerald-300">{{ giftDeductionText }}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -487,6 +504,13 @@ const en: Copy = {
   codeRequired: 'Please enter the 6-digit verification code.',
   invalidCode: 'The code must be 6 digits.',
   turnstileRequired: 'Please complete the human verification.',
+  giftReceivedLabel: 'Gift balance received',
+  giftExpiryLabel: 'Validity',
+  giftExpiryNever: 'No expiration. You can use it anytime.',
+  giftExpiryUntil: 'Use before {date}. Please consume the gift balance before this date.',
+  giftDeductionLabel: 'Deduction rule',
+  giftDeductionPriority: 'Priority — gift balance is consumed before your top-up balance.',
+  giftDeductionRatio: 'Ratio — each $1 of usage deducts ${recharge} from top-up + ${gift} from gift balance.',
 }
 const zh: Copy = {
   title: '绑定 API Key',
@@ -548,6 +572,13 @@ const zh: Copy = {
   codeRequired: '请输入 6 位验证码。',
   invalidCode: '验证码必须为 6 位数字。',
   turnstileRequired: '请先完成人机验证。',
+  giftReceivedLabel: '本次领取赠金',
+  giftExpiryLabel: '使用规则',
+  giftExpiryNever: '永久有效，无需担心过期',
+  giftExpiryUntil: '请在 {date} 前使用完毕',
+  giftDeductionLabel: '扣费规则',
+  giftDeductionPriority: '优先扣除：赠金会先于充值余额被消耗',
+  giftDeductionRatio: '按比例扣除：每消耗 1 美元 = 充值余额 ${recharge} + 赠金 ${gift}',
 }
 
 const { locale } = useI18n()
@@ -629,6 +660,14 @@ const authPassword = ref('')
 const errorMessage = ref('')
 const successMessage = ref('')
 const pending = ref<Pending | null>(null)
+
+interface GrantedGiftPayload {
+  amount: number
+  deduction_mode: 'priority' | 'ratio'
+  ratio_recharge?: number | null
+  expires_at_unix_ms?: number | null
+}
+const grantedGift = ref<GrantedGiftPayload | null>(null)
 
 // Public settings (loaded on mount): drives whether registration requires
 // email verification and/or Turnstile. Defaults are conservative (off) so
@@ -738,6 +777,37 @@ const resetCountdown = computed(() => {
   return parts.join(' ')
 })
 
+const giftAmountText = computed(() => {
+  const g = grantedGift.value
+  if (!g || g.amount <= 0) return ''
+  if (g.amount < 0.01) return '< $0.01'
+  return `$${g.amount.toFixed(2)}`
+})
+
+const giftExpiryText = computed(() => {
+  const g = grantedGift.value
+  if (!g) return ''
+  if (g.expires_at_unix_ms == null) return tr.value.giftExpiryNever
+  const d = new Date(g.expires_at_unix_ms)
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return tr.value.giftExpiryUntil.replace('{date}', `${yyyy}-${mm}-${dd}`)
+})
+
+const giftDeductionText = computed(() => {
+  const g = grantedGift.value
+  if (!g) return ''
+  if (g.deduction_mode === 'priority') return tr.value.giftDeductionPriority
+  const r = Number(g.ratio_recharge ?? 0)
+  if (!Number.isFinite(r) || r <= 0) return tr.value.giftDeductionPriority
+  const recharge = (1 / (1 + r)).toFixed(2)
+  const gift = (r / (1 + r)).toFixed(2)
+  return tr.value.giftDeductionRatio
+    .replace('{recharge}', recharge)
+    .replace('{gift}', gift)
+})
+
 async function reserveKeys(): Promise<void> {
   errorMessage.value = ''
   successMessage.value = ''
@@ -778,7 +848,11 @@ async function commitReservation(): Promise<void> {
   errorMessage.value = ''
   committing.value = true
   try {
-    const { data } = await apiClient.post<ApiEnvelope<{ masked_key: string }>>(
+    const { data } = await apiClient.post<ApiEnvelope<{
+      masked_key: string
+      api_key_id: number
+      gift?: GrantedGiftPayload | null
+    }>>(
       '/bind-key/commit',
       { reservation_id: pending.value.reservation_id }
     )
@@ -787,6 +861,7 @@ async function commitReservation(): Promise<void> {
       '{key}',
       result?.masked_key || pending.value.masked_key
     )
+    grantedGift.value = result?.gift ?? null
     clearPending()
     pending.value = null
     rawInput.value = ''

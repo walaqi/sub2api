@@ -58,8 +58,9 @@ type ReservationResult struct {
 
 // CommitResult is returned after a successful Commit.
 type CommitResult struct {
-	APIKeyID  int64  `json:"api_key_id"`
-	MaskedKey string `json:"masked_key"`
+	APIKeyID  int64        `json:"api_key_id"`
+	MaskedKey string       `json:"masked_key"`
+	Gift      *GrantedGift `json:"gift,omitempty"`
 }
 
 // EligibilityResult tells the UI whether the caller may participate this
@@ -328,10 +329,13 @@ func (s *Service) Commit(ctx context.Context, userID int64, reservationID string
 	// 赠送余额（Bug 1 修复）。失败仅记日志，不回滚——key 已转移成功，
 	// "拿到 key 但没赠送" 比 "拿不到 key 也没赠送" 体验更好；运营可手工补。
 	// Phase 3：把 apiKeyID 一并传下去，由 updater 读表 A 决定 mode/ratio_recharge/expires_after_days。
+	var grantedGift *GrantedGift
 	if giftAmount > 0 && s.userBalanceUpdater != nil {
-		if err := s.userBalanceUpdater.GrantForBindKey(ctx, userID, giftAmount, keyID); err != nil {
+		g, err := s.userBalanceUpdater.GrantForBindKey(ctx, userID, giftAmount, keyID)
+		if err != nil {
 			log.Printf("[keybind] grant balance %.4f to user %d failed: %v", giftAmount, userID, err)
 		} else {
+			grantedGift = g
 			// 余额改了必须失效缓存，否则中间件读到旧 balance=0 仍然 403。
 			if s.authCacheInval != nil {
 				s.authCacheInval.InvalidateAuthCacheByUserID(ctx, userID)
@@ -357,13 +361,13 @@ func (s *Service) Commit(ctx context.Context, userID int64, reservationID string
 	if err != nil {
 		// The transfer succeeded; degrade gracefully.
 		_ = s.redis.Del(ctx, resKey, redisLockedKeyPrefix+intToStr(keyID)).Err()
-		return &CommitResult{APIKeyID: keyID, MaskedKey: ""}, nil
+		return &CommitResult{APIKeyID: keyID, MaskedKey: "", Gift: grantedGift}, nil
 	}
 
 	// Consume reservation atomically (best-effort; TTL also cleans them up).
 	_ = s.redis.Del(ctx, resKey, redisLockedKeyPrefix+intToStr(keyID)).Err()
 
-	return &CommitResult{APIKeyID: row.ID, MaskedKey: maskKey(row.Key)}, nil
+	return &CommitResult{APIKeyID: row.ID, MaskedKey: maskKey(row.Key), Gift: grantedGift}, nil
 }
 
 func (s *Service) disabledErr() error {

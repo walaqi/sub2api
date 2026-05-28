@@ -10,13 +10,25 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/gift"
 )
 
+// GrantedGift 是 Commit 回应里"刚发出的赠金"快照，足够前端渲染：
+//   - 金额（display "$xx"）
+//   - 扣费模式 + ratio_recharge（priority 不需 ratio；ratio 必带）
+//   - 过期时间（nil 表示永不过期）
+type GrantedGift struct {
+	Amount          float64            `json:"amount"`
+	DeductionMode   gift.DeductionMode `json:"deduction_mode"`
+	RatioRecharge   *float64           `json:"ratio_recharge,omitempty"`
+	ExpiresAtUnixMs *int64             `json:"expires_at_unix_ms,omitempty"`
+}
+
 // UserBalanceUpdater 抽象出"绑 key 成功后给用户发放赠金"的最小动作。
 //
 // 历史：早期实现叫 AddBalanceAndTotalRecharged，把赠金错记进 total_recharged（commit 32df9534）。
 // Phase 1 改为通过 gift.Engine.Grant 发放 priority 类赠金，不再动 total_recharged。
 // Phase 3 进一步把 api_key_id 一起传下来，由实现读表 A 决定 mode/ratio_recharge/expires_after_days。
+// 返回 *GrantedGift 让 service 层把赠金详情透传到前端；amount<=0 时返回 (nil, nil)。
 type UserBalanceUpdater interface {
-	GrantForBindKey(ctx context.Context, userID int64, amount float64, apiKeyID int64) error
+	GrantForBindKey(ctx context.Context, userID int64, amount float64, apiKeyID int64) (*GrantedGift, error)
 }
 
 // APIKeyAuthCacheInvalidator 与 service.APIKeyAuthCacheInvalidator 结构等价。
@@ -71,12 +83,12 @@ func NewEntUserBalanceUpdater(_ *ent.Client) UserBalanceUpdater {
 	return nil
 }
 
-func (u *giftEngineUpdater) GrantForBindKey(ctx context.Context, userID int64, amount float64, apiKeyID int64) error {
+func (u *giftEngineUpdater) GrantForBindKey(ctx context.Context, userID int64, amount float64, apiKeyID int64) (*GrantedGift, error) {
 	if amount <= 0 {
-		return nil
+		return nil, nil
 	}
 	if u == nil || u.engine == nil {
-		return errors.New("giftEngineUpdater: engine is nil")
+		return nil, errors.New("giftEngineUpdater: engine is nil")
 	}
 
 	// 默认 priority、永不过期
@@ -94,7 +106,7 @@ func (u *giftEngineUpdater) GrantForBindKey(ctx context.Context, userID int64, a
 	if u.resolver != nil && apiKeyID > 0 {
 		setting, err := u.resolver.Resolve(ctx, apiKeyID)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if setting != nil {
 			input.Mode = setting.DeductionMode
@@ -106,8 +118,24 @@ func (u *giftEngineUpdater) GrantForBindKey(ctx context.Context, userID int64, a
 		}
 	}
 
-	_, err := u.engine.Grant(ctx, input)
-	return err
+	granted, err := u.engine.Grant(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	if granted == nil {
+		return nil, nil
+	}
+
+	out := &GrantedGift{
+		Amount:        granted.Amount,
+		DeductionMode: granted.Mode,
+		RatioRecharge: granted.RatioRecharge,
+	}
+	if granted.ExpiresAt != nil {
+		ms := granted.ExpiresAt.UnixMilli()
+		out.ExpiresAtUnixMs = &ms
+	}
+	return out, nil
 }
 
 // apiKeyRef 把 api_key_id 编码为 gift.source_ref，便于后续审计/对账。
