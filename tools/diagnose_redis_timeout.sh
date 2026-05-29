@@ -260,17 +260,18 @@ fi
 sec "9. sub2api 进程网络细节"
 if [[ -n "$PID" ]] && have ss; then
   sub "按对端端口分布"
-  run "ss -tanp 2>/dev/null | awk -v p=$PID '/pid='p'/' | awk '{print \$5}' | awk -F: 'NF{print \$NF}' | sort | uniq -c | sort -rn | head -20"
+  # 用 grep 按 pid=<PID>, 或 pid=<PID>) 字面过滤, 避免 awk 变量与 shell 单引号纠缠.
+  run "ss -tanp 2>/dev/null | grep -E 'pid=$PID(,|\))' | awk '{print \$5}' | awk -F: 'NF{print \$NF}' | sort | uniq -c | sort -rn | head -20"
   sub "Recv-Q / Send-Q 非零 (可能在堆积)"
-  run "ss -tanp 2>/dev/null | awk -v p=$PID 'NR==1 || ($2!=0 || $3!=0) && /pid='p'/' | head -30"
+  run "ss -tanp 2>/dev/null | awk 'NR==1 || ((\$2!=0 || \$3!=0) && /pid=$PID(,|\\\\))/)' | head -30"
 fi
 
 # 另一个 web 进程的长连接占用估算
 if [[ -n "$WEB_PID" ]] && have ss; then
   sub "另一个 web 进程 ($WEB_PROC pid=$WEB_PID) 当前连接数"
-  run "ss -tanp 2>/dev/null | awk -v p=$WEB_PID '/pid='p'/' | wc -l"
+  run "ss -tanp 2>/dev/null | grep -cE 'pid=$WEB_PID(,|\))'"
   sub "另一个 web 进程 socket 状态分布"
-  run "ss -tanp 2>/dev/null | awk -v p=$WEB_PID '/pid='p'/{print \$1}' | sort | uniq -c | sort -rn"
+  run "ss -tanp 2>/dev/null | grep -E 'pid=$WEB_PID(,|\))' | awk '{print \$1}' | sort | uniq -c | sort -rn"
 fi
 
 # ---------- 10. 时间窗口采样 ----------
@@ -279,7 +280,6 @@ note "采样开始: $(date)"
 SAMPLES=$(( DURATION / 5 ))
 [[ $SAMPLES -lt 2 ]] && SAMPLES=2
 
-declare -a tw_history estab_history conn_redis_history fd_history pcpu_history
 for ((i=1; i<=SAMPLES; i++)); do
   ts=$(date +%H:%M:%S)
   if have ss; then
