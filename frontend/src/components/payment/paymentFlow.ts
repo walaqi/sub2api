@@ -99,13 +99,23 @@ export function getVisibleMethods(methods: Record<string, MethodLimit>): Record<
   const visible: Record<string, MethodLimit> = {}
 
   Object.entries(methods).forEach(([type, limit]) => {
-    const normalized = normalizeVisibleMethod(type)
-    if (!normalized) return
-
-    const isCanonical = type === normalized
-    const existing = visible[normalized]
-    if (!existing || isCanonical) {
-      visible[normalized] = { ...limit }
+    const trimmed = type.trim()
+    if (!trimmed) return
+    const normalized = normalizeVisibleMethod(trimmed)
+    // Standard methods (alipay/wxpay/stripe/airwallex) collapse to a canonical key,
+    // preferring the canonical entry over its aliases.
+    if (normalized) {
+      const isCanonical = trimmed === normalized
+      const existing = visible[normalized]
+      if (!existing || isCanonical) {
+        visible[normalized] = { ...limit }
+      }
+      return
+    }
+    // Custom EasyPay channels (admin-defined free-form types) pass through
+    // as-is so they render as their own buttons.
+    if (!visible[trimmed]) {
+      visible[trimmed] = { ...limit }
     }
   })
 

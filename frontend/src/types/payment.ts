@@ -48,6 +48,12 @@ export interface MethodLimit {
   single_max: number
   fee_rate: number
   available: boolean
+  /** Custom button label (admin-defined, e.g. for EasyPay custom channels). */
+  label?: string
+  /** Custom button icon URL (admin-defined). */
+  icon_url?: string
+  /** Sort order from the backing instance; used to order custom buttons. */
+  sort_order?: number
 }
 
 /** Response from /payment/limits API */
@@ -148,6 +154,7 @@ export interface ProviderInstance {
   refund_enabled: boolean
   allow_user_refund: boolean
   limits: string
+  metadata: string
   sort_order: number
 }
 

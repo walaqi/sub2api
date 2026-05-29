@@ -56,8 +56,6 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if plan != nil {
 		orderAmount = plan.Price
 		limitAmount = plan.Price
-	} else if req.OrderType == payment.OrderTypeBalance {
-		orderAmount = calculateCreditedBalance(req.Amount, cfg.BalanceRechargeMultiplier)
 	}
 	feeRate := cfg.RechargeFeeRate
 	methodCurrency := payment.DefaultPaymentCurrency
@@ -77,6 +75,14 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	}
 	if err := s.validateSelectedCreateOrderInstance(ctx, req, sel); err != nil {
 		return nil, err
+	}
+	// Apply instance-level overrides (multiplier / product-name affixes) once
+	// the load balancer has picked a concrete instance. Defaults to the global
+	// PaymentConfig values when the instance has no metadata.
+	instanceMeta := ParseInstanceMetadata(sel.Metadata)
+	if plan == nil && req.OrderType == payment.OrderTypeBalance {
+		multiplier := instanceMeta.EffectiveMultiplier(cfg.BalanceRechargeMultiplier)
+		orderAmount = calculateCreditedBalance(req.Amount, multiplier)
 	}
 	selectedCurrency := payment.DefaultPaymentCurrency
 	if sel != nil {
@@ -501,22 +507,45 @@ func selectedInstanceSupportedTypes(sel *payment.InstanceSelection) string {
 }
 
 func (s *PaymentService) buildPaymentSubject(plan *dbent.SubscriptionPlan, limitAmount float64, cfg *PaymentConfig, sel *payment.InstanceSelection) string {
+	prefix, suffix := resolveProductNameAffixes(cfg, sel)
 	if plan != nil {
 		productName := plan.ProductName
 		if productName == "" {
 			productName = "Sub2API Subscription " + plan.Name
 		}
-		return applyPaymentProductNameAffix(productName, cfg)
+		return applyProductNameAffix(productName, prefix, suffix)
 	}
 	currency := payment.DefaultPaymentCurrency
 	if sel != nil {
 		currency = paymentProviderConfigCurrency(sel.ProviderKey, sel.Config)
 	}
 	amountStr := payment.FormatAmountForCurrency(limitAmount, currency)
-	if hasPaymentProductNameAffix(cfg) {
-		return applyPaymentProductNameAffix(amountStr, cfg)
+	if prefix != "" || suffix != "" {
+		return applyProductNameAffix(amountStr, prefix, suffix)
 	}
 	return "Sub2API " + amountStr + " " + currency
+}
+
+func resolveProductNameAffixes(cfg *PaymentConfig, sel *payment.InstanceSelection) (string, string) {
+	prefix, suffix := "", ""
+	if cfg != nil {
+		prefix = strings.TrimSpace(cfg.ProductNamePrefix)
+		suffix = strings.TrimSpace(cfg.ProductNameSuffix)
+	}
+	if sel == nil {
+		return prefix, suffix
+	}
+	meta := ParseInstanceMetadata(sel.Metadata)
+	prefix = strings.TrimSpace(meta.EffectiveProductNamePrefix(prefix))
+	suffix = strings.TrimSpace(meta.EffectiveProductNameSuffix(suffix))
+	return prefix, suffix
+}
+
+func applyProductNameAffix(productName, prefix, suffix string) string {
+	if prefix == "" && suffix == "" {
+		return productName
+	}
+	return strings.TrimSpace(prefix + " " + productName + " " + suffix)
 }
 
 func hasPaymentProductNameAffix(cfg *PaymentConfig) bool {

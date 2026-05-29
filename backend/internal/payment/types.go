@@ -194,6 +194,7 @@ type InstanceSelection struct {
 	Config         map[string]string
 	SupportedTypes string // Comma-separated list of supported payment types from the instance
 	PaymentMode    string // Payment display mode: "qrcode", "redirect", "popup"
+	Metadata       string // Free-form JSON metadata blob (e.g. EasyPay custom-channel overrides)
 }
 
 // Provider defines the interface that all payment providers must implement.

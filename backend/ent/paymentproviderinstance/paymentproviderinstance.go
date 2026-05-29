@@ -29,6 +29,8 @@ const (
 	FieldSortOrder = "sort_order"
 	// FieldLimits holds the string denoting the limits field in the database.
 	FieldLimits = "limits"
+	// FieldMetadata holds the string denoting the metadata field in the database.
+	FieldMetadata = "metadata"
 	// FieldRefundEnabled holds the string denoting the refund_enabled field in the database.
 	FieldRefundEnabled = "refund_enabled"
 	// FieldAllowUserRefund holds the string denoting the allow_user_refund field in the database.
@@ -52,6 +54,7 @@ var Columns = []string{
 	FieldPaymentMode,
 	FieldSortOrder,
 	FieldLimits,
+	FieldMetadata,
 	FieldRefundEnabled,
 	FieldAllowUserRefund,
 	FieldCreatedAt,
@@ -89,6 +92,8 @@ var (
 	DefaultSortOrder int
 	// DefaultLimits holds the default value on creation for the "limits" field.
 	DefaultLimits string
+	// DefaultMetadata holds the default value on creation for the "metadata" field.
+	DefaultMetadata string
 	// DefaultRefundEnabled holds the default value on creation for the "refund_enabled" field.
 	DefaultRefundEnabled bool
 	// DefaultAllowUserRefund holds the default value on creation for the "allow_user_refund" field.
@@ -147,6 +152,11 @@ func BySortOrder(opts ...sql.OrderTermOption) OrderOption {
 // ByLimits orders the results by the limits field.
 func ByLimits(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLimits, opts...).ToFunc()
+}
+
+// ByMetadata orders the results by the metadata field.
+func ByMetadata(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMetadata, opts...).ToFunc()
 }
 
 // ByRefundEnabled orders the results by the refund_enabled field.

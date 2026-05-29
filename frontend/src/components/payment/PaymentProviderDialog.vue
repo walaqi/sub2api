@@ -51,21 +51,100 @@
             >{{ mode.label }}</button>
           </div>
         </div>
-        <div v-if="availableTypes.length > 1" class="flex items-center gap-2">
+        <div v-if="availableTypes.length > 1 || isEasypay" class="flex items-center gap-2">
           <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.settings.payment.supportedTypes') }}</span>
           <div class="flex flex-wrap gap-1.5">
             <button
               v-for="pt in availableTypes"
               :key="pt.value"
               type="button"
+              :disabled="isEasypay && useCustomChannel"
               @click="toggleType(pt.value)"
               :class="[
                 'rounded-lg border px-2.5 py-1 text-xs font-medium transition-all',
-                isTypeSelected(pt.value)
+                isEasypay && useCustomChannel
+                  ? 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400 dark:border-dark-700 dark:bg-dark-800/50 dark:text-gray-600'
+                  : isTypeSelected(pt.value)
+                    ? 'border-primary-500 bg-primary-500 text-white shadow-sm'
+                    : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400 hover:bg-gray-50 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300 dark:hover:border-dark-500',
+              ]"
+            >{{ pt.label }}</button>
+            <button
+              v-if="isEasypay"
+              type="button"
+              @click="toggleCustomChannel"
+              :class="[
+                'rounded-lg border px-2.5 py-1 text-xs font-medium transition-all',
+                useCustomChannel
                   ? 'border-primary-500 bg-primary-500 text-white shadow-sm'
                   : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400 hover:bg-gray-50 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300 dark:hover:border-dark-500',
               ]"
-            >{{ pt.label }}</button>
+            >{{ t('admin.settings.payment.easypayCustomType') }}</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- EasyPay custom channel inputs -->
+      <div v-if="isEasypay && useCustomChannel" class="rounded-lg border border-primary-200 bg-primary-50/40 p-3 dark:border-primary-900/40 dark:bg-primary-950/30">
+        <p class="mb-2 text-xs leading-relaxed text-primary-700 dark:text-primary-300">
+          {{ t('admin.settings.payment.easypayCustomTypeHint') }}
+        </p>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label class="input-label">
+              {{ t('admin.settings.payment.easypayCustomTypeLabel') }}
+              <span class="text-red-500">*</span>
+            </label>
+            <input
+              v-model="customChannel.type"
+              type="text"
+              class="input"
+              placeholder="epay / qqpay / usdt"
+              autocomplete="off"
+            />
+          </div>
+          <div>
+            <label class="input-label">
+              {{ t('admin.settings.payment.easypayCustomLabel') }}
+              <span class="text-red-500">*</span>
+            </label>
+            <input v-model="customChannel.label" type="text" class="input" autocomplete="off" />
+          </div>
+          <div class="sm:col-span-2">
+            <label class="input-label">
+              {{ t('admin.settings.payment.easypayCustomIconUrl') }}
+              <span class="text-red-500">*</span>
+            </label>
+            <input v-model="customChannel.iconUrl" type="text" class="input" placeholder="https://..." autocomplete="off" />
+          </div>
+          <div>
+            <label class="input-label">
+              {{ t('admin.settings.payment.easypayCustomMultiplier') }}
+              <span class="text-xs text-gray-400">({{ t('common.optional') }})</span>
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              class="input"
+              autocomplete="off"
+              :value="customChannel.multiplier"
+              @input="customChannel.multiplier = ($event.target as HTMLInputElement).value"
+            />
+          </div>
+          <div>
+            <label class="input-label">
+              {{ t('admin.settings.payment.easypayCustomPrefix') }}
+              <span class="text-xs text-gray-400">({{ t('common.optional') }})</span>
+            </label>
+            <input v-model="customChannel.productNamePrefix" type="text" class="input" autocomplete="off" />
+          </div>
+          <div>
+            <label class="input-label">
+              {{ t('admin.settings.payment.easypayCustomSuffix') }}
+              <span class="text-xs text-gray-400">({{ t('common.optional') }})</span>
+            </label>
+            <input v-model="customChannel.productNameSuffix" type="text" class="input" autocomplete="off" />
           </div>
         </div>
       </div>
@@ -280,6 +359,7 @@ import {
   PAYMENT_MODE_POPUP,
   PAYMENT_MODE_REDIRECT,
   STRIPE_SDK_API_VERSION,
+  EASYPAY_STANDARD_TYPES,
   getAvailableTypes,
   extractBaseUrl,
 } from './providerConfig'
@@ -331,6 +411,7 @@ const emit = defineEmits<{
     allow_user_refund: boolean
     config: Record<string, string>
     limits: string
+    metadata: string
   }]
 }>()
 
@@ -358,6 +439,19 @@ const form = reactive({
   payment_mode: PAYMENT_MODE_QRCODE,
   refund_enabled: false,
   allow_user_refund: false,
+})
+
+/** EasyPay-only: when true, supported_types becomes a single admin-defined
+ * free-form string (e.g. "epay" / "qqpay"), and the standard alipay/wxpay
+ * checkboxes are mutually disabled. */
+const useCustomChannel = ref(false)
+const customChannel = reactive({
+  type: '',
+  label: '',
+  iconUrl: '',
+  multiplier: '' as string,
+  productNamePrefix: '',
+  productNameSuffix: '',
 })
 const config = reactive<Record<string, string>>({})
 const limits = reactive<Record<string, Record<string, number>>>({})
@@ -498,11 +592,24 @@ const limitableTypes = computed(() => {
 })
 
 // --- Methods ---
+const isEasypay = computed(() => form.provider_key === 'easypay')
+
+function isStandardEasypayType(type: string): boolean {
+  return (EASYPAY_STANDARD_TYPES as readonly string[]).includes(type)
+}
+
 function isTypeSelected(type: string): boolean {
   return form.supported_types.includes(type)
 }
 
 function toggleType(type: string) {
+  // EasyPay: toggling a standard type while in custom-channel mode
+  // first exits custom mode (clears its inputs) so we don't end up with both
+  // a custom channel and standard checkboxes selected.
+  if (isEasypay.value && useCustomChannel.value && isStandardEasypayType(type)) {
+    useCustomChannel.value = false
+    resetCustomChannel()
+  }
   if (form.supported_types.includes(type)) {
     form.supported_types = form.supported_types.filter(t => t !== type)
   } else {
@@ -510,9 +617,34 @@ function toggleType(type: string) {
   }
 }
 
+function toggleCustomChannel() {
+  useCustomChannel.value = !useCustomChannel.value
+  if (useCustomChannel.value) {
+    // Clear the standard alipay/wxpay selection — they are mutually exclusive
+    // with the custom channel within a single instance.
+    form.supported_types = []
+    // Custom EasyPay channels only support hosted-page redirect. The QR flow
+    // does not apply because the aggregate gateway picks the sub-method itself.
+    form.payment_mode = PAYMENT_MODE_POPUP
+  } else {
+    resetCustomChannel()
+  }
+}
+
+function resetCustomChannel() {
+  customChannel.type = ''
+  customChannel.label = ''
+  customChannel.iconUrl = ''
+  customChannel.multiplier = ''
+  customChannel.productNamePrefix = ''
+  customChannel.productNameSuffix = ''
+}
+
 function onKeyChange() {
   form.supported_types = [...(PROVIDER_SUPPORTED_TYPES[form.provider_key] || [])]
   form.payment_mode = defaultPaymentMode(form.provider_key)
+  useCustomChannel.value = false
+  resetCustomChannel()
   clearConfig()
   applyDefaults()
 }
@@ -575,11 +707,67 @@ function serializeLimits(): string {
   return Object.keys(result).length > 0 ? JSON.stringify(result) : ''
 }
 
+function serializeMetadata(): string {
+  if (!useCustomChannel.value) return ''
+  const type = customChannel.type.trim()
+  const payload: {
+    channels: Record<string, { label: string; icon_url: string }>
+    balance_recharge_multiplier?: number
+    product_name_prefix?: string
+    product_name_suffix?: string
+  } = {
+    channels: {
+      [type]: {
+        label: customChannel.label.trim(),
+        icon_url: customChannel.iconUrl.trim(),
+      },
+    },
+  }
+  const m = String(customChannel.multiplier ?? '').trim()
+  if (m !== '') {
+    const num = Number(m)
+    if (Number.isFinite(num) && num > 0) payload.balance_recharge_multiplier = num
+  }
+  const prefix = customChannel.productNamePrefix
+  if (prefix !== '') payload.product_name_prefix = prefix
+  const suffix = customChannel.productNameSuffix
+  if (suffix !== '') payload.product_name_suffix = suffix
+  return JSON.stringify(payload)
+}
+
+function validateCustomChannel(): string {
+  const type = customChannel.type.trim()
+  if (!type) return t('admin.settings.payment.easypayCustomTypeRequired')
+  if (!/^[a-zA-Z0-9_]+$/.test(type)) return t('admin.settings.payment.easypayCustomTypeInvalid')
+  if (isStandardEasypayType(type)) return t('admin.settings.payment.easypayCustomTypeReserved')
+  if (!customChannel.label.trim()) return t('admin.settings.payment.easypayCustomLabelRequired')
+  if (!customChannel.iconUrl.trim()) return t('admin.settings.payment.easypayCustomIconUrlRequired')
+  if (!/^https?:\/\//i.test(customChannel.iconUrl.trim())) {
+    return t('admin.settings.payment.easypayCustomIconUrlInvalid')
+  }
+  const m = String(customChannel.multiplier ?? '').trim()
+  if (m !== '') {
+    const num = Number(m)
+    if (!Number.isFinite(num) || num <= 0) {
+      return t('admin.settings.payment.easypayCustomMultiplierInvalid')
+    }
+  }
+  return ''
+}
+
 function handleSave() {
   // Validate required fields
   if (!form.name.trim()) {
     emitValidationError(t('admin.settings.payment.validationNameRequired'))
     return
+  }
+  // EasyPay custom channel: validate the inline metadata inputs.
+  if (useCustomChannel.value) {
+    const err = validateCustomChannel()
+    if (err) {
+      emitValidationError(err)
+      return
+    }
   }
   // Validate required config fields — all non-optional fields must be filled.
   // In edit mode, sensitive fields may be left blank to preserve the stored
@@ -623,16 +811,21 @@ function handleSave() {
     if (paths.returnUrl) filteredConfig['returnUrl'] = returnBase + paths.returnUrl
   }
 
+  const supportedTypes = useCustomChannel.value
+    ? [customChannel.type.trim()]
+    : form.supported_types
+
   emit('save', {
     provider_key: form.provider_key,
     name: form.name,
-    supported_types: form.supported_types,
+    supported_types: supportedTypes,
     enabled: form.enabled,
     payment_mode: supportsPaymentMode.value ? form.payment_mode : '',
     refund_enabled: form.refund_enabled,
     allow_user_refund: form.refund_enabled ? form.allow_user_refund : false,
     config: filteredConfig,
     limits: serializeLimits(),
+    metadata: serializeMetadata(),
   })
 }
 
@@ -651,6 +844,8 @@ function reset(defaultKey: string) {
   form.payment_mode = defaultPaymentMode(defaultKey)
   form.refund_enabled = false
   form.allow_user_refund = false
+  useCustomChannel.value = false
+  resetCustomChannel()
   clearConfig()
   applyDefaults()
 }
@@ -668,6 +863,39 @@ function loadProvider(provider: ProviderInstance) {
     : defaultPaymentMode(provider.provider_key)
   form.refund_enabled = provider.refund_enabled
   form.allow_user_refund = provider.allow_user_refund
+
+  // EasyPay custom channel detection: a single supported_type that is not
+  // 'alipay' or 'wxpay' means metadata-driven custom channel.
+  useCustomChannel.value = false
+  resetCustomChannel()
+  if (
+    provider.provider_key === 'easypay'
+    && provider.supported_types.length === 1
+    && !isStandardEasypayType(provider.supported_types[0])
+  ) {
+    useCustomChannel.value = true
+    customChannel.type = provider.supported_types[0]
+    try {
+      const meta = provider.metadata ? JSON.parse(provider.metadata) : null
+      if (meta && typeof meta === 'object') {
+        const ch = meta.channels?.[customChannel.type]
+        if (ch && typeof ch === 'object') {
+          customChannel.label = typeof ch.label === 'string' ? ch.label : ''
+          customChannel.iconUrl = typeof ch.icon_url === 'string' ? ch.icon_url : ''
+        }
+        if (typeof meta.balance_recharge_multiplier === 'number') {
+          customChannel.multiplier = String(meta.balance_recharge_multiplier)
+        }
+        if (typeof meta.product_name_prefix === 'string') {
+          customChannel.productNamePrefix = meta.product_name_prefix
+        }
+        if (typeof meta.product_name_suffix === 'string') {
+          customChannel.productNameSuffix = meta.product_name_suffix
+        }
+      }
+    } catch { /* ignore malformed metadata */ }
+  }
+
   clearConfig()
   // Pre-fill config from API response. Backend omits sensitive fields entirely,
   // so those inputs stay blank — submitting blank preserves the stored secret.

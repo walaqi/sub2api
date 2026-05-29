@@ -1112,20 +1112,24 @@ func init() {
 	paymentproviderinstanceDescLimits := paymentproviderinstanceFields[7].Descriptor()
 	// paymentproviderinstance.DefaultLimits holds the default value on creation for the limits field.
 	paymentproviderinstance.DefaultLimits = paymentproviderinstanceDescLimits.Default.(string)
+	// paymentproviderinstanceDescMetadata is the schema descriptor for metadata field.
+	paymentproviderinstanceDescMetadata := paymentproviderinstanceFields[8].Descriptor()
+	// paymentproviderinstance.DefaultMetadata holds the default value on creation for the metadata field.
+	paymentproviderinstance.DefaultMetadata = paymentproviderinstanceDescMetadata.Default.(string)
 	// paymentproviderinstanceDescRefundEnabled is the schema descriptor for refund_enabled field.
-	paymentproviderinstanceDescRefundEnabled := paymentproviderinstanceFields[8].Descriptor()
+	paymentproviderinstanceDescRefundEnabled := paymentproviderinstanceFields[9].Descriptor()
 	// paymentproviderinstance.DefaultRefundEnabled holds the default value on creation for the refund_enabled field.
 	paymentproviderinstance.DefaultRefundEnabled = paymentproviderinstanceDescRefundEnabled.Default.(bool)
 	// paymentproviderinstanceDescAllowUserRefund is the schema descriptor for allow_user_refund field.
-	paymentproviderinstanceDescAllowUserRefund := paymentproviderinstanceFields[9].Descriptor()
+	paymentproviderinstanceDescAllowUserRefund := paymentproviderinstanceFields[10].Descriptor()
 	// paymentproviderinstance.DefaultAllowUserRefund holds the default value on creation for the allow_user_refund field.
 	paymentproviderinstance.DefaultAllowUserRefund = paymentproviderinstanceDescAllowUserRefund.Default.(bool)
 	// paymentproviderinstanceDescCreatedAt is the schema descriptor for created_at field.
-	paymentproviderinstanceDescCreatedAt := paymentproviderinstanceFields[10].Descriptor()
+	paymentproviderinstanceDescCreatedAt := paymentproviderinstanceFields[11].Descriptor()
 	// paymentproviderinstance.DefaultCreatedAt holds the default value on creation for the created_at field.
 	paymentproviderinstance.DefaultCreatedAt = paymentproviderinstanceDescCreatedAt.Default.(func() time.Time)
 	// paymentproviderinstanceDescUpdatedAt is the schema descriptor for updated_at field.
-	paymentproviderinstanceDescUpdatedAt := paymentproviderinstanceFields[11].Descriptor()
+	paymentproviderinstanceDescUpdatedAt := paymentproviderinstanceFields[12].Descriptor()
 	// paymentproviderinstance.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	paymentproviderinstance.DefaultUpdatedAt = paymentproviderinstanceDescUpdatedAt.Default.(func() time.Time)
 	// paymentproviderinstance.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

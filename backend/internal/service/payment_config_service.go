@@ -115,6 +115,13 @@ type MethodLimits struct {
 	DailyLimit  float64 `json:"daily_limit"`
 	SingleMin   float64 `json:"single_min"`
 	SingleMax   float64 `json:"single_max"`
+	// Label / IconURL come from instance metadata for custom EasyPay channels.
+	// Empty for standard methods — frontend falls back to i18n + bundled icons.
+	Label   string `json:"label,omitempty"`
+	IconURL string `json:"icon_url,omitempty"`
+	// SortOrder is the instance's sort_order, surfaced so the user-facing
+	// payment page can order custom buttons admin-side. 0 means "unspecified".
+	SortOrder int `json:"sort_order,omitempty"`
 }
 
 // MethodLimitsResponse is the full response for the user-facing /limits API.
@@ -134,6 +141,7 @@ type CreateProviderInstanceRequest struct {
 	PaymentMode     string            `json:"payment_mode"`
 	SortOrder       int               `json:"sort_order"`
 	Limits          string            `json:"limits"`
+	Metadata        string            `json:"metadata"`
 	RefundEnabled   bool              `json:"refund_enabled"`
 	AllowUserRefund bool              `json:"allow_user_refund"`
 }
@@ -146,6 +154,7 @@ type UpdateProviderInstanceRequest struct {
 	PaymentMode     *string           `json:"payment_mode"`
 	SortOrder       *int              `json:"sort_order"`
 	Limits          *string           `json:"limits"`
+	Metadata        *string           `json:"metadata"`
 	RefundEnabled   *bool             `json:"refund_enabled"`
 	AllowUserRefund *bool             `json:"allow_user_refund"`
 }

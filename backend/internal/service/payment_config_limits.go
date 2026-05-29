@@ -32,6 +32,7 @@ func (s *PaymentConfigService) GetAvailableMethodLimits(ctx context.Context) (*M
 		}
 		ml := pcAggregateMethodLimits(pt, insts)
 		ml.Currency = currency
+		pcApplyMethodDisplayMetadata(&ml, pt, insts)
 		resp.Methods[ml.PaymentType] = ml
 	}
 	resp.GlobalMin, resp.GlobalMax = pcComputeGlobalRange(resp.Methods)
@@ -281,4 +282,23 @@ func pcComputeGlobalRange(methods map[string]MethodLimits) (globalMin, globalMax
 		globalMax = 0
 	}
 	return globalMin, globalMax
+}
+
+// pcApplyMethodDisplayMetadata fills Label / IconURL / SortOrder on ml from
+// instance metadata. When multiple instances back the same payment type, the
+// instance with the smallest sort_order wins (matching LoadBalancer ordering).
+func pcApplyMethodDisplayMetadata(ml *MethodLimits, pt string, instances []*dbent.PaymentProviderInstance) {
+	if ml == nil || len(instances) == 0 {
+		return
+	}
+	chosen := instances[0]
+	for _, inst := range instances[1:] {
+		if inst.SortOrder < chosen.SortOrder {
+			chosen = inst
+		}
+	}
+	ml.SortOrder = chosen.SortOrder
+	channel := ParseInstanceMetadata(chosen.Metadata).ChannelFor(pt)
+	ml.Label = channel.Label
+	ml.IconURL = channel.IconURL
 }

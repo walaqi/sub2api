@@ -42,6 +42,7 @@ type ProviderInstanceResponse struct {
 	Config          map[string]string `json:"config"`
 	SupportedTypes  []string          `json:"supported_types"`
 	Limits          string            `json:"limits"`
+	Metadata        string            `json:"metadata"`
 	Enabled         bool              `json:"enabled"`
 	RefundEnabled   bool              `json:"refund_enabled"`
 	AllowUserRefund bool              `json:"allow_user_refund"`
@@ -61,7 +62,8 @@ func (s *PaymentConfigService) ListProviderInstancesWithConfig(ctx context.Conte
 		resp := ProviderInstanceResponse{
 			ID: int64(inst.ID), ProviderKey: inst.ProviderKey, Name: inst.Name,
 			SupportedTypes: splitTypes(inst.SupportedTypes), Limits: inst.Limits,
-			Enabled: inst.Enabled, RefundEnabled: inst.RefundEnabled, AllowUserRefund: inst.AllowUserRefund,
+			Metadata: inst.Metadata,
+			Enabled:  inst.Enabled, RefundEnabled: inst.RefundEnabled, AllowUserRefund: inst.AllowUserRefund,
 			SortOrder: inst.SortOrder, PaymentMode: inst.PaymentMode,
 		}
 		resp.Config, err = s.decryptAndMaskConfig(inst.ProviderKey, inst.Config)
@@ -185,6 +187,9 @@ func (s *PaymentConfigService) CreateProviderInstance(ctx context.Context, req C
 	if err := validateProviderRequest(req.ProviderKey, req.Name, typesStr); err != nil {
 		return nil, err
 	}
+	if err := validateProviderMetadata(req.Metadata); err != nil {
+		return nil, err
+	}
 	if err := s.validateVisibleMethodEnablementConflicts(ctx, 0, req.ProviderKey, typesStr, req.Enabled); err != nil {
 		return nil, err
 	}
@@ -201,7 +206,8 @@ func (s *PaymentConfigService) CreateProviderInstance(ctx context.Context, req C
 	return s.entClient.PaymentProviderInstance.Create().
 		SetProviderKey(req.ProviderKey).SetName(req.Name).SetConfig(enc).
 		SetSupportedTypes(typesStr).SetEnabled(req.Enabled).SetPaymentMode(req.PaymentMode).
-		SetSortOrder(req.SortOrder).SetLimits(req.Limits).SetRefundEnabled(req.RefundEnabled).
+		SetSortOrder(req.SortOrder).SetLimits(req.Limits).SetMetadata(req.Metadata).
+		SetRefundEnabled(req.RefundEnabled).
 		SetAllowUserRefund(allowUserRefund).
 		Save(ctx)
 }
@@ -214,6 +220,24 @@ func validateProviderRequest(providerKey, name, supportedTypes string) error {
 		return infraerrors.BadRequest("VALIDATION_ERROR", fmt.Sprintf("invalid provider key: %s", providerKey))
 	}
 	// supported_types can be empty (provider accepts no payment types until configured)
+	return nil
+}
+
+// validateProviderMetadata ensures the metadata payload is either empty or
+// well-formed JSON within a sensible size limit (4 KiB). Structural checks
+// are intentionally minimal — schema evolves with frontend usage.
+func validateProviderMetadata(raw string) error {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil
+	}
+	if len(trimmed) > 4096 {
+		return infraerrors.BadRequest("VALIDATION_ERROR", "metadata exceeds 4096 bytes")
+	}
+	var probe map[string]any
+	if err := json.Unmarshal([]byte(trimmed), &probe); err != nil {
+		return infraerrors.BadRequest("VALIDATION_ERROR", "metadata is not valid JSON")
+	}
 	return nil
 }
 
@@ -376,6 +400,12 @@ func (s *PaymentConfigService) UpdateProviderInstance(ctx context.Context, id in
 	}
 	if req.PaymentMode != nil {
 		u.SetPaymentMode(*req.PaymentMode)
+	}
+	if req.Metadata != nil {
+		if err := validateProviderMetadata(*req.Metadata); err != nil {
+			return nil, err
+		}
+		u.SetMetadata(*req.Metadata)
 	}
 	return u.Save(ctx)
 }

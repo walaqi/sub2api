@@ -118,6 +118,20 @@ func (_c *PaymentProviderInstanceCreate) SetNillableLimits(v *string) *PaymentPr
 	return _c
 }
 
+// SetMetadata sets the "metadata" field.
+func (_c *PaymentProviderInstanceCreate) SetMetadata(v string) *PaymentProviderInstanceCreate {
+	_c.mutation.SetMetadata(v)
+	return _c
+}
+
+// SetNillableMetadata sets the "metadata" field if the given value is not nil.
+func (_c *PaymentProviderInstanceCreate) SetNillableMetadata(v *string) *PaymentProviderInstanceCreate {
+	if v != nil {
+		_c.SetMetadata(*v)
+	}
+	return _c
+}
+
 // SetRefundEnabled sets the "refund_enabled" field.
 func (_c *PaymentProviderInstanceCreate) SetRefundEnabled(v bool) *PaymentProviderInstanceCreate {
 	_c.mutation.SetRefundEnabled(v)
@@ -233,6 +247,10 @@ func (_c *PaymentProviderInstanceCreate) defaults() {
 		v := paymentproviderinstance.DefaultLimits
 		_c.mutation.SetLimits(v)
 	}
+	if _, ok := _c.mutation.Metadata(); !ok {
+		v := paymentproviderinstance.DefaultMetadata
+		_c.mutation.SetMetadata(v)
+	}
 	if _, ok := _c.mutation.RefundEnabled(); !ok {
 		v := paymentproviderinstance.DefaultRefundEnabled
 		_c.mutation.SetRefundEnabled(v)
@@ -296,6 +314,9 @@ func (_c *PaymentProviderInstanceCreate) check() error {
 	}
 	if _, ok := _c.mutation.Limits(); !ok {
 		return &ValidationError{Name: "limits", err: errors.New(`ent: missing required field "PaymentProviderInstance.limits"`)}
+	}
+	if _, ok := _c.mutation.Metadata(); !ok {
+		return &ValidationError{Name: "metadata", err: errors.New(`ent: missing required field "PaymentProviderInstance.metadata"`)}
 	}
 	if _, ok := _c.mutation.RefundEnabled(); !ok {
 		return &ValidationError{Name: "refund_enabled", err: errors.New(`ent: missing required field "PaymentProviderInstance.refund_enabled"`)}
@@ -367,6 +388,10 @@ func (_c *PaymentProviderInstanceCreate) createSpec() (*PaymentProviderInstance,
 	if value, ok := _c.mutation.Limits(); ok {
 		_spec.SetField(paymentproviderinstance.FieldLimits, field.TypeString, value)
 		_node.Limits = value
+	}
+	if value, ok := _c.mutation.Metadata(); ok {
+		_spec.SetField(paymentproviderinstance.FieldMetadata, field.TypeString, value)
+		_node.Metadata = value
 	}
 	if value, ok := _c.mutation.RefundEnabled(); ok {
 		_spec.SetField(paymentproviderinstance.FieldRefundEnabled, field.TypeBool, value)
@@ -535,6 +560,18 @@ func (u *PaymentProviderInstanceUpsert) SetLimits(v string) *PaymentProviderInst
 // UpdateLimits sets the "limits" field to the value that was provided on create.
 func (u *PaymentProviderInstanceUpsert) UpdateLimits() *PaymentProviderInstanceUpsert {
 	u.SetExcluded(paymentproviderinstance.FieldLimits)
+	return u
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *PaymentProviderInstanceUpsert) SetMetadata(v string) *PaymentProviderInstanceUpsert {
+	u.Set(paymentproviderinstance.FieldMetadata, v)
+	return u
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *PaymentProviderInstanceUpsert) UpdateMetadata() *PaymentProviderInstanceUpsert {
+	u.SetExcluded(paymentproviderinstance.FieldMetadata)
 	return u
 }
 
@@ -735,6 +772,20 @@ func (u *PaymentProviderInstanceUpsertOne) SetLimits(v string) *PaymentProviderI
 func (u *PaymentProviderInstanceUpsertOne) UpdateLimits() *PaymentProviderInstanceUpsertOne {
 	return u.Update(func(s *PaymentProviderInstanceUpsert) {
 		s.UpdateLimits()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *PaymentProviderInstanceUpsertOne) SetMetadata(v string) *PaymentProviderInstanceUpsertOne {
+	return u.Update(func(s *PaymentProviderInstanceUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *PaymentProviderInstanceUpsertOne) UpdateMetadata() *PaymentProviderInstanceUpsertOne {
+	return u.Update(func(s *PaymentProviderInstanceUpsert) {
+		s.UpdateMetadata()
 	})
 }
 
@@ -1107,6 +1158,20 @@ func (u *PaymentProviderInstanceUpsertBulk) SetLimits(v string) *PaymentProvider
 func (u *PaymentProviderInstanceUpsertBulk) UpdateLimits() *PaymentProviderInstanceUpsertBulk {
 	return u.Update(func(s *PaymentProviderInstanceUpsert) {
 		s.UpdateLimits()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *PaymentProviderInstanceUpsertBulk) SetMetadata(v string) *PaymentProviderInstanceUpsertBulk {
+	return u.Update(func(s *PaymentProviderInstanceUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *PaymentProviderInstanceUpsertBulk) UpdateMetadata() *PaymentProviderInstanceUpsertBulk {
+	return u.Update(func(s *PaymentProviderInstanceUpsert) {
+		s.UpdateMetadata()
 	})
 }
 

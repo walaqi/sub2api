@@ -38,6 +38,11 @@ export const PROVIDER_SUPPORTED_TYPES: Record<string, string[]> = {
   airwallex: ['airwallex'],
 }
 
+/** Standard EasyPay sub-types. Anything else is treated as a "custom channel"
+ * — an admin-defined free-form type string with its own label / icon URL
+ * stored in PaymentProviderInstance.metadata. */
+export const EASYPAY_STANDARD_TYPES = ['alipay', 'wxpay'] as const
+
 /** Available payment modes for EasyPay providers. */
 export const EASYPAY_PAYMENT_MODES = ['qrcode', 'popup'] as const
 

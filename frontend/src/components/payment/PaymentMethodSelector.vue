@@ -20,9 +20,9 @@
         @click="method.available && emit('select', method.type)"
       >
         <span class="flex items-center gap-2">
-          <img :src="methodIcon(method.type)" :alt="t(`payment.methods.${method.type}`)" class="h-7 w-7 object-contain" />
+          <img :src="methodIcon(method)" :alt="methodLabel(method)" class="h-7 w-7 object-contain" />
           <span class="flex flex-col items-start leading-none">
-            <span class="text-base font-semibold">{{ t(`payment.methods.${method.type}`) }}</span>
+            <span class="text-base font-semibold">{{ methodLabel(method) }}</span>
             <span
               v-if="method.fee_rate > 0"
               class="text-[10px] tracking-wide text-gray-500 dark:text-dark-400"
@@ -49,6 +49,12 @@ export interface PaymentMethodOption {
   type: string
   fee_rate: number
   available: boolean
+  /** Admin-defined label (custom EasyPay channels). Falls back to i18n. */
+  label?: string
+  /** Admin-defined icon URL. Falls back to bundled SVG. */
+  icon_url?: string
+  /** Sort order from the backing instance; lower comes first. */
+  sort_order?: number
 }
 
 const props = defineProps<{
@@ -72,13 +78,25 @@ const METHOD_ICONS: Record<string, string> = {
 const sortedMethods = computed(() => {
   const order: readonly string[] = METHOD_ORDER
   return [...props.methods].sort((a, b) => {
+    // 1) admin-defined sort_order wins (lower = earlier).
+    const sa = a.sort_order ?? Number.POSITIVE_INFINITY
+    const sb = b.sort_order ?? Number.POSITIVE_INFINITY
+    if (sa !== sb) return sa - sb
+    // 2) Fixed METHOD_ORDER ordering for standard built-in types.
     const ai = order.indexOf(a.type)
     const bi = order.indexOf(b.type)
     return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
   })
 })
 
-function methodIcon(type: string): string {
+function methodLabel(method: PaymentMethodOption): string {
+  if (method.label && method.label.trim() !== '') return method.label
+  return t(`payment.methods.${method.type}`, method.type)
+}
+
+function methodIcon(method: PaymentMethodOption): string {
+  if (method.icon_url && method.icon_url.trim() !== '') return method.icon_url
+  const type = method.type
   if (type.includes('alipay')) return METHOD_ICONS.alipay
   if (type.includes('wxpay')) return METHOD_ICONS.wxpay
   if (type === 'airwallex') return METHOD_ICONS.airwallex

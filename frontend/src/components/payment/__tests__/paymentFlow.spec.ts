@@ -59,6 +59,18 @@ describe('getVisibleMethods', () => {
     expect(visible.alipay.single_min).toBe(2)
     expect(visible.wxpay.fee_rate).toBe(1.2)
   })
+
+  it('passes through custom EasyPay channel types and preserves their metadata', () => {
+    const visible = getVisibleMethods({
+      alipay: methodLimit({ single_min: 1 }),
+      epay: methodLimit({ fee_rate: 0.5, label: '聚合支付', icon_url: 'https://cdn.example/epay.png', sort_order: 5 }),
+      qqpay: methodLimit({ label: 'QQ 钱包' }),
+    })
+
+    expect(visible.alipay).toBeTruthy()
+    expect(visible.epay).toEqual(methodLimit({ fee_rate: 0.5, label: '聚合支付', icon_url: 'https://cdn.example/epay.png', sort_order: 5 }))
+    expect(visible.qqpay).toEqual(methodLimit({ label: 'QQ 钱包' }))
+  })
 })
 
 describe('decidePaymentLaunch', () => {

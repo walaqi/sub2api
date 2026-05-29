@@ -24242,6 +24242,7 @@ type PaymentProviderInstanceMutation struct {
 	sort_order        *int
 	addsort_order     *int
 	limits            *string
+	metadata          *string
 	refund_enabled    *bool
 	allow_user_refund *bool
 	created_at        *time.Time
@@ -24658,6 +24659,42 @@ func (m *PaymentProviderInstanceMutation) ResetLimits() {
 	m.limits = nil
 }
 
+// SetMetadata sets the "metadata" field.
+func (m *PaymentProviderInstanceMutation) SetMetadata(s string) {
+	m.metadata = &s
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *PaymentProviderInstanceMutation) Metadata() (r string, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the PaymentProviderInstance entity.
+// If the PaymentProviderInstance object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PaymentProviderInstanceMutation) OldMetadata(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *PaymentProviderInstanceMutation) ResetMetadata() {
+	m.metadata = nil
+}
+
 // SetRefundEnabled sets the "refund_enabled" field.
 func (m *PaymentProviderInstanceMutation) SetRefundEnabled(b bool) {
 	m.refund_enabled = &b
@@ -24836,7 +24873,7 @@ func (m *PaymentProviderInstanceMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PaymentProviderInstanceMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 13)
 	if m.provider_key != nil {
 		fields = append(fields, paymentproviderinstance.FieldProviderKey)
 	}
@@ -24860,6 +24897,9 @@ func (m *PaymentProviderInstanceMutation) Fields() []string {
 	}
 	if m.limits != nil {
 		fields = append(fields, paymentproviderinstance.FieldLimits)
+	}
+	if m.metadata != nil {
+		fields = append(fields, paymentproviderinstance.FieldMetadata)
 	}
 	if m.refund_enabled != nil {
 		fields = append(fields, paymentproviderinstance.FieldRefundEnabled)
@@ -24897,6 +24937,8 @@ func (m *PaymentProviderInstanceMutation) Field(name string) (ent.Value, bool) {
 		return m.SortOrder()
 	case paymentproviderinstance.FieldLimits:
 		return m.Limits()
+	case paymentproviderinstance.FieldMetadata:
+		return m.Metadata()
 	case paymentproviderinstance.FieldRefundEnabled:
 		return m.RefundEnabled()
 	case paymentproviderinstance.FieldAllowUserRefund:
@@ -24930,6 +24972,8 @@ func (m *PaymentProviderInstanceMutation) OldField(ctx context.Context, name str
 		return m.OldSortOrder(ctx)
 	case paymentproviderinstance.FieldLimits:
 		return m.OldLimits(ctx)
+	case paymentproviderinstance.FieldMetadata:
+		return m.OldMetadata(ctx)
 	case paymentproviderinstance.FieldRefundEnabled:
 		return m.OldRefundEnabled(ctx)
 	case paymentproviderinstance.FieldAllowUserRefund:
@@ -25002,6 +25046,13 @@ func (m *PaymentProviderInstanceMutation) SetField(name string, value ent.Value)
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetLimits(v)
+		return nil
+	case paymentproviderinstance.FieldMetadata:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
 		return nil
 	case paymentproviderinstance.FieldRefundEnabled:
 		v, ok := value.(bool)
@@ -25118,6 +25169,9 @@ func (m *PaymentProviderInstanceMutation) ResetField(name string) error {
 		return nil
 	case paymentproviderinstance.FieldLimits:
 		m.ResetLimits()
+		return nil
+	case paymentproviderinstance.FieldMetadata:
+		m.ResetMetadata()
 		return nil
 	case paymentproviderinstance.FieldRefundEnabled:
 		m.ResetRefundEnabled()

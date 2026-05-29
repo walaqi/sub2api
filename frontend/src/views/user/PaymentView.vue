@@ -551,6 +551,9 @@ const methodOptions = computed<PaymentMethodOption[]>(() =>
       type,
       fee_rate: ml?.fee_rate ?? 0,
       available: ml?.available !== false && amountFitsMethod(validAmount.value, type),
+      label: ml?.label,
+      icon_url: ml?.icon_url,
+      sort_order: ml?.sort_order,
     }
   })
 )
