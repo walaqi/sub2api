@@ -1119,6 +1119,15 @@ type RedisConfig struct {
 	MinIdleConns int `mapstructure:"min_idle_conns"`
 	// EnableTLS: 是否启用 TLS/SSL 连接
 	EnableTLS bool `mapstructure:"enable_tls"`
+
+	// AuthPoolSize: 注册/登录/验证码路径专用 Redis 连接池大小。
+	// > 0 时为认证路径分配独立 *redis.Client，与 /v1/messages、
+	//   /v1/chat/completions 等高并发热路径在物理连接层面解耦，
+	//   避免热路径打满连接池时验证码读取超时被业务层吞成"验证码过期"。
+	// = 0 时复用主 Redis 客户端（默认行为，零变更回退）。
+	AuthPoolSize int `mapstructure:"auth_pool_size"`
+	// AuthMinIdleConns: 认证路径独立池的最小空闲连接数（仅 AuthPoolSize > 0 生效）。
+	AuthMinIdleConns int `mapstructure:"auth_min_idle_conns"`
 }
 
 func (r *RedisConfig) Address() string {
@@ -1642,6 +1651,11 @@ func setDefaults() {
 	viper.SetDefault("redis.pool_size", 1024)
 	viper.SetDefault("redis.min_idle_conns", 128)
 	viper.SetDefault("redis.enable_tls", false)
+	// 0 = reuse the main Redis client for auth-sensitive paths (no change in
+	// behaviour). Set to e.g. 64 to give registration / verification / refresh
+	// tokens a dedicated pool insulated from /v1/messages traffic spikes.
+	viper.SetDefault("redis.auth_pool_size", 0)
+	viper.SetDefault("redis.auth_min_idle_conns", 0)
 
 	// Ops (vNext)
 	viper.SetDefault("ops.enabled", true)
@@ -2221,6 +2235,15 @@ func (c *Config) Validate() error {
 	}
 	if c.Redis.MinIdleConns > c.Redis.PoolSize {
 		return fmt.Errorf("redis.min_idle_conns cannot exceed redis.pool_size")
+	}
+	if c.Redis.AuthPoolSize < 0 {
+		return fmt.Errorf("redis.auth_pool_size must be non-negative")
+	}
+	if c.Redis.AuthMinIdleConns < 0 {
+		return fmt.Errorf("redis.auth_min_idle_conns must be non-negative")
+	}
+	if c.Redis.AuthPoolSize > 0 && c.Redis.AuthMinIdleConns > c.Redis.AuthPoolSize {
+		return fmt.Errorf("redis.auth_min_idle_conns cannot exceed redis.auth_pool_size")
 	}
 	if c.Dashboard.Enabled {
 		if c.Dashboard.StatsFreshTTLSeconds <= 0 {

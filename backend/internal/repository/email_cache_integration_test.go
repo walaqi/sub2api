@@ -20,12 +20,13 @@ type EmailCacheSuite struct {
 
 func (s *EmailCacheSuite) SetupTest() {
 	s.IntegrationRedisSuite.SetupTest()
-	s.cache = NewEmailCache(s.rdb)
+	s.cache = NewEmailCache(&AuthRedisClient{Client: s.rdb})
 }
 
 func (s *EmailCacheSuite) TestGetVerificationCode_Missing() {
-	_, err := s.cache.GetVerificationCode(s.ctx, "nonexistent@example.com")
-	require.True(s.T(), errors.Is(err, redis.Nil), "expected redis.Nil for missing verification code")
+	got, err := s.cache.GetVerificationCode(s.ctx, "nonexistent@example.com")
+	require.NoError(s.T(), err, "missing key must not be reported as an error")
+	require.Nil(s.T(), got, "expected nil data for missing verification code")
 }
 
 func (s *EmailCacheSuite) TestSetAndGetVerificationCode() {
@@ -61,15 +62,17 @@ func (s *EmailCacheSuite) TestDeleteVerificationCode() {
 	require.NoError(s.T(), s.cache.SetVerificationCode(s.ctx, email, data, 2*time.Minute), "SetVerificationCode")
 
 	// Verify it exists
-	_, err := s.cache.GetVerificationCode(s.ctx, email)
+	got, err := s.cache.GetVerificationCode(s.ctx, email)
 	require.NoError(s.T(), err, "GetVerificationCode before delete")
+	require.NotNil(s.T(), got, "expected data to be present before delete")
 
 	// Delete
 	require.NoError(s.T(), s.cache.DeleteVerificationCode(s.ctx, email), "DeleteVerificationCode")
 
-	// Verify it's gone
-	_, err = s.cache.GetVerificationCode(s.ctx, email)
-	require.True(s.T(), errors.Is(err, redis.Nil), "expected redis.Nil after delete")
+	// Verify it's gone (nil/nil contract)
+	got, err = s.cache.GetVerificationCode(s.ctx, email)
+	require.NoError(s.T(), err, "missing key must not be reported as an error")
+	require.Nil(s.T(), got, "expected nil data after delete")
 }
 
 func (s *EmailCacheSuite) TestDeleteVerificationCode_NonExistent() {
@@ -82,8 +85,9 @@ func (s *EmailCacheSuite) TestGetVerificationCode_JSONCorruption() {
 
 	require.NoError(s.T(), s.rdb.Set(s.ctx, emailKey, "not-json", 1*time.Minute).Err(), "Set invalid JSON")
 
-	_, err := s.cache.GetVerificationCode(s.ctx, "corrupted@example.com")
+	got, err := s.cache.GetVerificationCode(s.ctx, "corrupted@example.com")
 	require.Error(s.T(), err, "expected error for corrupted JSON")
+	require.Nil(s.T(), got, "expected nil data on decode failure")
 	require.False(s.T(), errors.Is(err, redis.Nil), "expected decoding error, not redis.Nil")
 }
 

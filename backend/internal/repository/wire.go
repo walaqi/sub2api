@@ -145,6 +145,7 @@ var ProviderSet = wire.NewSet(
 	ProvideEnt,
 	ProvideSQLDB,
 	ProvideRedis,
+	ProvideAuthRedis,
 )
 
 // ProvideEnt 为依赖注入提供 Ent 客户端。
@@ -195,4 +196,24 @@ func ProvideSQLDB(client *ent.Client) (*sql.DB, error) {
 // 提供：*redis.Client
 func ProvideRedis(cfg *config.Config) *redis.Client {
 	return InitRedis(cfg)
+}
+
+// ProvideAuthRedis 为认证敏感路径（注册、验证码、refresh token、密码重置）
+// 提供 *AuthRedisClient。
+//
+// 当 cfg.Redis.AuthPoolSize > 0 时返回独立的 *redis.Client，与高并发热路径
+// 解耦，避免热路径打满连接池时验证码读取被压到 read_timeout 进而被业务层
+// 误吞成"验证码过期"。
+//
+// 当 cfg.Redis.AuthPoolSize == 0 时复用主 Redis 客户端，保持零变更回退。
+//
+// 注意：该客户端的关闭由 wire 生成的 cleanup 函数统一管理，不要在调用方手动 Close。
+//
+// 依赖：config.Config, *redis.Client
+// 提供：*AuthRedisClient
+func ProvideAuthRedis(cfg *config.Config, mainClient *redis.Client) *AuthRedisClient {
+	if dedicated := InitAuthRedis(cfg); dedicated != nil {
+		return &AuthRedisClient{Client: dedicated}
+	}
+	return &AuthRedisClient{Client: mainClient}
 }

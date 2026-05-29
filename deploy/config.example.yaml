@@ -806,6 +806,34 @@ redis:
   # Minimum number of idle connections (高并发场景建议 128+，保持足够热连接)
   # 最小空闲连接数
   min_idle_conns: 128
+  # Dial timeout in seconds (default 5)
+  # 建立连接超时（秒，默认 5），避免慢连接阻塞
+  dial_timeout_seconds: 5
+  # Read timeout in seconds (default 3)
+  # 读取超时（秒，默认 3）
+  # 高峰期 /v1/messages、/v1/chat/completions 会大量占用连接池，
+  # 注册流程从 Redis 读取验证码若被压到 3s 以上即会被业务层吞成
+  # "验证码过期/无效"。生产环境建议提升到 5–10s，并配合扩大 pool_size。
+  # During traffic spikes the relay endpoints may saturate the pool; if the
+  # registration flow's verification-code GET exceeds this timeout it will be
+  # surfaced to users as "verification code expired". 5–10s is a safer value
+  # for production along with a larger pool_size.
+  read_timeout_seconds: 3
+  # Write timeout in seconds (default 3)
+  # 写入超时（秒，默认 3）
+  write_timeout_seconds: 3
+  # Dedicated Redis connection pool size for auth-sensitive paths
+  # (registration, verification codes, password reset, refresh tokens).
+  # 为认证敏感路径（注册、验证码、密码重置、refresh token）分配独立连接池。
+  # > 0 时启用：与 /v1/messages、/v1/chat/completions 等高并发热路径在物理
+  #   连接层面解耦，避免热路径打满主连接池时验证码读取超时被业务层吞成
+  #   "验证码过期/无效"。建议生产环境设置为 64–128。
+  # = 0 时复用主连接池（默认行为，保持向后兼容）。
+  auth_pool_size: 0
+  # Minimum idle connections for the auth-dedicated pool (only effective when
+  # auth_pool_size > 0).
+  # 认证路径独立池的最小空闲连接数（仅 auth_pool_size > 0 时生效）。
+  auth_min_idle_conns: 0
   # Enable TLS/SSL connection
   # 是否启用 TLS/SSL 连接
   enable_tls: false

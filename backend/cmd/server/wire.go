@@ -73,6 +73,7 @@ func provideServiceBuildInfo(buildInfo handler.BuildInfo) service.BuildInfo {
 func provideCleanup(
 	entClient *ent.Client,
 	rdb *redis.Client,
+	authRedis *repository.AuthRedisClient,
 	opsMetricsCollector *service.OpsMetricsCollector,
 	opsAggregation *service.OpsAggregationService,
 	opsAlertEvaluator *service.OpsAlertEvaluatorService,
@@ -262,6 +263,14 @@ func provideCleanup(
 					return nil
 				}
 				return rdb.Close()
+			}},
+			{"AuthRedis", func() error {
+				// Only close if it's a dedicated instance; otherwise it
+				// aliases the main client which we've already closed.
+				if authRedis == nil || authRedis.Client == nil || authRedis.Client == rdb {
+					return nil
+				}
+				return authRedis.Client.Close()
 			}},
 			{"Ent", func() error {
 				if entClient == nil {

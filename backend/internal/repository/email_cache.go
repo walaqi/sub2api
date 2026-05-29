@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -46,19 +47,45 @@ type emailCache struct {
 	rdb *redis.Client
 }
 
-func NewEmailCache(rdb *redis.Client) service.EmailCache {
-	return &emailCache{rdb: rdb}
+// AuthRedisClient is a wrapper type around *redis.Client used to inject a
+// dedicated Redis client for auth-sensitive paths (verification codes, password
+// reset tokens, refresh tokens). It exists purely to give wire a distinct type
+// from the shared gateway/billing client, so the two pools don't fight for the
+// same connections during traffic spikes on /v1/messages and
+// /v1/chat/completions.
+//
+// The underlying client may be the SAME instance as the shared one (when the
+// auth-pool config is left at defaults). Callers must not Close() it directly:
+// shutdown is owned by the wire-generated cleanup function.
+type AuthRedisClient struct {
+	*redis.Client
+}
+
+// NewEmailCache returns an EmailCache backed by the auth-dedicated Redis client.
+// During traffic spikes the gateway endpoints saturate the shared Redis pool;
+// using a dedicated client keeps verification-code GET/SET on its own
+// connections so registrants don't see "verification code expired" errors that
+// were really pool-exhaustion timeouts.
+func NewEmailCache(rdb *AuthRedisClient) service.EmailCache {
+	return &emailCache{rdb: rdb.Client}
 }
 
 func (c *emailCache) GetVerificationCode(ctx context.Context, email string) (*service.VerificationCodeData, error) {
 	key := verifyCodeKey(email)
 	val, err := c.rdb.Get(ctx, key).Result()
 	if err != nil {
+		// Key absent is NOT an error to callers: they need to distinguish
+		// "no code on file" (legitimately expired or never sent) from
+		// "Redis is currently broken/slow". Returning (nil, nil) for the
+		// former lets the service layer decide policy.
+		if errors.Is(err, redis.Nil) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	var data service.VerificationCodeData
 	if err := json.Unmarshal([]byte(val), &data); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode verification code: %w", err)
 	}
 	return &data, nil
 }
@@ -74,7 +101,10 @@ func (c *emailCache) SetVerificationCode(ctx context.Context, email string, data
 
 func (c *emailCache) DeleteVerificationCode(ctx context.Context, email string) error {
 	key := verifyCodeKey(email)
-	return c.rdb.Del(ctx, key).Err()
+	if err := c.rdb.Del(ctx, key).Err(); err != nil && !errors.Is(err, redis.Nil) {
+		return err
+	}
+	return nil
 }
 
 // Password reset token methods
@@ -83,11 +113,14 @@ func (c *emailCache) GetPasswordResetToken(ctx context.Context, email string) (*
 	key := passwordResetKey(email)
 	val, err := c.rdb.Get(ctx, key).Result()
 	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	var data service.PasswordResetTokenData
 	if err := json.Unmarshal([]byte(val), &data); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode password reset token: %w", err)
 	}
 	return &data, nil
 }
@@ -103,7 +136,10 @@ func (c *emailCache) SetPasswordResetToken(ctx context.Context, email string, da
 
 func (c *emailCache) DeletePasswordResetToken(ctx context.Context, email string) error {
 	key := passwordResetKey(email)
-	return c.rdb.Del(ctx, key).Err()
+	if err := c.rdb.Del(ctx, key).Err(); err != nil && !errors.Is(err, redis.Nil) {
+		return err
+	}
+	return nil
 }
 
 // Password reset email cooldown methods
@@ -125,11 +161,14 @@ func (c *emailCache) GetNotifyVerifyCode(ctx context.Context, email string) (*se
 	key := notifyVerifyKey(email)
 	val, err := c.rdb.Get(ctx, key).Result()
 	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	var data service.VerificationCodeData
 	if err := json.Unmarshal([]byte(val), &data); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode notify verify code: %w", err)
 	}
 	return &data, nil
 }
@@ -145,7 +184,10 @@ func (c *emailCache) SetNotifyVerifyCode(ctx context.Context, email string, data
 
 func (c *emailCache) DeleteNotifyVerifyCode(ctx context.Context, email string) error {
 	key := notifyVerifyKey(email)
-	return c.rdb.Del(ctx, key).Err()
+	if err := c.rdb.Del(ctx, key).Err(); err != nil && !errors.Is(err, redis.Nil) {
+		return err
+	}
+	return nil
 }
 
 // User-level rate limiting for notify email verification codes
@@ -171,6 +213,11 @@ func (c *emailCache) GetNotifyCodeUserRate(ctx context.Context, userID int64) (i
 	key := notifyCodeUserRateKey(userID)
 	count, err := c.rdb.Get(ctx, key).Int64()
 	if err != nil {
+		// Counter absent means "no requests yet in this window" — return 0
+		// without an error so callers don't conflate it with a Redis fault.
+		if errors.Is(err, redis.Nil) {
+			return 0, nil
+		}
 		return 0, err
 	}
 	return count, nil

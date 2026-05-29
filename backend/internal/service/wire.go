@@ -38,7 +38,7 @@ func ProvideUpdateService(cache UpdateCache, githubClient GitHubReleaseClient, b
 
 // ProvideEmailQueueService creates EmailQueueService with default worker count
 func ProvideEmailQueueService(emailService *EmailService) *EmailQueueService {
-	return NewEmailQueueService(emailService, 3)
+	return NewEmailQueueService(emailService, defaultEmailQueueWorkers, defaultEmailQueueBufferSize)
 }
 
 // ProvideOAuthRefreshAPI creates OAuthRefreshAPI with the default lock TTL.

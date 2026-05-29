@@ -1152,13 +1152,24 @@ func (s *UserService) SendNotifyEmailCode(ctx context.Context, userID int64, ema
 // checkNotifyCodeRateLimit checks both email cooldown and user-level rate limit.
 func checkNotifyCodeRateLimit(ctx context.Context, cache EmailCache, userID int64, email string) error {
 	existing, err := cache.GetNotifyVerifyCode(ctx, email)
-	if err == nil && existing != nil {
-		if time.Since(existing.CreatedAt) < verifyCodeCooldown {
-			return ErrVerifyCodeTooFrequent
-		}
+	if err != nil {
+		// Be conservative: a Redis fault during the cooldown read used to
+		// silently let a re-send through, which then overwrote whatever code
+		// was on file. Surface the error so the caller can retry.
+		slog.Error("failed to read notify verify code for cooldown check", "user_id", userID, "email", email, "error", err)
+		return ErrServiceUnavailable
+	}
+	if existing != nil && time.Since(existing.CreatedAt) < verifyCodeCooldown {
+		return ErrVerifyCodeTooFrequent
 	}
 	count, err := cache.GetNotifyCodeUserRate(ctx, userID)
-	if err == nil && count >= notifyCodeUserRateLimit {
+	if err != nil {
+		// Treat rate-limit unavailability the same way: prefer surfacing the
+		// error over silently disabling the limit.
+		slog.Error("failed to read notify code user rate", "user_id", userID, "error", err)
+		return ErrServiceUnavailable
+	}
+	if count >= notifyCodeUserRateLimit {
 		return ErrNotifyCodeUserRateLimit
 	}
 	return nil
@@ -1223,7 +1234,13 @@ func (s *UserService) VerifyAndAddNotifyEmail(ctx context.Context, userID int64,
 // verifyNotifyCode validates the verification code against the cached data.
 func verifyNotifyCode(ctx context.Context, cache EmailCache, email, code string) error {
 	data, err := cache.GetNotifyVerifyCode(ctx, email)
-	if err != nil || data == nil {
+	if err != nil {
+		// Same fix as EmailService.VerifyCode: don't conflate Redis faults
+		// with "code expired" — the user almost certainly has a valid code.
+		slog.Error("failed to read notify verify code", "email", email, "error", err)
+		return ErrServiceUnavailable
+	}
+	if data == nil {
 		return ErrInvalidVerifyCode
 	}
 	if data.Attempts >= maxVerifyCodeAttempts {

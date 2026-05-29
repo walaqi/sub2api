@@ -33,15 +33,31 @@ type EmailQueueService struct {
 	workers      int
 }
 
+const (
+	defaultEmailQueueWorkers    = 10
+	defaultEmailQueueBufferSize = 500
+)
+
 // NewEmailQueueService 创建邮件队列服务
-func NewEmailQueueService(emailService *EmailService, workers int) *EmailQueueService {
+//
+// workers:    并发处理任务的协程数 (<=0 时回退默认 10)
+// bufferSize: 任务通道缓冲长度 (<=0 时回退默认 500)
+//
+// 在高峰期(同时打 /v1/messages、/v1/chat/completions)注册请求会一波波涌入,
+// 旧实现 3 worker + buffer 100 会很快被打满, 触发 "email queue is full",
+// 接着前端在 60s 倒计时后又点一次发送, 形成放大循环. 默认值上调到 10 + 500
+// 给峰值留出余量.
+func NewEmailQueueService(emailService *EmailService, workers int, bufferSize int) *EmailQueueService {
 	if workers <= 0 {
-		workers = 3 // 默认3个工作协程
+		workers = defaultEmailQueueWorkers
+	}
+	if bufferSize <= 0 {
+		bufferSize = defaultEmailQueueBufferSize
 	}
 
 	service := &EmailQueueService{
 		emailService: emailService,
-		taskChan:     make(chan EmailTask, 100), // 缓冲100个任务
+		taskChan:     make(chan EmailTask, bufferSize),
 		stopChan:     make(chan struct{}),
 		workers:      workers,
 	}

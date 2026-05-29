@@ -70,8 +70,13 @@ type PasswordResetTokenData struct {
 }
 
 const (
-	verifyCodeTTL         = 15 * time.Minute
-	verifyCodeCooldown    = 1 * time.Minute
+	verifyCodeTTL = 15 * time.Minute
+	// verifyCodeCooldown is the minimum interval the backend enforces between
+	// two SendVerifyCode calls for the same email. The frontend countdown is
+	// 60s; we keep the backend cooldown a bit shorter so a user clicking
+	// "resend" the moment the button re-enables doesn't race the cooldown
+	// window and get TOO_FREQUENT due to clock skew or render lag.
+	verifyCodeCooldown    = 50 * time.Second
 	maxVerifyCodeAttempts = 5
 
 	// Password reset token settings
@@ -327,10 +332,17 @@ func (s *EmailService) GenerateVerifyCode() (string, error) {
 func (s *EmailService) SendVerifyCode(ctx context.Context, email, siteName string, locale ...string) error {
 	// 检查是否在冷却期内
 	existing, err := s.cache.GetVerificationCode(ctx, email)
-	if err == nil && existing != nil {
-		if time.Since(existing.CreatedAt) < verifyCodeCooldown {
-			return ErrVerifyCodeTooFrequent
-		}
+	if err != nil {
+		// Don't silently fall through on Redis faults: that path used to
+		// generate a fresh code and SET it on top of whatever was there,
+		// which can race with a still-valid code the user is about to enter.
+		// Surfacing the error lets the queue worker retry instead of
+		// corrupting cache state.
+		slog.Error("failed to read verification code for cooldown check", "email", email, "error", err)
+		return ErrServiceUnavailable
+	}
+	if existing != nil && time.Since(existing.CreatedAt) < verifyCodeCooldown {
+		return ErrVerifyCodeTooFrequent
 	}
 
 	// 生成验证码
@@ -385,7 +397,18 @@ func (s *EmailService) SendVerifyCode(ctx context.Context, email, siteName strin
 // VerifyCode 验证验证码
 func (s *EmailService) VerifyCode(ctx context.Context, email, code string) error {
 	data, err := s.cache.GetVerificationCode(ctx, email)
-	if err != nil || data == nil {
+	if err != nil {
+		// Redis is reachable but the call failed (timeout, pool exhaustion,
+		// decode error, etc.). Surfacing this as INVALID_VERIFY_CODE during a
+		// traffic spike is what made users see "验证码过期" even when their
+		// code was perfectly fine — return a service-unavailable error so the
+		// frontend can prompt a retry instead of forcing a re-send.
+		slog.Error("failed to read verification code from cache", "email", email, "error", err)
+		return ErrServiceUnavailable
+	}
+	if data == nil {
+		// Genuinely no code on file: never sent, expired by TTL, or already
+		// consumed. This is the only path that should yield "invalid/expired".
 		return ErrInvalidVerifyCode
 	}
 
@@ -518,7 +541,14 @@ func (s *EmailService) SendPasswordResetEmail(ctx context.Context, email, siteNa
 
 	// Check if token already exists
 	existing, err := s.cache.GetPasswordResetToken(ctx, email)
-	if err == nil && existing != nil {
+	if err != nil {
+		// Same reasoning as SendVerifyCode: don't fall through to "generate
+		// a new token" on Redis faults — that would invalidate a still-valid
+		// link the user may have just received.
+		slog.Error("failed to read password reset token for reuse check", "email", email, "error", err)
+		return ErrServiceUnavailable
+	}
+	if existing != nil {
 		// Token exists, reuse it (allows resending email without generating new token)
 		token = existing.Token
 		needSaveToken = false
@@ -602,7 +632,11 @@ func (s *EmailService) SendPasswordResetEmailWithCooldown(ctx context.Context, e
 // VerifyPasswordResetToken verifies the password reset token without consuming it
 func (s *EmailService) VerifyPasswordResetToken(ctx context.Context, email, token string) error {
 	data, err := s.cache.GetPasswordResetToken(ctx, email)
-	if err != nil || data == nil {
+	if err != nil {
+		slog.Error("failed to read password reset token", "email", email, "error", err)
+		return ErrServiceUnavailable
+	}
+	if data == nil {
 		return ErrInvalidResetToken
 	}
 

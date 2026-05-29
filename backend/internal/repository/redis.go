@@ -24,6 +24,26 @@ func InitRedis(cfg *config.Config) *redis.Client {
 	return redis.NewClient(buildRedisOptions(cfg))
 }
 
+// InitAuthRedis 为认证敏感路径（注册、验证码、refresh token、密码重置）
+// 初始化独立的 Redis 客户端。
+//
+// 当 cfg.Redis.AuthPoolSize > 0 时返回独立 *redis.Client，使其与
+// /v1/messages、/v1/chat/completions 等热路径在物理连接层面解耦：
+// 即使热路径打满主连接池，验证码读取也不会被压到 read_timeout，
+// 进而被业务层吞成"验证码过期/无效"。
+//
+// 当 cfg.Redis.AuthPoolSize == 0 时返回 nil，调用方（ProvideAuthRedis）
+// 会回退复用 main client，保持零变更。
+func InitAuthRedis(cfg *config.Config) *redis.Client {
+	if cfg.Redis.AuthPoolSize <= 0 {
+		return nil
+	}
+	opts := buildRedisOptions(cfg)
+	opts.PoolSize = cfg.Redis.AuthPoolSize
+	opts.MinIdleConns = cfg.Redis.AuthMinIdleConns
+	return redis.NewClient(opts)
+}
+
 // buildRedisOptions 构建 Redis 连接选项
 // 从配置文件读取连接池和超时参数，支持生产环境调优
 func buildRedisOptions(cfg *config.Config) *redis.Options {
