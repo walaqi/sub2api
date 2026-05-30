@@ -11,6 +11,11 @@
       @submit.prevent="handleSubmit"
       class="space-y-5"
     >
+      <!-- 模型映射输入框共用的候选模型列表（仅作下拉建议，仍允许手动输入通配符等自定义值） -->
+      <datalist :id="modelMappingDatalistId">
+        <option v-for="m in modelMappingOptions" :key="m" :value="m" />
+      </datalist>
+
       <div>
         <label class="input-label">{{ t('common.name') }}</label>
         <input v-model="form.name" type="text" required class="input" data-tour="edit-account-form-name" />
@@ -179,7 +184,8 @@
                 <input
                   v-model="mapping.from"
                   type="text"
-                  class="input flex-1"
+                  :list="modelMappingDatalistId"
+                  :class="['input flex-1', isMappingFromInvalid(mapping) ? 'border-red-500 dark:border-red-500' : '']"
                   :placeholder="t('admin.accounts.requestModel')"
                 />
                 <svg
@@ -198,7 +204,8 @@
                 <input
                   v-model="mapping.to"
                   type="text"
-                  class="input flex-1"
+                  :list="modelMappingDatalistId"
+                  :class="['input flex-1', isMappingToInvalid(mapping) ? 'border-red-500 dark:border-red-500' : '']"
                   :placeholder="t('admin.accounts.actualModel')"
                 />
                 <button
@@ -480,7 +487,8 @@
                 <input
                   v-model="mapping.from"
                   type="text"
-                  class="input flex-1"
+                  :list="modelMappingDatalistId"
+                  :class="['input flex-1', isMappingFromInvalid(mapping) ? 'border-red-500 dark:border-red-500' : '']"
                   :placeholder="t('admin.accounts.requestModel')"
                 />
                 <svg
@@ -499,7 +507,8 @@
                 <input
                   v-model="mapping.to"
                   type="text"
-                  class="input flex-1"
+                  :list="modelMappingDatalistId"
+                  :class="['input flex-1', isMappingToInvalid(mapping) ? 'border-red-500 dark:border-red-500' : '']"
                   :placeholder="t('admin.accounts.actualModel')"
                 />
                 <button
@@ -706,7 +715,8 @@
                 <input
                   v-model="mapping.from"
                   type="text"
-                  class="input flex-1"
+                  :list="modelMappingDatalistId"
+                  :class="['input flex-1', isMappingFromInvalid(mapping) ? 'border-red-500 dark:border-red-500' : '']"
                   :placeholder="t('admin.accounts.requestModel')"
                 />
                 <svg
@@ -725,7 +735,8 @@
                 <input
                   v-model="mapping.to"
                   type="text"
-                  class="input flex-1"
+                  :list="modelMappingDatalistId"
+                  :class="['input flex-1', isMappingToInvalid(mapping) ? 'border-red-500 dark:border-red-500' : '']"
                   :placeholder="t('admin.accounts.actualModel')"
                 />
                 <button
@@ -2246,6 +2257,7 @@ import {
 } from '@/utils/openaiWsMode'
 import {
   getPresetMappingsByPlatform,
+  getModelsByPlatform,
   commonErrorCodes,
   buildModelMappingObject,
   splitModelMappingObject,
@@ -2522,6 +2534,46 @@ const openAICompactStatusKey = computed(() => {
 
 // Computed: current preset mappings based on platform
 const presetMappings = computed(() => getPresetMappingsByPlatform(props.account?.platform || 'anthropic'))
+
+// Candidate models for the model-mapping datalist (drop-down suggestions).
+// Users can still type a free-form value (e.g. wildcards) — the datalist只提供建议，不限制输入。
+const modelMappingOptions = computed(() => getModelsByPlatform(props.account?.platform || 'anthropic'))
+const modelMappingDatalistId = 'edit-account-model-options'
+
+// 单条映射的格式校验（与 buildModelMappingObject 的规则保持一致）
+const isMappingRowComplete = (m: ModelMapping) => {
+  const from = m.from.trim()
+  const to = m.to.trim()
+  // 整行为空 = 还没填，不算错误（保存时会被忽略）
+  if (!from && !to) return true
+  return Boolean(from) && Boolean(to)
+}
+const isMappingRowValid = (m: ModelMapping) => {
+  const from = m.from.trim()
+  const to = m.to.trim()
+  if (!from && !to) return true
+  return Boolean(from) && Boolean(to) && isValidWildcardPattern(from) && !to.includes('*')
+}
+// 校验一组映射：存在已填写但格式非法的行则返回 false
+const validateModelMappings = (mappings: ModelMapping[]): boolean =>
+  mappings.every((m) => isMappingRowValid(m))
+
+// 单个输入框是否应标红（用于模板内联提示）
+const isMappingFromInvalid = (m: ModelMapping) => {
+  const from = m.from.trim()
+  const to = m.to.trim()
+  if (!from && !to) return false
+  // from 为空但 to 已填（半填），或 from 通配符格式非法
+  return !from || !isValidWildcardPattern(from)
+}
+const isMappingToInvalid = (m: ModelMapping) => {
+  const from = m.from.trim()
+  const to = m.to.trim()
+  if (!from && !to) return false
+  // to 为空但 from 已填（半填），或 to 含通配符
+  return !to || to.includes('*')
+}
+
 const tempUnschedPresets = computed(() => [
   {
     label: t('admin.accounts.tempUnschedulable.presets.overloadLabel'),
@@ -3359,6 +3411,25 @@ const handleSubmit = async () => {
   if (form.status !== 'active' && form.status !== 'inactive' && form.status !== 'error') {
     appStore.showError(t('admin.accounts.pleaseSelectStatus'))
     return
+  }
+
+  // 校验模型映射：不再静默丢弃非法/半填的条目，发现问题就阻止保存并提示。
+  // 三个数组分别对应不同平台/类型的映射区域；只校验实际有内容的那些。
+  const mappingGroupsToValidate = [
+    modelMappings.value,
+    openAICompactModelMappings.value,
+    antigravityModelMappings.value
+  ]
+  for (const group of mappingGroupsToValidate) {
+    // 半填（只填了一边）单独提示，更直观
+    if (group.some((m) => !isMappingRowComplete(m))) {
+      appStore.showError(t('admin.accounts.mappingIncomplete'))
+      return
+    }
+    if (!validateModelMappings(group)) {
+      appStore.showError(t('admin.accounts.mappingHasErrors'))
+      return
+    }
   }
 
   const updatePayload: Record<string, unknown> = { ...form }

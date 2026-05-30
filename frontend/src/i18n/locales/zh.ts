@@ -3484,6 +3484,8 @@ export default {
       mappingExists: '模型 {model} 的映射已存在',
       wildcardOnlyAtEnd: '通配符 * 只能放在末尾',
       targetNoWildcard: '目标模型不能包含通配符 *',
+      mappingIncomplete: '请同时填写请求模型和实际模型，或删除该行',
+      mappingHasErrors: '部分模型映射格式无效，未被保存。请修正或删除标红的行。',
       searchModels: '搜索模型...',
       noMatchingModels: '没有匹配的模型',
       fillRelatedModels: '同步最新支持模型',

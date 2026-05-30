@@ -3340,6 +3340,8 @@ export default {
       mappingExists: 'Mapping for {model} already exists',
       wildcardOnlyAtEnd: 'Wildcard * can only be at the end',
       targetNoWildcard: 'Target model cannot contain wildcard *',
+      mappingIncomplete: 'Please fill in both the request model and the actual model, or remove this row',
+      mappingHasErrors: 'Some model mappings are invalid and were not saved. Please fix or remove the highlighted rows.',
       searchModels: 'Search models...',
       noMatchingModels: 'No matching models',
       fillRelatedModels: 'Sync latest supported models',
