@@ -1,5 +1,6 @@
 <template>
-  <div class="space-y-6">
+  <AppLayout>
+    <div class="space-y-6">
     <!-- 页头 -->
     <div class="flex flex-col gap-1">
       <h1 class="text-xl font-semibold text-gray-900 dark:text-white">
@@ -158,6 +159,11 @@
         class="mt-4 rounded-md border border-gray-200 dark:border-dark-700">
         <div class="flex items-center justify-between gap-2 border-b border-gray-100 bg-gray-50 px-4 py-2 dark:border-dark-800 dark:bg-dark-800/50">
           <div class="flex items-center gap-2">
+            <input type="checkbox" class="h-4 w-4 rounded border-gray-300"
+              :checked="isGroupFullySelected(group)"
+              :indeterminate.prop="isGroupPartiallySelected(group)"
+              :title="t('admin.abuse.suspects.selectGroup')"
+              @change="toggleGroup(group)" />
             <span class="rounded px-2 py-0.5 text-xs font-medium" :class="dimensionBadgeClass(group.dimension)">
               {{ dimensionLabel(group.dimension) }}
             </span>
@@ -198,12 +204,14 @@
     <ConfirmDialog :show="showClearDialog" :title="t('admin.abuse.throttled.clearNow')"
       :message="t('admin.abuse.throttled.clearConfirm')" :confirm-text="t('admin.abuse.throttled.clearNow')"
       :cancel-text="t('common.cancel')" :danger="true" @confirm="confirmClear" @cancel="showClearDialog = false" />
-  </div>
+    </div>
+  </AppLayout>
 </template>
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AppLayout from '@/components/layout/AppLayout.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { useAppStore } from '@/stores/app'
@@ -306,6 +314,27 @@ function toggleUser(userId: number) {
   const idx = selectedUserIds.value.indexOf(userId)
   if (idx >= 0) selectedUserIds.value.splice(idx, 1)
   else selectedUserIds.value.push(userId)
+}
+
+// 团伙级一键全选：勾选即选中该组所有成员，取消则移除该组所有成员。
+function isGroupFullySelected(group: SuspectGroup): boolean {
+  return group.members.length > 0 && group.members.every((m) => selectedUserIds.value.includes(m.user_id))
+}
+
+function isGroupPartiallySelected(group: SuspectGroup): boolean {
+  const some = group.members.some((m) => selectedUserIds.value.includes(m.user_id))
+  return some && !isGroupFullySelected(group)
+}
+
+function toggleGroup(group: SuspectGroup) {
+  const ids = group.members.map((m) => m.user_id)
+  if (isGroupFullySelected(group)) {
+    selectedUserIds.value = selectedUserIds.value.filter((id) => !ids.includes(id))
+  } else {
+    const set = new Set(selectedUserIds.value)
+    for (const id of ids) set.add(id)
+    selectedUserIds.value = Array.from(set)
+  }
 }
 
 // ── 批量禁用 ──

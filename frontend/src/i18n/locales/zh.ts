@@ -2510,6 +2510,7 @@ export default {
         ipDisplayOnly: '仅展示',
         userCount: '{count} 个用户',
         requests: '{count} 次请求',
+        selectGroup: '全选本组',
         selectedCount: '已选 {count} 个用户',
         disableSelected: '禁用所选',
         disableTitle: '批量禁用用户',

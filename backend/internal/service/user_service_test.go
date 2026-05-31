@@ -205,6 +205,9 @@ func (m *mockUserRepo) BatchAddConcurrency(context.Context, []int64, int) (int, 
 func (m *mockUserRepo) GetRolesByIDs(context.Context, []int64) (map[int64]string, error) {
 	return nil, nil
 }
+func (m *mockUserRepo) GetEmailContactsByIDs(context.Context, []int64) (map[int64]UserEmailContact, error) {
+	return nil, nil
+}
 func (m *mockUserRepo) BatchUpdateStatus(context.Context, []int64, string) (int, error) {
 	return 0, nil
 }

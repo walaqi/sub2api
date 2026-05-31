@@ -2837,6 +2837,10 @@ func (r *oauthPendingFlowUserRepo) GetRolesByIDs(context.Context, []int64) (map[
 	panic("unexpected GetRolesByIDs call")
 }
 
+func (r *oauthPendingFlowUserRepo) GetEmailContactsByIDs(context.Context, []int64) (map[int64]service.UserEmailContact, error) {
+	panic("unexpected GetEmailContactsByIDs call")
+}
+
 func (r *oauthPendingFlowUserRepo) BatchUpdateStatus(context.Context, []int64, string) (int, error) {
 	panic("unexpected BatchUpdateStatus call")
 }

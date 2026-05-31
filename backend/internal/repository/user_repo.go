@@ -798,6 +798,40 @@ func (r *userRepository) GetRolesByIDs(ctx context.Context, userIDs []int64) (ma
 	return result, nil
 }
 
+// GetEmailContactsByIDs returns email/username keyed by user id. Rows with empty
+// email, or soft-deleted users, are skipped (they cannot be emailed).
+func (r *userRepository) GetEmailContactsByIDs(ctx context.Context, userIDs []int64) (map[int64]service.UserEmailContact, error) {
+	result := make(map[int64]service.UserEmailContact, len(userIDs))
+	if len(userIDs) == 0 {
+		return result, nil
+	}
+	rows, err := r.sql.QueryContext(ctx,
+		"SELECT id, COALESCE(email, ''), COALESCE(username, '') FROM users WHERE id = ANY($1) AND deleted_at IS NULL",
+		pq.Array(userIDs))
+	if err != nil {
+		return nil, fmt.Errorf("get email contacts by ids: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var (
+			id       int64
+			email    string
+			username string
+		)
+		if err := rows.Scan(&id, &email, &username); err != nil {
+			return nil, fmt.Errorf("scan email contact row: %w", err)
+		}
+		if strings.TrimSpace(email) == "" {
+			continue
+		}
+		result[id] = service.UserEmailContact{Email: email, Username: username}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 // BatchUpdateStatus sets status for the given ids and returns the affected count.
 func (r *userRepository) BatchUpdateStatus(ctx context.Context, userIDs []int64, status string) (int, error) {
 	if len(userIDs) == 0 {

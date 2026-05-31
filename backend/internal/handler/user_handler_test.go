@@ -92,6 +92,9 @@ func (s *userHandlerRepoStub) BatchAddConcurrency(context.Context, []int64, int)
 func (s *userHandlerRepoStub) GetRolesByIDs(context.Context, []int64) (map[int64]string, error) {
 	return nil, nil
 }
+func (s *userHandlerRepoStub) GetEmailContactsByIDs(context.Context, []int64) (map[int64]service.UserEmailContact, error) {
+	return nil, nil
+}
 func (s *userHandlerRepoStub) BatchUpdateStatus(context.Context, []int64, string) (int, error) {
 	return 0, nil
 }

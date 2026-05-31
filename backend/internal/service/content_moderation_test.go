@@ -199,6 +199,10 @@ func (r *contentModerationTestUserRepo) GetRolesByIDs(ctx context.Context, userI
 	panic("unexpected GetRolesByIDs call")
 }
 
+func (r *contentModerationTestUserRepo) GetEmailContactsByIDs(ctx context.Context, userIDs []int64) (map[int64]UserEmailContact, error) {
+	panic("unexpected GetEmailContactsByIDs call")
+}
+
 func (r *contentModerationTestUserRepo) BatchUpdateStatus(ctx context.Context, userIDs []int64, status string) (int, error) {
 	panic("unexpected BatchUpdateStatus call")
 }

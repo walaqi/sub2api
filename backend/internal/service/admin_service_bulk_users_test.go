@@ -6,6 +6,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,6 +17,8 @@ type bulkUsersRepoStub struct {
 
 	roles            map[int64]string // returned by GetRolesByIDs
 	rolesErr         error
+	contacts         map[int64]UserEmailContact // returned by GetEmailContactsByIDs
+	contactsReqIDs   []int64                    // captured ids passed to GetEmailContactsByIDs
 	statusUpdatedIDs []int64
 	statusValue      string
 	statusErr        error
@@ -29,6 +32,17 @@ func (s *bulkUsersRepoStub) GetRolesByIDs(_ context.Context, userIDs []int64) (m
 	for _, id := range userIDs {
 		if role, ok := s.roles[id]; ok {
 			out[id] = role
+		}
+	}
+	return out, nil
+}
+
+func (s *bulkUsersRepoStub) GetEmailContactsByIDs(_ context.Context, userIDs []int64) (map[int64]UserEmailContact, error) {
+	s.contactsReqIDs = append(s.contactsReqIDs, userIDs...)
+	out := make(map[int64]UserEmailContact, len(userIDs))
+	for _, id := range userIDs {
+		if c, ok := s.contacts[id]; ok {
+			out[id] = c
 		}
 	}
 	return out, nil
@@ -150,4 +164,99 @@ func TestAdminService_BulkUpdateUsers_DeduplicatesIDs(t *testing.T) {
 	require.Equal(t, 1, result.Success)
 	require.ElementsMatch(t, []int64{1}, repo.statusUpdatedIDs)
 	require.ElementsMatch(t, []int64{1}, invalidator.userIDs)
+}
+
+// sentDisabledEmail captures one Send call for assertions.
+type sentDisabledEmail struct {
+	event  string
+	userID int64
+	email  string
+	vars   map[string]string
+}
+
+// disabledNotifierStub records account-disabled emails (implements accountDisabledNotifier).
+type disabledNotifierStub struct {
+	sent    []sentDisabledEmail
+	sendErr error
+}
+
+func (n *disabledNotifierStub) Send(_ context.Context, input NotificationEmailSendInput) error {
+	n.sent = append(n.sent, sentDisabledEmail{
+		event:  input.Event,
+		userID: input.UserID,
+		email:  input.RecipientEmail,
+		vars:   input.Variables,
+	})
+	return n.sendErr
+}
+
+// sendBulkDisabledEmails is the synchronous core invoked by the async notifier;
+// disabling+notifying must email every disabled user with the abuse event.
+func TestAdminService_SendBulkDisabledEmails_SendsToAllContacts(t *testing.T) {
+	svc, repo, _ := newBulkUsersService(map[int64]string{1: "user", 2: "user"})
+	repo.contacts = map[int64]UserEmailContact{
+		1: {Email: "a@example.com", Username: "alice"},
+		2: {Email: "b@example.com", Username: "bob"},
+	}
+	notifier := &disabledNotifierStub{}
+	svc.notificationEmailService = notifier
+
+	svc.sendBulkDisabledEmails(context.Background(), []int64{1, 2}, "multi-account abuse")
+
+	require.Len(t, notifier.sent, 2)
+	for _, s := range notifier.sent {
+		require.Equal(t, NotificationEmailEventAbuseAccountDisabled, s.event)
+		require.Equal(t, "multi-account abuse", s.vars["reason"])
+		require.NotEmpty(t, s.vars["disabled_at"])
+	}
+	emails := []string{notifier.sent[0].email, notifier.sent[1].email}
+	require.ElementsMatch(t, []string{"a@example.com", "b@example.com"}, emails)
+}
+
+// Users without an email (omitted by GetEmailContactsByIDs) are simply skipped.
+func TestAdminService_SendBulkDisabledEmails_SkipsMissingContacts(t *testing.T) {
+	svc, repo, _ := newBulkUsersService(map[int64]string{1: "user", 2: "user"})
+	repo.contacts = map[int64]UserEmailContact{
+		1: {Email: "a@example.com", Username: "alice"},
+		// user 2 has no email → omitted
+	}
+	notifier := &disabledNotifierStub{}
+	svc.notificationEmailService = notifier
+
+	svc.sendBulkDisabledEmails(context.Background(), []int64{1, 2}, "")
+
+	require.Len(t, notifier.sent, 1)
+	require.Equal(t, int64(1), notifier.sent[0].userID)
+}
+
+// A Send failure for one user must not abort the rest (best-effort).
+func TestAdminService_SendBulkDisabledEmails_ContinuesOnSendError(t *testing.T) {
+	svc, repo, _ := newBulkUsersService(map[int64]string{1: "user", 2: "user"})
+	repo.contacts = map[int64]UserEmailContact{
+		1: {Email: "a@example.com"},
+		2: {Email: "b@example.com"},
+	}
+	notifier := &disabledNotifierStub{sendErr: assert.AnError}
+	svc.notificationEmailService = notifier
+
+	require.NotPanics(t, func() {
+		svc.sendBulkDisabledEmails(context.Background(), []int64{1, 2}, "")
+	})
+	require.Len(t, notifier.sent, 2)
+}
+
+// Re-activation must never send the disabled email, even with NotifyEmail set.
+func TestAdminService_BulkUpdateUsers_ActivateDoesNotNotify(t *testing.T) {
+	svc, repo, _ := newBulkUsersService(map[int64]string{1: "user"})
+	repo.contacts = map[int64]UserEmailContact{1: {Email: "a@example.com"}}
+	notifier := &disabledNotifierStub{}
+	svc.notificationEmailService = notifier
+
+	_, err := svc.BulkUpdateUsers(context.Background(), &BulkUpdateUsersInput{
+		UserIDs:     []int64{1},
+		Status:      StatusActive,
+		NotifyEmail: true,
+	})
+	require.NoError(t, err)
+	require.Empty(t, notifier.sent, "activation must not send the account-disabled email")
 }

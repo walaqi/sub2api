@@ -74,6 +74,9 @@ func (s *userRepoStubForGroupUpdate) BatchAddConcurrency(context.Context, []int6
 func (s *userRepoStubForGroupUpdate) GetRolesByIDs(context.Context, []int64) (map[int64]string, error) {
 	return nil, nil
 }
+func (s *userRepoStubForGroupUpdate) GetEmailContactsByIDs(context.Context, []int64) (map[int64]UserEmailContact, error) {
+	return nil, nil
+}
 func (s *userRepoStubForGroupUpdate) BatchUpdateStatus(context.Context, []int64, string) (int, error) {
 	return 0, nil
 }

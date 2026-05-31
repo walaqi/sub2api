@@ -2433,6 +2433,7 @@ export default {
         ipDisplayOnly: 'Display only',
         userCount: '{count} users',
         requests: '{count} requests',
+        selectGroup: 'Select all in group',
         selectedCount: '{count} users selected',
         disableSelected: 'Disable Selected',
         disableTitle: 'Bulk Disable Users',
