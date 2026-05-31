@@ -30,6 +30,7 @@ const (
 	NotificationEmailEventAccountQuotaAlert           = "account.quota_alert"
 	NotificationEmailEventContentModerationViolation  = "content_moderation.violation_notice"
 	NotificationEmailEventContentModerationDisabled   = "content_moderation.account_disabled"
+	NotificationEmailEventAbuseAccountDisabled        = "account.abuse_disabled"
 	NotificationEmailEventOpsAlert                    = "ops.alert"
 	NotificationEmailEventOpsScheduledReport          = "ops.scheduled_report"
 
@@ -947,6 +948,7 @@ var notificationEmailEventOrder = []string{
 	NotificationEmailEventAccountQuotaAlert,
 	NotificationEmailEventContentModerationViolation,
 	NotificationEmailEventContentModerationDisabled,
+	NotificationEmailEventAbuseAccountDisabled,
 	NotificationEmailEventOpsAlert,
 	NotificationEmailEventOpsScheduledReport,
 }
@@ -1034,6 +1036,15 @@ var notificationEmailEventDefinitions = map[string]NotificationEmailEventInfo{
 		Optional:    false,
 		Placeholders: append(append([]string{}, notificationEmailCommonPlaceholders...),
 			"triggered_at", "group_name", "moderation_category", "moderation_score", "violation_count", "ban_threshold"),
+	},
+	NotificationEmailEventAbuseAccountDisabled: {
+		Event:       NotificationEmailEventAbuseAccountDisabled,
+		Label:       "Multi-account abuse disabled",
+		Description: "Sent to users when an admin disables their account for multi-account abuse.",
+		Category:    "risk_control",
+		Optional:    false,
+		Placeholders: append(append([]string{}, notificationEmailCommonPlaceholders...),
+			"disabled_at", "reason"),
 	},
 	NotificationEmailEventOpsAlert: {
 		Event:       NotificationEmailEventOpsAlert,
@@ -1275,6 +1286,30 @@ var notificationEmailOfficialTemplates = map[string]map[string]notificationEmail
   <tr><td>累计触发次数</td><td>{{violation_count}} / {{ban_threshold}}</td></tr>
 </table>
 <p>如需申诉或恢复账号，请联系平台管理员处理。</p>`),
+		},
+	},
+	NotificationEmailEventAbuseAccountDisabled: {
+		notificationEmailDefaultLocale: {
+			Subject: "[{{site_name}}] Account disabled",
+			HTML: notificationEmailCard("#b91c1c", "Account disabled", `
+<p>Hello {{recipient_name}},</p>
+<p>Your account has been disabled by an administrator because it was identified as part of multi-account abuse (multiple accounts sharing the same device, fingerprint or network).</p>
+<table style="width:100%;border-collapse:collapse;">
+  <tr><td>Disabled at</td><td>{{disabled_at}}</td></tr>
+  <tr><td>Reason</td><td>{{reason}}</td></tr>
+</table>
+<p>If you believe this is a mistake, please contact the administrator to appeal or restore access.</p>`),
+		},
+		notificationEmailLocaleChinese: {
+			Subject: "[{{site_name}}] 账户已被禁用",
+			HTML: notificationEmailCard("#b91c1c", "账户已被禁用", `
+<p>{{recipient_name}}，您好：</p>
+<p>您的账户因被识别为多账户滥用（多个账户共享同一设备、指纹或网络）已被管理员禁用。</p>
+<table style="width:100%;border-collapse:collapse;">
+  <tr><td>禁用时间</td><td>{{disabled_at}}</td></tr>
+  <tr><td>原因</td><td>{{reason}}</td></tr>
+</table>
+<p>如果您认为这是误判，请联系平台管理员申诉或恢复账号。</p>`),
 		},
 	},
 	NotificationEmailEventOpsAlert: {

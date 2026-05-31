@@ -66,8 +66,10 @@ func (h *AbuseHandler) ListSuspects(c *gin.Context) {
 
 // BulkDisableUsersRequest is the body for bulk user status updates.
 type BulkDisableUsersRequest struct {
-	UserIDs []int64 `json:"user_ids" binding:"required"`
-	Status  string  `json:"status" binding:"required,oneof=active disabled"`
+	UserIDs     []int64 `json:"user_ids" binding:"required"`
+	Status      string  `json:"status" binding:"required,oneof=active disabled"`
+	NotifyEmail *bool   `json:"notify_email"` // nil → 禁用时默认发信
+	Reason      string  `json:"reason"`
 }
 
 // BulkUpdateUsers POST /admin/abuse/users/bulk-update
@@ -84,9 +86,17 @@ func (h *AbuseHandler) BulkUpdateUsers(c *gin.Context) {
 		return
 	}
 
+	// 默认在禁用时发送通知邮件；前端可显式传 notify_email=false 关闭。
+	notify := true
+	if req.NotifyEmail != nil {
+		notify = *req.NotifyEmail
+	}
+
 	result, err := h.adminService.BulkUpdateUsers(c.Request.Context(), &service.BulkUpdateUsersInput{
-		UserIDs: req.UserIDs,
-		Status:  req.Status,
+		UserIDs:     req.UserIDs,
+		Status:      req.Status,
+		NotifyEmail: notify,
+		Reason:      req.Reason,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)

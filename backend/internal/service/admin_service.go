@@ -380,6 +380,11 @@ type BulkUpdateAccountsResult struct {
 type BulkUpdateUsersInput struct {
 	UserIDs []int64
 	Status  string // "active" | "disabled"
+	// NotifyEmail, when true and Status == "disabled", sends each disabled user
+	// an account-disabled notification email (best-effort, async, non-blocking).
+	NotifyEmail bool
+	// Reason is an optional free-text reason rendered into the notification email.
+	Reason string
 }
 
 // BulkUpdateUsersResult is the aggregated response for bulk user status updates.
@@ -553,6 +558,17 @@ type adminServiceImpl struct {
 	userSubRepo          UserSubscriptionRepository
 	privacyClientFactory PrivacyClientFactory
 	runtimeBlocker       AccountRuntimeBlocker
+	// notificationEmailService is optional; when set, bulk-disabling users sends
+	// each disabled user an account-disabled notification. Typed as an interface
+	// so tests can inject a fake without a real SMTP stack.
+	notificationEmailService accountDisabledNotifier
+}
+
+// accountDisabledNotifier is the subset of NotificationEmailService used to
+// notify users that their account was disabled. *NotificationEmailService
+// satisfies it.
+type accountDisabledNotifier interface {
+	Send(ctx context.Context, input NotificationEmailSendInput) error
 }
 
 type userGroupRateBatchReader interface {
@@ -579,27 +595,36 @@ func NewAdminService(
 	userSubRepo UserSubscriptionRepository,
 	privacyClientFactory PrivacyClientFactory,
 	runtimeBlocker AccountRuntimeBlocker,
+	notificationEmailService *NotificationEmailService,
 ) AdminService {
 	return &adminServiceImpl{
-		userRepo:             userRepo,
-		groupRepo:            groupRepo,
-		accountRepo:          accountRepo,
-		proxyRepo:            proxyRepo,
-		apiKeyRepo:           apiKeyRepo,
-		redeemCodeRepo:       redeemCodeRepo,
-		userGroupRateRepo:    userGroupRateRepo,
-		userRPMCache:         userRPMCache,
-		billingCacheService:  billingCacheService,
-		proxyProber:          proxyProber,
-		proxyLatencyCache:    proxyLatencyCache,
-		authCacheInvalidator: authCacheInvalidator,
-		entClient:            entClient,
-		settingService:       settingService,
-		defaultSubAssigner:   defaultSubAssigner,
-		userSubRepo:          userSubRepo,
-		privacyClientFactory: privacyClientFactory,
-		runtimeBlocker:       runtimeBlocker,
+		userRepo:                 userRepo,
+		groupRepo:                groupRepo,
+		accountRepo:              accountRepo,
+		proxyRepo:                proxyRepo,
+		apiKeyRepo:               apiKeyRepo,
+		redeemCodeRepo:           redeemCodeRepo,
+		userGroupRateRepo:        userGroupRateRepo,
+		userRPMCache:             userRPMCache,
+		billingCacheService:      billingCacheService,
+		proxyProber:              proxyProber,
+		proxyLatencyCache:        proxyLatencyCache,
+		authCacheInvalidator:     authCacheInvalidator,
+		entClient:                entClient,
+		settingService:           settingService,
+		defaultSubAssigner:       defaultSubAssigner,
+		userSubRepo:              userSubRepo,
+		privacyClientFactory:     privacyClientFactory,
+		runtimeBlocker:           runtimeBlocker,
+		notificationEmailService: notificationEmailService,
 	}
+}
+
+// SetNotificationEmailService injects the optional notification email service
+// used to notify users when they are bulk-disabled. Retained for tests that
+// construct adminServiceImpl directly.
+func (s *adminServiceImpl) SetNotificationEmailService(svc *NotificationEmailService) {
+	s.notificationEmailService = svc
 }
 
 // User management implementations
@@ -921,10 +946,60 @@ func (s *adminServiceImpl) BulkUpdateUsers(ctx context.Context, input *BulkUpdat
 		}
 	}
 
+	// 禁用时按需通知用户（best-effort，异步，不阻塞接口、不影响禁用结果）。
+	if input.Status == StatusDisabled && input.NotifyEmail && s.notificationEmailService != nil {
+		s.notifyBulkDisabledAsync(target, input.Reason)
+	}
+
 	result.Success = len(result.SuccessIDs)
 	result.Failed = len(result.FailedIDs)
 	result.Skipped = len(result.SkippedIDs)
 	return result, nil
+}
+
+// notifyBulkDisabledAsync sends each disabled user an account-disabled email in
+// the background. SMTP is synchronous per message, so we detach from the request
+// goroutine; failures are logged and never affect the disable outcome.
+func (s *adminServiceImpl) notifyBulkDisabledAsync(userIDs []int64, reason string) {
+	ids := append([]int64(nil), userIDs...)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+		s.sendBulkDisabledEmails(ctx, ids, reason)
+	}()
+}
+
+// sendBulkDisabledEmails loads contacts for ids and sends the account-disabled
+// notification to each (synchronous; called from notifyBulkDisabledAsync's
+// goroutine). Errors are logged, never returned — notification is best-effort.
+func (s *adminServiceImpl) sendBulkDisabledEmails(ctx context.Context, ids []int64, reason string) {
+	contacts, err := s.userRepo.GetEmailContactsByIDs(ctx, ids)
+	if err != nil {
+		logger.LegacyPrintf("service.admin", "bulk disable notify: load contacts failed: %v", err)
+		return
+	}
+	disabledAt := time.Now().UTC().Format("2006-01-02 15:04:05 MST")
+	for id, contact := range contacts {
+		vars := map[string]string{
+			"recipient_email": contact.Email,
+			"recipient_name":  emailRecipientName(contact.Email),
+			"disabled_at":     disabledAt,
+			"reason":          reason,
+		}
+		err := s.notificationEmailService.Send(ctx, NotificationEmailSendInput{
+			Event:          NotificationEmailEventAbuseAccountDisabled,
+			RecipientEmail: contact.Email,
+			RecipientName:  emailRecipientName(contact.Email),
+			UserID:         id,
+			SourceType:     "abuse_bulk_disable",
+			SourceID:       strconv.FormatInt(id, 10),
+			Variables:      vars,
+		})
+		if err != nil {
+			logger.LegacyPrintf("service.admin",
+				"bulk disable notify: send to user=%d failed: %v", id, err)
+		}
+	}
 }
 
 func (s *adminServiceImpl) BatchUpdateConcurrency(ctx context.Context, userIDs []int64, value int, mode string) (int, error) {

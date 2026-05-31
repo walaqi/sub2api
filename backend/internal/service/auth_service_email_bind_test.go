@@ -825,6 +825,9 @@ func (s *emailBindUserRepoStub) BatchAddConcurrency(context.Context, []int64, in
 func (s *emailBindUserRepoStub) GetRolesByIDs(context.Context, []int64) (map[int64]string, error) {
 	return nil, nil
 }
+func (s *emailBindUserRepoStub) GetEmailContactsByIDs(context.Context, []int64) (map[int64]service.UserEmailContact, error) {
+	return nil, nil
+}
 func (s *emailBindUserRepoStub) BatchUpdateStatus(context.Context, []int64, string) (int, error) {
 	return 0, nil
 }

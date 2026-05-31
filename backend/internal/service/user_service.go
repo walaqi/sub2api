@@ -28,6 +28,13 @@ import (
 	"golang.org/x/sync/singleflight"
 )
 
+// UserEmailContact carries the minimal contact info needed to send a user a
+// notification email (e.g. when their account is disabled in bulk).
+type UserEmailContact struct {
+	Email    string
+	Username string
+}
+
 var (
 	ErrUserNotFound             = infraerrors.NotFound("USER_NOT_FOUND", "user not found")
 	ErrPasswordIncorrect        = infraerrors.BadRequest("PASSWORD_INCORRECT", "current password is incorrect")
@@ -100,6 +107,10 @@ type UserRepository interface {
 	BatchAddConcurrency(ctx context.Context, userIDs []int64, delta int) (int, error)
 	// GetRolesByIDs returns role keyed by user id for the given ids (missing/deleted ids omitted).
 	GetRolesByIDs(ctx context.Context, userIDs []int64) (map[int64]string, error)
+	// GetEmailContactsByIDs returns email/username contact info keyed by user id
+	// for the given ids (missing/deleted/empty-email ids omitted), used to notify
+	// users when their account is disabled in bulk.
+	GetEmailContactsByIDs(ctx context.Context, userIDs []int64) (map[int64]UserEmailContact, error)
 	// BatchUpdateStatus sets status for the given ids and returns affected row count.
 	BatchUpdateStatus(ctx context.Context, userIDs []int64, status string) (int, error)
 	ExistsByEmail(ctx context.Context, email string) (bool, error)
