@@ -388,6 +388,7 @@ export default {
     channelMonitor: '渠道监控',
     channelStatus: '渠道状态',
     riskControl: '风控中心',
+    abuseDetection: '多账户检测',
   },
 
   // Auth
@@ -2467,6 +2468,62 @@ export default {
         syncModelsAlreadyUpToDate: '模型列表已是最新',
         syncModelsError: '同步模型失败'
       }
+    },
+
+    abuse: {
+      title: '多账户滥用检测',
+      description: '识别共享 device_id / 指纹 / IP 的多账户"农场"，支持一键禁用与临时限流。',
+      dimensions: {
+        device: '设备',
+        fingerprint: '指纹',
+        ip: 'IP',
+      },
+      throttle: {
+        title: '临时限流',
+        hint: '开启后，后台自动把交叉命中（设备∩IP 或 指纹∩IP）的疑似用户加入限流名单，按比例缩放其 RPM。',
+        ratePercent: '限流比例 (%)',
+        floorRpm: '无限额兜底 RPM',
+        minUsers: '触发阈值 (N)',
+        windowHours: '检测窗口 (小时)',
+        intervalMin: '重跑间隔 (分钟)',
+        ttlMinutes: '名单 TTL (分钟)',
+        crossGuardNote: 'IP 单维度仅用于展示，不会单独进入自动限流名单。',
+        saved: '限流配置已保存',
+      },
+      throttled: {
+        title: '当前被限流用户',
+        userId: '用户 ID',
+        dimensions: '命中维度',
+        markedAt: '命中时间',
+        remaining: '剩余时长',
+        clearNow: '立即清空',
+        clearConfirm: '确定清空当前所有被自动限流的用户？已停止滥用的用户会立即恢复。',
+        cleared: '已清空 {count} 个限流条目',
+        empty: '当前没有被自动限流的用户。',
+      },
+      suspects: {
+        title: '疑似团伙查询',
+        windowHours: '窗口 (小时)',
+        minUsers: '阈值 (N)',
+        scan: '扫描',
+        empty: '当前窗口内没有命中阈值的团伙。',
+        ipDisplayOnly: '仅展示',
+        userCount: '{count} 个用户',
+        requests: '{count} 次请求',
+        selectedCount: '已选 {count} 个用户',
+        disableSelected: '禁用所选',
+        disableTitle: '批量禁用用户',
+        disableConfirm: '确定禁用所选的 {count} 个用户？管理员账户会被自动跳过。',
+        disableResult: '成功 {success}，跳过 {skipped}，失败 {failed}',
+      },
+      errors: {
+        loadSettings: '加载限流配置失败',
+        saveSettings: '保存限流配置失败',
+        loadThrottled: '加载限流名单失败',
+        clear: '清空限流名单失败',
+        loadSuspects: '查询疑似团伙失败',
+        disable: '批量禁用失败',
+      },
     },
 
     riskControl: {

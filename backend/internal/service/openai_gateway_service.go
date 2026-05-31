@@ -5419,6 +5419,7 @@ type OpenAIRecordUsageInput struct {
 	UpstreamEndpoint   string
 	UserAgent          string // 请求的 User-Agent
 	IPAddress          string // 请求的客户端 IP 地址
+	ClientFingerprint  string // HTTP 层客户端指纹（UA + X-Stainless-* 哈希）
 	RequestPayloadHash string
 	APIKeyService      APIKeyQuotaUpdater
 	ChannelUsageFields
@@ -5599,6 +5600,11 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	// 添加 IPAddress
 	if input.IPAddress != "" {
 		usageLog.IPAddress = &input.IPAddress
+	}
+
+	// 添加 ClientFingerprint（HTTP 层客户端指纹）
+	if input.ClientFingerprint != "" {
+		usageLog.ClientFingerprint = &input.ClientFingerprint
 	}
 
 	if apiKey.GroupID != nil {

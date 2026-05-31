@@ -34,6 +34,10 @@ type AdminService interface {
 	DeleteUser(ctx context.Context, id int64) error
 	UpdateUserBalance(ctx context.Context, userID int64, balance float64, operation string, notes string) (*User, error)
 	BatchUpdateConcurrency(ctx context.Context, userIDs []int64, value int, mode string) (int, error)
+	// BulkUpdateUsers sets status for multiple users at once. Admin-role users are
+	// skipped (reported in SkippedIDs) and the auth cache is invalidated for each
+	// affected user so a disable takes effect immediately on the API Key path.
+	BulkUpdateUsers(ctx context.Context, input *BulkUpdateUsersInput) (*BulkUpdateUsersResult, error)
 	GetUserAPIKeys(ctx context.Context, userID int64, page, pageSize int, sortBy, sortOrder string) ([]APIKey, int64, error)
 	GetUserUsageStats(ctx context.Context, userID int64, period string) (any, error)
 	GetUserRPMStatus(ctx context.Context, userID int64) (*UserRPMStatus, error)
@@ -370,6 +374,23 @@ type BulkUpdateAccountsResult struct {
 	SuccessIDs []int64                   `json:"success_ids"`
 	FailedIDs  []int64                   `json:"failed_ids"`
 	Results    []BulkUpdateAccountResult `json:"results"`
+}
+
+// BulkUpdateUsersInput is the input for bulk user status updates.
+type BulkUpdateUsersInput struct {
+	UserIDs []int64
+	Status  string // "active" | "disabled"
+}
+
+// BulkUpdateUsersResult is the aggregated response for bulk user status updates.
+// SkippedIDs holds admin-role users that were intentionally not modified (R7).
+type BulkUpdateUsersResult struct {
+	Success    int     `json:"success"`
+	Failed     int     `json:"failed"`
+	Skipped    int     `json:"skipped"`
+	SuccessIDs []int64 `json:"success_ids"`
+	FailedIDs  []int64 `json:"failed_ids"`
+	SkippedIDs []int64 `json:"skipped_ids"`
 }
 
 type CreateProxyInput struct {
@@ -820,6 +841,90 @@ func (s *adminServiceImpl) DeleteUser(ctx context.Context, id int64) error {
 		s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, id)
 	}
 	return nil
+}
+
+func (s *adminServiceImpl) BulkUpdateUsers(ctx context.Context, input *BulkUpdateUsersInput) (*BulkUpdateUsersResult, error) {
+	result := &BulkUpdateUsersResult{
+		SuccessIDs: make([]int64, 0),
+		FailedIDs:  make([]int64, 0),
+		SkippedIDs: make([]int64, 0),
+	}
+	if input == nil {
+		return result, nil
+	}
+	if input.Status != StatusActive && input.Status != StatusDisabled {
+		return nil, fmt.Errorf("invalid status: %q (allowed: active, disabled)", input.Status)
+	}
+
+	// 去重 + 过滤非法 id。
+	seen := make(map[int64]bool, len(input.UserIDs))
+	ids := make([]int64, 0, len(input.UserIDs))
+	for _, id := range input.UserIDs {
+		if id <= 0 || seen[id] {
+			continue
+		}
+		seen[id] = true
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		return result, nil
+	}
+
+	// R7：禁用时先查 role，过滤 admin 用户（盲 UPDATE 无法同时跳过 admin 又报告被跳过）。
+	// 仅在禁用动作上保护 admin（启用 admin 无害，与单用户 UpdateUser 语义一致）。
+	target := ids
+	if input.Status == StatusDisabled {
+		roles, err := s.userRepo.GetRolesByIDs(ctx, ids)
+		if err != nil {
+			return nil, fmt.Errorf("load roles for bulk update: %w", err)
+		}
+		target = make([]int64, 0, len(ids))
+		for _, id := range ids {
+			role, ok := roles[id]
+			if !ok {
+				// id 不存在或已软删 → 记为失败。
+				result.FailedIDs = append(result.FailedIDs, id)
+				continue
+			}
+			if role == "admin" {
+				result.SkippedIDs = append(result.SkippedIDs, id)
+				continue
+			}
+			target = append(target, id)
+		}
+	}
+
+	if len(target) == 0 {
+		result.Failed = len(result.FailedIDs)
+		result.Skipped = len(result.SkippedIDs)
+		return result, nil
+	}
+
+	affected, err := s.userRepo.BatchUpdateStatus(ctx, target, input.Status)
+	if err != nil {
+		return nil, fmt.Errorf("bulk update user status: %w", err)
+	}
+
+	// BatchUpdateStatus 按 id=ANY 一次写入；affected 可能小于 target（并发软删等）。
+	// 以 target 作为成功集合（已存在且非 admin），affected 仅用于日志/告警。
+	result.SuccessIDs = append(result.SuccessIDs, target...)
+	if affected != len(target) {
+		logger.LegacyPrintf("service.admin",
+			"bulk update users: affected=%d expected=%d status=%s", affected, len(target), input.Status)
+	}
+
+	// R1（阻断）：禁用/启用后必须逐个失效鉴权缓存，否则被禁用用户在 API Key 路径上
+	// 最长还能正常调用一个 L2 TTL（默认 300s）。
+	if s.authCacheInvalidator != nil {
+		for _, id := range target {
+			s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, id)
+		}
+	}
+
+	result.Success = len(result.SuccessIDs)
+	result.Failed = len(result.FailedIDs)
+	result.Skipped = len(result.SkippedIDs)
+	return result, nil
 }
 
 func (s *adminServiceImpl) BatchUpdateConcurrency(ctx context.Context, userIDs []int64, value int, mode string) (int, error) {

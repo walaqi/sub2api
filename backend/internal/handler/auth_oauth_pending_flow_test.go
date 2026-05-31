@@ -2833,6 +2833,14 @@ func (r *oauthPendingFlowUserRepo) BatchAddConcurrency(context.Context, []int64,
 	panic("unexpected BatchAddConcurrency call")
 }
 
+func (r *oauthPendingFlowUserRepo) GetRolesByIDs(context.Context, []int64) (map[int64]string, error) {
+	panic("unexpected GetRolesByIDs call")
+}
+
+func (r *oauthPendingFlowUserRepo) BatchUpdateStatus(context.Context, []int64, string) (int, error) {
+	panic("unexpected BatchUpdateStatus call")
+}
+
 func (r *oauthPendingFlowUserRepo) GetLatestUsedAtByUserIDs(context.Context, []int64) (map[int64]*time.Time, error) {
 	return map[int64]*time.Time{}, nil
 }

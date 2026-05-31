@@ -65,6 +65,9 @@ func TestAPIContracts(t *testing.T) {
 					"balance_notify_threshold": null,
 					"balance_notify_extra_emails": null,
 					"total_recharged": 0,
+					"gift_balance": 0,
+					"recharge_balance": 0,
+					"gift_expiring_soon": 0,
 					"linuxdo_bound": false,
 					"oidc_bound": false,
 					"wechat_bound": false,
@@ -572,6 +575,8 @@ func TestAPIContracts(t *testing.T) {
 							"cache_read_cost": 0,
 						"total_cost": 0.5,
 						"actual_cost": 0.5,
+						"gift_cost": 0,
+						"recharge_cost": 0,
 						"rate_multiplier": 1,
 						"billing_type": 0,
 							"stream": true,
@@ -1425,6 +1430,12 @@ func (r *stubUserRepo) UpdateConcurrency(ctx context.Context, id int64, amount i
 
 func (r *stubUserRepo) BatchSetConcurrency(context.Context, []int64, int) (int, error) { return 0, nil }
 func (r *stubUserRepo) BatchAddConcurrency(context.Context, []int64, int) (int, error) { return 0, nil }
+func (r *stubUserRepo) GetRolesByIDs(context.Context, []int64) (map[int64]string, error) {
+	return nil, nil
+}
+func (r *stubUserRepo) BatchUpdateStatus(context.Context, []int64, string) (int, error) {
+	return 0, nil
+}
 
 func (r *stubUserRepo) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	return false, errors.New("not implemented")
@@ -2458,6 +2469,9 @@ func (r *stubUsageLogRepo) GetStatsWithFilters(ctx context.Context, filters usag
 	return nil, errors.New("not implemented")
 }
 func (r *stubUsageLogRepo) GetAllGroupUsageSummary(ctx context.Context, todayStart time.Time) ([]usagestats.GroupUsageSummary, error) {
+	return nil, errors.New("not implemented")
+}
+func (r *stubUsageLogRepo) FindSuspectedMultiAccountGroups(ctx context.Context, filters usagestats.SuspectGroupFilters) ([]usagestats.SuspectGroup, error) {
 	return nil, errors.New("not implemented")
 }
 

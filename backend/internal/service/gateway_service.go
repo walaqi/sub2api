@@ -7946,6 +7946,7 @@ type RecordUsageInput struct {
 	UpstreamEndpoint   string             // 上游端点（标准化后的上游路径）
 	UserAgent          string             // 请求的 User-Agent
 	IPAddress          string             // 请求的客户端 IP 地址
+	ClientFingerprint  string             // HTTP 层客户端指纹（UA + X-Stainless-* 哈希）
 	RequestPayloadHash string             // 请求体语义哈希，用于降低 request_id 误复用时的静默误去重风险
 	ForceCacheBilling  bool               // 强制缓存计费：将 input_tokens 转为 cache_read 计费（用于粘性会话切换）
 	APIKeyService      APIKeyQuotaUpdater // 可选：用于更新API Key配额
@@ -8363,6 +8364,14 @@ type recordUsageOpts struct {
 
 // RecordUsage 记录使用量并扣费（或更新订阅用量）
 func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInput) error {
+	// 从 metadata.user_id 提取客户端自报的 device_id（仅 Claude Code 路径携带）。
+	// 用于"同终端多账号"滥用检测。device_id 不与账号绑定、可被伪造，因此只作弱实锤信号。
+	var deviceID string
+	if input.ParsedRequest != nil {
+		if uid := ParseMetadataUserID(input.ParsedRequest.MetadataUserID); uid != nil {
+			deviceID = strings.TrimSpace(uid.DeviceID)
+		}
+	}
 	return s.recordUsageCore(ctx, &recordUsageCoreInput{
 		Result:             input.Result,
 		APIKey:             input.APIKey,
@@ -8376,6 +8385,8 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 		RequestPayloadHash: input.RequestPayloadHash,
 		ForceCacheBilling:  input.ForceCacheBilling,
 		APIKeyService:      input.APIKeyService,
+		DeviceID:           deviceID,
+		ClientFingerprint:  input.ClientFingerprint,
 		ChannelUsageFields: input.ChannelUsageFields,
 	}, &recordUsageOpts{
 		EnableClaudePath: true,
@@ -8393,6 +8404,7 @@ type RecordUsageLongContextInput struct {
 	UpstreamEndpoint      string             // 上游端点（标准化后的上游路径）
 	UserAgent             string             // 请求的 User-Agent
 	IPAddress             string             // 请求的客户端 IP 地址
+	ClientFingerprint     string             // HTTP 层客户端指纹（UA + X-Stainless-* 哈希）
 	RequestPayloadHash    string             // 请求体语义哈希，用于降低 request_id 误复用时的静默误去重风险
 	LongContextThreshold  int                // 长上下文阈值（如 200000）
 	LongContextMultiplier float64            // 超出阈值部分的倍率（如 2.0）
@@ -8417,6 +8429,7 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 		RequestPayloadHash: input.RequestPayloadHash,
 		ForceCacheBilling:  input.ForceCacheBilling,
 		APIKeyService:      input.APIKeyService,
+		ClientFingerprint:  input.ClientFingerprint,
 		ChannelUsageFields: input.ChannelUsageFields,
 	}, &recordUsageOpts{
 		LongContextThreshold:  input.LongContextThreshold,
@@ -8438,6 +8451,10 @@ type recordUsageCoreInput struct {
 	RequestPayloadHash string
 	ForceCacheBilling  bool
 	APIKeyService      APIKeyQuotaUpdater
+	// DeviceID is the client-reported terminal id parsed from metadata.user_id (Claude path only).
+	DeviceID string
+	// ClientFingerprint is the HTTP-layer fingerprint (UA + X-Stainless-* hash).
+	ClientFingerprint string
 	ChannelUsageFields
 }
 
@@ -8741,6 +8758,8 @@ func (s *GatewayService) buildRecordUsageLog(
 		ModelMappingChain:     optionalTrimmedStringPtr(input.ModelMappingChain),
 		UserAgent:             optionalTrimmedStringPtr(input.UserAgent),
 		IPAddress:             optionalTrimmedStringPtr(input.IPAddress),
+		DeviceID:              optionalTrimmedStringPtr(input.DeviceID),
+		ClientFingerprint:     optionalTrimmedStringPtr(input.ClientFingerprint),
 		GroupID:               apiKey.GroupID,
 		SubscriptionID:        optionalSubscriptionID(subscription),
 		CreatedAt:             time.Now(),

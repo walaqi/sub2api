@@ -388,6 +388,7 @@ export default {
     channelMonitor: 'Channel Monitor',
     channelStatus: 'Channel Status',
     riskControl: 'Risk Control',
+    abuseDetection: 'Multi-account',
   },
 
   // Auth
@@ -2391,6 +2392,62 @@ export default {
          syncModelsError: 'Failed to sync models'
        }
      },
+
+    abuse: {
+      title: 'Multi-account Abuse Detection',
+      description: 'Spot multi-account "farms" sharing a device_id / fingerprint / IP, with one-click disable and temporary throttling.',
+      dimensions: {
+        device: 'Device',
+        fingerprint: 'Fingerprint',
+        ip: 'IP',
+      },
+      throttle: {
+        title: 'Temporary Throttle',
+        hint: 'When on, the background job auto-adds cross-matched suspects (device∩IP or fingerprint∩IP) to a throttle list and scales their RPM.',
+        ratePercent: 'Throttle Rate (%)',
+        floorRpm: 'Unlimited-user Floor RPM',
+        minUsers: 'Threshold (N)',
+        windowHours: 'Detection Window (hours)',
+        intervalMin: 'Re-run Interval (min)',
+        ttlMinutes: 'List TTL (min)',
+        crossGuardNote: 'IP single-dimension is display-only and never enters the auto-throttle list on its own.',
+        saved: 'Throttle settings saved',
+      },
+      throttled: {
+        title: 'Currently Throttled Users',
+        userId: 'User ID',
+        dimensions: 'Matched Dimensions',
+        markedAt: 'Marked At',
+        remaining: 'Remaining',
+        clearNow: 'Clear Now',
+        clearConfirm: 'Clear all currently auto-throttled users? Users who stopped abusing recover immediately.',
+        cleared: 'Cleared {count} throttle entries',
+        empty: 'No users are currently auto-throttled.',
+      },
+      suspects: {
+        title: 'Suspect Groups',
+        windowHours: 'Window (hours)',
+        minUsers: 'Threshold (N)',
+        scan: 'Scan',
+        empty: 'No groups met the threshold in this window.',
+        ipDisplayOnly: 'Display only',
+        userCount: '{count} users',
+        requests: '{count} requests',
+        selectedCount: '{count} users selected',
+        disableSelected: 'Disable Selected',
+        disableTitle: 'Bulk Disable Users',
+        disableConfirm: 'Disable the {count} selected users? Admin accounts are skipped automatically.',
+        disableResult: 'Success {success}, skipped {skipped}, failed {failed}',
+      },
+      errors: {
+        loadSettings: 'Failed to load throttle settings',
+        saveSettings: 'Failed to save throttle settings',
+        loadThrottled: 'Failed to load throttle list',
+        clear: 'Failed to clear throttle list',
+        loadSuspects: 'Failed to query suspect groups',
+        disable: 'Bulk disable failed',
+      },
+    },
 
     riskControl: {
       title: 'Risk Control',

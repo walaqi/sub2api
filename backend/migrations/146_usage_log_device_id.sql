@@ -1,0 +1,13 @@
+-- Add device_id to usage_logs for "same terminal, different accounts" abuse detection.
+--
+-- device_id is the client-reported terminal identifier carried in Claude Code's
+-- metadata.user_id (a 64-char hex for the official CLI). It is NOT cryptographically
+-- bound to the account, so it is a high-precision-but-spoofable signal:
+--   - a device_id matching MULTIPLE accounts is strong evidence of a multi-account farm;
+--   - a missing/unique device_id is NOT proof of innocence (it can be randomized).
+-- See also the IP-based heuristic already used for the same purpose.
+--
+-- Nullable, no default: on PostgreSQL 11+ this is a metadata-only change and is
+-- instant even on large tables. Backfill is intentionally not attempted — the
+-- value is only available going forward from the request that produced the log.
+ALTER TABLE usage_logs ADD COLUMN IF NOT EXISTS device_id VARCHAR(128);

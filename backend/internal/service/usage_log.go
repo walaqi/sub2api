@@ -161,6 +161,14 @@ type UsageLog struct {
 	FirstTokenMs *int
 	UserAgent    *string
 	IPAddress    *string
+	// DeviceID is the client-reported terminal identifier extracted from Claude Code's
+	// metadata.user_id. Nil for non-Claude-Code traffic or when not parseable. It is a
+	// high-precision but spoofable signal for multi-account/same-terminal abuse detection.
+	DeviceID *string
+	// ClientFingerprint is a truncated SHA-256 over stable inbound request headers
+	// (UA / X-Stainless-*). Nil when no fingerprint headers are present. Spoofable,
+	// same trust level as DeviceID; used cross-referenced with DeviceID + IPAddress.
+	ClientFingerprint *string
 
 	// Cache TTL Override 标记（管理员强制替换了缓存 TTL 计费）
 	CacheTTLOverridden bool

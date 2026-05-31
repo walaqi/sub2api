@@ -195,6 +195,14 @@ func (r *contentModerationTestUserRepo) BatchAddConcurrency(ctx context.Context,
 	panic("unexpected BatchAddConcurrency call")
 }
 
+func (r *contentModerationTestUserRepo) GetRolesByIDs(ctx context.Context, userIDs []int64) (map[int64]string, error) {
+	panic("unexpected GetRolesByIDs call")
+}
+
+func (r *contentModerationTestUserRepo) BatchUpdateStatus(ctx context.Context, userIDs []int64, status string) (int, error) {
+	panic("unexpected BatchUpdateStatus call")
+}
+
 func (r *contentModerationTestUserRepo) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	panic("unexpected ExistsByEmail call")
 }

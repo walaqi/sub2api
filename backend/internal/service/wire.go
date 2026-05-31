@@ -422,6 +422,26 @@ func ProvideBillingCacheService(
 	return NewBillingCacheService(cache, userRepo, subRepo, apiKeyRepo, rpmCache, rateRepo, cfg)
 }
 
+// ProvideAbuseDetectionService wires the read-only multi-account detection service.
+func ProvideAbuseDetectionService(usageLogRepo UsageLogRepository) *AbuseDetectionService {
+	return NewAbuseDetectionService(usageLogRepo)
+}
+
+// ProvideSuspectThrottleService wires the background throttle ticker, connects the
+// throttle dependencies into BillingCacheService (post-construction to keep the DI
+// graph acyclic), and starts the loop.
+func ProvideSuspectThrottleService(
+	detection *AbuseDetectionService,
+	store SuspectStore,
+	settingService *SettingService,
+	billingCacheService *BillingCacheService,
+) *SuspectThrottleService {
+	billingCacheService.SetSuspectThrottle(settingService, store)
+	svc := NewSuspectThrottleService(detection, store, settingService)
+	svc.Start()
+	return svc
+}
+
 // ProvideAPIKeyService wires APIKeyService and connects rate-limit cache invalidation.
 func ProvideAPIKeyService(
 	apiKeyRepo APIKeyRepository,
@@ -531,6 +551,8 @@ var ProviderSet = wire.NewSet(
 	ProvideChannelMonitorService,
 	ProvideChannelMonitorRunner,
 	NewChannelMonitorRequestTemplateService,
+	ProvideAbuseDetectionService,
+	ProvideSuspectThrottleService,
 )
 
 // ProvidePaymentConfigService wraps NewPaymentConfigService to accept the named

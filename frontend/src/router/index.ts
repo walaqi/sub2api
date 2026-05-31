@@ -584,6 +584,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/abuse',
+    name: 'AdminAbuse',
+    component: () => import('@/views/admin/AbuseDetectionView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Multi-account Abuse',
+      titleKey: 'admin.abuse.title',
+      descriptionKey: 'admin.abuse.description'
+    }
+  },
+  {
     path: '/admin/affiliates',
     redirect: '/admin/affiliates/invites'
   },

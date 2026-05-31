@@ -89,6 +89,12 @@ func (s *userHandlerRepoStub) DeductBalance(context.Context, int64, float64) err
 func (s *userHandlerRepoStub) UpdateConcurrency(context.Context, int64, int) error { return nil }
 func (s *userHandlerRepoStub) BatchSetConcurrency(context.Context, []int64, int) (int, error) { return 0, nil }
 func (s *userHandlerRepoStub) BatchAddConcurrency(context.Context, []int64, int) (int, error) { return 0, nil }
+func (s *userHandlerRepoStub) GetRolesByIDs(context.Context, []int64) (map[int64]string, error) {
+	return nil, nil
+}
+func (s *userHandlerRepoStub) BatchUpdateStatus(context.Context, []int64, string) (int, error) {
+	return 0, nil
+}
 func (s *userHandlerRepoStub) ExistsByEmail(context.Context, string) (bool, error) { return false, nil }
 func (s *userHandlerRepoStub) RemoveGroupFromAllowedGroups(context.Context, int64) (int64, error) {
 	return 0, nil

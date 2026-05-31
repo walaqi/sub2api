@@ -251,3 +251,145 @@ func TestBillingCacheService_CheckRPM_NilUserIsNoop(t *testing.T) {
 	require.EqualValues(t, 0, atomic.LoadInt32(&cache.userCalls))
 	require.EqualValues(t, 0, atomic.LoadInt32(&repo.calls))
 }
+
+// ── 多账户限流（suspect throttle）注入测试 ──
+
+// throttleSettingsStub 提供固定的限流配置（模拟 SettingService 的缓存 getter）。
+type throttleSettingsStub struct {
+	settings *SuspectThrottleSettings
+}
+
+func (s *throttleSettingsStub) GetSuspectThrottleSettingsCached(_ context.Context) *SuspectThrottleSettings {
+	return s.settings
+}
+
+// suspectMembershipStub 记录调用次数并返回固定命中结果/错误。
+type suspectMembershipStub struct {
+	suspect bool
+	err     error
+	calls   int32
+}
+
+func (s *suspectMembershipStub) IsSuspect(_ context.Context, _ int64) (bool, error) {
+	atomic.AddInt32(&s.calls, 1)
+	return s.suspect, s.err
+}
+
+func enableThrottle(svc *BillingCacheService, settings *SuspectThrottleSettings, suspect bool, err error) *suspectMembershipStub {
+	store := &suspectMembershipStub{suspect: suspect, err: err}
+	svc.SetSuspectThrottle(&throttleSettingsStub{settings: settings}, store)
+	return store
+}
+
+func TestBillingCacheService_CheckRPM_ThrottleDisabledSkipsRedis(t *testing.T) {
+	cache := &userRPMCacheStub{}
+	repo := &rpmOverrideRepoStub{override: nil}
+	svc := newBillingServiceForRPM(t, cache, repo)
+
+	// 开关关闭：即使接入了 store，也不应查询 IsSuspect。
+	store := enableThrottle(svc, &SuspectThrottleSettings{Enabled: false, RatePercent: 50, FloorRPM: 30}, true, nil)
+
+	user := &User{ID: 1, RPMLimit: 0}
+	group := &Group{ID: 10, RPMLimit: 0}
+	for i := 0; i < 5; i++ {
+		require.NoError(t, svc.checkRPM(context.Background(), user, group))
+	}
+	require.EqualValues(t, 0, atomic.LoadInt32(&store.calls), "开关关闭时不应查询 IsSuspect")
+}
+
+func TestBillingCacheService_CheckRPM_ThrottleNotSuspectIsZeroOverhead(t *testing.T) {
+	cache := &userRPMCacheStub{userCounts: []int{1, 2, 3}}
+	repo := &rpmOverrideRepoStub{override: nil}
+	svc := newBillingServiceForRPM(t, cache, repo)
+
+	store := enableThrottle(svc, &SuspectThrottleSettings{Enabled: true, RatePercent: 50, FloorRPM: 30}, false, nil)
+
+	user := &User{ID: 1, RPMLimit: 2}
+	// 未命中名单 → 现有逻辑零改动（阈值仍为 2）。
+	require.NoError(t, svc.checkRPM(context.Background(), user, nil))
+	require.NoError(t, svc.checkRPM(context.Background(), user, nil))
+	require.ErrorIs(t, svc.checkRPM(context.Background(), user, nil), ErrUserRPMExceeded)
+	require.EqualValues(t, 3, atomic.LoadInt32(&store.calls), "开关开启时每请求查询一次")
+}
+
+func TestBillingCacheService_CheckRPM_ThrottleScalesUserLimit(t *testing.T) {
+	// user.RPMLimit=10，限流 50% → effective=5；第 6 次超限。
+	cache := &userRPMCacheStub{userCounts: []int{1, 2, 3, 4, 5, 6}}
+	repo := &rpmOverrideRepoStub{override: nil}
+	svc := newBillingServiceForRPM(t, cache, repo)
+	enableThrottle(svc, &SuspectThrottleSettings{Enabled: true, RatePercent: 50, FloorRPM: 30}, true, nil)
+
+	user := &User{ID: 1, RPMLimit: 10}
+	for i := 0; i < 5; i++ {
+		require.NoError(t, svc.checkRPM(context.Background(), user, nil), "request %d should pass", i+1)
+	}
+	require.ErrorIs(t, svc.checkRPM(context.Background(), user, nil), ErrUserRPMExceeded,
+		"限流 50% 后 user.RPMLimit=10 的有效阈值应为 5")
+}
+
+func TestBillingCacheService_CheckRPM_ThrottleFloorForUnlimitedUser(t *testing.T) {
+	// user.RPMLimit=0（无限额）命中名单 → 套用 FloorRPM=3；第 4 次超限。
+	cache := &userRPMCacheStub{userCounts: []int{1, 2, 3, 4}}
+	repo := &rpmOverrideRepoStub{override: nil}
+	svc := newBillingServiceForRPM(t, cache, repo)
+	enableThrottle(svc, &SuspectThrottleSettings{Enabled: true, RatePercent: 50, FloorRPM: 3}, true, nil)
+
+	user := &User{ID: 1, RPMLimit: 0}
+	group := &Group{ID: 10, RPMLimit: 0} // 组也无限制 → 兜底只在 user 层
+	for i := 0; i < 3; i++ {
+		require.NoError(t, svc.checkRPM(context.Background(), user, group), "request %d should pass", i+1)
+	}
+	require.ErrorIs(t, svc.checkRPM(context.Background(), user, group), ErrUserRPMExceeded,
+		"无限额用户命中名单应套 FloorRPM=3 兜底")
+	require.EqualValues(t, 0, atomic.LoadInt32(&cache.userGroupCalls), "组无限制时兜底不在组层重复套用")
+}
+
+func TestBillingCacheService_CheckRPM_ThrottleOverrideZeroStaysExempt(t *testing.T) {
+	// override=0 是有意豁免，限流不应把它误判成兜底；user.RPMLimit=0 → 套 FloorRPM。
+	zero := 0
+	cache := &userRPMCacheStub{userCounts: []int{1, 2, 3, 4}}
+	repo := &rpmOverrideRepoStub{override: &zero}
+	svc := newBillingServiceForRPM(t, cache, repo)
+	enableThrottle(svc, &SuspectThrottleSettings{Enabled: true, RatePercent: 50, FloorRPM: 3}, true, nil)
+
+	user := &User{ID: 1, RPMLimit: 0}
+	group := &Group{ID: 10, RPMLimit: 100}
+	for i := 0; i < 3; i++ {
+		require.NoError(t, svc.checkRPM(context.Background(), user, group), "request %d should pass", i+1)
+	}
+	require.ErrorIs(t, svc.checkRPM(context.Background(), user, group), ErrUserRPMExceeded)
+	require.EqualValues(t, 0, atomic.LoadInt32(&cache.userGroupCalls),
+		"override=0 应保持豁免，不缩放、不在组层套兜底")
+}
+
+func TestBillingCacheService_CheckRPM_ThrottleScalesGroupLimit(t *testing.T) {
+	// group.RPMLimit=10，限流 50% → effective=5；第 6 次超限。
+	cache := &userRPMCacheStub{userGroupCounts: []int{1, 2, 3, 4, 5, 6}}
+	repo := &rpmOverrideRepoStub{override: nil}
+	svc := newBillingServiceForRPM(t, cache, repo)
+	enableThrottle(svc, &SuspectThrottleSettings{Enabled: true, RatePercent: 50, FloorRPM: 30}, true, nil)
+
+	user := &User{ID: 1, RPMLimit: 0} // user 无限额；但 user 层会套 FloorRPM=30（计数默认 1，不超）
+	group := &Group{ID: 10, RPMLimit: 10}
+	for i := 0; i < 5; i++ {
+		require.NoError(t, svc.checkRPM(context.Background(), user, group), "request %d should pass", i+1)
+	}
+	require.ErrorIs(t, svc.checkRPM(context.Background(), user, group), ErrGroupRPMExceeded,
+		"限流 50% 后 group.RPMLimit=10 的有效阈值应为 5")
+}
+
+func TestBillingCacheService_CheckRPM_ThrottleLookupErrorFailOpen(t *testing.T) {
+	// IsSuspect 查询失败 → fail-open，不限流（阈值保持原值）。
+	cache := &userRPMCacheStub{userCounts: []int{1, 2, 3, 4, 5}}
+	repo := &rpmOverrideRepoStub{override: nil}
+	svc := newBillingServiceForRPM(t, cache, repo)
+	enableThrottle(svc, &SuspectThrottleSettings{Enabled: true, RatePercent: 50, FloorRPM: 3}, false, errors.New("redis down"))
+
+	user := &User{ID: 1, RPMLimit: 4}
+	// 名单查询失败 → 不缩放，阈值仍为 4。
+	for i := 0; i < 4; i++ {
+		require.NoError(t, svc.checkRPM(context.Background(), user, nil), "request %d should pass", i+1)
+	}
+	require.ErrorIs(t, svc.checkRPM(context.Background(), user, nil), ErrUserRPMExceeded)
+}
+

@@ -40,6 +40,7 @@ func ProvideAdminHandlers(
 	paymentHandler *admin.PaymentHandler,
 	affiliateHandler *admin.AffiliateHandler,
 	giftOpsHandler *admin.GiftOpsHandler,
+	abuseHandler *admin.AbuseHandler,
 ) *AdminHandlers {
 	return &AdminHandlers{
 		Dashboard:              dashboardHandler,
@@ -73,6 +74,7 @@ func ProvideAdminHandlers(
 		Payment:                paymentHandler,
 		Affiliate:              affiliateHandler,
 		GiftOps:                giftOpsHandler,
+		Abuse:                  abuseHandler,
 	}
 }
 
@@ -115,6 +117,7 @@ func ProvideHandlers(
 	availableChannelHandler *AvailableChannelHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
+	_ *service.SuspectThrottleService,
 ) *Handlers {
 	return &Handlers{
 		Auth:             authHandler,
@@ -187,6 +190,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewPaymentHandler,
 	admin.NewAffiliateHandler,
 	admin.NewGiftOpsHandler,
+	admin.NewAbuseHandler,
 
 	// AdminHandlers and Handlers constructors
 	ProvideAdminHandlers,

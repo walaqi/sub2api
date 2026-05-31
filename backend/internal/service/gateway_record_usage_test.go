@@ -192,6 +192,129 @@ func TestGatewayServiceRecordUsage_PreservesRequestedAndUpstreamModels(t *testin
 	require.Equal(t, mappedModel, *usageRepo.lastLog.UpstreamModel)
 }
 
+func TestGatewayServiceRecordUsage_ExtractsDeviceIDFromMetadataUserID(t *testing.T) {
+	deviceHex := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	sessionUUID := "11111111-1111-1111-1111-111111111111"
+
+	cases := []struct {
+		name           string
+		metadataUserID string
+		parsedReq      bool
+		wantDeviceID   *string
+	}{
+		{
+			name:           "legacy_format_populates_device_id",
+			metadataUserID: "user_" + deviceHex + "_account__session_" + sessionUUID,
+			parsedReq:      true,
+			wantDeviceID:   &deviceHex,
+		},
+		{
+			name:           "json_format_populates_device_id",
+			metadataUserID: `{"device_id":"` + deviceHex + `","account_uuid":"","session_id":"` + sessionUUID + `"}`,
+			parsedReq:      true,
+			wantDeviceID:   &deviceHex,
+		},
+		{
+			name:           "unparseable_metadata_leaves_device_id_nil",
+			metadataUserID: "not-a-valid-user-id",
+			parsedReq:      true,
+			wantDeviceID:   nil,
+		},
+		{
+			name:           "no_parsed_request_leaves_device_id_nil",
+			metadataUserID: "",
+			parsedReq:      false,
+			wantDeviceID:   nil,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+			svc := newGatewayRecordUsageServiceForTest(usageRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{})
+
+			input := &RecordUsageInput{
+				Result: &ForwardResult{
+					RequestID: "gateway_device_id_" + tc.name,
+					Usage:     ClaudeUsage{InputTokens: 10, OutputTokens: 6},
+					Model:     "claude-sonnet-4",
+					Duration:  time.Second,
+				},
+				APIKey:  &APIKey{ID: 501, Quota: 100},
+				User:    &User{ID: 601},
+				Account: &Account{ID: 701},
+			}
+			if tc.parsedReq {
+				input.ParsedRequest = &ParsedRequest{MetadataUserID: tc.metadataUserID}
+			}
+
+			err := svc.RecordUsage(context.Background(), input)
+			require.NoError(t, err)
+			require.NotNil(t, usageRepo.lastLog)
+			if tc.wantDeviceID == nil {
+				require.Nil(t, usageRepo.lastLog.DeviceID)
+			} else {
+				require.NotNil(t, usageRepo.lastLog.DeviceID)
+				require.Equal(t, *tc.wantDeviceID, *usageRepo.lastLog.DeviceID)
+			}
+		})
+	}
+}
+
+func TestGatewayServiceRecordUsage_PersistsClientFingerprint(t *testing.T) {
+	cases := []struct {
+		name        string
+		fingerprint string
+		wantPtr     *string
+	}{
+		{
+			name:        "non_empty_fingerprint_is_persisted",
+			fingerprint: "fp-deadbeef",
+			wantPtr:     ptrString("fp-deadbeef"),
+		},
+		{
+			name:        "whitespace_only_fingerprint_leaves_nil",
+			fingerprint: "   ",
+			wantPtr:     nil,
+		},
+		{
+			name:        "empty_fingerprint_leaves_nil",
+			fingerprint: "",
+			wantPtr:     nil,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+			svc := newGatewayRecordUsageServiceForTest(usageRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{})
+
+			input := &RecordUsageInput{
+				Result: &ForwardResult{
+					RequestID: "gateway_client_fp_" + tc.name,
+					Usage:     ClaudeUsage{InputTokens: 10, OutputTokens: 6},
+					Model:     "claude-sonnet-4",
+					Duration:  time.Second,
+				},
+				APIKey:            &APIKey{ID: 501, Quota: 100},
+				User:              &User{ID: 601},
+				Account:           &Account{ID: 701},
+				ClientFingerprint: tc.fingerprint,
+			}
+
+			err := svc.RecordUsage(context.Background(), input)
+			require.NoError(t, err)
+			require.NotNil(t, usageRepo.lastLog)
+			if tc.wantPtr == nil {
+				require.Nil(t, usageRepo.lastLog.ClientFingerprint)
+			} else {
+				require.NotNil(t, usageRepo.lastLog.ClientFingerprint)
+				require.Equal(t, *tc.wantPtr, *usageRepo.lastLog.ClientFingerprint)
+			}
+		})
+	}
+}
+
 func TestGatewayServiceRecordUsage_EmptyImageSizeDefaultsBeforeBillingAndPersistence(t *testing.T) {
 	imagePrice2K := 0.19
 	groupID := int64(901)

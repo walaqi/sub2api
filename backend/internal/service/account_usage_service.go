@@ -68,6 +68,9 @@ type UsageLogRepository interface {
 	GetGlobalStats(ctx context.Context, startTime, endTime time.Time) (*usagestats.UsageStats, error)
 	GetStatsWithFilters(ctx context.Context, filters usagestats.UsageLogFilters) (*usagestats.UsageStats, error)
 
+	// Multi-account abuse detection
+	FindSuspectedMultiAccountGroups(ctx context.Context, filters usagestats.SuspectGroupFilters) ([]usagestats.SuspectGroup, error)
+
 	// Account stats
 	GetAccountUsageStats(ctx context.Context, accountID int64, startTime, endTime time.Time) (*usagestats.AccountUsageStatsResponse, error)
 

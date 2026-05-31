@@ -451,6 +451,26 @@ type RateLimit429CooldownSettings struct {
 	CooldownSeconds int `json:"cooldown_seconds"`
 }
 
+// SuspectThrottleSettings 多账户滥用临时限流配置。
+// 开关打开后，后台服务按 device∩IP / fingerprint∩IP 交叉命中自动算出疑似用户集合，
+// 写入 Redis 并在 RPM 限流时把命中用户的有效阈值缩放 RatePercent%。
+type SuspectThrottleSettings struct {
+	// Enabled 总开关。关闭时 checkRPM 命中内存快照直接返回，连 Redis 都不查。
+	Enabled bool `json:"enabled"`
+	// RatePercent 命中用户的限流系数（百分比），如 50 表示限到原阈值的 50%。
+	RatePercent int `json:"rate_percent"`
+	// FloorRPM 无限额用户（RPMLimit=0）被限流时套用的兜底 RPM。
+	FloorRPM int `json:"floor_rpm"`
+	// MinUsers 触发阈值 N：单维度内 COUNT(DISTINCT user_id) >= N 才算团伙。
+	MinUsers int `json:"min_users"`
+	// WindowHours 检测窗口（小时）。
+	WindowHours int `json:"window_hours"`
+	// IntervalMin 后台重跑检测的间隔（分钟）。
+	IntervalMin int `json:"interval_min"`
+	// TTLMinutes 名单条目 TTL（分钟）。命中即续期，行为停止后分钟级自然消散。
+	TTLMinutes int `json:"ttl_minutes"`
+}
+
 // DefaultOverloadCooldownSettings 返回默认的过载冷却配置（启用，10分钟）
 func DefaultOverloadCooldownSettings() *OverloadCooldownSettings {
 	return &OverloadCooldownSettings{
@@ -464,6 +484,54 @@ func DefaultRateLimit429CooldownSettings() *RateLimit429CooldownSettings {
 	return &RateLimit429CooldownSettings{
 		Enabled:         true,
 		CooldownSeconds: 5,
+	}
+}
+
+// Suspect throttle 默认值常量，供 settings/服务层共享。
+const (
+	DefaultSuspectThrottleRatePercent = 50
+	DefaultSuspectThrottleFloorRPM    = 30
+	DefaultSuspectThrottleMinUsers    = 3
+	DefaultSuspectThrottleWindowHours = 24
+	DefaultSuspectThrottleIntervalMin = 5
+	DefaultSuspectThrottleTTLMinutes  = 30
+)
+
+// DefaultSuspectThrottleSettings 返回默认的多账户限流配置（默认关闭）。
+func DefaultSuspectThrottleSettings() *SuspectThrottleSettings {
+	return &SuspectThrottleSettings{
+		Enabled:     false,
+		RatePercent: DefaultSuspectThrottleRatePercent,
+		FloorRPM:    DefaultSuspectThrottleFloorRPM,
+		MinUsers:    DefaultSuspectThrottleMinUsers,
+		WindowHours: DefaultSuspectThrottleWindowHours,
+		IntervalMin: DefaultSuspectThrottleIntervalMin,
+		TTLMinutes:  DefaultSuspectThrottleTTLMinutes,
+	}
+}
+
+// Normalize 把越界/缺省字段修正为可用值（保留 Enabled 原值）。
+func (s *SuspectThrottleSettings) Normalize() {
+	if s == nil {
+		return
+	}
+	if s.RatePercent < 1 || s.RatePercent > 100 {
+		s.RatePercent = DefaultSuspectThrottleRatePercent
+	}
+	if s.FloorRPM < 1 {
+		s.FloorRPM = DefaultSuspectThrottleFloorRPM
+	}
+	if s.MinUsers < 2 {
+		s.MinUsers = DefaultSuspectThrottleMinUsers
+	}
+	if s.WindowHours < 1 {
+		s.WindowHours = DefaultSuspectThrottleWindowHours
+	}
+	if s.IntervalMin < 1 {
+		s.IntervalMin = DefaultSuspectThrottleIntervalMin
+	}
+	if s.TTLMinutes < 1 {
+		s.TTLMinutes = DefaultSuspectThrottleTTLMinutes
 	}
 }
 

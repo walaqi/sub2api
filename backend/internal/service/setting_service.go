@@ -118,6 +118,21 @@ const gatewayForwardingCacheTTL = 60 * time.Second
 const gatewayForwardingErrorTTL = 5 * time.Second
 const gatewayForwardingDBTimeout = 5 * time.Second
 
+// cachedSuspectThrottleSettings 缓存多账户限流配置（进程内缓存，60s TTL）。
+// checkRPM 是网关最热路径，必须走此缓存范式而非裸 DB 读，
+// 这样"开关关 → 命中内存快照 → 直接返回、不查 Redis"才真正零额外往返。
+type cachedSuspectThrottleSettings struct {
+	settings  *SuspectThrottleSettings
+	expiresAt int64 // unix nano
+}
+
+var suspectThrottleCache atomic.Value // *cachedSuspectThrottleSettings
+var suspectThrottleSF singleflight.Group
+
+const suspectThrottleCacheTTL = 60 * time.Second
+const suspectThrottleErrorTTL = 5 * time.Second
+const suspectThrottleDBTimeout = 5 * time.Second
+
 // cachedAntigravityUserAgentVersion 缓存 Antigravity UA 版本号（进程内缓存，60s TTL）
 type cachedAntigravityUserAgentVersion struct {
 	version   string
@@ -3871,6 +3886,99 @@ func (s *SettingService) SetRateLimit429CooldownSettings(ctx context.Context, se
 	}
 
 	return s.settingRepo.Set(ctx, SettingKeyRateLimit429CooldownSettings, string(data))
+}
+
+// GetSuspectThrottleSettingsCached 返回多账户限流配置，走进程内 60s 缓存 + singleflight。
+// checkRPM 每请求调用，命中内存快照时零锁、零 DB；这是 R2 的关键：开关关时不查 Redis、不打 DB。
+func (s *SettingService) GetSuspectThrottleSettingsCached(ctx context.Context) *SuspectThrottleSettings {
+	if cached, ok := suspectThrottleCache.Load().(*cachedSuspectThrottleSettings); ok && cached != nil {
+		if time.Now().UnixNano() < cached.expiresAt {
+			return cached.settings
+		}
+	}
+	result, _, _ := suspectThrottleSF.Do("suspect_throttle", func() (any, error) {
+		if cached, ok := suspectThrottleCache.Load().(*cachedSuspectThrottleSettings); ok && cached != nil {
+			if time.Now().UnixNano() < cached.expiresAt {
+				return cached.settings, nil
+			}
+		}
+		dbCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), suspectThrottleDBTimeout)
+		defer cancel()
+		value, err := s.settingRepo.GetValue(dbCtx, SettingKeySuspectThrottleSettings)
+		if err != nil {
+			ttl := suspectThrottleErrorTTL
+			if errors.Is(err, ErrSettingNotFound) {
+				// 未创建（全新安装）→ 默认关闭，缓存满 TTL。
+				ttl = suspectThrottleCacheTTL
+			} else {
+				slog.Warn("failed to get suspect_throttle_settings", "error", err)
+			}
+			settings := DefaultSuspectThrottleSettings()
+			suspectThrottleCache.Store(&cachedSuspectThrottleSettings{
+				settings:  settings,
+				expiresAt: time.Now().Add(ttl).UnixNano(),
+			})
+			return settings, nil
+		}
+		settings := DefaultSuspectThrottleSettings()
+		if value != "" {
+			if err := json.Unmarshal([]byte(value), settings); err != nil {
+				slog.Warn("failed to unmarshal suspect_throttle_settings, using defaults", "error", err)
+				settings = DefaultSuspectThrottleSettings()
+			}
+		}
+		settings.Normalize()
+		suspectThrottleCache.Store(&cachedSuspectThrottleSettings{
+			settings:  settings,
+			expiresAt: time.Now().Add(suspectThrottleCacheTTL).UnixNano(),
+		})
+		return settings, nil
+	})
+	if settings, ok := result.(*SuspectThrottleSettings); ok && settings != nil {
+		return settings
+	}
+	return DefaultSuspectThrottleSettings()
+}
+
+// GetSuspectThrottleSettings 直接读 DB（管理端展示用，不走热路径缓存）。
+func (s *SettingService) GetSuspectThrottleSettings(ctx context.Context) (*SuspectThrottleSettings, error) {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeySuspectThrottleSettings)
+	if err != nil {
+		if errors.Is(err, ErrSettingNotFound) {
+			return DefaultSuspectThrottleSettings(), nil
+		}
+		return nil, fmt.Errorf("get suspect throttle settings: %w", err)
+	}
+	settings := DefaultSuspectThrottleSettings()
+	if value != "" {
+		if err := json.Unmarshal([]byte(value), settings); err != nil {
+			return DefaultSuspectThrottleSettings(), nil
+		}
+	}
+	settings.Normalize()
+	return settings, nil
+}
+
+// SetSuspectThrottleSettings 持久化多账户限流配置并立即刷新热路径缓存。
+func (s *SettingService) SetSuspectThrottleSettings(ctx context.Context, settings *SuspectThrottleSettings) error {
+	if settings == nil {
+		return fmt.Errorf("settings cannot be nil")
+	}
+	settings.Normalize()
+	data, err := json.Marshal(settings)
+	if err != nil {
+		return fmt.Errorf("marshal suspect throttle settings: %w", err)
+	}
+	if err := s.settingRepo.Set(ctx, SettingKeySuspectThrottleSettings, string(data)); err != nil {
+		return err
+	}
+	// 立即刷新缓存，缩小旧值覆盖新值的竞态窗口。
+	suspectThrottleSF.Forget("suspect_throttle")
+	suspectThrottleCache.Store(&cachedSuspectThrottleSettings{
+		settings:  settings,
+		expiresAt: time.Now().Add(suspectThrottleCacheTTL).UnixNano(),
+	})
+	return nil
 }
 
 // GetOIDCConnectOAuthConfig 返回用于登录的“最终生效” OIDC 配置。

@@ -200,6 +200,12 @@ func (s *stubUserRepo) UpdateConcurrency(ctx context.Context, id int64, amount i
 
 func (s *stubUserRepo) BatchSetConcurrency(context.Context, []int64, int) (int, error) { return 0, nil }
 func (s *stubUserRepo) BatchAddConcurrency(context.Context, []int64, int) (int, error) { return 0, nil }
+func (s *stubUserRepo) GetRolesByIDs(context.Context, []int64) (map[int64]string, error) {
+	return nil, nil
+}
+func (s *stubUserRepo) BatchUpdateStatus(context.Context, []int64, string) (int, error) {
+	return 0, nil
+}
 
 func (s *stubUserRepo) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	panic("unexpected ExistsByEmail call")

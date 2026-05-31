@@ -1,0 +1,16 @@
+-- Add client_fingerprint to usage_logs for HTTP-layer terminal fingerprinting.
+--
+-- client_fingerprint is a truncated SHA-256 (32 hex chars) over stable inbound
+-- request headers (User-Agent / X-Stainless-OS / Arch / Runtime / Runtime-Version
+-- / Package-Version / Lang / X-App). It is a spoofable signal at the same trust
+-- level as device_id: a fingerprint shared by MANY accounts is strong evidence of
+-- a multi-account farm; a unique/missing fingerprint is NOT proof of innocence.
+-- Its real value is cross-referencing with device_id + ip_address.
+--
+-- See [[multi-account-detection-plan]]: real client TLS (JA3/JA4) is unavailable
+-- on Cloudflare Free (TLS terminates at the edge), so this HTTP-layer fingerprint
+-- is the viable application-layer signal.
+--
+-- Nullable, no default: instant metadata-only change on PostgreSQL 11+. Not
+-- backfilled — only available going forward from the request that produced the log.
+ALTER TABLE usage_logs ADD COLUMN IF NOT EXISTS client_fingerprint VARCHAR(64);

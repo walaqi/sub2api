@@ -100,6 +100,21 @@ func RegisterAdminRoutes(
 
 		// 赠金子系统运维 API（外部 ops 服务调用）
 		registerGiftOpsRoutes(admin, h)
+
+		// 多账户滥用检测
+		registerAbuseRoutes(admin, h)
+	}
+}
+
+func registerAbuseRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	abuse := admin.Group("/abuse")
+	{
+		abuse.GET("/suspects", h.Admin.Abuse.ListSuspects)
+		abuse.POST("/users/bulk-update", h.Admin.Abuse.BulkUpdateUsers)
+		abuse.GET("/throttle-settings", h.Admin.Abuse.GetThrottleSettings)
+		abuse.PUT("/throttle-settings", h.Admin.Abuse.UpdateThrottleSettings)
+		abuse.GET("/throttled", h.Admin.Abuse.ListThrottled)
+		abuse.DELETE("/throttled", h.Admin.Abuse.ClearThrottled)
 	}
 }
 

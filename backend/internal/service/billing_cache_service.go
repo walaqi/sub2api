@@ -83,6 +83,18 @@ type apiKeyRateLimitLoader interface {
 	GetRateLimitData(ctx context.Context, keyID int64) (*APIKeyRateLimitData, error)
 }
 
+// suspectThrottleReader is the minimal surface checkRPM needs to apply the
+// multi-account-abuse throttle: read the cached settings (hot-path, no DB when
+// disabled) and check whether a user is on the auto-throttle list.
+type suspectThrottleReader interface {
+	GetSuspectThrottleSettingsCached(ctx context.Context) *SuspectThrottleSettings
+}
+
+// suspectMembershipReader checks Redis membership of the auto-throttle list.
+type suspectMembershipReader interface {
+	IsSuspect(ctx context.Context, userID int64) (bool, error)
+}
+
 // BillingCacheService 计费缓存服务
 // 负责余额和订阅数据的缓存管理，提供高性能的计费资格检查
 type BillingCacheService struct {
@@ -94,6 +106,11 @@ type BillingCacheService struct {
 	userGroupRateRepo     UserGroupRateRepository
 	cfg                   *config.Config
 	circuitBreaker        *billingCircuitBreaker
+
+	// suspectSettings / suspectStore drive the multi-account-abuse throttle.
+	// Both nil when the feature is not wired; checkRPM then behaves exactly as before.
+	suspectSettings suspectThrottleReader
+	suspectStore    suspectMembershipReader
 
 	cacheWriteChan     chan cacheWriteTask
 	cacheWriteWg       sync.WaitGroup
@@ -130,6 +147,18 @@ func NewBillingCacheService(
 	svc.circuitBreaker = newBillingCircuitBreaker(cfg.Billing.CircuitBreaker)
 	svc.startCacheWriteWorkers()
 	return svc
+}
+
+// SetSuspectThrottle wires the multi-account-abuse throttle dependencies.
+// When both are set and the feature is enabled, checkRPM scales the effective
+// RPM limits of users on the auto-throttle list. Wired post-construction to keep
+// the DI graph acyclic (SettingService/SuspectStore are built after this service).
+func (s *BillingCacheService) SetSuspectThrottle(settings suspectThrottleReader, store suspectMembershipReader) {
+	if s == nil {
+		return
+	}
+	s.suspectSettings = settings
+	s.suspectStore = store
 }
 
 // Stop 关闭缓存写入工作池
@@ -708,9 +737,38 @@ func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user 
 //
 // 与旧版"级联互斥"设计不同，新版确保 user.rpm_limit 作为全局天花板不会被 group 或 override 覆盖。
 // Redis 故障一律 fail-open（打 warning，不阻塞业务）。
+//
+// 多账户限流（R3/R4）：命中疑似名单的用户，各层有效阈值缩放为 RatePercent%；
+//   - override==0 是有意豁免，不缩放、不套兜底；
+//   - 无限额层（limit==0）只在 user 全局层套 FloorRPM 兜底，避免双层重复兜底。
+//
+// 开关关闭时命中内存快照直接跳过（连 Redis 都不查），现有逻辑零改动。
 func (s *BillingCacheService) checkRPM(ctx context.Context, user *User, group *Group) error {
 	if s == nil || s.userRPMCache == nil || user == nil {
 		return nil
+	}
+
+	// ── 多账户限流判定（仅当开关开启且用户命中疑似名单）──
+	throttled := false
+	ratePercent := 100
+	floorRPM := 0
+	if s.suspectSettings != nil && s.suspectStore != nil {
+		settings := s.suspectSettings.GetSuspectThrottleSettingsCached(ctx)
+		if settings != nil && settings.Enabled {
+			isSuspect, err := s.suspectStore.IsSuspect(ctx, user.ID)
+			if err != nil {
+				// fail-open：名单查询失败不限流。
+				logger.LegacyPrintf(
+					"service.billing_cache",
+					"Warning: suspect throttle lookup failed for user=%d: %v",
+					user.ID, err,
+				)
+			} else if isSuspect {
+				throttled = true
+				ratePercent = settings.RatePercent
+				floorRPM = settings.FloorRPM
+			}
+		}
 	}
 
 	// ── 第一层：分组级检查（override 或 group.rpm_limit） ──
@@ -733,8 +791,12 @@ func (s *BillingCacheService) checkRPM(ctx context.Context, user *User, group *G
 		}
 
 		if override != nil {
-			// override=0 → 该用户在该分组免检（但 user 级仍会在下面检查）。
+			// override=0 → 该用户在该分组免检（有意豁免，不缩放/不兜底）；user 级仍会在下面检查。
 			if *override > 0 {
+				limit := *override
+				if throttled {
+					limit = scaleRPMLimit(limit, ratePercent)
+				}
 				count, incErr := s.userRPMCache.IncrementUserGroupRPM(ctx, user.ID, group.ID)
 				if incErr != nil {
 					logger.LegacyPrintf(
@@ -743,13 +805,17 @@ func (s *BillingCacheService) checkRPM(ctx context.Context, user *User, group *G
 						user.ID, group.ID, incErr,
 					)
 					// fail-open
-				} else if count > *override {
+				} else if count > limit {
 					return ErrGroupRPMExceeded
 				}
 			}
 			// override 命中后跳过 group.rpm_limit（override 替代 group），但不 return——继续检查 user 级。
 		} else if group.RPMLimit > 0 {
 			// 无 override，检查 group.rpm_limit。
+			limit := group.RPMLimit
+			if throttled {
+				limit = scaleRPMLimit(limit, ratePercent)
+			}
 			count, err := s.userRPMCache.IncrementUserGroupRPM(ctx, user.ID, group.ID)
 			if err != nil {
 				logger.LegacyPrintf(
@@ -758,14 +824,19 @@ func (s *BillingCacheService) checkRPM(ctx context.Context, user *User, group *G
 					user.ID, group.ID, err,
 				)
 				// fail-open
-			} else if count > group.RPMLimit {
+			} else if count > limit {
 				return ErrGroupRPMExceeded
 			}
 		}
+		// group.rpm_limit==0 且无 override → 该组无组级限制；兜底只在 user 全局层处理。
 	}
 
 	// ── 第二层：用户级全局硬上限（始终生效） ──
 	if user.RPMLimit > 0 {
+		limit := user.RPMLimit
+		if throttled {
+			limit = scaleRPMLimit(limit, ratePercent)
+		}
 		count, err := s.userRPMCache.IncrementUserRPM(ctx, user.ID)
 		if err != nil {
 			logger.LegacyPrintf(
@@ -775,12 +846,39 @@ func (s *BillingCacheService) checkRPM(ctx context.Context, user *User, group *G
 			)
 			return nil // fail-open
 		}
-		if count > user.RPMLimit {
+		if count > limit {
+			return ErrUserRPMExceeded
+		}
+	} else if throttled && floorRPM > 0 {
+		// user.rpm_limit==0（全局无限额）命中疑似名单 → 套用 FloorRPM 兜底，
+		// 否则"50% 的无限制"仍是无限制。
+		count, err := s.userRPMCache.IncrementUserRPM(ctx, user.ID)
+		if err != nil {
+			logger.LegacyPrintf(
+				"service.billing_cache",
+				"Warning: rpm increment (user floor) failed for user=%d: %v",
+				user.ID, err,
+			)
+			return nil // fail-open
+		}
+		if count > floorRPM {
 			return ErrUserRPMExceeded
 		}
 	}
 
 	return nil
+}
+
+// scaleRPMLimit 把限额按百分比缩放，最小返回 1（缩放后不至于变成 0=无限）。
+func scaleRPMLimit(limit, ratePercent int) int {
+	if ratePercent >= 100 {
+		return limit
+	}
+	scaled := limit * ratePercent / 100
+	if scaled < 1 {
+		return 1
+	}
+	return scaled
 }
 
 // checkBalanceEligibility 检查余额模式资格

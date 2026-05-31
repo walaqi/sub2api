@@ -422,6 +422,15 @@ const (
 
 	// Web Search Emulation
 	SettingKeyWebSearchEmulationConfig = "web_search_emulation_config" // JSON 配置
+
+	// =========================
+	// Multi-account Abuse — Suspect Throttle
+	// =========================
+
+	// SettingKeySuspectThrottleSettings stores JSON config for the temporary
+	// multi-account-abuse throttle (enable switch, rate percent, floor RPM,
+	// detection window/threshold, background interval, and per-entry TTL).
+	SettingKeySuspectThrottleSettings = "suspect_throttle_settings"
 )
 
 // AdminAPIKeyPrefix is the prefix for admin API keys (distinct from user "sk-" keys).

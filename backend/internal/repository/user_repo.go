@@ -769,6 +769,50 @@ func (r *userRepository) BatchAddConcurrency(ctx context.Context, userIDs []int6
 	return int(affected), nil
 }
 
+// GetRolesByIDs returns role keyed by user id. Soft-deleted users are skipped.
+func (r *userRepository) GetRolesByIDs(ctx context.Context, userIDs []int64) (map[int64]string, error) {
+	result := make(map[int64]string, len(userIDs))
+	if len(userIDs) == 0 {
+		return result, nil
+	}
+	rows, err := r.sql.QueryContext(ctx,
+		"SELECT id, role FROM users WHERE id = ANY($1) AND deleted_at IS NULL",
+		pq.Array(userIDs))
+	if err != nil {
+		return nil, fmt.Errorf("get roles by ids: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var (
+			id   int64
+			role string
+		)
+		if err := rows.Scan(&id, &role); err != nil {
+			return nil, fmt.Errorf("scan role row: %w", err)
+		}
+		result[id] = role
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// BatchUpdateStatus sets status for the given ids and returns the affected count.
+func (r *userRepository) BatchUpdateStatus(ctx context.Context, userIDs []int64, status string) (int, error) {
+	if len(userIDs) == 0 {
+		return 0, nil
+	}
+	res, err := r.sql.ExecContext(ctx,
+		"UPDATE users SET status = $1, updated_at = NOW() WHERE id = ANY($2) AND deleted_at IS NULL",
+		status, pq.Array(userIDs))
+	if err != nil {
+		return 0, fmt.Errorf("batch update status: %w", err)
+	}
+	affected, _ := res.RowsAffected()
+	return int(affected), nil
+}
+
 func (r *userRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	return r.client.User.Query().Where(userEmailLookupPredicate(email)).Exist(ctx)
 }

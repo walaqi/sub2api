@@ -28,7 +28,7 @@ import (
 	gocache "github.com/patrickmn/go-cache"
 )
 
-const usageLogSelectColumns = "id, user_id, api_key_id, account_id, request_id, model, requested_model, upstream_model, group_id, subscription_id, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, cache_creation_5m_tokens, cache_creation_1h_tokens, image_output_tokens, image_output_cost, input_cost, output_cost, cache_creation_cost, cache_read_cost, total_cost, actual_cost, gift_cost, recharge_cost, rate_multiplier, account_rate_multiplier, billing_type, request_type, stream, openai_ws_mode, duration_ms, first_token_ms, user_agent, ip_address, image_count, image_size, image_input_size, image_output_size, image_size_source, image_size_breakdown, service_tier, reasoning_effort, inbound_endpoint, upstream_endpoint, cache_ttl_overridden, channel_id, model_mapping_chain, billing_tier, billing_mode, account_stats_cost, created_at"
+const usageLogSelectColumns = "id, user_id, api_key_id, account_id, request_id, model, requested_model, upstream_model, group_id, subscription_id, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, cache_creation_5m_tokens, cache_creation_1h_tokens, image_output_tokens, image_output_cost, input_cost, output_cost, cache_creation_cost, cache_read_cost, total_cost, actual_cost, gift_cost, recharge_cost, rate_multiplier, account_rate_multiplier, billing_type, request_type, stream, openai_ws_mode, duration_ms, first_token_ms, user_agent, ip_address, image_count, image_size, image_input_size, image_output_size, image_size_source, image_size_breakdown, service_tier, reasoning_effort, inbound_endpoint, upstream_endpoint, cache_ttl_overridden, channel_id, model_mapping_chain, billing_tier, billing_mode, account_stats_cost, created_at, device_id, client_fingerprint"
 
 // usageLogInsertArgTypes must stay in the same order as:
 //  1. prepareUsageLogInsert().args
@@ -90,6 +90,8 @@ var usageLogInsertArgTypes = [...]string{
 	"text",        // billing_mode
 	"numeric",     // account_stats_cost
 	"timestamptz", // created_at
+	"text",        // device_id
+	"text",        // client_fingerprint
 }
 
 const rawUsageLogModelColumn = "model"
@@ -408,14 +410,16 @@ func (r *usageLogRepository) createSingle(ctx context.Context, sqlq sqlExecutor,
 			billing_tier,
 			billing_mode,
 			account_stats_cost,
-			created_at
+			created_at,
+			device_id,
+			client_fingerprint
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7,
 			$8, $9,
 			$10, $11, $12, $13,
 			$14, $15, $16, $17,
 			$18, $19, $20, $21, $22, $23, $24, $25,
-			$26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52
+			$26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54
 		)
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 		RETURNING id, created_at
@@ -852,7 +856,9 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 			billing_tier,
 			billing_mode,
 			account_stats_cost,
-			created_at
+			created_at,
+			device_id,
+			client_fingerprint
 		) AS (VALUES `)
 
 	args := make([]any, 0, len(keys)*50)
@@ -935,7 +941,9 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 				billing_tier,
 				billing_mode,
 				account_stats_cost,
-				created_at
+				created_at,
+				device_id,
+				client_fingerprint
 			)
 			SELECT
 				user_id,
@@ -989,7 +997,9 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 				billing_tier,
 				billing_mode,
 				account_stats_cost,
-				created_at
+				created_at,
+				device_id,
+				client_fingerprint
 			FROM input
 			ON CONFLICT (request_id, api_key_id) DO NOTHING
 			RETURNING request_id, api_key_id, id, created_at
@@ -1083,7 +1093,9 @@ func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (
 			billing_tier,
 			billing_mode,
 			account_stats_cost,
-			created_at
+			created_at,
+			device_id,
+			client_fingerprint
 		) AS (VALUES `)
 
 	args := make([]any, 0, len(preparedList)*50)
@@ -1163,7 +1175,9 @@ func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (
 			billing_tier,
 			billing_mode,
 			account_stats_cost,
-			created_at
+			created_at,
+			device_id,
+			client_fingerprint
 		)
 		SELECT
 			user_id,
@@ -1217,7 +1231,9 @@ func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (
 			billing_tier,
 			billing_mode,
 			account_stats_cost,
-			created_at
+			created_at,
+			device_id,
+			client_fingerprint
 		FROM input
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 	`)
@@ -1279,14 +1295,16 @@ func execUsageLogInsertNoResult(ctx context.Context, sqlq sqlExecutor, prepared 
 			billing_tier,
 			billing_mode,
 			account_stats_cost,
-			created_at
+			created_at,
+			device_id,
+			client_fingerprint
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7,
 			$8, $9,
 			$10, $11, $12, $13,
 			$14, $15, $16, $17,
 			$18, $19, $20, $21, $22, $23, $24, $25,
-			$26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52
+			$26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54
 		)
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 	`, prepared.args...)
@@ -1325,6 +1343,8 @@ func prepareUsageLogInsert(log *service.UsageLog) usageLogInsertPrepared {
 	modelMappingChain := nullString(log.ModelMappingChain)
 	billingTier := nullString(log.BillingTier)
 	billingMode := nullString(log.BillingMode)
+	deviceID := nullString(log.DeviceID)
+	clientFingerprint := nullString(log.ClientFingerprint)
 	requestedModel := strings.TrimSpace(log.RequestedModel)
 	if requestedModel == "" {
 		requestedModel = strings.TrimSpace(log.Model)
@@ -1394,6 +1414,8 @@ func prepareUsageLogInsert(log *service.UsageLog) usageLogInsertPrepared {
 			billingMode,
 			log.AccountStatsCost, // account_stats_cost
 			createdAt,
+			deviceID,
+			clientFingerprint,
 		},
 	}
 }
@@ -4270,6 +4292,8 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 		billingMode           sql.NullString
 		accountStatsCost      sql.NullFloat64
 		createdAt             time.Time
+		deviceID              sql.NullString
+		clientFingerprint     sql.NullString
 	)
 
 	if err := scanner.Scan(
@@ -4326,6 +4350,8 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 		&billingMode,
 		&accountStatsCost,
 		&createdAt,
+		&deviceID,
+		&clientFingerprint,
 	); err != nil {
 		return nil, err
 	}
@@ -4436,6 +4462,12 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 	if accountStatsCost.Valid {
 		log.AccountStatsCost = &accountStatsCost.Float64
 	}
+	if deviceID.Valid {
+		log.DeviceID = &deviceID.String
+	}
+	if clientFingerprint.Valid {
+		log.ClientFingerprint = &clientFingerprint.String
+	}
 
 	return log, nil
 }
@@ -4489,6 +4521,161 @@ func scanModelStatsRows(rows *sql.Rows) ([]ModelStat, error) {
 		return nil, err
 	}
 	return results, nil
+}
+
+// suspectGroupDimensionColumn maps an abuse dimension to its usage_logs column.
+// Returns "" for an unknown dimension.
+func suspectGroupDimensionColumn(dim string) string {
+	switch dim {
+	case usagestats.AbuseDimensionDevice:
+		return "device_id"
+	case usagestats.AbuseDimensionFingerprint:
+		return "client_fingerprint"
+	case usagestats.AbuseDimensionIP:
+		return "ip_address"
+	default:
+		return ""
+	}
+}
+
+// FindSuspectedMultiAccountGroups detects "farms": single device_id /
+// client_fingerprint / ip_address values shared by COUNT(DISTINCT user_id) >=
+// MinUsers within [StartTime, EndTime). Each requested dimension is scanned
+// independently (OR semantics) and the per-member footprint is returned for
+// admin display; cross-dimension intersection for the automatic throttle is
+// computed by the service layer on top of these results.
+//
+// NULL device_id / client_fingerprint rows are excluded via WHERE ... IS NOT
+// NULL so empty values cannot collapse into one giant false-positive group.
+func (r *usageLogRepository) FindSuspectedMultiAccountGroups(ctx context.Context, filters usagestats.SuspectGroupFilters) ([]usagestats.SuspectGroup, error) {
+	dimensions := filters.Dimensions
+	if len(dimensions) == 0 {
+		dimensions = []string{
+			usagestats.AbuseDimensionDevice,
+			usagestats.AbuseDimensionFingerprint,
+			usagestats.AbuseDimensionIP,
+		}
+	}
+
+	minUsers := filters.MinUsers
+	if minUsers < 2 {
+		minUsers = 2
+	}
+	maxGroups := filters.MaxGroups
+	if maxGroups <= 0 {
+		maxGroups = 200
+	}
+
+	groups := make([]usagestats.SuspectGroup, 0)
+	for _, dim := range dimensions {
+		col := suspectGroupDimensionColumn(dim)
+		if col == "" {
+			continue
+		}
+		dimGroups, err := r.findSuspectGroupsForDimension(ctx, dim, col, filters.StartTime, filters.EndTime, minUsers, maxGroups)
+		if err != nil {
+			return nil, err
+		}
+		groups = append(groups, dimGroups...)
+	}
+	return groups, nil
+}
+
+// findSuspectGroupsForDimension runs the two-stage aggregation for a single
+// dimension: stage 1 finds the shared values meeting the HAVING threshold,
+// stage 2 expands per-user footprints for those values.
+func (r *usageLogRepository) findSuspectGroupsForDimension(
+	ctx context.Context,
+	dim, col string,
+	startTime, endTime time.Time,
+	minUsers, maxGroups int,
+) (result []usagestats.SuspectGroup, err error) {
+	// col is from an internal whitelist (suspectGroupDimensionColumn), never user input.
+	query := fmt.Sprintf(`
+		WITH flagged AS (
+			SELECT %[1]s AS dim_value
+			FROM usage_logs
+			WHERE %[1]s IS NOT NULL
+			  AND created_at >= $1 AND created_at < $2
+			GROUP BY %[1]s
+			HAVING COUNT(DISTINCT user_id) >= $3
+			ORDER BY COUNT(DISTINCT user_id) DESC, COUNT(*) DESC
+			LIMIT $4
+		)
+		SELECT
+			ul.%[1]s AS dim_value,
+			ul.user_id,
+			COALESCE(us.email, '') AS email,
+			COALESCE(us.username, '') AS username,
+			COUNT(*) AS requests,
+			MIN(ul.created_at) AS first_seen,
+			MAX(ul.created_at) AS last_seen
+		FROM usage_logs ul
+		JOIN flagged f ON f.dim_value = ul.%[1]s
+		LEFT JOIN users us ON us.id = ul.user_id
+		WHERE ul.created_at >= $1 AND ul.created_at < $2
+		GROUP BY ul.%[1]s, ul.user_id, us.email, us.username
+		ORDER BY ul.%[1]s, requests DESC
+	`, col)
+
+	rows, err := r.sql.QueryContext(ctx, query, startTime, endTime, minUsers, maxGroups)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
+
+	// Preserve first-seen order of values while accumulating members.
+	byValue := make(map[string]*usagestats.SuspectGroup)
+	order := make([]string, 0)
+	for rows.Next() {
+		var (
+			value     string
+			member    usagestats.SuspectGroupMember
+			firstSeen time.Time
+			lastSeen  time.Time
+		)
+		if err = rows.Scan(&value, &member.UserID, &member.Email, &member.Username, &member.Requests, &firstSeen, &lastSeen); err != nil {
+			return nil, err
+		}
+		member.FirstSeen = firstSeen
+		member.LastSeen = lastSeen
+
+		group, ok := byValue[value]
+		if !ok {
+			group = &usagestats.SuspectGroup{
+				Dimension: dim,
+				Value:     value,
+				FirstSeen: firstSeen,
+				LastSeen:  lastSeen,
+				Members:   make([]usagestats.SuspectGroupMember, 0, 4),
+			}
+			byValue[value] = group
+			order = append(order, value)
+		}
+		group.Members = append(group.Members, member)
+		group.UserCount++
+		group.TotalRequests += member.Requests
+		if firstSeen.Before(group.FirstSeen) {
+			group.FirstSeen = firstSeen
+		}
+		if lastSeen.After(group.LastSeen) {
+			group.LastSeen = lastSeen
+		}
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	result = make([]usagestats.SuspectGroup, 0, len(order))
+	for _, value := range order {
+		result = append(result, *byValue[value])
+	}
+	return result, nil
 }
 
 func buildWhere(conditions []string) string {
