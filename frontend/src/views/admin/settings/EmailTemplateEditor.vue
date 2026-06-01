@@ -230,7 +230,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { adminAPI } from "@/api";
 import type {
@@ -305,6 +305,11 @@ const placeholders = ref<string[]>([]);
 const previewSubject = ref("");
 const previewHtml = ref("");
 const initializingSelection = ref(false);
+// Monotonic token guarding against out-of-order async responses: a slow GET for
+// a previously-selected event/locale must not overwrite a newer selection.
+let loadToken = 0;
+// Debounce handle for live preview while editing subject/html.
+let previewDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 interface EventDisplayMeta {
   label: string;
@@ -574,18 +579,22 @@ function applyTemplate(template: {
 
 async function loadTemplate() {
   if (!selectedEvent.value || !selectedLocale.value) return;
+  const token = ++loadToken;
+  const event = selectedEvent.value;
+  const locale = selectedLocale.value;
   loadingTemplate.value = true;
   try {
-    const template = await adminAPI.settings.getEmailTemplate(
-      selectedEvent.value,
-      selectedLocale.value,
-    );
+    const template = await adminAPI.settings.getEmailTemplate(event, locale);
+    // Drop the response if a newer load (or selection change) started meanwhile,
+    // so a stale official template can't clobber the latest custom one.
+    if (token !== loadToken) return;
     applyTemplate(template);
     await refreshPreview();
   } catch (err: unknown) {
+    if (token !== loadToken) return;
     appStore.showError(extractApiErrorMessage(err, t("common.error")));
   } finally {
-    loadingTemplate.value = false;
+    if (token === loadToken) loadingTemplate.value = false;
   }
 }
 
@@ -616,7 +625,7 @@ async function saveTemplate() {
   }
   saving.value = true;
   try {
-    const template = await adminAPI.settings.updateEmailTemplate(
+    await adminAPI.settings.updateEmailTemplate(
       selectedEvent.value,
       selectedLocale.value,
       {
@@ -624,8 +633,11 @@ async function saveTemplate() {
         html: html.value,
       },
     );
-    applyTemplate(template);
-    await refreshPreview();
+    // Re-fetch from the server instead of trusting the PUT echo, so the editor
+    // always reflects what is actually persisted. If a reload were to show the
+    // official template, the persistence problem surfaces here at save time
+    // rather than silently on the next reopen.
+    await loadTemplate();
     appStore.showSuccess(t("admin.settings.emailTemplates.saveSuccess"));
   } catch (err: unknown) {
     appStore.showError(extractApiErrorMessage(err, t("common.error")));
@@ -691,6 +703,23 @@ watch([selectedEvent, selectedLocale], ([eventValue, localeValue], [oldEvent, ol
   if (!eventValue || !localeValue) return;
   if (eventValue === oldEvent && localeValue === oldLocale) return;
   void loadTemplate();
+});
+
+// Live preview: re-render shortly after the admin edits subject/html, instead of
+// requiring a manual "Preview" click. Debounced to avoid a request per keystroke;
+// skipped while a template is loading (loadTemplate triggers its own preview).
+watch([subject, html], () => {
+  if (loadingTemplate.value || initializingSelection.value) return;
+  if (!canPreview.value) return;
+  if (previewDebounceTimer) clearTimeout(previewDebounceTimer);
+  previewDebounceTimer = setTimeout(() => {
+    previewDebounceTimer = null;
+    void refreshPreview();
+  }, 500);
+});
+
+onUnmounted(() => {
+  if (previewDebounceTimer) clearTimeout(previewDebounceTimer);
 });
 
 onMounted(() => {
