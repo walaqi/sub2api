@@ -14,6 +14,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/ent/enttest"
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/repository"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -295,6 +296,63 @@ func TestAuthServiceBindEmailIdentity_RejectsReservedEmail(t *testing.T) {
 	updatedUser, err := svc.BindEmailIdentity(ctx, user.ID, "reserved"+service.LinuxDoConnectSyntheticEmailDomain, "123456", "new-password")
 	require.ErrorIs(t, err, service.ErrEmailReserved)
 	require.Nil(t, updatedUser)
+}
+
+func TestAuthServiceBindEmailIdentity_RejectsEmailOutsideSuffixWhitelist(t *testing.T) {
+	cache := &emailBindCacheStub{
+		data: &service.VerificationCodeData{
+			Code:      "123456",
+			CreatedAt: time.Now().UTC(),
+			ExpiresAt: time.Now().UTC().Add(10 * time.Minute),
+		},
+	}
+	svc, _, client := newAuthServiceForEmailBind(t, map[string]string{
+		service.SettingKeyRegistrationEmailSuffixWhitelist: `["@example.com"]`,
+	}, cache, nil)
+
+	ctx := context.Background()
+	user, err := client.User.Create().
+		SetEmail("source-user@example.com").
+		SetUsername("source-user").
+		SetPasswordHash("old-hash").
+		SetBalance(1).
+		SetConcurrency(1).
+		SetRole(service.RoleUser).
+		SetStatus(service.StatusActive).
+		Save(ctx)
+	require.NoError(t, err)
+
+	updatedUser, err := svc.BindEmailIdentity(ctx, user.ID, "blocked@disallowed.com", "123456", "new-password")
+	require.Error(t, err)
+	require.Nil(t, updatedUser)
+	require.Equal(t, "EMAIL_SUFFIX_NOT_ALLOWED", infraerrors.Reason(err))
+
+	storedUser, err := client.User.Get(ctx, user.ID)
+	require.NoError(t, err)
+	require.Equal(t, "source-user@example.com", storedUser.Email)
+}
+
+func TestAuthServiceSendEmailIdentityBindCode_RejectsEmailOutsideSuffixWhitelist(t *testing.T) {
+	cache := &emailBindCacheStub{}
+	svc, _, client := newAuthServiceForEmailBind(t, map[string]string{
+		service.SettingKeyRegistrationEmailSuffixWhitelist: `["@example.com"]`,
+	}, cache, nil)
+
+	ctx := context.Background()
+	user, err := client.User.Create().
+		SetEmail("source-user@example.com").
+		SetUsername("source-user").
+		SetPasswordHash("old-hash").
+		SetBalance(1).
+		SetConcurrency(1).
+		SetRole(service.RoleUser).
+		SetStatus(service.StatusActive).
+		Save(ctx)
+	require.NoError(t, err)
+
+	err = svc.SendEmailIdentityBindCode(ctx, user.ID, "blocked@disallowed.com")
+	require.Error(t, err)
+	require.Equal(t, "EMAIL_SUFFIX_NOT_ALLOWED", infraerrors.Reason(err))
 }
 
 func TestAuthServiceBindEmailIdentity_ReplacesBoundEmailAndSkipsFirstBindDefaults(t *testing.T) {
