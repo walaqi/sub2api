@@ -48,6 +48,15 @@
               <Icon name="edit" size="md" class="mr-2" />
               {{ t('admin.redeem.batchUpdate') }}
             </button>
+            <button
+              data-test="batch-delete-open"
+              @click="openBatchDeleteDialog"
+              :disabled="selectedCount === 0 || batchDeleting"
+              class="btn btn-danger"
+            >
+              <Icon name="trash" size="md" class="mr-2" />
+              {{ t('admin.redeem.batchDelete') }}
+            </button>
             <button @click="showGenerateDialog = true" class="btn btn-primary">
               {{ t('admin.redeem.generateCodes') }}
             </button>
@@ -227,6 +236,13 @@
             >
               {{ t('admin.redeem.batchUpdate') }}
             </button>
+            <button
+              type="button"
+              class="btn btn-danger btn-sm"
+              @click="openBatchDeleteDialog"
+            >
+              {{ t('admin.redeem.batchDelete') }}
+            </button>
           </div>
         </div>
 
@@ -270,6 +286,18 @@
       danger
       @confirm="confirmDeleteUnused"
       @cancel="showDeleteUnusedDialog = false"
+    />
+
+    <!-- Batch Delete Dialog -->
+    <ConfirmDialog
+      :show="showBatchDeleteDialog"
+      :title="t('admin.redeem.batchDelete')"
+      :message="t('admin.redeem.batchDeleteConfirm', { count: selectedCount })"
+      :confirm-text="t('common.delete')"
+      :cancel-text="t('common.cancel')"
+      danger
+      @confirm="confirmBatchDelete"
+      @cancel="showBatchDeleteDialog = false"
     />
 
     <!-- Generate Codes Dialog -->
@@ -768,6 +796,7 @@ const codes = ref<RedeemCode[]>([])
 const loading = ref(false)
 const generating = ref(false)
 const batchUpdating = ref(false)
+const batchDeleting = ref(false)
 const searchQuery = ref('')
 const filters = reactive({
   type: '',
@@ -789,6 +818,7 @@ let abortController: AbortController | null = null
 const showDeleteDialog = ref(false)
 const showDeleteUnusedDialog = ref(false)
 const showBatchUpdateDialog = ref(false)
+const showBatchDeleteDialog = ref(false)
 const deletingCode = ref<RedeemCode | null>(null)
 const copiedCode = ref<string | null>(null)
 
@@ -1164,6 +1194,37 @@ const handleBatchUpdate = async () => {
     console.error('Error batch updating codes:', error)
   } finally {
     batchUpdating.value = false
+  }
+}
+
+const openBatchDeleteDialog = () => {
+  if (selectedCount.value === 0) {
+    appStore.showInfo(t('admin.redeem.selectCodesFirst'))
+    return
+  }
+  showBatchDeleteDialog.value = true
+}
+
+const confirmBatchDelete = async () => {
+  const ids = Array.from(selectedCodeIds.value)
+  if (ids.length === 0) {
+    appStore.showInfo(t('admin.redeem.selectCodesFirst'))
+    showBatchDeleteDialog.value = false
+    return
+  }
+
+  batchDeleting.value = true
+  try {
+    const result = await adminAPI.redeem.batchDelete(ids)
+    appStore.showSuccess(t('admin.redeem.batchDeleteSuccess', { count: result.deleted }))
+    showBatchDeleteDialog.value = false
+    clearSelectedCodes()
+    loadCodes()
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.redeem.failedToBatchDelete'))
+    console.error('Error batch deleting codes:', error)
+  } finally {
+    batchDeleting.value = false
   }
 }
 

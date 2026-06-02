@@ -4379,6 +4379,10 @@ export default {
       noBatchFieldsSelected: '请至少勾选一个要修改的字段',
       batchUpdateSuccess: '成功修改 {count} 个兑换码',
       failedToBatchUpdate: '批量修改兑换码失败',
+      batchDelete: '批量删除',
+      batchDeleteConfirm: '确定要删除选中的 {count} 个兑换码吗？此操作无法撤销。',
+      batchDeleteSuccess: '成功删除 {count} 个兑换码',
+      failedToBatchDelete: '批量删除兑换码失败',
       batchFields: {
         status: '状态',
         expiresAt: '过期时间',

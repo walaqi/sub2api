@@ -4245,6 +4245,11 @@ export default {
       noBatchFieldsSelected: 'Select at least one field to update',
       batchUpdateSuccess: 'Updated {count} redeem code(s)',
       failedToBatchUpdate: 'Failed to batch update redeem codes',
+      batchDelete: 'Batch Delete',
+      batchDeleteConfirm:
+        'Are you sure you want to delete the {count} selected redeem code(s)? This action cannot be undone.',
+      batchDeleteSuccess: 'Successfully deleted {count} redeem code(s)',
+      failedToBatchDelete: 'Failed to batch delete redeem codes',
       batchFields: {
         status: 'Status',
         expiresAt: 'Expires At',
