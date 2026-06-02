@@ -369,6 +369,16 @@ func ExpiresAfterDaysNotNil() predicate.BindKeyGiftSetting {
 	return predicate.BindKeyGiftSetting(sql.FieldNotNull(FieldExpiresAfterDays))
 }
 
+// ConfigIsNil applies the IsNil predicate on the "config" field.
+func ConfigIsNil() predicate.BindKeyGiftSetting {
+	return predicate.BindKeyGiftSetting(sql.FieldIsNull(FieldConfig))
+}
+
+// ConfigNotNil applies the NotNil predicate on the "config" field.
+func ConfigNotNil() predicate.BindKeyGiftSetting {
+	return predicate.BindKeyGiftSetting(sql.FieldNotNull(FieldConfig))
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.BindKeyGiftSetting) predicate.BindKeyGiftSetting {
 	return predicate.BindKeyGiftSetting(sql.AndPredicates(predicates...))

@@ -430,6 +430,7 @@ var (
 		{Name: "deduction_mode", Type: field.TypeString, Size: 16},
 		{Name: "ratio_recharge", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
 		{Name: "expires_after_days", Type: field.TypeInt, Nullable: true},
+		{Name: "config", Type: field.TypeJSON, Nullable: true},
 	}
 	// BindKeyGiftSettingsTable holds the schema information for the "bind_key_gift_settings" table.
 	BindKeyGiftSettingsTable = &schema.Table{

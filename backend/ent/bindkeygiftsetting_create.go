@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/Wei-Shaw/sub2api/ent/bindkeygiftsetting"
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 )
 
 // BindKeyGiftSettingCreate is the builder for creating a BindKeyGiftSetting entity.
@@ -87,6 +88,12 @@ func (_c *BindKeyGiftSettingCreate) SetNillableExpiresAfterDays(v *int) *BindKey
 	if v != nil {
 		_c.SetExpiresAfterDays(*v)
 	}
+	return _c
+}
+
+// SetConfig sets the "config" field.
+func (_c *BindKeyGiftSettingCreate) SetConfig(v *domain.BindKeyConfig) *BindKeyGiftSettingCreate {
+	_c.mutation.SetConfig(v)
 	return _c
 }
 
@@ -204,6 +211,10 @@ func (_c *BindKeyGiftSettingCreate) createSpec() (*BindKeyGiftSetting, *sqlgraph
 	if value, ok := _c.mutation.ExpiresAfterDays(); ok {
 		_spec.SetField(bindkeygiftsetting.FieldExpiresAfterDays, field.TypeInt, value)
 		_node.ExpiresAfterDays = &value
+	}
+	if value, ok := _c.mutation.Config(); ok {
+		_spec.SetField(bindkeygiftsetting.FieldConfig, field.TypeJSON, value)
+		_node.Config = value
 	}
 	return _node, _spec
 }
@@ -344,6 +355,24 @@ func (u *BindKeyGiftSettingUpsert) AddExpiresAfterDays(v int) *BindKeyGiftSettin
 // ClearExpiresAfterDays clears the value of the "expires_after_days" field.
 func (u *BindKeyGiftSettingUpsert) ClearExpiresAfterDays() *BindKeyGiftSettingUpsert {
 	u.SetNull(bindkeygiftsetting.FieldExpiresAfterDays)
+	return u
+}
+
+// SetConfig sets the "config" field.
+func (u *BindKeyGiftSettingUpsert) SetConfig(v *domain.BindKeyConfig) *BindKeyGiftSettingUpsert {
+	u.Set(bindkeygiftsetting.FieldConfig, v)
+	return u
+}
+
+// UpdateConfig sets the "config" field to the value that was provided on create.
+func (u *BindKeyGiftSettingUpsert) UpdateConfig() *BindKeyGiftSettingUpsert {
+	u.SetExcluded(bindkeygiftsetting.FieldConfig)
+	return u
+}
+
+// ClearConfig clears the value of the "config" field.
+func (u *BindKeyGiftSettingUpsert) ClearConfig() *BindKeyGiftSettingUpsert {
+	u.SetNull(bindkeygiftsetting.FieldConfig)
 	return u
 }
 
@@ -494,6 +523,27 @@ func (u *BindKeyGiftSettingUpsertOne) UpdateExpiresAfterDays() *BindKeyGiftSetti
 func (u *BindKeyGiftSettingUpsertOne) ClearExpiresAfterDays() *BindKeyGiftSettingUpsertOne {
 	return u.Update(func(s *BindKeyGiftSettingUpsert) {
 		s.ClearExpiresAfterDays()
+	})
+}
+
+// SetConfig sets the "config" field.
+func (u *BindKeyGiftSettingUpsertOne) SetConfig(v *domain.BindKeyConfig) *BindKeyGiftSettingUpsertOne {
+	return u.Update(func(s *BindKeyGiftSettingUpsert) {
+		s.SetConfig(v)
+	})
+}
+
+// UpdateConfig sets the "config" field to the value that was provided on create.
+func (u *BindKeyGiftSettingUpsertOne) UpdateConfig() *BindKeyGiftSettingUpsertOne {
+	return u.Update(func(s *BindKeyGiftSettingUpsert) {
+		s.UpdateConfig()
+	})
+}
+
+// ClearConfig clears the value of the "config" field.
+func (u *BindKeyGiftSettingUpsertOne) ClearConfig() *BindKeyGiftSettingUpsertOne {
+	return u.Update(func(s *BindKeyGiftSettingUpsert) {
+		s.ClearConfig()
 	})
 }
 
@@ -810,6 +860,27 @@ func (u *BindKeyGiftSettingUpsertBulk) UpdateExpiresAfterDays() *BindKeyGiftSett
 func (u *BindKeyGiftSettingUpsertBulk) ClearExpiresAfterDays() *BindKeyGiftSettingUpsertBulk {
 	return u.Update(func(s *BindKeyGiftSettingUpsert) {
 		s.ClearExpiresAfterDays()
+	})
+}
+
+// SetConfig sets the "config" field.
+func (u *BindKeyGiftSettingUpsertBulk) SetConfig(v *domain.BindKeyConfig) *BindKeyGiftSettingUpsertBulk {
+	return u.Update(func(s *BindKeyGiftSettingUpsert) {
+		s.SetConfig(v)
+	})
+}
+
+// UpdateConfig sets the "config" field to the value that was provided on create.
+func (u *BindKeyGiftSettingUpsertBulk) UpdateConfig() *BindKeyGiftSettingUpsertBulk {
+	return u.Update(func(s *BindKeyGiftSettingUpsert) {
+		s.UpdateConfig()
+	})
+}
+
+// ClearConfig clears the value of the "config" field.
+func (u *BindKeyGiftSettingUpsertBulk) ClearConfig() *BindKeyGiftSettingUpsertBulk {
+	return u.Update(func(s *BindKeyGiftSettingUpsert) {
+		s.ClearConfig()
 	})
 }
 

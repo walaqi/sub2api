@@ -6,6 +6,7 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/bindkeygiftsetting"
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/Wei-Shaw/sub2api/internal/gift"
 )
 
@@ -16,6 +17,9 @@ type BindKeyGiftSetting struct {
 	DeductionMode    gift.DeductionMode
 	RatioRecharge    *float64
 	ExpiresAfterDays *int
+	// RegistrationWindow 来自表 A 的 config JSONB（config.registration_window）。
+	// nil 表示未配置窗口；由调用方按"不限制注册时间"处理。
+	RegistrationWindow *domain.BindKeyRegistrationWindow
 }
 
 // BindKeyGiftSettingResolver 抽象出"按 api_key_id 查表 A"的最小动作。
@@ -67,6 +71,10 @@ func (r *entBindKeyGiftSettingResolver) Resolve(ctx context.Context, apiKeyID in
 	if row.ExpiresAfterDays != nil {
 		v := *row.ExpiresAfterDays
 		out.ExpiresAfterDays = &v
+	}
+	if row.Config != nil && row.Config.RegistrationWindow != nil {
+		w := *row.Config.RegistrationWindow
+		out.RegistrationWindow = &w
 	}
 	return out, nil
 }

@@ -2,6 +2,7 @@ package schema
 
 import (
 	"github.com/Wei-Shaw/sub2api/ent/schema/mixins"
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
@@ -42,6 +43,10 @@ func (BindKeyGiftSetting) Fields() []ent.Field {
 		field.Int("expires_after_days").
 			Optional().
 			Nillable(),
+		// 可扩展 per-key 配置（首个使用方：registration_window）。
+		// 新增 per-key 选项往 domain.BindKeyConfig 加字段即可，避免再迁移 schema。
+		field.JSON("config", &domain.BindKeyConfig{}).
+			Optional(),
 	}
 }
 

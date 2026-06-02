@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/Wei-Shaw/sub2api/ent/bindkeygiftsetting"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 )
 
 // BindKeyGiftSettingUpdate is the builder for updating BindKeyGiftSetting entities.
@@ -123,6 +124,18 @@ func (_u *BindKeyGiftSettingUpdate) ClearExpiresAfterDays() *BindKeyGiftSettingU
 	return _u
 }
 
+// SetConfig sets the "config" field.
+func (_u *BindKeyGiftSettingUpdate) SetConfig(v *domain.BindKeyConfig) *BindKeyGiftSettingUpdate {
+	_u.mutation.SetConfig(v)
+	return _u
+}
+
+// ClearConfig clears the value of the "config" field.
+func (_u *BindKeyGiftSettingUpdate) ClearConfig() *BindKeyGiftSettingUpdate {
+	_u.mutation.ClearConfig()
+	return _u
+}
+
 // Mutation returns the BindKeyGiftSettingMutation object of the builder.
 func (_u *BindKeyGiftSettingUpdate) Mutation() *BindKeyGiftSettingMutation {
 	return _u.mutation
@@ -215,6 +228,12 @@ func (_u *BindKeyGiftSettingUpdate) sqlSave(ctx context.Context) (_node int, err
 	}
 	if _u.mutation.ExpiresAfterDaysCleared() {
 		_spec.ClearField(bindkeygiftsetting.FieldExpiresAfterDays, field.TypeInt)
+	}
+	if value, ok := _u.mutation.Config(); ok {
+		_spec.SetField(bindkeygiftsetting.FieldConfig, field.TypeJSON, value)
+	}
+	if _u.mutation.ConfigCleared() {
+		_spec.ClearField(bindkeygiftsetting.FieldConfig, field.TypeJSON)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -328,6 +347,18 @@ func (_u *BindKeyGiftSettingUpdateOne) AddExpiresAfterDays(v int) *BindKeyGiftSe
 // ClearExpiresAfterDays clears the value of the "expires_after_days" field.
 func (_u *BindKeyGiftSettingUpdateOne) ClearExpiresAfterDays() *BindKeyGiftSettingUpdateOne {
 	_u.mutation.ClearExpiresAfterDays()
+	return _u
+}
+
+// SetConfig sets the "config" field.
+func (_u *BindKeyGiftSettingUpdateOne) SetConfig(v *domain.BindKeyConfig) *BindKeyGiftSettingUpdateOne {
+	_u.mutation.SetConfig(v)
+	return _u
+}
+
+// ClearConfig clears the value of the "config" field.
+func (_u *BindKeyGiftSettingUpdateOne) ClearConfig() *BindKeyGiftSettingUpdateOne {
+	_u.mutation.ClearConfig()
 	return _u
 }
 
@@ -453,6 +484,12 @@ func (_u *BindKeyGiftSettingUpdateOne) sqlSave(ctx context.Context) (_node *Bind
 	}
 	if _u.mutation.ExpiresAfterDaysCleared() {
 		_spec.ClearField(bindkeygiftsetting.FieldExpiresAfterDays, field.TypeInt)
+	}
+	if value, ok := _u.mutation.Config(); ok {
+		_spec.SetField(bindkeygiftsetting.FieldConfig, field.TypeJSON, value)
+	}
+	if _u.mutation.ConfigCleared() {
+		_spec.ClearField(bindkeygiftsetting.FieldConfig, field.TypeJSON)
 	}
 	_node = &BindKeyGiftSetting{config: _u.config}
 	_spec.Assign = _node.assignValues

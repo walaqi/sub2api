@@ -672,6 +672,9 @@ func registerGiftOpsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 			bindKeyGifts.GET("", h.Admin.GiftOps.ListBindKeyGiftSettings)
 			bindKeyGifts.GET("/:api_key_id", h.Admin.GiftOps.GetBindKeyGiftSetting)
 			bindKeyGifts.DELETE("/:api_key_id", h.Admin.GiftOps.DeleteBindKeyGiftSetting)
+			// per-key 注册时间窗口（独立于赠金字段，互不覆盖）
+			bindKeyGifts.PUT("/:api_key_id/registration-window", h.Admin.GiftOps.SetBindKeyRegistrationWindow)
+			bindKeyGifts.DELETE("/:api_key_id/registration-window", h.Admin.GiftOps.DeleteBindKeyRegistrationWindow)
 		}
 
 		// B. 赠金账本

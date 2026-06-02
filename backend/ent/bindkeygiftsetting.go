@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/Wei-Shaw/sub2api/ent/bindkeygiftsetting"
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 )
 
 // BindKeyGiftSetting is the model entity for the BindKeyGiftSetting schema.
@@ -29,7 +31,9 @@ type BindKeyGiftSetting struct {
 	RatioRecharge *float64 `json:"ratio_recharge,omitempty"`
 	// ExpiresAfterDays holds the value of the "expires_after_days" field.
 	ExpiresAfterDays *int `json:"expires_after_days,omitempty"`
-	selectValues     sql.SelectValues
+	// Config holds the value of the "config" field.
+	Config       *domain.BindKeyConfig `json:"config,omitempty"`
+	selectValues sql.SelectValues
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -37,6 +41,8 @@ func (*BindKeyGiftSetting) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case bindkeygiftsetting.FieldConfig:
+			values[i] = new([]byte)
 		case bindkeygiftsetting.FieldRatioRecharge:
 			values[i] = new(sql.NullFloat64)
 		case bindkeygiftsetting.FieldID, bindkeygiftsetting.FieldAPIKeyID, bindkeygiftsetting.FieldExpiresAfterDays:
@@ -104,6 +110,14 @@ func (_m *BindKeyGiftSetting) assignValues(columns []string, values []any) error
 				_m.ExpiresAfterDays = new(int)
 				*_m.ExpiresAfterDays = int(value.Int64)
 			}
+		case bindkeygiftsetting.FieldConfig:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field config", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Config); err != nil {
+					return fmt.Errorf("unmarshal field config: %w", err)
+				}
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -161,6 +175,9 @@ func (_m *BindKeyGiftSetting) String() string {
 		builder.WriteString("expires_after_days=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("config=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Config))
 	builder.WriteByte(')')
 	return builder.String()
 }

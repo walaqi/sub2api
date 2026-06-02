@@ -25,6 +25,8 @@ const (
 	FieldRatioRecharge = "ratio_recharge"
 	// FieldExpiresAfterDays holds the string denoting the expires_after_days field in the database.
 	FieldExpiresAfterDays = "expires_after_days"
+	// FieldConfig holds the string denoting the config field in the database.
+	FieldConfig = "config"
 	// Table holds the table name of the bindkeygiftsetting in the database.
 	Table = "bind_key_gift_settings"
 )
@@ -38,6 +40,7 @@ var Columns = []string{
 	FieldDeductionMode,
 	FieldRatioRecharge,
 	FieldExpiresAfterDays,
+	FieldConfig,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).

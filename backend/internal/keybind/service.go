@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
@@ -45,6 +46,7 @@ var (
 	ErrReservationExpired    = infraerrors.NotFound("BIND_KEY_RESERVATION_EXPIRED", "reservation has expired or does not exist")
 	ErrPoolKeyAlreadyClaimed = infraerrors.Conflict("BIND_KEY_RACE", "key has already been claimed by another user")
 	ErrAlreadyParticipated   = infraerrors.Forbidden("BIND_KEY_ALREADY_PARTICIPATED", "you have already bound a key this month")
+	ErrRegistrationWindow    = infraerrors.Forbidden("BIND_KEY_REGISTRATION_WINDOW", "your account registration date is outside the allowed window for this key")
 )
 
 // ReservationResult is returned to the client after a successful Reserve.
@@ -81,6 +83,10 @@ type Service struct {
 	configErrMsg  string
 	participation *ParticipationStore
 
+	// giftSettingResolver 读表 A（bind_key_gift_settings）的 per-key 配置，
+	// 用于注册时间窗口校验。client 为 nil 时该 resolver 为 nil（降级为不限制）。
+	giftSettingResolver BindKeyGiftSettingResolver
+
 	// 可选依赖：用于绑定成功后赠送余额并失效相关缓存。
 	// 任意字段为 nil 时降级为"该能力关闭"，但 key 仍会正常转移。
 	userBalanceUpdater UserBalanceUpdater
@@ -95,9 +101,10 @@ type Service struct {
 // This keeps the feature's failure mode isolated from server startup.
 func NewService(ctx context.Context, client *ent.Client, redisClient *redis.Client, poolUserEmail string, dataDir string, opts ...Option) *Service {
 	svc := &Service{
-		client:        client,
-		redis:         redisClient,
-		participation: NewParticipationStore(dataDir),
+		client:              client,
+		redis:               redisClient,
+		participation:       NewParticipationStore(dataDir),
+		giftSettingResolver: NewBindKeyGiftSettingResolver(client),
 	}
 
 	email := strings.TrimSpace(strings.ToLower(poolUserEmail))
@@ -161,6 +168,56 @@ func (s *Service) CheckEligibility(ctx context.Context, userID int64) (*Eligibil
 	res.AlreadyParticipated = already
 	res.Eligible = !already
 	return res, nil
+}
+
+// checkRegistrationWindow enforces a key's optional registration-time window.
+// Returns nil when the key has no window configured / it's disabled, or when
+// the user's account age falls inside [MinDays, MaxDays]. Returns
+// ErrRegistrationWindow (carrying min/max metadata for the UI) otherwise.
+//
+// Failures resolving the per-key setting are propagated so we never silently
+// admit a user a key meant to exclude; failures looking up the user collapse
+// to a rejection for the same reason.
+func (s *Service) checkRegistrationWindow(ctx context.Context, userID, keyID int64) error {
+	if s.giftSettingResolver == nil || keyID <= 0 {
+		return nil
+	}
+	setting, err := s.giftSettingResolver.Resolve(ctx, keyID)
+	if err != nil {
+		return fmt.Errorf("resolve bind-key setting: %w", err)
+	}
+	if setting == nil || setting.RegistrationWindow == nil || !setting.RegistrationWindow.Enabled {
+		return nil
+	}
+	win := setting.RegistrationWindow
+
+	row, err := s.client.User.Query().
+		Where(user.IDEQ(userID)).
+		Select(user.FieldCreatedAt).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return s.registrationWindowErr(win)
+		}
+		return fmt.Errorf("query user created_at: %w", err)
+	}
+
+	age := time.Since(row.CreatedAt)
+	minAge := time.Duration(win.MinDays) * 24 * time.Hour
+	maxAge := time.Duration(win.MaxDays) * 24 * time.Hour
+	if age < minAge || age > maxAge {
+		return s.registrationWindowErr(win)
+	}
+	return nil
+}
+
+// registrationWindowErr attaches the configured window bounds so the client
+// can render a precise "registered between X and Y days" message.
+func (s *Service) registrationWindowErr(win *domain.BindKeyRegistrationWindow) error {
+	return ErrRegistrationWindow.WithMetadata(map[string]string{
+		"min_days": strconv.Itoa(win.MinDays),
+		"max_days": strconv.Itoa(win.MaxDays),
+	})
 }
 
 // Reserve walks the input keys top-to-bottom and reserves the first one that:
@@ -278,6 +335,18 @@ func (s *Service) Commit(ctx context.Context, userID int64, reservationID string
 	if already {
 		_ = s.redis.Del(ctx, resKey).Err()
 		return nil, ErrAlreadyParticipated
+	}
+
+	// Per-key registration-window gate: a key may restrict claims to users
+	// whose account age falls inside a rolling [min,max] day window. Enforced
+	// here (not at the anonymous /reserve) since it needs both the user's
+	// created_at and the chosen key. Drop the reservation on rejection so the
+	// queued key is freed for someone eligible.
+	if err := s.checkRegistrationWindow(ctx, userID, keyID); err != nil {
+		if errors.Is(err, ErrRegistrationWindow) {
+			_ = s.redis.Del(ctx, resKey).Err()
+		}
+		return nil, err
 	}
 
 	// 先把池 key 拉出来一次，用于赠送余额（quota - quota_used）。

@@ -150,6 +150,30 @@
           </div>
         </div>
 
+        <!-- Registration window not met (per-key, surfaced from commit error) -->
+        <div
+          v-else-if="registrationBlocked"
+          class="card border-amber-200 bg-amber-50 dark:border-amber-800/50 dark:bg-amber-900/20"
+        >
+          <div class="p-6 md:p-8">
+            <div class="flex items-start gap-4">
+              <div
+                class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/30"
+              >
+                <Icon name="exclamationCircle" size="md" class="text-amber-600 dark:text-amber-400" />
+              </div>
+              <div class="flex-1">
+                <h3 class="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                  {{ tr.regWindowTitle }}
+                </h3>
+                <p class="mt-2 text-sm text-amber-700 dark:text-amber-400">
+                  {{ registrationWindowText }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div v-else class="space-y-6">
           <!-- Pending reservation banner -->
             <div
@@ -511,6 +535,11 @@ const en: Copy = {
   giftDeductionLabel: 'Deduction rule',
   giftDeductionPriority: 'Priority — gift balance is consumed before your top-up balance.',
   giftDeductionRatio: 'Ratio — each $1 of usage deducts ${recharge} from top-up + ${gift} from gift balance.',
+  regWindowTitle: "Your account isn't eligible for this key",
+  regWindowBody:
+    'This key is limited to accounts registered for at least {min} day(s) and no more than {max} day(s). Your registration date is outside that range.',
+  regWindowBodyGeneric:
+    'This key is limited to accounts whose registration date falls within a specific range. Your account is outside that range.',
 }
 const zh: Copy = {
   title: '绑定 API Key',
@@ -579,6 +608,10 @@ const zh: Copy = {
   giftDeductionLabel: '扣费规则',
   giftDeductionPriority: '优先扣除：赠金会先于充值余额被消耗',
   giftDeductionRatio: '按比例扣除：每消耗 1 美元 = 充值余额 ${recharge} + 赠金 ${gift}',
+  regWindowTitle: '你的账号不符合该 Key 的领取条件',
+  regWindowBody:
+    '该 Key 仅限注册满 {min} 天且不超过 {max} 天的账号领取，你的注册时间不在此范围内。',
+  regWindowBodyGeneric: '该 Key 仅限注册时间在特定范围内的账号领取，你的账号不在此范围内。',
 }
 
 const { locale } = useI18n()
@@ -695,6 +728,12 @@ type Eligibility = {
 const eligibility = ref<Eligibility | null>(null)
 const loadingEligibility = ref(false)
 
+// Per-key registration-window block. Unlike feature_disabled / monthly limit,
+// this can't be pre-checked at eligibility time (it needs the chosen key), so
+// it's driven purely by the commit error BIND_KEY_REGISTRATION_WINDOW.
+const registrationBlocked = ref(false)
+const registrationWindow = ref<{ min_days: number | null; max_days: number | null } | null>(null)
+
 const featureDisabled = computed(
   () => eligibility.value?.eligible === false && eligibility.value?.reason === 'feature_disabled'
 )
@@ -808,9 +847,22 @@ const giftDeductionText = computed(() => {
     .replace('{gift}', gift)
 })
 
+const registrationWindowText = computed(() => {
+  const w = registrationWindow.value
+  // Fall back to a generic message when bounds aren't available.
+  if (!w || w.min_days == null || w.max_days == null) return tr.value.regWindowBodyGeneric
+  return tr.value.regWindowBody
+    .replace('{min}', String(w.min_days))
+    .replace('{max}', String(w.max_days))
+})
+
 async function reserveKeys(): Promise<void> {
   errorMessage.value = ''
   successMessage.value = ''
+  // A fresh paste clears any prior per-key registration-window block so the
+  // user can try a different key.
+  registrationBlocked.value = false
+  registrationWindow.value = null
   const lines = rawInput.value
     .split(/\r?\n/)
     .map((s) => s.trim())
@@ -893,6 +945,20 @@ async function commitReservation(): Promise<void> {
           eligibility.value?.next_reset_unix_ms ??
           0,
       }
+      clearPending()
+      pending.value = null
+    } else if (code === 'BIND_KEY_REGISTRATION_WINDOW') {
+      // The chosen key restricts claims to a registration-time window the
+      // user falls outside of. Surface a dedicated card; the bounds (if any)
+      // come back as string metadata.
+      const md = e?.metadata ?? e?.response?.data?.metadata ?? {}
+      const min = Number(md.min_days)
+      const max = Number(md.max_days)
+      registrationWindow.value = {
+        min_days: Number.isFinite(min) ? min : null,
+        max_days: Number.isFinite(max) ? max : null,
+      }
+      registrationBlocked.value = true
       clearPending()
       pending.value = null
     } else {

@@ -1,9 +1,10 @@
 // Package admin · gift_ops_handler.go
 //
 // 运维 API 入口：外部独立 ops 系统通过 admin JWT 调用，覆盖：
-//   A. 表 A 配置管理（绑 key 赠金参数）
-//   B. 赠金账本运维（任意 mode 发放 / 列表 / 撤销 / 充值池增额）
-//   C. 用户余额拆分查询
+//
+//	A. 表 A 配置管理（绑 key 赠金参数）
+//	B. 赠金账本运维（任意 mode 发放 / 列表 / 撤销 / 充值池增额）
+//	C. 用户余额拆分查询
 //
 // 鉴权由现有 admin_auth 中间件把关，本 handler 不做额外鉴权。
 package admin
@@ -20,6 +21,7 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/bindkeygiftsetting"
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/Wei-Shaw/sub2api/internal/gift"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -51,13 +53,14 @@ type BindKeyGiftSettingPayload struct {
 
 // BindKeyGiftSettingResponse 是表 A 的响应 DTO。
 type BindKeyGiftSettingResponse struct {
-	ID               int64     `json:"id"`
-	APIKeyID         int64     `json:"api_key_id"`
-	DeductionMode    string    `json:"deduction_mode"`
-	RatioRecharge    *float64  `json:"ratio_recharge,omitempty"`
-	ExpiresAfterDays *int      `json:"expires_after_days,omitempty"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	ID               int64                 `json:"id"`
+	APIKeyID         int64                 `json:"api_key_id"`
+	DeductionMode    string                `json:"deduction_mode"`
+	RatioRecharge    *float64              `json:"ratio_recharge,omitempty"`
+	ExpiresAfterDays *int                  `json:"expires_after_days,omitempty"`
+	Config           *domain.BindKeyConfig `json:"config,omitempty"`
+	CreatedAt        time.Time             `json:"created_at"`
+	UpdatedAt        time.Time             `json:"updated_at"`
 }
 
 // UpsertBindKeyGiftSetting POST /api/v1/admin/ops/bind-key-gifts
@@ -182,9 +185,120 @@ func (h *GiftOpsHandler) DeleteBindKeyGiftSetting(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"deleted": n})
 }
 
-// =========================================================================
-// B. 赠金账本：grant / list / get / revoke / recharge
-// =========================================================================
+// RegistrationWindowPayload 是设置 per-key 注册时间窗口的请求体。
+type RegistrationWindowPayload struct {
+	Enabled bool `json:"enabled"`
+	MinDays int  `json:"min_days"`
+	MaxDays int  `json:"max_days"`
+}
+
+// SetBindKeyRegistrationWindow PUT /api/v1/admin/ops/bind-key-gifts/:api_key_id/registration-window
+//
+// 设置某条池 key 的注册时间窗口（存表 A 的 config.registration_window）。
+// 与赠金字段独立：只写 config，不动 deduction_mode/ratio_recharge/expires_after_days。
+// 行不存在时创建一条仅含窗口的占位行（deduction_mode=priority，赠金语义等价于"无行"）。
+func (h *GiftOpsHandler) SetBindKeyRegistrationWindow(c *gin.Context) {
+	apiKeyID, err := strconv.ParseInt(c.Param("api_key_id"), 10, 64)
+	if err != nil || apiKeyID <= 0 {
+		response.BadRequest(c, "invalid api_key_id")
+		return
+	}
+	var req RegistrationWindowPayload
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "invalid request: "+err.Error())
+		return
+	}
+	if req.MinDays < 0 {
+		response.BadRequest(c, "min_days must be >= 0")
+		return
+	}
+	if req.MaxDays < 1 {
+		response.BadRequest(c, "max_days must be >= 1")
+		return
+	}
+	if req.MaxDays < req.MinDays {
+		response.BadRequest(c, "max_days must be >= min_days")
+		return
+	}
+
+	ctx := c.Request.Context()
+	window := &domain.BindKeyRegistrationWindow{
+		Enabled: req.Enabled,
+		MinDays: req.MinDays,
+		MaxDays: req.MaxDays,
+	}
+
+	existing, err := h.entClient.BindKeyGiftSetting.Query().
+		Where(bindkeygiftsetting.APIKeyIDEQ(apiKeyID)).
+		Only(ctx)
+	if err != nil && !dbent.IsNotFound(err) {
+		response.InternalError(c, "query setting failed: "+err.Error())
+		return
+	}
+
+	var saved *dbent.BindKeyGiftSetting
+	if dbent.IsNotFound(err) {
+		cfg := &domain.BindKeyConfig{RegistrationWindow: window}
+		saved, err = h.entClient.BindKeyGiftSetting.Create().
+			SetAPIKeyID(apiKeyID).
+			SetDeductionMode(string(gift.DeductionModePriority)).
+			SetConfig(cfg).
+			Save(ctx)
+	} else {
+		cfg := mergeRegistrationWindow(existing.Config, window)
+		saved, err = existing.Update().SetConfig(cfg).Save(ctx)
+	}
+	if err != nil {
+		response.InternalError(c, "save registration window failed: "+err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": bindKeyGiftSettingDTO(saved)})
+}
+
+// DeleteBindKeyRegistrationWindow DELETE /api/v1/admin/ops/bind-key-gifts/:api_key_id/registration-window
+//
+// 清除某条池 key 的注册时间窗口，保留其赠金配置。行不存在时为 no-op。
+func (h *GiftOpsHandler) DeleteBindKeyRegistrationWindow(c *gin.Context) {
+	apiKeyID, err := strconv.ParseInt(c.Param("api_key_id"), 10, 64)
+	if err != nil || apiKeyID <= 0 {
+		response.BadRequest(c, "invalid api_key_id")
+		return
+	}
+	ctx := c.Request.Context()
+	existing, err := h.entClient.BindKeyGiftSetting.Query().
+		Where(bindkeygiftsetting.APIKeyIDEQ(apiKeyID)).
+		Only(ctx)
+	if err != nil {
+		if dbent.IsNotFound(err) {
+			c.JSON(http.StatusOK, gin.H{"deleted": 0})
+			return
+		}
+		response.InternalError(c, "query setting failed: "+err.Error())
+		return
+	}
+	if existing.Config == nil || existing.Config.RegistrationWindow == nil {
+		c.JSON(http.StatusOK, gin.H{"deleted": 0})
+		return
+	}
+	cfg := mergeRegistrationWindow(existing.Config, nil)
+	if _, err := existing.Update().SetConfig(cfg).Save(ctx); err != nil {
+		response.InternalError(c, "clear registration window failed: "+err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"deleted": 1})
+}
+
+// mergeRegistrationWindow 返回一份新的 config，把 window 写入/清除（nil=清除），
+// 保留其它扩展配置字段不变。
+func mergeRegistrationWindow(cur *domain.BindKeyConfig, window *domain.BindKeyRegistrationWindow) *domain.BindKeyConfig {
+	out := &domain.BindKeyConfig{}
+	if cur != nil {
+		*out = *cur
+	}
+	out.RegistrationWindow = window
+	return out
+}
 
 // GrantGiftPayload 给指定用户发任意 mode 赠金。
 type GrantGiftPayload struct {
@@ -193,7 +307,7 @@ type GrantGiftPayload struct {
 	DeductionMode string     `json:"deduction_mode" binding:"required"`
 	RatioRecharge *float64   `json:"ratio_recharge,omitempty"`
 	ExpiresAt     *time.Time `json:"expires_at,omitempty"`
-	Source        string     `json:"source,omitempty"`     // 默认 "manual"
+	Source        string     `json:"source,omitempty"` // 默认 "manual"
 	SourceRef     *string    `json:"source_ref,omitempty"`
 }
 
@@ -372,12 +486,12 @@ func (h *GiftOpsHandler) GetUserBalance(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"user_id":              userID,
-		"total_balance":        user.Balance,
-		"gift_balance":         giftBal,
-		"recharge_balance":     user.Balance - giftBal,
-		"gift_expiring_soon":   expiringSoon,
-		"total_recharged":      user.TotalRecharged,
+		"user_id":            userID,
+		"total_balance":      user.Balance,
+		"gift_balance":       giftBal,
+		"recharge_balance":   user.Balance - giftBal,
+		"gift_expiring_soon": expiringSoon,
+		"total_recharged":    user.TotalRecharged,
 	})
 }
 
@@ -427,6 +541,7 @@ func bindKeyGiftSettingDTO(r *dbent.BindKeyGiftSetting) BindKeyGiftSettingRespon
 		v := *r.ExpiresAfterDays
 		out.ExpiresAfterDays = &v
 	}
+	out.Config = r.Config
 	return out
 }
 
@@ -435,18 +550,18 @@ func userGiftDTO(g *gift.UserGift) any {
 		return nil
 	}
 	return gin.H{
-		"id":               g.ID,
-		"user_id":          g.UserID,
-		"amount":           g.Amount,
-		"remaining":        g.Remaining,
-		"deduction_mode":   string(g.Mode),
-		"ratio_recharge":   g.RatioRecharge,
-		"expires_at":       g.ExpiresAt,
-		"source":           string(g.Source),
-		"source_ref":       g.SourceRef,
-		"status":           string(g.Status),
-		"created_at":       g.CreatedAt,
-		"updated_at":       g.UpdatedAt,
+		"id":             g.ID,
+		"user_id":        g.UserID,
+		"amount":         g.Amount,
+		"remaining":      g.Remaining,
+		"deduction_mode": string(g.Mode),
+		"ratio_recharge": g.RatioRecharge,
+		"expires_at":     g.ExpiresAt,
+		"source":         string(g.Source),
+		"source_ref":     g.SourceRef,
+		"status":         string(g.Status),
+		"created_at":     g.CreatedAt,
+		"updated_at":     g.UpdatedAt,
 	}
 }
 
