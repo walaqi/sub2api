@@ -437,19 +437,7 @@ describe('ProfileIdentityBindingsSection', () => {
     expect(wrapper.text()).toContain('Primary email is managed in the profile form')
   })
 
-  it('keeps the email form available for replacing a bound primary email', async () => {
-    userApiMocks.sendEmailBindingCode.mockResolvedValue(undefined)
-    userApiMocks.bindEmailIdentity.mockResolvedValue(
-      createUser({
-        email: 'new@example.com',
-        email_bound: true,
-        auth_bindings: {
-          email: { bound: true },
-        },
-      })
-    )
-
-    const appStore = useAppStore()
+  it('hides the email form for users who already have a bound primary email', () => {
     const authStore = useAuthStore()
     authStore.user = createUser({
       email: 'current@example.com',
@@ -458,7 +446,6 @@ describe('ProfileIdentityBindingsSection', () => {
         email: { bound: true },
       },
     })
-    const showSuccessSpy = vi.spyOn(appStore, 'showSuccess')
 
     const wrapper = mount(ProfileIdentityBindingsSection, {
       global: {
@@ -473,32 +460,33 @@ describe('ProfileIdentityBindingsSection', () => {
     })
 
     expect(wrapper.get('[data-testid="profile-binding-email-status"]').text()).toBe('Bound')
-    expect(wrapper.get('[data-testid="profile-binding-email-input"]').exists()).toBe(true)
-    expect(wrapper.get('[data-testid="profile-binding-email-submit"]').text()).toBe(
-      'Replace primary email'
-    )
-    expect(
-      (wrapper.get('[data-testid="profile-binding-email-password-input"]').element as HTMLInputElement)
-        .placeholder
-    ).toBe('Current password')
+    expect(wrapper.find('[data-testid="profile-binding-email-form"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="profile-binding-email-input"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="profile-binding-email-submit"]').exists()).toBe(false)
+  })
 
-    await wrapper.get('[data-testid="profile-binding-email-input"]').setValue('new@example.com')
-    await wrapper.get('[data-testid="profile-binding-email-send-code"]').trigger('click')
-    expect(userApiMocks.sendEmailBindingCode).toHaveBeenCalledWith('new@example.com')
-
-    await wrapper.get('[data-testid="profile-binding-email-code-input"]').setValue('123456')
-    await wrapper.get('[data-testid="profile-binding-email-password-input"]').setValue(
-      'current-password'
-    )
-    await wrapper.get('[data-testid="profile-binding-email-submit"]').trigger('click')
-
-    expect(userApiMocks.bindEmailIdentity).toHaveBeenCalledWith({
-      email: 'new@example.com',
-      verify_code: '123456',
-      password: 'current-password',
+  it('hides the compact manage-email toggle when the primary email is already bound', () => {
+    const wrapper = mount(ProfileIdentityBindingsSection, {
+      global: {
+        plugins: [pinia],
+      },
+      props: {
+        user: createUser({
+          email: 'current@example.com',
+          email_bound: true,
+          auth_bindings: {
+            email: { bound: true },
+          },
+        }),
+        compact: true,
+        linuxdoEnabled: false,
+        oidcEnabled: false,
+        wechatEnabled: false,
+      },
     })
-    expect(authStore.user?.email).toBe('new@example.com')
-    expect(showSuccessSpy).toHaveBeenCalledWith('Primary email updated')
+
+    expect(wrapper.find('[data-testid="profile-binding-email-toggle"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="profile-binding-email-input"]').exists()).toBe(false)
   })
 
   it('collapses the email binding form in compact mode until the user expands it', async () => {

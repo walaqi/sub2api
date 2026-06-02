@@ -355,7 +355,27 @@ func TestAuthServiceSendEmailIdentityBindCode_RejectsEmailOutsideSuffixWhitelist
 	require.Equal(t, "EMAIL_SUFFIX_NOT_ALLOWED", infraerrors.Reason(err))
 }
 
-func TestAuthServiceBindEmailIdentity_ReplacesBoundEmailAndSkipsFirstBindDefaults(t *testing.T) {
+func TestAuthServiceSendEmailIdentityBindCode_RejectsChangeForBoundEmail(t *testing.T) {
+	cache := &emailBindCacheStub{}
+	svc, _, client := newAuthServiceForEmailBind(t, nil, cache, nil)
+
+	ctx := context.Background()
+	user, err := client.User.Create().
+		SetEmail("current@example.com").
+		SetUsername("bound-user").
+		SetPasswordHash("old-hash").
+		SetBalance(1).
+		SetConcurrency(1).
+		SetRole(service.RoleUser).
+		SetStatus(service.StatusActive).
+		Save(ctx)
+	require.NoError(t, err)
+
+	err = svc.SendEmailIdentityBindCode(ctx, user.ID, "new@example.com")
+	require.ErrorIs(t, err, service.ErrEmailChangeNotAllowed)
+}
+
+func TestAuthServiceBindEmailIdentity_RejectsChangeForBoundEmail(t *testing.T) {
 	assigner := &emailBindDefaultSubAssignerStub{}
 	cache := &emailBindCacheStub{
 		data: &service.VerificationCodeData{
@@ -364,12 +384,7 @@ func TestAuthServiceBindEmailIdentity_ReplacesBoundEmailAndSkipsFirstBindDefault
 			ExpiresAt: time.Now().UTC().Add(10 * time.Minute),
 		},
 	}
-	svc, _, client := newAuthServiceForEmailBind(t, map[string]string{
-		service.SettingKeyAuthSourceDefaultEmailBalance:          "8.5",
-		service.SettingKeyAuthSourceDefaultEmailConcurrency:      "4",
-		service.SettingKeyAuthSourceDefaultEmailSubscriptions:    `[{"group_id":11,"validity_days":30}]`,
-		service.SettingKeyAuthSourceDefaultEmailGrantOnFirstBind: "true",
-	}, cache, assigner)
+	svc, _, client := newAuthServiceForEmailBind(t, nil, cache, assigner)
 
 	ctx := context.Background()
 	hashedPassword, err := svc.HashPassword("current-password")
@@ -395,16 +410,12 @@ func TestAuthServiceBindEmailIdentity_ReplacesBoundEmailAndSkipsFirstBindDefault
 		Exec(ctx))
 
 	updatedUser, err := svc.BindEmailIdentity(ctx, user.ID, "new@example.com", "123456", "current-password")
-	require.NoError(t, err)
-	require.NotNil(t, updatedUser)
-	require.Equal(t, "new@example.com", updatedUser.Email)
+	require.ErrorIs(t, err, service.ErrEmailChangeNotAllowed)
+	require.Nil(t, updatedUser)
 
 	storedUser, err := client.User.Get(ctx, user.ID)
 	require.NoError(t, err)
-	require.Equal(t, "new@example.com", storedUser.Email)
-	require.Equal(t, 7.5, storedUser.Balance)
-	require.Equal(t, 3, storedUser.Concurrency)
-	require.True(t, svc.CheckPassword("current-password", storedUser.PasswordHash))
+	require.Equal(t, "current@example.com", storedUser.Email)
 
 	newIdentityCount, err := client.AuthIdentity.Query().
 		Where(
@@ -415,64 +426,7 @@ func TestAuthServiceBindEmailIdentity_ReplacesBoundEmailAndSkipsFirstBindDefault
 		).
 		Count(ctx)
 	require.NoError(t, err)
-	require.Equal(t, 1, newIdentityCount)
-
-	oldIdentityCount, err := client.AuthIdentity.Query().
-		Where(
-			authidentity.UserIDEQ(user.ID),
-			authidentity.ProviderTypeEQ("email"),
-			authidentity.ProviderKeyEQ("email"),
-			authidentity.ProviderSubjectEQ("current@example.com"),
-		).
-		Count(ctx)
-	require.NoError(t, err)
-	require.Equal(t, 0, oldIdentityCount)
-
-	require.Empty(t, assigner.calls)
-	require.Equal(t, 0, countProviderGrantRecords(t, client, user.ID, "email", "first_bind"))
-}
-
-func TestAuthServiceBindEmailIdentity_RejectsWrongCurrentPasswordForBoundEmail(t *testing.T) {
-	cache := &emailBindCacheStub{
-		data: &service.VerificationCodeData{
-			Code:      "123456",
-			CreatedAt: time.Now().UTC(),
-			ExpiresAt: time.Now().UTC().Add(10 * time.Minute),
-		},
-	}
-	svc, _, client := newAuthServiceForEmailBind(t, nil, cache, nil)
-
-	ctx := context.Background()
-	hashedPassword, err := svc.HashPassword("current-password")
-	require.NoError(t, err)
-
-	user, err := client.User.Create().
-		SetEmail("current@example.com").
-		SetUsername("bound-user").
-		SetPasswordHash(hashedPassword).
-		SetBalance(1).
-		SetConcurrency(1).
-		SetRole(service.RoleUser).
-		SetStatus(service.StatusActive).
-		Save(ctx)
-	require.NoError(t, err)
-	require.NoError(t, client.AuthIdentity.Create().
-		SetUserID(user.ID).
-		SetProviderType("email").
-		SetProviderKey("email").
-		SetProviderSubject("current@example.com").
-		SetVerifiedAt(time.Now().UTC()).
-		SetMetadata(map[string]any{"source": "test"}).
-		Exec(ctx))
-
-	updatedUser, err := svc.BindEmailIdentity(ctx, user.ID, "new@example.com", "123456", "wrong-password")
-	require.ErrorIs(t, err, service.ErrPasswordIncorrect)
-	require.Nil(t, updatedUser)
-
-	storedUser, err := client.User.Get(ctx, user.ID)
-	require.NoError(t, err)
-	require.Equal(t, "current@example.com", storedUser.Email)
-	require.True(t, svc.CheckPassword("current-password", storedUser.PasswordHash))
+	require.Equal(t, 0, newIdentityCount)
 
 	oldIdentityCount, err := client.AuthIdentity.Query().
 		Where(
@@ -485,16 +439,7 @@ func TestAuthServiceBindEmailIdentity_RejectsWrongCurrentPasswordForBoundEmail(t
 	require.NoError(t, err)
 	require.Equal(t, 1, oldIdentityCount)
 
-	newIdentityCount, err := client.AuthIdentity.Query().
-		Where(
-			authidentity.UserIDEQ(user.ID),
-			authidentity.ProviderTypeEQ("email"),
-			authidentity.ProviderKeyEQ("email"),
-			authidentity.ProviderSubjectEQ("new@example.com"),
-		).
-		Count(ctx)
-	require.NoError(t, err)
-	require.Equal(t, 0, newIdentityCount)
+	require.Empty(t, assigner.calls)
 }
 
 func TestAuthServiceBindEmailIdentity_RevokesExistingAccessAndRefreshTokens(t *testing.T) {

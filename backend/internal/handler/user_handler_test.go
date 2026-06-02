@@ -696,7 +696,7 @@ func TestUserHandlerUnbindIdentityDoesNotRevokeSessionsWhenNothingWasUnbound(t *
 	require.Equal(t, int64(4), repo.user.TokenVersion)
 }
 
-func TestUserHandlerBindEmailIdentityRejectsWrongCurrentPasswordForBoundEmail(t *testing.T) {
+func TestUserHandlerBindEmailIdentityRejectsChangeForBoundEmail(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	user := &service.User{
@@ -726,7 +726,7 @@ func TestUserHandlerBindEmailIdentityRejectsWrongCurrentPasswordForBoundEmail(t 
 	authService := service.NewAuthService(nil, repo, nil, nil, cfg, nil, emailService, nil, nil, nil, nil, nil, nil)
 	handler := NewUserHandler(service.NewUserService(repo, nil, nil, nil), authService, nil, nil, nil, nil)
 
-	body := []byte(`{"email":"new@example.com","verify_code":"123456","password":"wrong-password"}`)
+	body := []byte(`{"email":"new@example.com","verify_code":"123456","password":"current-password"}`)
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/user/account-bindings/email", bytes.NewReader(body))
@@ -735,7 +735,7 @@ func TestUserHandlerBindEmailIdentityRejectsWrongCurrentPasswordForBoundEmail(t 
 
 	handler.BindEmailIdentity(c)
 
-	require.Equal(t, http.StatusBadRequest, recorder.Code)
+	require.Equal(t, http.StatusForbidden, recorder.Code)
 
 	var resp struct {
 		Code    int    `json:"code"`
@@ -743,9 +743,8 @@ func TestUserHandlerBindEmailIdentityRejectsWrongCurrentPasswordForBoundEmail(t 
 		Reason  string `json:"reason"`
 	}
 	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &resp))
-	require.Equal(t, http.StatusBadRequest, resp.Code)
-	require.Equal(t, "PASSWORD_INCORRECT", resp.Reason)
-	require.Equal(t, "current password is incorrect", resp.Message)
+	require.Equal(t, http.StatusForbidden, resp.Code)
+	require.Equal(t, "EMAIL_CHANGE_NOT_ALLOWED", resp.Reason)
 	require.Equal(t, "current@example.com", repo.user.Email)
 }
 

@@ -49,11 +49,12 @@ func (s *AuthService) BindEmailIdentity(
 		return nil, err
 	}
 	firstRealEmailBind := !hasBindableEmailIdentitySubject(currentUser.Email)
-	if firstRealEmailBind && len(password) < 6 {
-		return nil, infraerrors.BadRequest("PASSWORD_TOO_SHORT", "password must be at least 6 characters")
+	if !firstRealEmailBind {
+		// Users who already have a real bound email may not change it from their profile.
+		return nil, ErrEmailChangeNotAllowed
 	}
-	if !firstRealEmailBind && !s.CheckPassword(password, currentUser.PasswordHash) {
-		return nil, ErrPasswordIncorrect
+	if len(password) < 6 {
+		return nil, infraerrors.BadRequest("PASSWORD_TOO_SHORT", "password must be at least 6 characters")
 	}
 
 	existingUser, err := s.userRepo.GetByEmail(ctx, normalizedEmail)
@@ -115,11 +116,16 @@ func (s *AuthService) SendEmailIdentityBindCode(ctx context.Context, userID int6
 	if s.emailService == nil {
 		return ErrServiceUnavailable
 	}
-	if _, err := s.userRepo.GetByID(ctx, userID); err != nil {
+	currentUser, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
 		if errors.Is(err, ErrUserNotFound) {
 			return ErrUserNotFound
 		}
 		return ErrServiceUnavailable
+	}
+	if hasBindableEmailIdentitySubject(currentUser.Email) {
+		// Users who already have a real bound email may not change it from their profile.
+		return ErrEmailChangeNotAllowed
 	}
 
 	existingUser, err := s.userRepo.GetByEmail(ctx, normalizedEmail)

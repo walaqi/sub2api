@@ -150,7 +150,7 @@
 
           <div class="flex shrink-0 flex-wrap items-center gap-3">
             <button
-              v-if="item.provider === 'email' && compact"
+              v-if="item.provider === 'email' && compact && !emailBound"
               data-testid="profile-binding-email-toggle"
               type="button"
               class="btn btn-secondary btn-sm"
@@ -289,7 +289,11 @@ const rowClass = computed(() =>
     : 'px-6 py-5'
 )
 const emailBound = computed(() => getBindingStatus('email'))
-const showEmailForm = computed(() => !compact.value || isEmailFormExpanded.value)
+// Users with an already-bound email cannot change it from their profile; the
+// form stays available only for first-time email binding (e.g. OAuth-only accounts).
+const showEmailForm = computed(
+  () => !emailBound.value && (!compact.value || isEmailFormExpanded.value)
+)
 const emailPasswordPlaceholder = computed(() =>
   emailBound.value
     ? t('profile.authBindings.replaceEmailPasswordPlaceholder')
