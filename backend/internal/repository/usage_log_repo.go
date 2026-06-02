@@ -4591,15 +4591,20 @@ func (r *usageLogRepository) findSuspectGroupsForDimension(
 	minUsers, maxGroups int,
 ) (result []usagestats.SuspectGroup, err error) {
 	// col is from an internal whitelist (suspectGroupDimensionColumn), never user input.
+	// Disabled / soft-deleted users are excluded from BOTH the threshold count and the
+	// member list ($5 = disabled status), so disabling a farm drops the group below the
+	// threshold and it stops being reported (and stops being auto-throttled).
 	query := fmt.Sprintf(`
 		WITH flagged AS (
-			SELECT %[1]s AS dim_value
-			FROM usage_logs
-			WHERE %[1]s IS NOT NULL
-			  AND created_at >= $1 AND created_at < $2
-			GROUP BY %[1]s
-			HAVING COUNT(DISTINCT user_id) >= $3
-			ORDER BY COUNT(DISTINCT user_id) DESC, COUNT(*) DESC
+			SELECT ul.%[1]s AS dim_value
+			FROM usage_logs ul
+			JOIN users u ON u.id = ul.user_id
+			WHERE ul.%[1]s IS NOT NULL
+			  AND ul.created_at >= $1 AND ul.created_at < $2
+			  AND u.status <> $5 AND u.deleted_at IS NULL
+			GROUP BY ul.%[1]s
+			HAVING COUNT(DISTINCT ul.user_id) >= $3
+			ORDER BY COUNT(DISTINCT ul.user_id) DESC, COUNT(*) DESC
 			LIMIT $4
 		)
 		SELECT
@@ -4612,13 +4617,14 @@ func (r *usageLogRepository) findSuspectGroupsForDimension(
 			MAX(ul.created_at) AS last_seen
 		FROM usage_logs ul
 		JOIN flagged f ON f.dim_value = ul.%[1]s
-		LEFT JOIN users us ON us.id = ul.user_id
+		JOIN users us ON us.id = ul.user_id
 		WHERE ul.created_at >= $1 AND ul.created_at < $2
+		  AND us.status <> $5 AND us.deleted_at IS NULL
 		GROUP BY ul.%[1]s, ul.user_id, us.email, us.username
 		ORDER BY ul.%[1]s, requests DESC
 	`, col)
 
-	rows, err := r.sql.QueryContext(ctx, query, startTime, endTime, minUsers, maxGroups)
+	rows, err := r.sql.QueryContext(ctx, query, startTime, endTime, minUsers, maxGroups, service.StatusDisabled)
 	if err != nil {
 		return nil, err
 	}

@@ -26,9 +26,10 @@ func TestFindSuspectedMultiAccountGroups_DeviceDimension(t *testing.T) {
 		AddRow("dev-A", int64(11), "a@x.com", "alice", int64(50), t1, t2).
 		AddRow("dev-A", int64(22), "b@x.com", "bob", int64(30), t1, t2)
 
-	// device_id IS NOT NULL guard must be present (NULL-collapse protection).
-	mock.ExpectQuery(`device_id IS NOT NULL[\s\S]*HAVING COUNT\(DISTINCT user_id\) >=`).
-		WithArgs(start, end, 3, 200).
+	// device_id IS NOT NULL guard must be present (NULL-collapse protection),
+	// and disabled users must be excluded from the count/members ($5).
+	mock.ExpectQuery(`device_id IS NOT NULL[\s\S]*status <> \$5[\s\S]*HAVING COUNT\(DISTINCT ul\.user_id\) >=`).
+		WithArgs(start, end, 3, 200, "disabled").
 		WillReturnRows(rows)
 
 	groups, err := repo.FindSuspectedMultiAccountGroups(context.Background(), usagestats.SuspectGroupFilters{
@@ -63,7 +64,7 @@ func TestFindSuspectedMultiAccountGroups_NullSemantics(t *testing.T) {
 	// flagged CTE returns nothing (all NULL device_ids were filtered out) → empty result.
 	empty := sqlmock.NewRows([]string{"dim_value", "user_id", "email", "username", "requests", "first_seen", "last_seen"})
 	mock.ExpectQuery(`client_fingerprint IS NOT NULL`).
-		WithArgs(start, end, 3, 200).
+		WithArgs(start, end, 3, 200, "disabled").
 		WillReturnRows(empty)
 
 	groups, err := repo.FindSuspectedMultiAccountGroups(context.Background(), usagestats.SuspectGroupFilters{
@@ -88,7 +89,7 @@ func TestFindSuspectedMultiAccountGroups_MinUsersFloor(t *testing.T) {
 
 	empty := sqlmock.NewRows([]string{"dim_value", "user_id", "email", "username", "requests", "first_seen", "last_seen"})
 	mock.ExpectQuery(`ip_address IS NOT NULL`).
-		WithArgs(start, end, 2, 200). // MinUsers=1 floored to 2
+		WithArgs(start, end, 2, 200, "disabled"). // MinUsers=1 floored to 2
 		WillReturnRows(empty)
 
 	_, err := repo.FindSuspectedMultiAccountGroups(context.Background(), usagestats.SuspectGroupFilters{
