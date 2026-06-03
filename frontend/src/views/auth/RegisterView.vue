@@ -50,6 +50,9 @@
               :placeholder="t('auth.emailPlaceholder')"
             />
           </div>
+          <p v-if="emailSuffixAllowedHint" class="input-hint">
+            {{ emailSuffixAllowedHint }}
+          </p>
         </div>
 
         <!-- Password Input -->
@@ -434,6 +437,27 @@ const registrationActionDisabled = computed(
   () => isLoading.value || !settingsLoaded.value || agreementGateActive.value
 )
 
+const formattedEmailSuffixWhitelist = computed<string>(() => {
+  const normalizedWhitelist = normalizeRegistrationEmailSuffixWhitelist(
+    registrationEmailSuffixWhitelist.value
+  )
+  if (normalizedWhitelist.length === 0) {
+    return ''
+  }
+  const separator = String(locale.value || '').toLowerCase().startsWith('zh') ? '、' : ', '
+  return formatRegistrationEmailSuffixWhitelistForMessage(normalizedWhitelist, {
+    separator,
+    more: (count) => t('auth.emailSuffixAllowedMore', { count })
+  })
+})
+
+const emailSuffixAllowedHint = computed<string>(() => {
+  if (!formattedEmailSuffixWhitelist.value) {
+    return ''
+  }
+  return t('auth.emailSuffixAllowedHint', { suffixes: formattedEmailSuffixWhitelist.value })
+})
+
 watch(validationToastMessage, (value, previousValue) => {
   if (value && value !== previousValue) {
     appStore.showError(value)
@@ -732,18 +756,11 @@ function validateEmail(email: string): boolean {
 }
 
 function buildEmailSuffixNotAllowedMessage(): string {
-  const normalizedWhitelist = normalizeRegistrationEmailSuffixWhitelist(
-    registrationEmailSuffixWhitelist.value
-  )
-  if (normalizedWhitelist.length === 0) {
+  if (!formattedEmailSuffixWhitelist.value) {
     return t('auth.emailSuffixNotAllowed')
   }
-  const separator = String(locale.value || '').toLowerCase().startsWith('zh') ? '、' : ', '
   return t('auth.emailSuffixNotAllowedWithAllowed', {
-    suffixes: formatRegistrationEmailSuffixWhitelistForMessage(normalizedWhitelist, {
-      separator,
-      more: (count) => t('auth.emailSuffixAllowedMore', { count })
-    })
+    suffixes: formattedEmailSuffixWhitelist.value
   })
 }
 
