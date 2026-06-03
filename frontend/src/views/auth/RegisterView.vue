@@ -321,6 +321,7 @@ import {
 } from '@/api/auth'
 import { buildAuthErrorMessage } from '@/utils/authError'
 import {
+  EMAIL_SUFFIX_MESSAGE_VISIBLE_LIMIT,
   formatRegistrationEmailSuffixWhitelistForMessage,
   isRegistrationEmailSuffixAllowed,
   normalizeRegistrationEmailSuffixWhitelist
@@ -437,7 +438,7 @@ const registrationActionDisabled = computed(
   () => isLoading.value || !settingsLoaded.value || agreementGateActive.value
 )
 
-const formattedEmailSuffixWhitelist = computed<string>(() => {
+function formatEmailSuffixWhitelist(limit: number | null): string {
   const normalizedWhitelist = normalizeRegistrationEmailSuffixWhitelist(
     registrationEmailSuffixWhitelist.value
   )
@@ -447,15 +448,18 @@ const formattedEmailSuffixWhitelist = computed<string>(() => {
   const separator = String(locale.value || '').toLowerCase().startsWith('zh') ? '、' : ', '
   return formatRegistrationEmailSuffixWhitelistForMessage(normalizedWhitelist, {
     separator,
+    limit,
     more: (count) => t('auth.emailSuffixAllowedMore', { count })
   })
-})
+}
 
 const emailSuffixAllowedHint = computed<string>(() => {
-  if (!formattedEmailSuffixWhitelist.value) {
+  // The proactive reminder lists every allowed domain — no truncation.
+  const suffixes = formatEmailSuffixWhitelist(null)
+  if (!suffixes) {
     return ''
   }
-  return t('auth.emailSuffixAllowedHint', { suffixes: formattedEmailSuffixWhitelist.value })
+  return t('auth.emailSuffixAllowedHint', { suffixes })
 })
 
 watch(validationToastMessage, (value, previousValue) => {
@@ -756,11 +760,12 @@ function validateEmail(email: string): boolean {
 }
 
 function buildEmailSuffixNotAllowedMessage(): string {
-  if (!formattedEmailSuffixWhitelist.value) {
+  const suffixes = formatEmailSuffixWhitelist(EMAIL_SUFFIX_MESSAGE_VISIBLE_LIMIT)
+  if (!suffixes) {
     return t('auth.emailSuffixNotAllowed')
   }
   return t('auth.emailSuffixNotAllowedWithAllowed', {
-    suffixes: formattedEmailSuffixWhitelist.value
+    suffixes
   })
 }
 
