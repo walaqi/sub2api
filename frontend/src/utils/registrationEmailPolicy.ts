@@ -3,7 +3,7 @@ const EMAIL_SUFFIX_INVALID_CHAR_RE = /[^a-z0-9.-]/g
 const EMAIL_SUFFIX_INVALID_CHAR_CHECK_RE = /[^a-z0-9.-]/
 const EMAIL_SUFFIX_PREFIX_RE = /^@+/
 const EMAIL_SUFFIX_WILDCARD_PREFIX = '*.'
-const EMAIL_SUFFIX_MESSAGE_VISIBLE_LIMIT = 5
+export const EMAIL_SUFFIX_MESSAGE_VISIBLE_LIMIT = 5
 const EMAIL_SUFFIX_DOMAIN_PATTERN =
   /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/
 
@@ -208,12 +208,16 @@ export function formatRegistrationEmailSuffixWhitelistForMessage(
   options: {
     separator: string
     more: (count: number) => string
+    // Maximum entries to show before collapsing the rest into `more`.
+    // Defaults to EMAIL_SUFFIX_MESSAGE_VISIBLE_LIMIT; pass null to show all entries.
+    limit?: number | null
   }
 ): string {
   const normalizedWhitelist = normalizeRegistrationEmailSuffixWhitelist(whitelist)
-  const visible = normalizedWhitelist
-    .slice(0, EMAIL_SUFFIX_MESSAGE_VISIBLE_LIMIT)
-    .map(registrationEmailSuffixDisplay)
+  const limit = options.limit === undefined ? EMAIL_SUFFIX_MESSAGE_VISIBLE_LIMIT : options.limit
+  const visible = (limit === null ? normalizedWhitelist : normalizedWhitelist.slice(0, limit)).map(
+    registrationEmailSuffixDisplay
+  )
   const hiddenCount = normalizedWhitelist.length - visible.length
   if (hiddenCount > 0) {
     visible.push(options.more(hiddenCount))

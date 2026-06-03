@@ -124,6 +124,15 @@ describe('registrationEmailPolicy utils', () => {
     ).toBe('@a.com, @b.com, @c.com, @d.com, @e.com, and 2 more')
   })
 
+  it('formatRegistrationEmailSuffixWhitelistForMessage with limit null lists every entry', () => {
+    expect(
+      formatRegistrationEmailSuffixWhitelistForMessage(
+        ['@a.com', '@b.com', '@c.com', '@d.com', '@e.com', '*.edu.cn', '@f.com'],
+        { separator: ', ', limit: null, more: (count) => `and ${count} more` }
+      )
+    ).toBe('@a.com, @b.com, @c.com, @d.com, @e.com, *.edu.cn, @f.com')
+  })
+
   it('isRegistrationEmailSuffixRegexEntry detects re: entries', () => {
     expect(isRegistrationEmailSuffixRegexEntry(REGEX_RULE)).toBe(true)
     expect(isRegistrationEmailSuffixRegexEntry('  re:^x$#label')).toBe(true)
