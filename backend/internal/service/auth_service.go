@@ -1046,13 +1046,21 @@ func buildEmailSuffixNotAllowedError(whitelist []string) error {
 		return ErrEmailSuffixNotAllowed
 	}
 
-	allowed := strings.Join(whitelist, ", ")
+	// Regex entries expose only their display label, never the raw pattern.
+	display := make([]string, 0, len(whitelist))
+	for _, entry := range whitelist {
+		if shown := RegistrationEmailSuffixDisplay(entry); shown != "" {
+			display = append(display, shown)
+		}
+	}
+
+	allowed := strings.Join(display, ", ")
 	return infraerrors.BadRequest(
 		"EMAIL_SUFFIX_NOT_ALLOWED",
 		fmt.Sprintf("email suffix is not allowed, allowed suffixes: %s", allowed),
 	).WithMetadata(map[string]string{
-		"allowed_suffixes":     strings.Join(whitelist, ","),
-		"allowed_suffix_count": strconv.Itoa(len(whitelist)),
+		"allowed_suffixes":     strings.Join(display, ","),
+		"allowed_suffix_count": strconv.Itoa(len(display)),
 	})
 }
 

@@ -6599,6 +6599,8 @@ import { useAdminSettingsStore } from "@/stores/adminSettings";
 import { normalizeVisibleMethod } from "@/components/payment/paymentFlow";
 import {
   isRegistrationEmailSuffixDomainValid,
+  isRegistrationEmailSuffixRegexEntry,
+  isRegistrationEmailSuffixRegexEntryValid,
   normalizeRegistrationEmailSuffixDomain,
   normalizeRegistrationEmailSuffixDomains,
   parseRegistrationEmailSuffixWhitelistInput,
@@ -7328,10 +7330,10 @@ function removeRegistrationEmailSuffixWhitelistTag(suffix: string) {
 
 function addRegistrationEmailSuffixWhitelistTag(raw: string) {
   const suffix = normalizeRegistrationEmailSuffixDomain(raw);
-  if (
-    !isRegistrationEmailSuffixDomainValid(suffix) ||
-    registrationEmailSuffixWhitelistTags.value.includes(suffix)
-  ) {
+  const isValid = isRegistrationEmailSuffixRegexEntry(suffix)
+    ? isRegistrationEmailSuffixRegexEntryValid(suffix)
+    : isRegistrationEmailSuffixDomainValid(suffix);
+  if (!isValid || registrationEmailSuffixWhitelistTags.value.includes(suffix)) {
     return;
   }
   registrationEmailSuffixWhitelistTags.value = [
@@ -7351,6 +7353,15 @@ function commitRegistrationEmailSuffixWhitelistDraft() {
 }
 
 function handleRegistrationEmailSuffixWhitelistDraftInput() {
+  // Regex entries ("re:...") keep their raw characters (^ \ + $ # | @ etc.);
+  // only plain domain drafts are live-normalized.
+  if (
+    isRegistrationEmailSuffixRegexEntry(
+      registrationEmailSuffixWhitelistDraft.value,
+    )
+  ) {
+    return;
+  }
   registrationEmailSuffixWhitelistDraft.value =
     normalizeRegistrationEmailSuffixDomain(
       registrationEmailSuffixWhitelistDraft.value,
@@ -7364,7 +7375,20 @@ function handleRegistrationEmailSuffixWhitelistDraftKeydown(
     return;
   }
 
-  if (registrationEmailSuffixWhitelistSeparatorKeys.has(event.key)) {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    commitRegistrationEmailSuffixWhitelistDraft();
+    return;
+  }
+
+  // Regex drafts may legitimately contain spaces/commas, so only Enter commits
+  // them; other separator keys still commit plain domain drafts.
+  if (
+    !isRegistrationEmailSuffixRegexEntry(
+      registrationEmailSuffixWhitelistDraft.value,
+    ) &&
+    registrationEmailSuffixWhitelistSeparatorKeys.has(event.key)
+  ) {
     event.preventDefault();
     commitRegistrationEmailSuffixWhitelistDraft();
     return;
@@ -8009,9 +8033,15 @@ async function saveSettings() {
       registration_enabled: form.registration_enabled,
       email_verify_enabled: form.email_verify_enabled,
       registration_email_suffix_whitelist:
-        registrationEmailSuffixWhitelistTags.value.map((suffix) =>
-          suffix.startsWith("*.") ? suffix : `@${suffix}`,
-        ),
+        registrationEmailSuffixWhitelistTags.value.map((suffix) => {
+          if (
+            isRegistrationEmailSuffixRegexEntry(suffix) ||
+            suffix.startsWith("*.")
+          ) {
+            return suffix;
+          }
+          return `@${suffix}`;
+        }),
       promo_code_enabled: form.promo_code_enabled,
       invitation_code_enabled: form.invitation_code_enabled,
       password_reset_enabled: form.password_reset_enabled,
