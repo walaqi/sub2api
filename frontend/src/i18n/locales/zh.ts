@@ -5533,7 +5533,8 @@ export default {
         emailSuffixWhitelistHint:
           "仅允许使用指定域名的邮箱注册账号（例如 {'@'}qq.com, {'@'}gmail.com, *.edu.cn）",
         emailSuffixWhitelistPlaceholder: "{'@'}example.com, *.edu.cn",
-        emailSuffixWhitelistInputHint: '留空则不限制。使用 *.edu.cn 可匹配 edu.cn 及其子域名。',
+        emailSuffixWhitelistInputHint:
+          "留空则不限制。使用 *.edu.cn 可匹配 edu.cn 及其子域名。高级：使用 re:<正则>#<说明> 按正则匹配整个邮箱，正则需以 ^ 开头、$ 结尾，例如 re:^\\d+{'@'}qq\\.com$#仅限纯数字QQ邮箱（按 Enter 添加）。",
         promoCode: '优惠码',
         promoCodeHint: '允许用户在注册时使用优惠码',
         invitationCode: '邀请码注册',

@@ -3,11 +3,16 @@ import {
   formatRegistrationEmailSuffixWhitelistForMessage,
   isRegistrationEmailSuffixAllowed,
   isRegistrationEmailSuffixDomainValid,
+  isRegistrationEmailSuffixRegexEntry,
+  isRegistrationEmailSuffixRegexEntryValid,
   normalizeRegistrationEmailSuffixDomain,
   normalizeRegistrationEmailSuffixDomains,
   normalizeRegistrationEmailSuffixWhitelist,
-  parseRegistrationEmailSuffixWhitelistInput
+  parseRegistrationEmailSuffixWhitelistInput,
+  registrationEmailSuffixDisplay
 } from '@/utils/registrationEmailPolicy'
+
+const REGEX_RULE = 're:^\\d+@qq\\.com$#仅限纯数字QQ邮箱'
 
 describe('registrationEmailPolicy utils', () => {
   it('normalizeRegistrationEmailSuffixDomain lowercases, strips @, and ignores invalid chars', () => {
@@ -117,5 +122,84 @@ describe('registrationEmailPolicy utils', () => {
         { separator: ', ', more: (count) => `and ${count} more` }
       )
     ).toBe('@a.com, @b.com, @c.com, @d.com, @e.com, and 2 more')
+  })
+
+  it('isRegistrationEmailSuffixRegexEntry detects re: entries', () => {
+    expect(isRegistrationEmailSuffixRegexEntry(REGEX_RULE)).toBe(true)
+    expect(isRegistrationEmailSuffixRegexEntry('  re:^x$#label')).toBe(true)
+    expect(isRegistrationEmailSuffixRegexEntry('@qq.com')).toBe(false)
+  })
+
+  it('isRegistrationEmailSuffixRegexEntryValid enforces anchoring, label, and compilability', () => {
+    expect(isRegistrationEmailSuffixRegexEntryValid(REGEX_RULE)).toBe(true)
+    // missing separator
+    expect(isRegistrationEmailSuffixRegexEntryValid('re:^\\d+@qq\\.com$')).toBe(false)
+    // empty label
+    expect(isRegistrationEmailSuffixRegexEntryValid('re:^\\d+@qq\\.com$#')).toBe(false)
+    // empty pattern
+    expect(isRegistrationEmailSuffixRegexEntryValid('re:#label')).toBe(false)
+    // not anchored
+    expect(isRegistrationEmailSuffixRegexEntryValid('re:\\d+@qq\\.com$#label')).toBe(false)
+    expect(isRegistrationEmailSuffixRegexEntryValid('re:^\\d+@qq\\.com#label')).toBe(false)
+    // invalid regex
+    expect(isRegistrationEmailSuffixRegexEntryValid('re:^[a-z$#label')).toBe(false)
+  })
+
+  it('normalizeRegistrationEmailSuffixDomain leaves re: entries untouched (except outer trim)', () => {
+    expect(normalizeRegistrationEmailSuffixDomain(`  ${REGEX_RULE}  `)).toBe(REGEX_RULE)
+  })
+
+  it('normalizeRegistrationEmailSuffixDomains keeps valid re: entries and drops invalid ones', () => {
+    expect(
+      normalizeRegistrationEmailSuffixDomains([REGEX_RULE, '@foo.bar', 're:no-anchor#x', REGEX_RULE])
+    ).toEqual([REGEX_RULE, 'foo.bar'])
+  })
+
+  it('normalizeRegistrationEmailSuffixWhitelist preserves re: entries verbatim', () => {
+    expect(normalizeRegistrationEmailSuffixWhitelist([REGEX_RULE, '@Foo.bar'])).toEqual([
+      REGEX_RULE,
+      '@foo.bar'
+    ])
+  })
+
+  it('parseRegistrationEmailSuffixWhitelistInput keeps a re: line intact across spaces/commas', () => {
+    const input = `@foo.bar, example.com\nre:^(\\d+|a)@qq\\.com$#数字或a开头\n*.edu.cn`
+    expect(parseRegistrationEmailSuffixWhitelistInput(input)).toEqual([
+      'foo.bar',
+      'example.com',
+      're:^(\\d+|a)@qq\\.com$#数字或a开头',
+      '*.edu.cn'
+    ])
+  })
+
+  it('isRegistrationEmailSuffixAllowed applies anchored regex matching against the whole email', () => {
+    expect(isRegistrationEmailSuffixAllowed('12345@qq.com', [REGEX_RULE])).toBe(true)
+    expect(isRegistrationEmailSuffixAllowed('abc1@qq.com', [REGEX_RULE])).toBe(false)
+    expect(isRegistrationEmailSuffixAllowed('x12345@qq.com', [REGEX_RULE])).toBe(false)
+    expect(isRegistrationEmailSuffixAllowed('12345@163.com', [REGEX_RULE])).toBe(false)
+    // input is lowercased before matching
+    expect(isRegistrationEmailSuffixAllowed('12345@QQ.com', [REGEX_RULE])).toBe(true)
+  })
+
+  it('isRegistrationEmailSuffixAllowed mixes regex and plain entries', () => {
+    const whitelist = ['@foo.bar', REGEX_RULE]
+    expect(isRegistrationEmailSuffixAllowed('user@foo.bar', whitelist)).toBe(true)
+    expect(isRegistrationEmailSuffixAllowed('999@qq.com', whitelist)).toBe(true)
+    expect(isRegistrationEmailSuffixAllowed('user@other.com', whitelist)).toBe(false)
+  })
+
+  it('registrationEmailSuffixDisplay exposes only the label for regex entries', () => {
+    expect(registrationEmailSuffixDisplay('@foo.bar')).toBe('@foo.bar')
+    expect(registrationEmailSuffixDisplay(REGEX_RULE)).toBe('仅限纯数字QQ邮箱')
+    expect(registrationEmailSuffixDisplay('re:^x$#a|b 提示')).toBe('a|b 提示')
+  })
+
+  it('formatRegistrationEmailSuffixWhitelistForMessage shows regex labels, not patterns', () => {
+    expect(
+      formatRegistrationEmailSuffixWhitelistForMessage(['@foo.bar', REGEX_RULE], {
+        separator: ', ',
+        more: (count) => `and ${count} more`
+      })
+    ).toBe('@foo.bar, 仅限纯数字QQ邮箱')
   })
 })
