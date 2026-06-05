@@ -264,6 +264,57 @@ func entToUserGift(e *dbent.UserGift) *UserGift {
 	return out
 }
 
+// listActiveGiftsForDisplay 返回用户所有 active 且未过期的赠金，供 Profile 逐条展示。
+// 排序与 lockedSnapshot 的扣费顺序一致（priority 在前，再按 ratio/到期/id），
+// 让用户看到的顺序即实际消耗顺序。expiringSoonWindow 内到期的标记 ExpiringSoon=true。
+// 只读、不加锁。
+func (r *repository) listActiveGiftsForDisplay(ctx context.Context, userID int64, expiringSoonWindow time.Duration) ([]GiftDisplayItem, error) {
+	if expiringSoonWindow < 0 {
+		expiringSoonWindow = 0
+	}
+	now := time.Now()
+	cutoff := now.Add(expiringSoonWindow)
+	rows, err := r.entClient.UserGift.Query().
+		Where(
+			usergift.UserID(userID),
+			usergift.Status(string(StatusActive)),
+			usergift.RemainingGT(0),
+			usergift.Or(
+				usergift.ExpiresAtIsNil(),
+				usergift.ExpiresAtGT(now),
+			),
+		).
+		Order(
+			// priority 先于 ratio：用 deduction_mode 升序时 'priority' < 'ratio'，恰好等价。
+			dbent.Asc(usergift.FieldDeductionMode),
+			dbent.Asc(usergift.FieldRatioRecharge),
+			dbent.Asc(usergift.FieldExpiresAt),
+			dbent.Asc(usergift.FieldID),
+		).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list active gifts: %w", err)
+	}
+	out := make([]GiftDisplayItem, 0, len(rows))
+	for _, g := range rows {
+		item := GiftDisplayItem{
+			Remaining: g.Remaining,
+			Mode:      DeductionMode(g.DeductionMode),
+		}
+		if g.RatioRecharge != nil {
+			v := *g.RatioRecharge
+			item.RatioRecharge = &v
+		}
+		if g.ExpiresAt != nil {
+			t := *g.ExpiresAt
+			item.ExpiresAt = &t
+			item.ExpiringSoon = t.Before(cutoff)
+		}
+		out = append(out, item)
+	}
+	return out, nil
+}
+
 // ---------- ops 路径：撤销/列表/查单笔/balance breakdown ----------
 
 // giftBalanceBreakdown 一次 SQL 算出 (gift_balance, expiring_soon)。

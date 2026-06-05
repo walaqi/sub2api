@@ -103,6 +103,53 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 	response.Success(c, profileResp)
 }
 
+// giftListItem 是 ListGifts 返回的单笔赠金 DTO（面向当前登录用户）。
+type giftListItem struct {
+	Remaining     float64  `json:"remaining"`
+	DeductionMode string   `json:"deduction_mode"`
+	RatioRecharge *float64 `json:"ratio_recharge,omitempty"`
+	// ExpiresAtUnixMs 为 nil 表示永不过期。用毫秒时间戳与前端 BindKey 赠金展示保持一致。
+	ExpiresAtUnixMs *int64 `json:"expires_at_unix_ms,omitempty"`
+	ExpiringSoon    bool   `json:"expiring_soon"`
+}
+
+// ListGifts handles listing the current user's active gift credits for profile display.
+// GET /api/v1/user/gifts
+func (h *UserHandler) ListGifts(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	if h.giftEngine == nil {
+		response.Success(c, []giftListItem{})
+		return
+	}
+
+	gifts, err := h.giftEngine.ListActiveGiftsForDisplay(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	items := make([]giftListItem, 0, len(gifts))
+	for i := range gifts {
+		g := gifts[i]
+		item := giftListItem{
+			Remaining:     g.Remaining,
+			DeductionMode: string(g.Mode),
+			RatioRecharge: g.RatioRecharge,
+			ExpiringSoon:  g.ExpiringSoon,
+		}
+		if g.ExpiresAt != nil {
+			ms := g.ExpiresAt.UnixMilli()
+			item.ExpiresAtUnixMs = &ms
+		}
+		items = append(items, item)
+	}
+	response.Success(c, items)
+}
+
 // ChangePassword handles changing user password
 // POST /api/v1/users/me/password
 func (h *UserHandler) ChangePassword(c *gin.Context) {

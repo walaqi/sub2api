@@ -103,6 +103,17 @@ export interface User {
   updated_at: string
 }
 
+// 当前用户持有的单笔有效赠金（GET /user/gifts）。用于 Profile 页面逐条展示。
+export interface UserGiftItem {
+  remaining: number
+  deduction_mode: 'priority' | 'ratio'
+  ratio_recharge?: number | null
+  // 毫秒时间戳；缺省/为 null 表示永不过期。
+  expires_at_unix_ms?: number | null
+  // 后端按统一阈值（120h）判定的"即将过期"标记。
+  expiring_soon: boolean
+}
+
 export interface AdminUser extends User {
   // 管理员备注（普通用户接口不返回）
   notes: string

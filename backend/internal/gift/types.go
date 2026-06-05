@@ -46,6 +46,17 @@ type GrantInput struct {
 	SourceRef     *string
 }
 
+// GiftDisplayItem 面向用户展示的单笔有效赠金快照。
+// 仅含 Profile 列表需要的字段；ExpiringSoon 由后端依据 GiftExpiringSoonThreshold 判定，
+// 与 GetGiftBalanceBreakdown 同源，避免前后端阈值漂移。
+type GiftDisplayItem struct {
+	Remaining     float64
+	Mode          DeductionMode
+	RatioRecharge *float64
+	ExpiresAt     *time.Time
+	ExpiringSoon  bool
+}
+
 // UserGift 赠金记录的对外快照（与 ent 实体解耦，便于跨包使用）。
 type UserGift struct {
 	ID            int64
