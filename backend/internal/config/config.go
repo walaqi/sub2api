@@ -1200,6 +1200,10 @@ type TotpConfig struct {
 
 type TurnstileConfig struct {
 	Required bool `mapstructure:"required"`
+	// AppBypassSecret 允许受信任的一方客户端（如无法渲染 Turnstile 组件的 App）
+	// 通过 X-App-Bypass-Token 请求头携带该共享密钥来跳过人机验证。
+	// 留空表示不启用绕过（默认）。仅应通过私密渠道下发给自有 App。
+	AppBypassSecret string `mapstructure:"app_bypass_secret"`
 }
 
 type DefaultConfig struct {
@@ -1556,6 +1560,7 @@ func setDefaults() {
 
 	// Turnstile
 	viper.SetDefault("turnstile.required", false)
+	viper.SetDefault("turnstile.app_bypass_secret", "")
 
 	// LinuxDo Connect OAuth 登录
 	viper.SetDefault("linuxdo_connect.enabled", false)

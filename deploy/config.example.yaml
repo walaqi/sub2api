@@ -1038,6 +1038,15 @@ turnstile:
   # Require Turnstile in release mode (when enabled, login/register will fail if not configured)
   # 在 release 模式下要求 Turnstile 验证（启用后，若未配置则登录/注册会失败）
   required: false
+  # Shared secret allowing trusted first-party clients (e.g. a native App that cannot
+  # render the Turnstile widget) to bypass the human check by sending it in the
+  # X-App-Bypass-Token request header. Empty disables bypass (default).
+  # Only distribute this secret to your own App via a private channel; treat it like a credential.
+  # Generate with: openssl rand -hex 32
+  # 允许自有 App 通过 X-App-Bypass-Token 请求头携带该共享密钥跳过人机验证。留空表示禁用（默认）。
+  # 仅通过私密渠道下发给自有 App，并按凭据级别保管。可用环境变量 TURNSTILE_APP_BYPASS_SECRET 覆盖。
+  # 生成方式：openssl rand -hex 32
+  app_bypass_secret: ""
 
 # =============================================================================
 # Gemini OAuth (Required for Gemini accounts)

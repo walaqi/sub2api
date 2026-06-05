@@ -381,6 +381,13 @@ func (s *AuthService) VerifyTurnstileForRegister(ctx context.Context, token, rem
 
 // VerifyTurnstile 验证Turnstile token
 func (s *AuthService) VerifyTurnstile(ctx context.Context, token string, remoteIP string) error {
+	// 受信任客户端（携带正确的 turnstile.app_bypass_secret，由中间件校验）可跳过人机验证。
+	// 这是所有 Turnstile 校验入口的统一汇聚点，故绕过逻辑只需在此处实现一次。
+	if IsTurnstileBypassRequested(ctx) {
+		logger.LegacyPrintf("service.auth", "%s", "[Auth] Turnstile bypassed for trusted client")
+		return nil
+	}
+
 	required := s.cfg != nil && s.cfg.Server.Mode == "release" && s.cfg.Turnstile.Required
 
 	if required {

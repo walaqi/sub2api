@@ -14,6 +14,21 @@ var (
 	ErrTurnstileInvalidSecretKey   = infraerrors.BadRequest("TURNSTILE_INVALID_SECRET_KEY", "invalid turnstile secret key")
 )
 
+// turnstileBypassContextKey 用于在请求上下文中标记"已通过受信任客户端密钥校验，可跳过 Turnstile"。
+type turnstileBypassContextKey struct{}
+
+// ContextWithTurnstileBypass 返回带有"跳过 Turnstile 校验"标记的上下文。
+// 仅应由校验过共享密钥（turnstile.app_bypass_secret）的中间件调用。
+func ContextWithTurnstileBypass(ctx context.Context) context.Context {
+	return context.WithValue(ctx, turnstileBypassContextKey{}, true)
+}
+
+// IsTurnstileBypassRequested 判断上下文是否已被标记为跳过 Turnstile 校验。
+func IsTurnstileBypassRequested(ctx context.Context) bool {
+	v, _ := ctx.Value(turnstileBypassContextKey{}).(bool)
+	return v
+}
+
 // TurnstileVerifier 验证 Turnstile token 的接口
 type TurnstileVerifier interface {
 	VerifyToken(ctx context.Context, secretKey, token, remoteIP string) (*TurnstileVerifyResponse, error)
