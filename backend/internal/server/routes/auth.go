@@ -19,6 +19,7 @@ func RegisterAuthRoutes(
 	jwtAuth servermiddleware.JWTAuthMiddleware,
 	redisClient *redis.Client,
 	settingService *service.SettingService,
+	turnstileBypassSecret string,
 ) {
 	// 创建速率限制器
 	rateLimiter := middleware.NewRateLimiter(redisClient)
@@ -26,6 +27,8 @@ func RegisterAuthRoutes(
 	// 公开接口
 	auth := v1.Group("/auth")
 	auth.Use(servermiddleware.BackendModeAuthGuard(settingService))
+	// 受信任的服务端客户端可通过共享密钥跳过 Turnstile 人机验证（在 service 层统一生效）。
+	auth.Use(servermiddleware.TurnstileBypassGuard(turnstileBypassSecret))
 	{
 		// 注册/登录/2FA/验证码发送均属于高风险入口，增加服务端兜底限流（Redis 故障时 fail-close）
 		auth.POST("/register", rateLimiter.LimitWithOptions("auth-register", 5, time.Minute, middleware.RateLimitOptions{
