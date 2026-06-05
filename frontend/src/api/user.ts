@@ -11,6 +11,7 @@ import {
 } from './auth'
 import type {
   User,
+  UserGiftItem,
   ChangePasswordRequest,
   NotifyEmailEntry,
   UserAuthProvider,
@@ -25,6 +26,15 @@ import type {
 export async function getProfile(): Promise<User> {
   const { data } = await apiClient.get<User>('/user/profile')
   return data
+}
+
+/**
+ * List the current user's active gift credits for profile display.
+ * @returns Array of currently held gifts (ordered by consumption priority)
+ */
+export async function listGifts(): Promise<UserGiftItem[]> {
+  const { data } = await apiClient.get<UserGiftItem[]>('/user/gifts')
+  return data ?? []
 }
 
 /**
@@ -187,6 +197,7 @@ export async function transferAffiliateQuota(): Promise<AffiliateTransferRespons
 
 export const userAPI = {
   getProfile,
+  listGifts,
   updateProfile,
   changePassword,
   sendNotifyEmailCode,

@@ -214,6 +214,17 @@ func (e *Engine) GetGiftBalanceBreakdown(ctx context.Context, userID int64) (flo
 	return e.repo.giftBalanceBreakdown(ctx, userID, GiftExpiringSoonThreshold)
 }
 
+// ListActiveGiftsForDisplay 返回用户当前持有的所有有效赠金（status='active' 且未过期），
+// 供 Profile 页面逐条展示。排序与扣费顺序对齐（priority 在前，再按 ratio/到期/id），
+// 让用户看到的顺序即实际消耗顺序。ExpiringSoon 用同一 GiftExpiringSoonThreshold 判定，
+// 与 GetGiftBalanceBreakdown 保持一致。
+func (e *Engine) ListActiveGiftsForDisplay(ctx context.Context, userID int64) ([]GiftDisplayItem, error) {
+	if userID <= 0 {
+		return nil, errors.New("ListActiveGiftsForDisplay: userID must be positive")
+	}
+	return e.repo.listActiveGiftsForDisplay(ctx, userID, GiftExpiringSoonThreshold)
+}
+
 // RevokeGift 把指定 gift 置 revoked，同步从 users.balance 扣掉它的 remaining。
 // 只允许撤销 status='active' 的赠金；非 active 返回 ErrGiftNotRevocable。
 // 事务内执行：先锁 users 后锁 gift（与扣费保持加锁顺序一致），杜绝死锁。

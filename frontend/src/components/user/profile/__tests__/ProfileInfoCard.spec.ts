@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import ProfileInfoCard from '@/components/user/profile/ProfileInfoCard.vue'
-import type { User } from '@/types'
+import type { User, UserGiftItem } from '@/types'
 
 vi.mock('vue-router', () => ({
   useRoute: () => ({
@@ -43,6 +43,11 @@ vi.mock('vue-i18n', async (importOriginal) => {
         if (key === 'profile.authBindings.source.username') {
           return `Username synced from ${params?.providerName || 'provider'}`
         }
+        if (key === 'profile.giftBalance') return 'Gift'
+        if (key === 'profile.giftExpiringSoonShort') return 'expiring soon'
+        if (key === 'profile.giftExpiringAt') return `expiring at ${params?.date || ''}`
+        if (key === 'profile.giftModePriority') return 'priority'
+        if (key === 'profile.giftModeRatio') return 'ratio'
         return key
       }
     })
@@ -87,6 +92,60 @@ describe('ProfileInfoCard', () => {
     expect(wrapper.text()).toContain('User')
     expect(wrapper.get('[data-testid="profile-basics-panel"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="profile-auth-bindings-panel"]').exists()).toBe(true)
+  })
+
+  it('renders each held gift as its own line with mode, amount and expiry', () => {
+    const gifts: UserGiftItem[] = [
+      // priority, expiring soon
+      { remaining: 49.4, deduction_mode: 'priority', expiring_soon: true },
+      // ratio 1:1, expiring soon
+      { remaining: 49.4, deduction_mode: 'ratio', ratio_recharge: 1, expiring_soon: true },
+      // ratio 1:1, fixed expiry date (2026-07-01 local)
+      {
+        remaining: 49.4,
+        deduction_mode: 'ratio',
+        ratio_recharge: 1,
+        expires_at_unix_ms: new Date(2026, 6, 1, 12, 0, 0).getTime(),
+        expiring_soon: false
+      },
+      // priority, no expiry
+      { remaining: 49.4, deduction_mode: 'priority', expiring_soon: false }
+    ]
+    const wrapper = mount(ProfileInfoCard, {
+      props: {
+        user: createUser({ gift_balance: 197.6 }),
+        gifts
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    const list = wrapper.get('[data-testid="profile-overview-gift-list"]')
+    const lines = list.findAll('li').map((li) => li.text())
+    expect(lines).toHaveLength(4)
+    expect(lines[0]).toBe('Gift $49.40 ($49.40 expiring soon) - priority')
+    expect(lines[1]).toBe('Gift $49.40 ($49.40 expiring soon) - ratio 1:1')
+    expect(lines[2]).toBe('Gift $49.40 ($49.40 expiring at 07/01/2026) - ratio 1:1')
+    expect(lines[3]).toBe('Gift $49.40 - priority')
+  })
+
+  it('does not render the gift list when the user holds no gifts', () => {
+    const wrapper = mount(ProfileInfoCard, {
+      props: {
+        user: createUser(),
+        gifts: []
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    expect(wrapper.find('[data-testid="profile-overview-gift-list"]').exists()).toBe(false)
   })
 
   it('renders third-party source hints from profile sources', () => {

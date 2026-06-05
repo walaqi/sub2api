@@ -6,6 +6,7 @@
     >
       <ProfileInfoCard
         :user="user"
+        :gifts="gifts"
         :linuxdo-enabled="linuxdoOAuthEnabled"
         :dingtalk-enabled="dingtalkOAuthEnabled"
         :oidc-enabled="oidcOAuthEnabled"
@@ -58,13 +59,17 @@ import ProfileInfoCard from '@/components/user/profile/ProfileInfoCard.vue'
 import ProfilePasswordForm from '@/components/user/profile/ProfilePasswordForm.vue'
 import ProfileTotpCard from '@/components/user/profile/ProfileTotpCard.vue'
 import { isWeChatWebOAuthEnabled } from '@/api/auth'
+import { listGifts } from '@/api/user'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
+import type { UserGiftItem } from '@/types'
 
 const { t } = useI18n()
 const appStore = useAppStore()
 const authStore = useAuthStore()
 const user = computed(() => authStore.user)
+
+const gifts = ref<UserGiftItem[]>([])
 
 const contactInfo = ref('')
 const balanceLowNotifyEnabled = ref(false)
@@ -81,6 +86,14 @@ onMounted(async () => {
   const profileRefresh = authStore.refreshUser().catch((error) => {
     console.error('Failed to refresh profile:', error)
   })
+
+  const giftsLoad = listGifts()
+    .then((items) => {
+      gifts.value = items
+    })
+    .catch((error) => {
+      console.error('Failed to load gifts:', error)
+    })
 
   const settingsLoad = appStore.fetchPublicSettings()
     .then((settings) => {
@@ -106,6 +119,6 @@ onMounted(async () => {
       console.error('Failed to load settings:', error)
     })
 
-  await Promise.all([profileRefresh, settingsLoad])
+  await Promise.all([profileRefresh, giftsLoad, settingsLoad])
 })
 </script>
