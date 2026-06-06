@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"html"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,13 +20,16 @@ import (
 )
 
 var (
-	ErrAPIKeyNotFound     = infraerrors.NotFound("API_KEY_NOT_FOUND", "api key not found")
-	ErrGroupNotAllowed    = infraerrors.Forbidden("GROUP_NOT_ALLOWED", "user is not allowed to bind this group")
-	ErrAPIKeyExists       = infraerrors.Conflict("API_KEY_EXISTS", "api key already exists")
-	ErrAPIKeyTooShort     = infraerrors.BadRequest("API_KEY_TOO_SHORT", "api key must be at least 16 characters")
-	ErrAPIKeyInvalidChars = infraerrors.BadRequest("API_KEY_INVALID_CHARS", "api key can only contain letters, numbers, underscores, and hyphens")
-	ErrAPIKeyRateLimited  = infraerrors.TooManyRequests("API_KEY_RATE_LIMITED", "too many failed attempts, please try again later")
-	ErrInvalidIPPattern   = infraerrors.BadRequest("INVALID_IP_PATTERN", "invalid IP or CIDR pattern")
+	ErrAPIKeyNotFound         = infraerrors.NotFound("API_KEY_NOT_FOUND", "api key not found")
+	ErrGroupNotAllowed        = infraerrors.Forbidden("GROUP_NOT_ALLOWED", "user is not allowed to bind this group")
+	ErrAPIKeyExists           = infraerrors.Conflict("API_KEY_EXISTS", "api key already exists")
+	ErrAPIKeyTooShort         = infraerrors.BadRequest("API_KEY_TOO_SHORT", "api key must be at least 16 characters")
+	ErrAPIKeyInvalidChars     = infraerrors.BadRequest("API_KEY_INVALID_CHARS", "api key can only contain letters, numbers, underscores, and hyphens")
+	ErrAPIKeyNameEmpty        = infraerrors.BadRequest("API_KEY_NAME_EMPTY", "api key name cannot be empty")
+	ErrAPIKeyNameTooLong      = infraerrors.BadRequest("API_KEY_NAME_TOO_LONG", "api key name is too long")
+	ErrAPIKeyNameInvalidChars = infraerrors.BadRequest("API_KEY_NAME_INVALID_CHARS", "api key name contains invalid characters")
+	ErrAPIKeyRateLimited      = infraerrors.TooManyRequests("API_KEY_RATE_LIMITED", "too many failed attempts, please try again later")
+	ErrInvalidIPPattern       = infraerrors.BadRequest("INVALID_IP_PATTERN", "invalid IP or CIDR pattern")
 	// ErrAPIKeyExpired        = infraerrors.Forbidden("API_KEY_EXPIRED", "api key has expired")
 	ErrAPIKeyExpired = infraerrors.Forbidden("API_KEY_EXPIRED", "api key 已过期")
 	// ErrAPIKeyQuotaExhausted = infraerrors.TooManyRequests("API_KEY_QUOTA_EXHAUSTED", "api key quota exhausted")
@@ -41,6 +43,7 @@ var (
 
 const (
 	apiKeyMaxErrorsPerHour = 20
+	apiKeyNameMaxLen       = 100
 	apiKeyLastUsedMinTouch = 30 * time.Second
 	// DB 写失败后的短退避，避免请求路径持续同步重试造成写风暴与高延迟。
 	apiKeyLastUsedFailBackoff = 5 * time.Second
@@ -264,7 +267,33 @@ func (s *APIKeyService) GenerateKey() (string, error) {
 	return key, nil
 }
 
-// ValidateCustomKey 验证自定义API Key格式
+// validateAPIKeyName 校验并规范化 API Key 名称。
+// 在输入处做校验（长度上限 + 拒绝控制字符），存储保留原始值；
+// XSS 防护由输出层（Vue 文本插值/按上下文编码）负责，存储层不做 HTML 转义，
+// 以免双重编码破坏正常名称、编辑回填与搜索匹配。
+func validateAPIKeyName(name string) (string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "", ErrAPIKeyNameEmpty
+	}
+	// 以 rune 计长度，避免多字节字符（如中文）被错误截断/统计。
+	if len([]rune(name)) > apiKeyNameMaxLen {
+		return "", ErrAPIKeyNameTooLong
+	}
+	// 拒绝控制字符（含 NUL、换行等），这些字符在 UI 渲染、日志、导出中均无意义且易被滥用。
+	// 同时拒绝尖括号 < >，从源头杜绝注入 HTML 标签的可能（纵深防御，输出层仍会转义）。
+	for _, c := range name {
+		if c < 0x20 || c == 0x7f {
+			return "", ErrAPIKeyNameInvalidChars
+		}
+		if c == '<' || c == '>' {
+			return "", ErrAPIKeyNameInvalidChars
+		}
+	}
+	return name, nil
+}
+
+// ValidateCustomKey 验证自定义Key格式
 func (s *APIKeyService) ValidateCustomKey(key string) error {
 	// 检查长度
 	if len(key) < 16 {
@@ -334,6 +363,12 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 		return nil, fmt.Errorf("get user: %w", err)
 	}
 
+	// 校验名称（长度上限 + 拒绝控制字符），存储保留原始值
+	validatedName, err := validateAPIKeyName(req.Name)
+	if err != nil {
+		return nil, err
+	}
+
 	// 验证 IP 白名单格式
 	if len(req.IPWhitelist) > 0 {
 		if invalid := ip.ValidateIPPatterns(req.IPWhitelist); len(invalid) > 0 {
@@ -400,7 +435,7 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 	apiKey := &APIKey{
 		UserID:      userID,
 		Key:         key,
-		Name:        html.EscapeString(req.Name),
+		Name:        validatedName,
 		GroupID:     req.GroupID,
 		Status:      StatusActive,
 		IPWhitelist: req.IPWhitelist,
@@ -539,7 +574,11 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 
 	// 更新字段
 	if req.Name != nil {
-		apiKey.Name = html.EscapeString(*req.Name)
+		validatedName, err := validateAPIKeyName(*req.Name)
+		if err != nil {
+			return nil, err
+		}
+		apiKey.Name = validatedName
 	}
 
 	if req.GroupID != nil {
