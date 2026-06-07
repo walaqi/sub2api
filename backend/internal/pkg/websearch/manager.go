@@ -23,6 +23,7 @@ import (
 type ProviderConfig struct {
 	Type         string `json:"type"`                    // ProviderTypeBrave | ProviderTypeTavily
 	APIKey       string `json:"api_key"`                 // secret
+	Endpoint     string `json:"endpoint,omitempty"`      // optional custom API URL; empty = official default
 	QuotaLimit   int64  `json:"quota_limit"`             // 0 = unlimited
 	SubscribedAt *int64 `json:"subscribed_at,omitempty"` // subscription start (unix seconds); quota resets monthly from this date
 	ProxyURL     string `json:"-"`                       // resolved proxy URL (not persisted)
@@ -355,15 +356,27 @@ func (m *Manager) TestSearch(ctx context.Context, req SearchRequest) (*SearchRes
 	if strings.TrimSpace(req.Query) == "" {
 		return nil, "", fmt.Errorf("websearch: empty search query")
 	}
+	var lastErr error
+	tried := 0
 	for _, cfg := range m.configs {
 		if !m.isProviderAvailable(cfg) {
 			continue
 		}
+		tried++
 		resp, err := m.executeSearch(ctx, cfg, req)
 		if err != nil {
+			slog.Warn("websearch: test search provider failed",
+				"provider", cfg.Type, "error", err)
+			lastErr = err
 			continue
 		}
 		return resp, cfg.Type, nil
+	}
+	if tried == 0 {
+		return nil, "", fmt.Errorf("websearch: no available provider (none configured with API key)")
+	}
+	if lastErr != nil {
+		return nil, "", fmt.Errorf("websearch: all providers failed: %w", lastErr)
 	}
 	return nil, "", fmt.Errorf("websearch: no available provider")
 }
@@ -461,13 +474,13 @@ func (m *Manager) ResetUsage(ctx context.Context, providerType string) error {
 func (m *Manager) buildProvider(cfg ProviderConfig, client *http.Client) Provider {
 	switch cfg.Type {
 	case braveProviderName:
-		return NewBraveProvider(cfg.APIKey, client)
+		return NewBraveProvider(cfg.APIKey, cfg.Endpoint, client)
 	case tavilyProviderName:
-		return NewTavilyProvider(cfg.APIKey, client)
+		return NewTavilyProvider(cfg.APIKey, cfg.Endpoint, client)
 	default:
 		slog.Warn("websearch: unknown provider type, falling back to brave",
 			"type", cfg.Type)
-		return NewBraveProvider(cfg.APIKey, client)
+		return NewBraveProvider(cfg.APIKey, cfg.Endpoint, client)
 	}
 }
 

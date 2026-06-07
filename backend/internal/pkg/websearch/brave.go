@@ -22,16 +22,25 @@ var braveSearchURL, _ = url.Parse(braveSearchEndpoint) //nolint:errcheck
 // BraveProvider implements web search via the Brave Search API.
 type BraveProvider struct {
 	apiKey     string
+	endpoint   *url.URL
 	httpClient *http.Client
 }
 
 // NewBraveProvider creates a Brave Search provider.
+// endpoint overrides the official Brave Search URL; an empty (or invalid) value
+// falls back to the built-in official endpoint.
 // The caller is responsible for configuring the http.Client with proxy/timeouts.
-func NewBraveProvider(apiKey string, httpClient *http.Client) *BraveProvider {
+func NewBraveProvider(apiKey, endpoint string, httpClient *http.Client) *BraveProvider {
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
-	return &BraveProvider{apiKey: apiKey, httpClient: httpClient}
+	u := braveSearchURL
+	if endpoint != "" {
+		if parsed, err := url.Parse(endpoint); err == nil && parsed.Scheme != "" && parsed.Host != "" {
+			u = parsed
+		}
+	}
+	return &BraveProvider{apiKey: apiKey, endpoint: u, httpClient: httpClient}
 }
 
 func (b *BraveProvider) Name() string { return braveProviderName }
@@ -45,7 +54,7 @@ func (b *BraveProvider) Search(ctx context.Context, req SearchRequest) (*SearchR
 		count = braveMaxCount
 	}
 
-	u := *braveSearchURL // copy the pre-parsed URL
+	u := *b.endpoint // copy the configured URL
 	q := u.Query()
 	q.Set("q", req.Query)
 	q.Set("count", strconv.Itoa(count))

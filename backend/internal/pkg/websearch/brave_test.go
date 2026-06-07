@@ -11,8 +11,23 @@ import (
 )
 
 func TestBraveProvider_Name(t *testing.T) {
-	p := NewBraveProvider("key", nil)
+	p := NewBraveProvider("key", "", nil)
 	require.Equal(t, "brave", p.Name())
+}
+
+func TestBraveProvider_DefaultEndpoint(t *testing.T) {
+	p := NewBraveProvider("key", "", nil)
+	require.Equal(t, braveSearchEndpoint, p.endpoint.String())
+}
+
+func TestBraveProvider_CustomEndpoint(t *testing.T) {
+	p := NewBraveProvider("key", "https://brave.example.com/search", nil)
+	require.Equal(t, "https://brave.example.com/search", p.endpoint.String())
+}
+
+func TestBraveProvider_InvalidEndpointFallsBack(t *testing.T) {
+	p := NewBraveProvider("key", "not-a-url", nil)
+	require.Equal(t, braveSearchEndpoint, p.endpoint.String())
 }
 
 func TestBraveProvider_Search_Success(t *testing.T) {
@@ -33,12 +48,7 @@ func TestBraveProvider_Search_Success(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	p := NewBraveProvider("test-key", srv.Client())
-	// Override the endpoint for testing
-	origURL := *braveSearchURL
-	u, _ := http.NewRequest("GET", srv.URL, nil)
-	*braveSearchURL = *u.URL
-	defer func() { *braveSearchURL = origURL }()
+	p := NewBraveProvider("test-key", srv.URL, srv.Client())
 
 	resp, err := p.Search(context.Background(), SearchRequest{Query: "golang", MaxResults: 3})
 	require.NoError(t, err)
@@ -57,11 +67,7 @@ func TestBraveProvider_Search_DefaultMaxResults(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	p := NewBraveProvider("key", srv.Client())
-	origURL := *braveSearchURL
-	u, _ := http.NewRequest("GET", srv.URL, nil)
-	*braveSearchURL = *u.URL
-	defer func() { *braveSearchURL = origURL }()
+	p := NewBraveProvider("key", srv.URL, srv.Client())
 
 	_, _ = p.Search(context.Background(), SearchRequest{Query: "test", MaxResults: 0})
 	require.Equal(t, "5", receivedCount)
@@ -74,11 +80,7 @@ func TestBraveProvider_Search_HTTPError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	p := NewBraveProvider("key", srv.Client())
-	origURL := *braveSearchURL
-	u, _ := http.NewRequest("GET", srv.URL, nil)
-	*braveSearchURL = *u.URL
-	defer func() { *braveSearchURL = origURL }()
+	p := NewBraveProvider("key", srv.URL, srv.Client())
 
 	_, err := p.Search(context.Background(), SearchRequest{Query: "test"})
 	require.ErrorContains(t, err, "brave: status 429")
@@ -90,11 +92,7 @@ func TestBraveProvider_Search_InvalidJSON(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	p := NewBraveProvider("key", srv.Client())
-	origURL := *braveSearchURL
-	u, _ := http.NewRequest("GET", srv.URL, nil)
-	*braveSearchURL = *u.URL
-	defer func() { *braveSearchURL = origURL }()
+	p := NewBraveProvider("key", srv.URL, srv.Client())
 
 	_, err := p.Search(context.Background(), SearchRequest{Query: "test"})
 	require.ErrorContains(t, err, "brave: decode response")
@@ -107,11 +105,7 @@ func TestBraveProvider_Search_EmptyResults(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	p := NewBraveProvider("key", srv.Client())
-	origURL := *braveSearchURL
-	u, _ := http.NewRequest("GET", srv.URL, nil)
-	*braveSearchURL = *u.URL
-	defer func() { *braveSearchURL = origURL }()
+	p := NewBraveProvider("key", srv.URL, srv.Client())
 
 	resp, err := p.Search(context.Background(), SearchRequest{Query: "test"})
 	require.NoError(t, err)
