@@ -1,15 +1,45 @@
 package websearch
 
 import (
+	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
 func TestTavilyProvider_Name(t *testing.T) {
-	p := NewTavilyProvider("key", nil)
+	p := NewTavilyProvider("key", "", nil)
 	require.Equal(t, "tavily", p.Name())
+}
+
+func TestTavilyProvider_Search_CustomEndpoint(t *testing.T) {
+	var gotPath string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		require.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		resp := tavilyResponse{Results: []tavilyResult{
+			{URL: "https://go.dev", Title: "Go", Content: "Go lang", Score: 0.9},
+		}}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer srv.Close()
+
+	p := NewTavilyProvider("test-key", srv.URL+"/custom/search", srv.Client())
+	resp, err := p.Search(context.Background(), SearchRequest{Query: "golang", MaxResults: 3})
+	require.NoError(t, err)
+	require.Equal(t, "/custom/search", gotPath)
+	require.Len(t, resp.Results, 1)
+	require.Equal(t, "https://go.dev", resp.Results[0].URL)
+	require.Equal(t, "Go lang", resp.Results[0].Snippet)
+}
+
+func TestTavilyProvider_DefaultEndpoint(t *testing.T) {
+	p := NewTavilyProvider("key", "", nil)
+	require.Equal(t, tavilySearchEndpoint, p.endpoint)
 }
 
 func TestTavilyProvider_Search_RequestConstruction(t *testing.T) {

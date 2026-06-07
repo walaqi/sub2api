@@ -1206,6 +1206,7 @@ export interface WebSearchProviderConfig {
   type: "brave" | "tavily";
   api_key: string;
   api_key_configured: boolean;
+  endpoint?: string;
   quota_limit: number | null;
   subscribed_at: number | null;
   quota_used?: number;

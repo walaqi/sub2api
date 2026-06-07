@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"sync/atomic"
 	"time"
 
@@ -24,6 +25,7 @@ type WebSearchProviderConfig struct {
 	Type             string `json:"type"`                    // websearch.ProviderTypeBrave | Tavily
 	APIKey           string `json:"api_key,omitempty"`       // secret — omitted in API responses
 	APIKeyConfigured bool   `json:"api_key_configured"`      // read-only mask
+	Endpoint         string `json:"endpoint,omitempty"`      // optional custom API URL; empty = official default
 	QuotaLimit       *int64 `json:"quota_limit"`             // nil = unlimited, >0 = limited
 	SubscribedAt     *int64 `json:"subscribed_at,omitempty"` // subscription start (unix seconds); quota resets monthly
 	QuotaUsed        int64  `json:"quota_used,omitempty"`    // read-only: current usage from Redis
@@ -54,6 +56,15 @@ func validateWebSearchConfig(cfg *WebSearchEmulationConfig) error {
 		}
 		if p.QuotaLimit != nil && *p.QuotaLimit < 0 {
 			return fmt.Errorf("provider[%d]: quota_limit must be > 0 or null", i)
+		}
+		if p.Endpoint != "" {
+			u, err := url.Parse(p.Endpoint)
+			if err != nil || u.Scheme == "" || u.Host == "" {
+				return fmt.Errorf("provider[%d]: invalid endpoint URL %q", i, p.Endpoint)
+			}
+			if u.Scheme != "http" && u.Scheme != "https" {
+				return fmt.Errorf("provider[%d]: endpoint must be http(s)", i)
+			}
 		}
 		if seen[p.Type] {
 			return fmt.Errorf("provider[%d]: duplicate type %q", i, p.Type)

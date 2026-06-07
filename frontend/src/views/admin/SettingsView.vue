@@ -4056,6 +4056,28 @@
                       </div>
                     </div>
 
+                    <!-- Custom API endpoint (optional) -->
+                    <div>
+                      <label class="text-xs text-gray-500">{{
+                        t("admin.settings.webSearchEmulation.endpoint")
+                      }}</label>
+                      <input
+                        v-model="provider.endpoint"
+                        type="text"
+                        class="input w-full text-sm"
+                        :placeholder="
+                          provider.type === 'tavily'
+                            ? 'https://api.tavily.com/search'
+                            : 'https://api.search.brave.com/res/v1/web/search'
+                        "
+                      />
+                      <p class="mt-0.5 text-xs text-gray-400">
+                        {{
+                          t("admin.settings.webSearchEmulation.endpointHint")
+                        }}
+                      </p>
+                    </div>
+
                     <!-- Quota + Subscription in compact row -->
                     <div class="grid grid-cols-2 gap-3">
                       <div>
@@ -7174,6 +7196,7 @@ function addWebSearchProvider() {
     type: "brave",
     api_key: "",
     api_key_configured: false,
+    endpoint: "",
     quota_limit: DEFAULT_WEB_SEARCH_QUOTA_LIMIT,
     subscribed_at: null,
     proxy_id: null,

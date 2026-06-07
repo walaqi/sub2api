@@ -18,16 +18,22 @@ const (
 // TavilyProvider implements web search via the Tavily Search API.
 type TavilyProvider struct {
 	apiKey     string
+	endpoint   string
 	httpClient *http.Client
 }
 
 // NewTavilyProvider creates a Tavily Search provider.
+// endpoint overrides the official Tavily Search URL; an empty value falls back
+// to the built-in official endpoint.
 // The caller is responsible for configuring the http.Client with proxy/timeouts.
-func NewTavilyProvider(apiKey string, httpClient *http.Client) *TavilyProvider {
+func NewTavilyProvider(apiKey, endpoint string, httpClient *http.Client) *TavilyProvider {
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
-	return &TavilyProvider{apiKey: apiKey, httpClient: httpClient}
+	if endpoint == "" {
+		endpoint = tavilySearchEndpoint
+	}
+	return &TavilyProvider{apiKey: apiKey, endpoint: endpoint, httpClient: httpClient}
 }
 
 func (t *TavilyProvider) Name() string { return tavilyProviderName }
@@ -50,7 +56,7 @@ func (t *TavilyProvider) Search(ctx context.Context, req SearchRequest) (*Search
 		return nil, fmt.Errorf("tavily: encode request: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, tavilySearchEndpoint, bytes.NewReader(bodyBytes))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, t.endpoint, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("tavily: build request: %w", err)
 	}
