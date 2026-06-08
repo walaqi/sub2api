@@ -414,6 +414,14 @@ func (m *Manager) getOrCreateHTTPClient(proxyURL string) (*http.Client, error) {
 	return c, nil
 }
 
+// NewHTTPClient creates an HTTP client with the package's standard proxy/timeout
+// settings. Exposed for callers (e.g. the health checker) that need a client wired
+// with the same proxy semantics as search requests.
+// Returns error if proxyURL is invalid — never falls back to direct connection.
+func NewHTTPClient(proxyURL string) (*http.Client, error) {
+	return newHTTPClient(proxyURL)
+}
+
 // newHTTPClient creates an HTTP client with proper timeout settings.
 // Uses proxyutil.ConfigureTransportProxy for unified proxy protocol support
 // (HTTP/HTTPS/SOCKS5/SOCKS5H).

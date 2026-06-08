@@ -31,6 +31,10 @@ type WebSearchProviderConfig struct {
 	QuotaUsed        int64  `json:"quota_used,omitempty"`    // read-only: current usage from Redis
 	ProxyID          *int64 `json:"proxy_id"`                // optional proxy association
 	ExpiresAt        *int64 `json:"expires_at,omitempty"`    // optional expiration timestamp
+
+	// Health is read-only and populated on read. It is only set for providers
+	// configured with a custom endpoint; nil means "not health-checked".
+	Health *ProviderHealth `json:"health,omitempty"`
 }
 
 // --- Validation ---
@@ -150,6 +154,11 @@ func (s *SettingService) SaveWebSearchEmulationConfig(ctx context.Context, cfg *
 		return infraerrors.BadRequest("INVALID_WEB_SEARCH_CONFIG", err.Error())
 	}
 	s.mergeExistingAPIKeys(ctx, cfg)
+
+	// Health is a read-only, runtime-populated field; never persist it.
+	for i := range cfg.Providers {
+		cfg.Providers[i].Health = nil
+	}
 
 	// After merge, validate all enabled providers have API keys
 	if cfg.Enabled {
@@ -307,6 +316,7 @@ func PopulateWebSearchUsage(ctx context.Context, cfg *WebSearchEmulationConfig) 
 	out.Providers = make([]WebSearchProviderConfig, len(cfg.Providers))
 
 	mgr := getWebSearchManager()
+	healthChecker := getWebSearchHealthChecker()
 
 	for i, p := range cfg.Providers {
 		out.Providers[i] = p
@@ -315,6 +325,13 @@ func PopulateWebSearchUsage(ctx context.Context, cfg *WebSearchEmulationConfig) 
 		if mgr != nil {
 			used, _ := mgr.GetUsage(ctx, p.Type)
 			out.Providers[i].QuotaUsed = used
+		}
+
+		// Health is only meaningful for providers with a custom endpoint.
+		if healthChecker != nil && p.Endpoint != "" {
+			out.Providers[i].Health = healthChecker.GetHealth(p.Type)
+		} else {
+			out.Providers[i].Health = nil
 		}
 	}
 	return &out
