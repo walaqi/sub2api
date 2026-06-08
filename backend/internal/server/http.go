@@ -116,6 +116,12 @@ func ProvideRouter(
 		service.SetWebSearchManager(websearch.NewManager(configs, redisClient))
 	})
 
+	// Start the websearch provider health checker (only probes custom-endpoint
+	// providers, every 5 minutes). Registered globally so cleanup can stop it.
+	healthChecker := service.NewWebSearchHealthChecker(settingService, service.WebSearchHealthCheckInterval)
+	service.SetWebSearchHealthChecker(healthChecker)
+	healthChecker.Start()
+
 	return SetupRouter(r, handlers, jwtAuth, adminAuth, apiKeyAuth, apiKeyService, subscriptionService, opsService, settingService, cfg, redisClient, entClient, giftEngine)
 }
 

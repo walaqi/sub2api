@@ -255,6 +255,10 @@ func provideCleanup(
 				}
 				return nil
 			}},
+			{"WebSearchHealthChecker", func() error {
+				service.StopWebSearchHealthChecker()
+				return nil
+			}},
 		}
 
 		infraSteps := []cleanupStep{

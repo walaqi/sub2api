@@ -1202,6 +1202,14 @@ export async function updateBetaPolicySettings(
 
 // --- Web Search Emulation Config ---
 
+export interface WebSearchProviderHealth {
+  healthy: boolean;
+  status_code?: number;
+  latency_ms?: number;
+  checked_at: number;
+  error?: string;
+}
+
 export interface WebSearchProviderConfig {
   type: "brave" | "tavily";
   api_key: string;
@@ -1212,6 +1220,7 @@ export interface WebSearchProviderConfig {
   quota_used?: number;
   proxy_id: number | null;
   expires_at: number | null;
+  health?: WebSearchProviderHealth | null;
 }
 
 export interface WebSearchEmulationConfig {

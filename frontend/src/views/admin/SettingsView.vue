@@ -3932,6 +3932,46 @@
                           )
                         }}
                       </span>
+                      <!-- Health status badge (only for custom-endpoint providers) -->
+                      <span
+                        v-if="provider.endpoint && provider.health"
+                        class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs"
+                        :class="
+                          provider.health.healthy
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+                            : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
+                        "
+                        :title="webSearchHealthTooltip(provider.health)"
+                      >
+                        <span
+                          class="h-1.5 w-1.5 rounded-full"
+                          :class="
+                            provider.health.healthy
+                              ? 'bg-green-500'
+                              : 'bg-red-500'
+                          "
+                        />
+                        {{
+                          provider.health.healthy
+                            ? t(
+                                "admin.settings.webSearchEmulation.healthHealthy",
+                              )
+                            : t(
+                                "admin.settings.webSearchEmulation.healthUnhealthy",
+                              )
+                        }}
+                      </span>
+                      <span
+                        v-else-if="provider.endpoint"
+                        class="text-xs text-gray-400"
+                        :title="
+                          t('admin.settings.webSearchEmulation.healthOnlyCustom')
+                        "
+                      >
+                        {{
+                          t("admin.settings.webSearchEmulation.healthChecking")
+                        }}
+                      </span>
                     </div>
                     <button
                       type="button"
@@ -6591,6 +6631,7 @@ import type {
   WeChatConnectMode,
   WebSearchEmulationConfig,
   WebSearchProviderConfig,
+  WebSearchProviderHealth,
   WebSearchTestResult,
 } from "@/api/admin/settings";
 import type {
@@ -7170,6 +7211,33 @@ function openTestDialog() {
 
 function toggleProviderExpand(idx: number) {
   expandedProviders[idx] = !expandedProviders[idx];
+}
+
+function webSearchHealthTooltip(health: WebSearchProviderHealth): string {
+  const parts: string[] = [];
+  if (health.status_code) {
+    parts.push(
+      `${t("admin.settings.webSearchEmulation.healthStatusCode")}: ${health.status_code}`,
+    );
+  }
+  if (health.latency_ms != null) {
+    parts.push(
+      `${t("admin.settings.webSearchEmulation.healthLatency")}: ${health.latency_ms}ms`,
+    );
+  }
+  if (health.checked_at) {
+    parts.push(
+      `${t("admin.settings.webSearchEmulation.healthCheckedAt")}: ${new Date(
+        health.checked_at * 1000,
+      ).toLocaleString()}`,
+    );
+  }
+  if (health.error) {
+    parts.push(
+      `${t("admin.settings.webSearchEmulation.healthError")}: ${health.error}`,
+    );
+  }
+  return parts.join("\n");
 }
 
 function removeWebSearchProvider(idx: number) {
