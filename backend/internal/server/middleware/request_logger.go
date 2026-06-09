@@ -26,6 +26,7 @@ func RequestLogger() gin.HandlerFunc {
 			requestID = uuid.NewString()
 		}
 		c.Header(requestIDHeader, requestID)
+		c.Header("request-id", requestID)
 
 		ctx := context.WithValue(c.Request.Context(), ctxkey.RequestID, requestID)
 		clientRequestID, _ := ctx.Value(ctxkey.ClientRequestID).(string)
