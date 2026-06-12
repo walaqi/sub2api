@@ -220,6 +220,12 @@ func RegisterAuthRoutes(
 		settings.GET("/email-unsubscribe", h.Setting.UnsubscribeNotificationEmail)
 	}
 
+	// 模型广场（无需认证；feature flag 默认关闭，opt-in）
+	plaza := v1.Group("/models-plaza")
+	{
+		plaza.GET("/catalog", h.ModelsPlaza.Catalog)
+	}
+
 	// 需要认证的当前用户信息
 	authenticated := v1.Group("")
 	authenticated.Use(gin.HandlerFunc(jwtAuth))

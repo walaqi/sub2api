@@ -24,6 +24,10 @@ func newDingTalkSettingsHandler() (*SettingHandler, *settingHandlerRepoStub) {
 }
 
 // baseValidDingTalkBody 返回一个可以通过所有校验的最小合法 body。
+//
+// default_subscriptions 必填（参见 SettingService.buildSystemSettingsUpdates 中的
+// ErrDefaultSubscriptionsEmpty 校验）；提供一个 group_id=11、validity_days=30 的
+// 占位项，结合无 defaultSubGroupReader 的 service 即可通过校验。
 func baseValidDingTalkBody() map[string]any {
 	return map[string]any{
 		"dingtalk_connect_enabled":                 true,
@@ -31,6 +35,9 @@ func baseValidDingTalkBody() map[string]any {
 		"dingtalk_connect_client_secret":           "test-client-secret",
 		"dingtalk_connect_redirect_url":            "https://example.com/auth/dingtalk/callback",
 		"dingtalk_connect_corp_restriction_policy": "none",
+		"default_subscriptions": []map[string]any{
+			{"group_id": 11, "validity_days": 30},
+		},
 	}
 }
 
@@ -144,6 +151,10 @@ func TestSettingsPUT_DingTalk_Disabled_SkipsValidation(t *testing.T) {
 		"dingtalk_connect_enabled":                 false,
 		"dingtalk_connect_client_id":               "", // 这种空值在 enabled=true 时会被 400 拒绝
 		"dingtalk_connect_corp_restriction_policy": "internal_only",
+		// default_subscriptions 必填，否则会被新校验拒绝（与 disabled 行为无关）
+		"default_subscriptions": []map[string]any{
+			{"group_id": 11, "validity_days": 30},
+		},
 	}
 
 	rawBody, err := json.Marshal(body)

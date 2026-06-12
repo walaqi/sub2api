@@ -124,6 +124,15 @@ func (s *failingAuthSourceSettingsRepoStub) Delete(ctx context.Context, key stri
 	panic("unexpected Delete call")
 }
 
+// baseRequiredDefaultSubscriptions 返回一个非空 default_subscriptions 切片，
+// 满足 SettingService.buildSystemSettingsUpdates 的非空校验。当 svc 未挂
+// defaultSubGroupReader 时不会触发 group 存在性校验。
+func baseRequiredDefaultSubscriptions() []map[string]any {
+	return []map[string]any{
+		{"group_id": 11, "validity_days": 30},
+	}
+}
+
 func TestSettingHandler_GetSettings_InjectsAuthSourceDefaults(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	repo := &settingHandlerRepoStub{
@@ -179,6 +188,7 @@ func TestSettingHandler_UpdateSettings_PreservesOmittedAuthSourceDefaults(t *tes
 	body := map[string]any{
 		"registration_enabled":              true,
 		"promo_code_enabled":                true,
+		"default_subscriptions":             baseRequiredDefaultSubscriptions(),
 		"auth_source_default_email_balance": 12.75,
 	}
 	rawBody, err := json.Marshal(body)
@@ -218,6 +228,7 @@ func TestSettingHandler_UpdateSettings_PersistsPaymentVisibleMethodsAndAdvancedS
 
 	body := map[string]any{
 		"promo_code_enabled":                    true,
+		"default_subscriptions":                 baseRequiredDefaultSubscriptions(),
 		"payment_visible_method_alipay_source":  "easypay",
 		"payment_visible_method_wxpay_source":   "wxpay",
 		"payment_visible_method_alipay_enabled": true,
@@ -267,7 +278,8 @@ func TestSettingHandler_UpdateSettings_PreservesLegacyBlankPaymentVisibleMethodS
 	handler := NewSettingHandler(svc, nil, nil, nil, nil, nil, nil)
 
 	body := map[string]any{
-		"promo_code_enabled": false,
+		"promo_code_enabled":    false,
+		"default_subscriptions": baseRequiredDefaultSubscriptions(),
 	}
 	rawBody, err := json.Marshal(body)
 	require.NoError(t, err)
@@ -313,6 +325,7 @@ func TestSettingHandler_UpdateSettings_PersistsExplicitFalseOIDCCompatibilityFla
 
 	body := map[string]any{
 		"promo_code_enabled":                true,
+		"default_subscriptions":             baseRequiredDefaultSubscriptions(),
 		"oidc_connect_enabled":              true,
 		"oidc_connect_use_pkce":             false,
 		"oidc_connect_validate_id_token":    false,
@@ -391,8 +404,9 @@ func TestSettingHandler_UpdateSettings_DoesNotSolidifyImplicitOIDCSecurityDefaul
 	handler := NewSettingHandler(svc, nil, nil, nil, nil, nil, nil)
 
 	body := map[string]any{
-		"promo_code_enabled":   true,
-		"oidc_connect_enabled": true,
+		"promo_code_enabled":    true,
+		"default_subscriptions": baseRequiredDefaultSubscriptions(),
+		"oidc_connect_enabled":  true,
 	}
 	rawBody, err := json.Marshal(body)
 	require.NoError(t, err)
@@ -421,6 +435,7 @@ func TestSettingHandler_UpdateSettings_RejectsInvalidPaymentVisibleMethodSource(
 
 	body := map[string]any{
 		"promo_code_enabled":                   true,
+		"default_subscriptions":                baseRequiredDefaultSubscriptions(),
 		"payment_visible_method_alipay_source": "bogus",
 	}
 	rawBody, err := json.Marshal(body)
@@ -455,6 +470,7 @@ func TestSettingHandler_UpdateSettings_DoesNotPersistPartialSystemSettingsWhenAu
 	body := map[string]any{
 		"registration_enabled":              true,
 		"promo_code_enabled":                true,
+		"default_subscriptions":             baseRequiredDefaultSubscriptions(),
 		"auth_source_default_email_balance": 12.75,
 	}
 	rawBody, err := json.Marshal(body)

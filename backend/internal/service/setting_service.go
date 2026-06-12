@@ -54,6 +54,10 @@ var (
 		"DEFAULT_SUBSCRIPTION_GROUP_DUPLICATE",
 		"default subscription group cannot be duplicated",
 	)
+	ErrDefaultSubscriptionsEmpty = infraerrors.BadRequest(
+		"DEFAULT_SUBSCRIPTIONS_EMPTY",
+		"default subscription list cannot be empty; please configure at least one subscription",
+	)
 )
 
 type SettingRepository interface {
@@ -715,6 +719,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyChannelMonitorEnabled,
 		SettingKeyChannelMonitorDefaultIntervalSeconds,
 		SettingKeyAvailableChannelsEnabled,
+		SettingKeyModelsPlazaEnabled,
 		SettingKeyAffiliateEnabled,
 		SettingKeyRiskControlEnabled,
 	}
@@ -826,6 +831,8 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 
 		AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true",
 
+		ModelsPlazaEnabled: settings[SettingKeyModelsPlazaEnabled] == "true",
+
 		AffiliateEnabled: settings[SettingKeyAffiliateEnabled] == "true",
 
 		RiskControlEnabled: settings[SettingKeyRiskControlEnabled] == "true",
@@ -903,6 +910,25 @@ func (s *SettingService) GetAvailableChannelsRuntime(ctx context.Context) Availa
 	}
 	return AvailableChannelsRuntime{
 		Enabled: vals[SettingKeyAvailableChannelsEnabled] == "true",
+	}
+}
+
+// ModelsPlazaRuntime is the lightweight view of the models-plaza feature switch
+// consumed by the public models-plaza handler.
+type ModelsPlazaRuntime struct {
+	Enabled bool
+}
+
+// GetModelsPlazaRuntime reads the models-plaza feature switch directly from the
+// settings store. Fail-closed: on error returns Enabled=false, matching the
+// opt-in default (unknown ↔ disabled).
+func (s *SettingService) GetModelsPlazaRuntime(ctx context.Context) ModelsPlazaRuntime {
+	vals, err := s.settingRepo.GetMultiple(ctx, []string{SettingKeyModelsPlazaEnabled})
+	if err != nil {
+		return ModelsPlazaRuntime{Enabled: false}
+	}
+	return ModelsPlazaRuntime{
+		Enabled: vals[SettingKeyModelsPlazaEnabled] == "true",
 	}
 }
 
@@ -1081,6 +1107,7 @@ type PublicSettingsInjectionPayload struct {
 	ChannelMonitorEnabled                bool `json:"channel_monitor_enabled"`
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
 	AvailableChannelsEnabled             bool `json:"available_channels_enabled"`
+	ModelsPlazaEnabled                   bool `json:"models_plaza_enabled"`
 	AffiliateEnabled                     bool `json:"affiliate_enabled"`
 	RiskControlEnabled                   bool `json:"risk_control_enabled"`
 }
@@ -1143,6 +1170,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ChannelMonitorEnabled:                settings.ChannelMonitorEnabled,
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
+		ModelsPlazaEnabled:                   settings.ModelsPlazaEnabled,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
 	}, nil
@@ -1503,6 +1531,9 @@ func (s *SettingService) UpdateSettingsWithAuthSourceDefaults(ctx context.Contex
 }
 
 func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, settings *SystemSettings) (map[string]string, error) {
+	if len(settings.DefaultSubscriptions) == 0 {
+		return nil, ErrDefaultSubscriptionsEmpty
+	}
 	if err := s.validateDefaultSubscriptionGroups(ctx, settings.DefaultSubscriptions); err != nil {
 		return nil, err
 	}
@@ -1780,6 +1811,9 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 
 	// Available channels feature switch
 	updates[SettingKeyAvailableChannelsEnabled] = strconv.FormatBool(settings.AvailableChannelsEnabled)
+
+	// Models plaza feature switch
+	updates[SettingKeyModelsPlazaEnabled] = strconv.FormatBool(settings.ModelsPlazaEnabled)
 
 	// Affiliate (邀请返利) feature switch
 	updates[SettingKeyAffiliateEnabled] = strconv.FormatBool(settings.AffiliateEnabled)
@@ -2627,6 +2661,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		// Available channels feature (default disabled; opt-in)
 		SettingKeyAvailableChannelsEnabled: "false",
 
+		// Models plaza feature (default disabled; opt-in)
+		SettingKeyModelsPlazaEnabled: "false",
+
 		// Affiliate (邀请返利) feature (default disabled; opt-in)
 		SettingKeyAffiliateEnabled: "false",
 
@@ -3133,6 +3170,9 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 
 	// Available channels feature (default: disabled; strict true)
 	result.AvailableChannelsEnabled = settings[SettingKeyAvailableChannelsEnabled] == "true"
+
+	// Models plaza feature (default: disabled; strict true)
+	result.ModelsPlazaEnabled = settings[SettingKeyModelsPlazaEnabled] == "true"
 
 	// Affiliate (邀请返利) feature (default: disabled; strict true)
 	result.AffiliateEnabled = settings[SettingKeyAffiliateEnabled] == "true"

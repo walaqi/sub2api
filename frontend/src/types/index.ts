@@ -249,6 +249,7 @@ export interface PublicSettings {
   channel_monitor_default_interval_seconds: number
   available_channels_enabled: boolean
   affiliate_enabled: boolean
+  models_plaza_enabled?: boolean
 }
 
 export interface AuthResponse {

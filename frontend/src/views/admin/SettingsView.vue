@@ -5187,6 +5187,30 @@
         <div class="card">
           <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('admin.settings.features.modelsPlaza.title') }}
+            </h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {{ t('admin.settings.features.modelsPlaza.description') }}
+            </p>
+          </div>
+          <div class="space-y-5 p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.features.modelsPlaza.enabled') }}
+                </label>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.modelsPlaza.enabledHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.models_plaza_enabled" />
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
               {{ t('admin.settings.features.riskControl.title') }}
             </h2>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -7131,6 +7155,8 @@ const form = reactive<SettingsForm>({
   channel_monitor_default_interval_seconds: 60,
   // Available Channels feature switch
   available_channels_enabled: false,
+  // Models Plaza feature switch
+  models_plaza_enabled: false,
   // Affiliate (邀请返利) feature switch
   affiliate_enabled: false,
 });
@@ -8057,6 +8083,12 @@ async function saveSettings() {
     const normalizedDefaultSubscriptions = normalizeDefaultSubscriptionSettings(
       form.default_subscriptions,
     );
+    if (normalizedDefaultSubscriptions.length === 0) {
+      appStore.showError(
+        t("admin.settings.defaults.defaultSubscriptionsRequired"),
+      );
+      return;
+    }
     const duplicateDefaultSubscription = findDuplicateDefaultSubscription(
       normalizedDefaultSubscriptions,
     );
@@ -8332,6 +8364,8 @@ async function saveSettings() {
         Number(form.channel_monitor_default_interval_seconds) || 60,
       // Available Channels feature switch
       available_channels_enabled: form.available_channels_enabled,
+      // Models Plaza feature switch
+      models_plaza_enabled: form.models_plaza_enabled,
       // Affiliate (邀请返利) feature switch
       affiliate_enabled: form.affiliate_enabled,
     };

@@ -129,6 +129,25 @@ func TestSettingService_UpdateSettings_DefaultSubscriptions_ValidGroup(t *testin
 	}, got)
 }
 
+func TestSettingService_UpdateSettings_DefaultSubscriptions_RejectsEmpty(t *testing.T) {
+	repo := &settingUpdateRepoStub{}
+	svc := NewSettingService(repo, &config.Config{})
+
+	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		DefaultSubscriptions: nil,
+	})
+	require.Error(t, err)
+	require.Equal(t, "DEFAULT_SUBSCRIPTIONS_EMPTY", infraerrors.Reason(err))
+	require.Nil(t, repo.updates)
+
+	err = svc.UpdateSettings(context.Background(), &SystemSettings{
+		DefaultSubscriptions: []DefaultSubscriptionSetting{},
+	})
+	require.Error(t, err)
+	require.Equal(t, "DEFAULT_SUBSCRIPTIONS_EMPTY", infraerrors.Reason(err))
+	require.Nil(t, repo.updates)
+}
+
 func TestSettingService_UpdateSettings_DefaultSubscriptions_RejectsNonSubscriptionGroup(t *testing.T) {
 	repo := &settingUpdateRepoStub{}
 	groupReader := &defaultSubGroupReaderStub{
@@ -208,11 +227,18 @@ func TestSettingService_UpdateSettings_DefaultSubscriptions_RejectsDuplicateGrou
 	require.Nil(t, repo.updates)
 }
 
+// defaultSubsForTests 提供一个非空但合法的 DefaultSubscriptions，用于不关心
+// 订阅校验的更新测试；当 svc 未设置 defaultSubGroupReader 时跳过 group 校验。
+func defaultSubsForTests() []DefaultSubscriptionSetting {
+	return []DefaultSubscriptionSetting{{GroupID: 11, ValidityDays: 30}}
+}
+
 func TestSettingService_UpdateSettings_RegistrationEmailSuffixWhitelist_Normalized(t *testing.T) {
 	repo := &settingUpdateRepoStub{}
 	svc := NewSettingService(repo, &config.Config{})
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		DefaultSubscriptions:             defaultSubsForTests(),
 		RegistrationEmailSuffixWhitelist: []string{"example.com", "@EXAMPLE.com", " @foo.bar ", "*.EDU.CN"},
 	})
 	require.NoError(t, err)
@@ -224,6 +250,7 @@ func TestSettingService_UpdateSettings_RegistrationEmailSuffixWhitelist_Invalid(
 	svc := NewSettingService(repo, &config.Config{})
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		DefaultSubscriptions:             defaultSubsForTests(),
 		RegistrationEmailSuffixWhitelist: []string{"@invalid_domain"},
 	})
 	require.Error(t, err)
@@ -244,6 +271,7 @@ func TestSettingService_UpdateSettings_TablePreferences(t *testing.T) {
 	svc := NewSettingService(repo, &config.Config{})
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		DefaultSubscriptions: defaultSubsForTests(),
 		TableDefaultPageSize: 50,
 		TablePageSizeOptions: []int{20, 50, 100},
 	})
@@ -252,6 +280,7 @@ func TestSettingService_UpdateSettings_TablePreferences(t *testing.T) {
 	require.Equal(t, "[20,50,100]", repo.updates[SettingKeyTablePageSizeOptions])
 
 	err = svc.UpdateSettings(context.Background(), &SystemSettings{
+		DefaultSubscriptions: defaultSubsForTests(),
 		TableDefaultPageSize: 1000,
 		TablePageSizeOptions: []int{20, 100},
 	})
@@ -265,6 +294,7 @@ func TestSettingService_UpdateSettings_PaymentVisibleMethodsAndAdvancedScheduler
 	svc := NewSettingService(repo, &config.Config{})
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		DefaultSubscriptions:              defaultSubsForTests(),
 		PaymentVisibleMethodAlipaySource:  "alipay",
 		PaymentVisibleMethodWxpaySource:   "easypay",
 		PaymentVisibleMethodAlipayEnabled: true,
@@ -284,6 +314,7 @@ func TestSettingService_UpdateSettings_AntigravityUserAgentVersion(t *testing.T)
 	svc := NewSettingService(repo, &config.Config{})
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		DefaultSubscriptions:        defaultSubsForTests(),
 		AntigravityUserAgentVersion: "1.23.2",
 	})
 	require.NoError(t, err)
@@ -296,6 +327,7 @@ func TestSettingService_UpdateSettings_APIKeyACLTrustForwardedIPRefreshesConfig(
 	svc := NewSettingService(repo, cfg)
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		DefaultSubscriptions:      defaultSubsForTests(),
 		APIKeyACLTrustForwardedIP: true,
 	})
 	require.NoError(t, err)
@@ -343,6 +375,7 @@ func TestSettingService_UpdateSettings_RejectsInvalidPaymentVisibleMethodSource(
 	svc := NewSettingService(repo, &config.Config{})
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		DefaultSubscriptions:             defaultSubsForTests(),
 		PaymentVisibleMethodAlipaySource: "not-a-provider",
 	})
 	require.Error(t, err)

@@ -67,6 +67,8 @@ func newBackendModeSettingService(t *testing.T, enabled string) *service.Setting
 	svc := service.NewSettingService(repo, &config.Config{})
 	require.NoError(t, svc.UpdateSettings(context.Background(), &service.SystemSettings{
 		BackendModeEnabled: enabled == "true",
+		// default_subscriptions 必填（参见 SettingService.buildSystemSettingsUpdates）
+		DefaultSubscriptions: []service.DefaultSubscriptionSetting{{GroupID: 11, ValidityDays: 30}},
 	}))
 
 	return svc
