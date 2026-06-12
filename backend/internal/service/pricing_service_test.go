@@ -37,6 +37,76 @@ func TestParsePricingData_ParsesPriorityAndServiceTierFields(t *testing.T) {
 	require.True(t, pricing.SupportsServiceTier)
 }
 
+// TestParsePricingData_ParsesPlazaMetadataFields 验证模型广场展示用的元数据字段
+// （max_input_tokens / max_output_tokens / supports_*）能正确从 model_pricing.json 解析。
+func TestParsePricingData_ParsesPlazaMetadataFields(t *testing.T) {
+	svc := &PricingService{}
+	body := []byte(`{
+		"claude-opus-4-5": {
+			"input_cost_per_token": 1.5e-5,
+			"output_cost_per_token": 7.5e-5,
+			"max_input_tokens": 200000,
+			"max_output_tokens": 64000,
+			"supports_function_calling": true,
+			"supports_vision": true,
+			"supports_prompt_caching": true,
+			"supports_reasoning": true,
+			"supports_response_schema": true,
+			"supports_tool_choice": true,
+			"supports_web_search": false,
+			"supports_pdf_input": true,
+			"supports_computer_use": true,
+			"supports_assistant_prefill": true,
+			"supports_audio_input": false,
+			"supports_audio_output": false,
+			"litellm_provider": "anthropic",
+			"mode": "chat"
+		}
+	}`)
+
+	data, err := svc.parsePricingData(body)
+	require.NoError(t, err)
+	pricing := data["claude-opus-4-5"]
+	require.NotNil(t, pricing)
+	require.Equal(t, 200000, pricing.MaxInputTokens)
+	require.Equal(t, 64000, pricing.MaxOutputTokens)
+	require.True(t, pricing.SupportsFunctionCalling)
+	require.True(t, pricing.SupportsVision)
+	require.True(t, pricing.SupportsPromptCaching)
+	require.True(t, pricing.SupportsReasoning)
+	require.True(t, pricing.SupportsResponseSchema)
+	require.True(t, pricing.SupportsToolChoice)
+	require.False(t, pricing.SupportsWebSearch)
+	require.True(t, pricing.SupportsPDFInput)
+	require.True(t, pricing.SupportsComputerUse)
+	require.True(t, pricing.SupportsAssistantPrefill)
+	require.False(t, pricing.SupportsAudioInput)
+	require.False(t, pricing.SupportsAudioOutput)
+}
+
+// TestParsePricingData_PlazaMetadataDefaultsToZeroWhenMissing 验证缺失的元数据字段
+// 安全回退为零值（未设置 max_input_tokens 时为 0，supports_* 为 false）。
+func TestParsePricingData_PlazaMetadataDefaultsToZeroWhenMissing(t *testing.T) {
+	svc := &PricingService{}
+	body := []byte(`{
+		"sparse-model": {
+			"input_cost_per_token": 1e-6,
+			"output_cost_per_token": 2e-6,
+			"litellm_provider": "openai",
+			"mode": "chat"
+		}
+	}`)
+
+	data, err := svc.parsePricingData(body)
+	require.NoError(t, err)
+	pricing := data["sparse-model"]
+	require.NotNil(t, pricing)
+	require.Equal(t, 0, pricing.MaxInputTokens)
+	require.Equal(t, 0, pricing.MaxOutputTokens)
+	require.False(t, pricing.SupportsFunctionCalling)
+	require.False(t, pricing.SupportsVision)
+}
+
 func TestGetModelPricing_Gpt53CodexSparkUsesGpt51CodexPricing(t *testing.T) {
 	sparkPricing := &LiteLLMModelPricing{InputCostPerToken: 1}
 	gpt53Pricing := &LiteLLMModelPricing{InputCostPerToken: 9}

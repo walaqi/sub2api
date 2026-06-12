@@ -361,6 +361,7 @@ export default {
     groups: 'Groups',
     channels: 'Channels',
     availableChannels: 'Available Channels',
+    modelsPlaza: 'Models Plaza',
     subscriptions: 'Subscriptions',
     accounts: 'Accounts',
     proxies: 'Proxies',
@@ -1041,6 +1042,73 @@ export default {
       intervals: 'Tiered Pricing',
       unitPerMillion: '/ 1M tokens',
       unitPerRequest: '/ request'
+    }
+  },
+
+  modelsPlaza: {
+    title: 'Models Plaza',
+    description: 'Browse all supported models, capabilities and pricing',
+    searchPlaceholder: 'Search models or platforms...',
+    empty: 'No models to display',
+    refresh: 'Refresh',
+    viewCard: 'Card view',
+    viewTable: 'List view',
+    allPlatforms: 'All platforms',
+    group: 'Group',
+    groupHint: 'Switch group to recompute recharge price by its rate multiplier',
+    noGroup: 'No groups available',
+    standardPrice: 'Standard',
+    rechargePrice: 'Recharge',
+    contextLength: 'Context window',
+    maxOutput: 'Max output',
+    capabilities: 'Capabilities',
+    modalities: 'Modalities',
+    inputModalities: 'Input',
+    outputModalities: 'Output',
+    noPricing: 'No pricing configured',
+    tokensUnit: 'tokens',
+    columns: {
+      model: 'Model',
+      standardPrice: 'Standard',
+      rechargePrice: 'Recharge',
+      platform: 'Platform'
+    },
+    price: {
+      input: 'Input',
+      output: 'Output',
+      cacheRead: 'Cache read',
+      cacheWrite: 'Cache write',
+      perRequest: 'Per request',
+      imageOutput: 'Image output',
+      unitPerMillion: '/ 1M tokens',
+      unitPerRequest: '/ request',
+      free: 'Free',
+      dash: '-'
+    },
+    billingMode: {
+      token: 'Per Token',
+      per_request: 'Per Request',
+      image: 'Per Image'
+    },
+    capability: {
+      function_calling: 'Function Calling',
+      vision: 'Vision',
+      prompt_caching: 'Prompt Caching',
+      reasoning: 'Reasoning',
+      response_schema: 'Structured Output',
+      tool_choice: 'Tool Choice',
+      web_search: 'Web Search',
+      pdf_input: 'PDF Input',
+      computer_use: 'Computer Use',
+      assistant_prefill: 'Assistant Prefill',
+      audio_input: 'Audio Input',
+      audio_output: 'Audio Output'
+    },
+    modality: {
+      text: 'Text',
+      image: 'Image',
+      audio: 'Audio',
+      file: 'File'
     }
   },
 
@@ -5300,6 +5368,13 @@ export default {
           enabled: 'Enable Available Channels',
           enabledHint: 'When off, the sidebar entry is hidden and the endpoint returns an empty list.',
         },
+        modelsPlaza: {
+          title: 'Models Plaza',
+          description: 'A public showcase of all supported models, their capabilities and pricing. No login required; disabled by default.',
+          configureLink: 'Configure model pricing in Channel Management > Channel Pricing',
+          enabled: 'Enable Models Plaza',
+          enabledHint: 'When off, the sidebar entry is hidden and the endpoint returns an empty catalog.',
+        },
         riskControl: {
           title: 'Risk Control',
           description: 'Enable the content moderation menu and gateway audit entry point. Disabled by default.',
@@ -5541,6 +5616,8 @@ export default {
         defaultSubscriptionsEmpty: 'No default subscriptions configured.',
         defaultSubscriptionsDuplicate:
           'Duplicate subscription group: {groupId}. Each group can only appear once.',
+        defaultSubscriptionsRequired:
+          'Default subscriptions are required. Please configure at least one subscription group.',
         subscriptionGroup: 'Subscription Group',
         subscriptionValidityDays: 'Validity (days)'
       },

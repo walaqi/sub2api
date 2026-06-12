@@ -337,6 +337,11 @@ const (
 	// sidebar entry is hidden. Defaults to false (opt-in feature).
 	SettingKeyAvailableChannelsEnabled = "available_channels_enabled"
 
+	// SettingKeyModelsPlazaEnabled is a DB-backed soft switch for the "Models Plaza"
+	// public model catalog view. When false: the public endpoint returns an empty list
+	// and the sidebar entry is hidden. Defaults to false (opt-in feature).
+	SettingKeyModelsPlazaEnabled = "models_plaza_enabled"
+
 	// =========================
 	// Overload Cooldown (529)
 	// =========================

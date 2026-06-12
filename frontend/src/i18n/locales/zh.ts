@@ -361,6 +361,7 @@ export default {
     groups: '分组管理',
     channels: '渠道管理',
     availableChannels: '可用渠道',
+    modelsPlaza: '模型广场',
     subscriptions: '订阅管理',
     accounts: '账号管理',
     proxies: 'IP管理',
@@ -1045,6 +1046,73 @@ export default {
       intervals: '阶梯定价',
       unitPerMillion: '/ 1M token',
       unitPerRequest: '/ 次'
+    }
+  },
+
+  modelsPlaza: {
+    title: '模型广场',
+    description: '浏览平台支持的全部模型、能力与价格',
+    searchPlaceholder: '搜索模型或平台...',
+    empty: '暂无可展示的模型',
+    refresh: '刷新',
+    viewCard: '卡片视图',
+    viewTable: '列表视图',
+    allPlatforms: '全部平台',
+    group: '分组',
+    groupHint: '切换分组以按该分组费率重新计算充值价',
+    noGroup: '无可选分组',
+    standardPrice: '标准价',
+    rechargePrice: '充值价',
+    contextLength: '上下文窗口',
+    maxOutput: '最大输出',
+    capabilities: '能力',
+    modalities: '模态',
+    inputModalities: '输入',
+    outputModalities: '输出',
+    noPricing: '未配置定价',
+    tokensUnit: 'tokens',
+    columns: {
+      model: '模型',
+      standardPrice: '标准价',
+      rechargePrice: '充值价',
+      platform: '平台'
+    },
+    price: {
+      input: '输入',
+      output: '输出',
+      cacheRead: '缓存读取',
+      cacheWrite: '缓存写入',
+      perRequest: '每次请求',
+      imageOutput: '图片输出',
+      unitPerMillion: '/ 1M token',
+      unitPerRequest: '/ 次',
+      free: '免费',
+      dash: '-'
+    },
+    billingMode: {
+      token: '按 Token',
+      per_request: '按次',
+      image: '按图片'
+    },
+    capability: {
+      function_calling: '函数调用',
+      vision: '视觉',
+      prompt_caching: '提示缓存',
+      reasoning: '推理',
+      response_schema: '结构化输出',
+      tool_choice: '工具选择',
+      web_search: '联网搜索',
+      pdf_input: 'PDF 输入',
+      computer_use: '计算机操作',
+      assistant_prefill: '助手预填',
+      audio_input: '音频输入',
+      audio_output: '音频输出'
+    },
+    modality: {
+      text: '文本',
+      image: '图片',
+      audio: '音频',
+      file: '文件'
     }
   },
 
@@ -5462,6 +5530,13 @@ export default {
           enabled: '启用可用渠道',
           enabledHint: '关闭后用户端侧边栏入口隐藏，接口返回空数组。',
         },
+        modelsPlaza: {
+          title: '模型广场',
+          description: '面向所有访客（含未登录）展示平台支持的模型、能力与标准价/充值价聚合视图。默认关闭。',
+          configureLink: '前往 渠道管理 > 渠道定价 配置模型价格',
+          enabled: '启用模型广场',
+          enabledHint: '关闭后侧边栏入口隐藏，公开接口返回空目录。',
+        },
         riskControl: {
           title: '风控中心',
           description: '启用内容审计菜单和全端点请求审核入口。默认关闭。',
@@ -5699,6 +5774,7 @@ export default {
         addDefaultSubscription: '添加默认订阅',
         defaultSubscriptionsEmpty: '未配置默认订阅。新用户不会自动获得订阅套餐。',
         defaultSubscriptionsDuplicate: '默认订阅存在重复分组：{groupId}。每个分组只能出现一次。',
+        defaultSubscriptionsRequired: '默认订阅列表为必填项，请至少配置一个订阅分组。',
         subscriptionGroup: '订阅分组',
         subscriptionValidityDays: '有效期（天）'
       },

@@ -192,6 +192,8 @@ func TestUpdateSettings_InvalidatesBackendModeCache(t *testing.T) {
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
 		BackendModeEnabled: false,
+		// default_subscriptions 必填（参见 buildSystemSettingsUpdates）
+		DefaultSubscriptions: []DefaultSubscriptionSetting{{GroupID: 11, ValidityDays: 30}},
 	})
 	require.NoError(t, err)
 	require.Equal(t, "false", repo.updates[SettingKeyBackendModeEnabled])

@@ -239,6 +239,9 @@ type SystemSettings struct {
 	// Available Channels feature switch (user-facing aggregate view)
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
 
+	// Models Plaza feature switch (user-facing model catalog view)
+	ModelsPlazaEnabled bool `json:"models_plaza_enabled"`
+
 	// 风控中心功能开关
 	RiskControlEnabled bool `json:"risk_control_enabled"`
 
@@ -307,6 +310,8 @@ type PublicSettings struct {
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
 
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
+
+	ModelsPlazaEnabled bool `json:"models_plaza_enabled"`
 
 	AffiliateEnabled bool `json:"affiliate_enabled"`
 
