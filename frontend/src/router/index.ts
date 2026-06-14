@@ -265,6 +265,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/chat-plaza',
+    name: 'ChatPlaza',
+    component: () => import('@/views/ChatPlazaView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Chat Plaza',
+      titleKey: 'chatPlaza.title',
+      descriptionKey: 'chatPlaza.description'
+    }
+  },
+  {
     path: '/profile',
     name: 'Profile',
     component: () => import('@/views/user/ProfileView.vue'),
