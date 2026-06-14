@@ -345,8 +345,14 @@
     font-size: 10px;
     font-weight: 800;
   }
-  .or-chip-c .or-chip-dot { background: linear-gradient(135deg, #fb923c, #f97316); }
-  .or-chip-g .or-chip-dot { background: linear-gradient(135deg, #22c55e, #16a34a); }
+  .or-chip-c .or-chip-dot {
+    background: #fff url("/claude-icon-l.png") center/contain no-repeat;
+    color: transparent;
+  }
+  .or-chip-g .or-chip-dot {
+    background: #fff url("/chatgpt-l.png") center/contain no-repeat;
+    color: transparent;
+  }
   .or-chip-m .or-chip-dot { background: linear-gradient(135deg, #3b82f6, #2563eb); }
   .or-chip-a .or-chip-dot { background: linear-gradient(135deg, #f43f5e, #db2777); }
   .or-chips-hint {
@@ -441,14 +447,8 @@
   /* ============== Featured models grid ============== */
   .or-models-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: 1fr;
     gap: 16px;
-  }
-  @media (max-width: 1024px) {
-    .or-models-grid { grid-template-columns: repeat(2, 1fr); }
-  }
-  @media (max-width: 540px) {
-    .or-models-grid { grid-template-columns: 1fr; }
   }
   .or-model-card {
     display: flex;
@@ -743,10 +743,8 @@
 
       <!-- Model chips (also act as tabs) -->
       <div class="or-chips">
-        <label class="or-chip or-chip-c" for="or-m-c"><span class="or-chip-dot">C</span> Claude Sonnet 4.5</label>
-        <label class="or-chip or-chip-g" for="or-m-g"><span class="or-chip-dot">G</span> GPT-4o</label>
-        <label class="or-chip or-chip-m" for="or-m-m"><span class="or-chip-dot">M</span> Gemini 2.5 Pro</label>
-        <label class="or-chip or-chip-a" for="or-m-a"><span class="or-chip-dot">A</span> Antigravity</label>
+        <label class="or-chip or-chip-c" for="or-m-c"><span class="or-chip-dot">C</span> Claude</label>
+        <label class="or-chip or-chip-g" for="or-m-g"><span class="or-chip-dot">G</span> chatGpt</label>
       </div>
       <p class="or-chips-hint">点击切换 → 下方代码示例会同步更新</p>
 
@@ -758,7 +756,7 @@
           <span style="width:48px"></span>
         </div>
 
-        <pre class="or-code-pane or-code-pane-c"><span class="or-c-comment"># 一个密钥,调用任意已接入的模型</span>
+        <pre class="or-code-pane or-code-pane-c" style="text-align: left;"><span class="or-c-comment"># 一个密钥,调用任意已接入的模型</span>
 <span class="or-c-prompt">$</span> <span class="or-c-cmd">curl</span> <span class="or-c-flag">-X POST</span> <span class="or-c-url">https://api.your-domain.com/v1/messages</span> \
   -H <span class="or-c-string">"Authorization: Bearer $YOUR_KEY"</span> \
   -H <span class="or-c-string">"Content-Type: application/json"</span> \
@@ -813,11 +811,7 @@
     </section>
 
     <!-- Stats -->
-    <section class="or-stats" id="stats">
-      <div class="or-stat">
-        <div class="or-stat-num">4</div>
-        <div class="or-stat-label">模型供应商</div>
-      </div>
+    <!-- <section class="or-stats" id="stats">
       <div class="or-stat">
         <div class="or-stat-num">20+</div>
         <div class="or-stat-label">可用模型</div>
@@ -826,11 +820,7 @@
         <div class="or-stat-num">99.9%</div>
         <div class="or-stat-label">服务可用性</div>
       </div>
-      <div class="or-stat">
-        <div class="or-stat-num">~1.2s</div>
-        <div class="or-stat-label">平均延迟</div>
-      </div>
-    </section>
+    </section> -->
 
     <!-- Featured Models -->
     <section class="or-section" id="models">
@@ -844,33 +834,35 @@
           <div class="or-model-head">
             <span class="or-model-icon" style="background:linear-gradient(135deg,#fb923c,#f97316);">C</span>
             <div>
-              <div class="or-model-name">Claude Sonnet 4.5</div>
+              <div class="or-model-name">Claude Opus 4.8</div>
               <div class="or-model-vendor">by Anthropic</div>
             </div>
           </div>
-          <p class="or-model-desc">推理 / 代码 / 视觉全能,200K 上下文,日常生产首选。</p>
+          <p class="or-model-desc">🚀 推理 / 代码,1M 上下文,日常生产首选。</p>
+          <p class="or-model-desc">⚡ 极速响应:凭借极致优化的缓存率和价格, 即刻体验本站极具吸引力的claude模型服务</p>
           <div class="or-model-stats">
-            <span class="or-tag">200K context</span>
-            <span class="or-tag">$3 / 1M in</span>
+            <span class="or-tag">1M 上下文</span>
+            <span class="or-tag" style="text-decoration: line-through;">$3 / 1M in</span> <span style="color:red">RMB 1.5 / 1M 输入</span>
           </div>
         </a>
-
+        
         <a class="or-model-card" href="/login">
           <div class="or-model-head">
             <span class="or-model-icon" style="background:linear-gradient(135deg,#22c55e,#16a34a);">G</span>
             <div>
-              <div class="or-model-name">GPT-4o</div>
+              <div class="or-model-name">GPT-5.5 最新上线, 编程,识图,文生图,全面多面手. </div>
               <div class="or-model-vendor">by OpenAI</div>
             </div>
           </div>
+          <p class="or-model-desc">本站基于官方渠道直推低价api服务 约0.08折. 🤩 真实邮件地址注册, 每月多轮促销不停歇(<b>促销针对使用额度直接进行,可用于本站所有开放模型</b>).</p>
           <p class="or-model-desc">多模态原生 + 最快首字延迟,适合实时对话与流式输出。</p>
           <div class="or-model-stats">
-            <span class="or-tag">128K context</span>
-            <span class="or-tag">$5 / 1M in</span>
+            <span class="or-tag">满血1M上下文</span>
+            <span class="or-tag" style="text-decoration: line-through;">$5 / 1M in</span><span style="color: red">RMB 3.5/M 输入</span>
           </div>
         </a>
 
-        <a class="or-model-card" href="/login">
+        <!-- <a class="or-model-card" href="/login">
           <div class="or-model-head">
             <span class="or-model-icon" style="background:linear-gradient(135deg,#3b82f6,#2563eb);">M</span>
             <div>
@@ -898,12 +890,12 @@
             <span class="or-tag">Preview</span>
             <span class="or-tag">Cost-efficient</span>
           </div>
-        </a>
+        </a> -->
       </div>
     </section>
 
     <!-- Providers strip -->
-    <section class="or-section" id="providers" style="padding-top:0">
+    <!-- <section class="or-section" id="providers" style="padding-top:0">
       <div class="or-section-head">
         <div class="or-section-eyebrow">Connected Providers</div>
         <h2 class="or-section-title">已接入的官方供应商</h2>
@@ -939,7 +931,7 @@
           </div>
         </div>
       </div>
-    </section>
+    </section> -->
 
     <!-- Final CTA -->
     <section class="or-cta">
