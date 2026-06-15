@@ -1215,9 +1215,6 @@ type ImageStudioConfig struct {
 	GatewayBaseURL string `mapstructure:"gateway_base_url"`
 	// ImageModel 是 /internal/cred 返回的图片模型名（默认 gpt-image-2）。
 	ImageModel string `mapstructure:"image_model"`
-	// ImageGroupID 是「兜底自建」时应绑定的图片专用 group（须开 allow_image_generation
-	// 且为 OpenAI 平台）。<=0 表示未配置，此时列候选返回 can_create=false。
-	ImageGroupID int64 `mapstructure:"image_group_id"`
 }
 
 // TotpConfig TOTP 双因素认证配置
@@ -1739,7 +1736,6 @@ func setDefaults() {
 	viper.SetDefault("image_studio.internal_secret", "")
 	viper.SetDefault("image_studio.gateway_base_url", "http://localhost:8080/v1")
 	viper.SetDefault("image_studio.image_model", "gpt-image-2")
-	viper.SetDefault("image_studio.image_group_id", 0)
 
 	// TOTP
 	viper.SetDefault("totp.encryption_key", "")

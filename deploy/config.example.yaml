@@ -911,9 +911,9 @@ image_studio:
   gateway_base_url: "http://localhost:8080/v1"
   # /internal/cred 返回的图片模型名。
   image_model: "gpt-image-2"
-  # 「兜底自建」时应绑定的图片专用 group ID（须开 allow_image_generation 且为 OpenAI 平台）。
-  # 0 表示未配置，此时列候选返回 can_create=false（image-studio 提示「管理员尚未开启图片功能」）。
-  image_group_id: 0
+  # 注：「兜底自建」目标分组（须开 allow_image_generation 且为 OpenAI 平台）由后端
+  # 运行时按用户可绑分组动态发现，无需配置。用户无可用绘图分组时列候选返回
+  # can_create=false。
 
 # =============================================================================
 # LinuxDo Connect OAuth Login (SSO)

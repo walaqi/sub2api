@@ -27,9 +27,17 @@ import (
 // 凭证选取策略：用户自选 + 记住 + 兜底自建（见 §C.4）。母系统侧只读不铸：
 // 列出用户「能出图」的 key 供 image-studio 渲染选择器，并按 key_id 解析明文凭证。
 type ImageStudioService struct {
-	cfg        *config.Config
-	apiKeyRepo APIKeyRepository
-	privateKey *rsa.PrivateKey
+	cfg         *config.Config
+	apiKeyRepo  APIKeyRepository
+	groupLister imageGroupLister
+	privateKey  *rsa.PrivateKey
+}
+
+// imageGroupLister 抽象「列出某用户可绑定的活跃分组」，由 *APIKeyService 满足。
+// 用于「兜底自建」时动态发现可出图的目标分组（openai + 开了作图），
+// 避免把 group_id 写死进配置——分组删了重建、ID 变了都不受影响。
+type imageGroupLister interface {
+	GetAvailableGroups(ctx context.Context, userID int64) ([]Group, error)
 }
 
 // EntryTicket 是签发结果。
@@ -45,8 +53,8 @@ type EntryTicket struct {
 // 当 image_studio.enabled=true 时，解析配置中的 RSA 私钥 PEM；解析失败直接返回 error，
 // 让 Wire 在启动期 fail-fast（避免运行时才发现密钥无效）。当 enabled=false 时，
 // privateKey 留空，MintTicket 会返回 ErrImageStudioDisabled。
-func NewImageStudioService(cfg *config.Config, apiKeyRepo APIKeyRepository) (*ImageStudioService, error) {
-	svc := &ImageStudioService{cfg: cfg, apiKeyRepo: apiKeyRepo}
+func NewImageStudioService(cfg *config.Config, apiKeyRepo APIKeyRepository, groupLister imageGroupLister) (*ImageStudioService, error) {
+	svc := &ImageStudioService{cfg: cfg, apiKeyRepo: apiKeyRepo, groupLister: groupLister}
 	if !cfg.ImageStudio.Enabled {
 		return svc, nil
 	}
@@ -123,10 +131,14 @@ type ImageKeyCandidate struct {
 // ImageKeyList 是列候选的返回结构。
 type ImageKeyList struct {
 	Keys []ImageKeyCandidate `json:"keys"`
-	// CanCreate 表示是否存在可供「兜底自建」绑定的图片专用 group。
+	// CanCreate 表示该用户当前是否存在可供「兜底自建」绑定的图片专用 group
+	// （openai 平台 + 开了作图 + 用户可绑）。动态发现，非配置写死。
 	CanCreate bool `json:"can_create"`
-	// ImageGroupID 是兜底自建时该绑定的 group（<=0 表示未配置，此时 CanCreate=false）。
+	// ImageGroupID 是兜底自建时该绑定的 group（<=0 表示无可用 group，此时 CanCreate=false）。
+	// 每次请求即时查 GetAvailableGroups 后过滤得到，分组删改重建不受影响。
 	ImageGroupID int64 `json:"image_group_id"`
+	// ImageGroupName 是该兜底 group 的名称（供 image-studio 在引导文案里显示）。
+	ImageGroupName string `json:"image_group_name,omitempty"`
 }
 
 // Credential 是取明文返回的真正凭证。
@@ -166,14 +178,41 @@ func keyAllowsImageGeneration(k *APIKey) bool {
 	return true
 }
 
+// groupAllowsImageCapableBinding 判定一个分组是否可作为「兜底自建」目标
+// （openai 平台 + 开了作图 + 活跃）。与 keyAllowsImageGeneration 的分组门槛一致。
+func groupAllowsImageCapableBinding(g *Group) bool {
+	return g != nil && g.Platform == PlatformOpenAI && g.AllowImageGeneration && g.Status == StatusActive
+}
+
+// discoverImageGroup 即时查该用户可绑定的活跃分组，返回第一个满足出图条件的分组
+// （openai + 开了作图）。无可用分组时返回 nil（CanCreate=false）。
+// 动态发现避免把 group_id 写死进配置——分组删改重建均不受影响。
+func (s *ImageStudioService) discoverImageGroup(ctx context.Context, userID int64) *Group {
+	if s.groupLister == nil {
+		return nil
+	}
+	groups, err := s.groupLister.GetAvailableGroups(ctx, userID)
+	if err != nil {
+		return nil
+	}
+	for i := range groups {
+		if groupAllowsImageCapableBinding(&groups[i]) {
+			return &groups[i]
+		}
+	}
+	return nil
+}
+
 // ListImageCapableKeys 返回该用户当前「能出图」的 key 列表（不含明文），
 // 供 image-studio 渲染选择器。
 func (s *ImageStudioService) ListImageCapableKeys(ctx context.Context, userID int64) (*ImageKeyList, error) {
-	imageGroupID := s.cfg.ImageStudio.ImageGroupID
-	out := &ImageKeyList{
-		Keys:         []ImageKeyCandidate{},
-		ImageGroupID: imageGroupID,
-		CanCreate:    imageGroupID > 0,
+	out := &ImageKeyList{Keys: []ImageKeyCandidate{}}
+
+	// 兜底自建目标分组：即时发现，非配置写死。
+	if g := s.discoverImageGroup(ctx, userID); g != nil {
+		out.ImageGroupID = g.ID
+		out.ImageGroupName = g.Name
+		out.CanCreate = true
 	}
 
 	// 拉该用户全部 key（带 group hydrate），逐把按门槛过滤。
