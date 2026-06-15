@@ -885,6 +885,37 @@ totp:
   encryption_key: ""
 
 # =============================================================================
+# Image Studio Integration (ChatGpt-Image-Studio 同源子应用集成)
+# 母系统向 image-studio 签发入口票据，并通过内部端点按 userID 解析可出图凭证。
+# 详见 ChatGpt-Image-Studio/docs/comments-from-mother.md。
+# =============================================================================
+image_studio:
+  # 总开关。为 false 时入口票据与 /internal/cred 端点不生效。
+  # Master switch. When false, the ticket endpoint and /internal/cred are disabled.
+  enabled: false
+  # RS256 私钥（PEM）文件路径。母系统用它签发入口票据，image-studio 仅持公钥验签。
+  # Path to the RS256 private key (PEM). Generate a keypair with:
+  #   openssl genpkey -algorithm RSA -out studio_jwt_private.pem -pkeyopt rsa_keygen_bits:2048
+  #   openssl rsa -in studio_jwt_private.pem -pubout -out studio_jwt_public.pem
+  # 公钥 studio_jwt_public.pem 分发给 image-studio。
+  jwt_private_key_file: ""
+  # 写入票据的 iss/aud，image-studio 验签时须逐字校验。
+  jwt_issuer: "sub2api"
+  jwt_audience: "image-studio"
+  # 入口票据有效期（秒），应短（≤60s），仅用于换会话。
+  ticket_ttl_seconds: 60
+  # /internal/cred 的 service-to-service 共享密钥（X-Internal-Secret 头，常量时间比较）。
+  # 至少 32 字节。Generate with / 生成命令: openssl rand -hex 32
+  internal_secret: ""
+  # image-studio 后端作为网关客户端实际请求的地址，通常为母系统内网网关。
+  gateway_base_url: "http://localhost:8080/v1"
+  # /internal/cred 返回的图片模型名。
+  image_model: "gpt-image-2"
+  # 「兜底自建」时应绑定的图片专用 group ID（须开 allow_image_generation 且为 OpenAI 平台）。
+  # 0 表示未配置，此时列候选返回 can_create=false（image-studio 提示「管理员尚未开启图片功能」）。
+  image_group_id: 0
+
+# =============================================================================
 # LinuxDo Connect OAuth Login (SSO)
 # LinuxDo Connect OAuth 登录（用于 Sub2API 用户登录）
 # =============================================================================

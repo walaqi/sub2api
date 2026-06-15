@@ -93,6 +93,7 @@ type Config struct {
 	Gemini                  GeminiConfig                  `mapstructure:"gemini"`
 	Update                  UpdateConfig                  `mapstructure:"update"`
 	Idempotency             IdempotencyConfig             `mapstructure:"idempotency"`
+	ImageStudio             ImageStudioConfig             `mapstructure:"image_studio"`
 }
 
 type LogConfig struct {
@@ -1188,6 +1189,37 @@ type JWTConfig struct {
 	RefreshWindowMinutes int `mapstructure:"refresh_window_minutes"`
 }
 
+// ImageStudioConfig 控制 ChatGpt-Image-Studio 子应用的同源集成。
+// 母系统作为「母系统」向 image-studio 签发入口票据，并通过内部端点
+// 按 userID 解析可出图的渠道凭证。详见 docs 契约评估（comments-from-mother.md）。
+type ImageStudioConfig struct {
+	// Enabled 总开关。为 true 时，入口票据签发端点与 /internal/cred 才生效，
+	// 且 Validate 会强制要求 JWTPrivateKeyFile 与 InternalSecret 非空。
+	Enabled bool `mapstructure:"enabled"`
+	// JWTPrivateKeyFile 指向 RS256 私钥（PEM）文件路径。母系统用它签发入口票据，
+	// image-studio 仅持对应公钥验签。私钥被攻破也无法被 image-studio 伪造。
+	JWTPrivateKeyFile string `mapstructure:"jwt_private_key_file"`
+	// JWTPrivateKeyPEM 运行时从 JWTPrivateKeyFile 读入的 PEM 内容（不来自配置直填）。
+	JWTPrivateKeyPEM string `mapstructure:"-"`
+	// JWTIssuer / JWTAudience 写入票据的 iss/aud，image-studio 验签时须逐字校验。
+	JWTIssuer   string `mapstructure:"jwt_issuer"`
+	JWTAudience string `mapstructure:"jwt_audience"`
+	// TicketTTLSeconds 入口票据有效期（秒），应短（≤60s），仅用于换会话。
+	TicketTTLSeconds int `mapstructure:"ticket_ttl_seconds"`
+	// InternalSecret 是 /internal/cred 的 service-to-service 共享密钥
+	// （通过 X-Internal-Secret 头校验，常量时间比较）。
+	InternalSecret string `mapstructure:"internal_secret"`
+	// GatewayBaseURL 是 image-studio 后端作为网关客户端实际请求的地址，
+	// 通常为母系统内网网关（如 http://localhost:8080/v1）。作为 /internal/cred
+	// 返回的 base_url。
+	GatewayBaseURL string `mapstructure:"gateway_base_url"`
+	// ImageModel 是 /internal/cred 返回的图片模型名（默认 gpt-image-2）。
+	ImageModel string `mapstructure:"image_model"`
+	// ImageGroupID 是「兜底自建」时应绑定的图片专用 group（须开 allow_image_generation
+	// 且为 OpenAI 平台）。<=0 表示未配置，此时列候选返回 can_create=false。
+	ImageGroupID int64 `mapstructure:"image_group_id"`
+}
+
 // TotpConfig TOTP 双因素认证配置
 type TotpConfig struct {
 	// EncryptionKey 用于加密 TOTP 密钥的 AES-256 密钥（32 字节 hex 编码）
@@ -1416,6 +1448,21 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 			return nil, fmt.Errorf("read forced codex instructions template %q: %w", cfg.Gateway.ForcedCodexInstructionsTemplateFile, err)
 		}
 		cfg.Gateway.ForcedCodexInstructionsTemplate = string(content)
+	}
+
+	// Image Studio：规整字段并在启用时从文件读入 RS256 私钥（PEM）。
+	cfg.ImageStudio.JWTPrivateKeyFile = strings.TrimSpace(cfg.ImageStudio.JWTPrivateKeyFile)
+	cfg.ImageStudio.JWTIssuer = strings.TrimSpace(cfg.ImageStudio.JWTIssuer)
+	cfg.ImageStudio.JWTAudience = strings.TrimSpace(cfg.ImageStudio.JWTAudience)
+	cfg.ImageStudio.InternalSecret = strings.TrimSpace(cfg.ImageStudio.InternalSecret)
+	cfg.ImageStudio.GatewayBaseURL = strings.TrimSpace(cfg.ImageStudio.GatewayBaseURL)
+	cfg.ImageStudio.ImageModel = strings.TrimSpace(cfg.ImageStudio.ImageModel)
+	if cfg.ImageStudio.Enabled && cfg.ImageStudio.JWTPrivateKeyFile != "" {
+		content, err := os.ReadFile(cfg.ImageStudio.JWTPrivateKeyFile)
+		if err != nil {
+			return nil, fmt.Errorf("read image_studio jwt private key %q: %w", cfg.ImageStudio.JWTPrivateKeyFile, err)
+		}
+		cfg.ImageStudio.JWTPrivateKeyPEM = string(content)
 	}
 
 	// 兼容旧键 gateway.openai_ws.sticky_previous_response_ttl_seconds。
@@ -1683,6 +1730,17 @@ func setDefaults() {
 	viper.SetDefault("jwt.refresh_token_expire_days", 30)  // 30天Refresh Token有效期
 	viper.SetDefault("jwt.refresh_window_minutes", 2)      // 过期前2分钟开始允许刷新
 
+	// Image Studio (ChatGpt-Image-Studio 同源集成)
+	viper.SetDefault("image_studio.enabled", false)
+	viper.SetDefault("image_studio.jwt_private_key_file", "")
+	viper.SetDefault("image_studio.jwt_issuer", "sub2api")
+	viper.SetDefault("image_studio.jwt_audience", "image-studio")
+	viper.SetDefault("image_studio.ticket_ttl_seconds", 60)
+	viper.SetDefault("image_studio.internal_secret", "")
+	viper.SetDefault("image_studio.gateway_base_url", "http://localhost:8080/v1")
+	viper.SetDefault("image_studio.image_model", "gpt-image-2")
+	viper.SetDefault("image_studio.image_group_id", 0)
+
 	// TOTP
 	viper.SetDefault("totp.encryption_key", "")
 
@@ -1919,6 +1977,21 @@ func (c *Config) Validate() error {
 	// 选择 bytes 而不是 rune 计数，确保二进制/随机串的长度语义更接近“熵”而非“字符数”。
 	if len([]byte(jwtSecret)) < 32 {
 		return fmt.Errorf("jwt.secret must be at least 32 bytes")
+	}
+	// Image Studio：仅在启用时强制要求私钥与内部密钥，避免空配置启动后端点裸奔。
+	if c.ImageStudio.Enabled {
+		if strings.TrimSpace(c.ImageStudio.JWTPrivateKeyFile) == "" {
+			return fmt.Errorf("image_studio.jwt_private_key_file is required when image_studio.enabled is true")
+		}
+		if strings.TrimSpace(c.ImageStudio.InternalSecret) == "" {
+			return fmt.Errorf("image_studio.internal_secret is required when image_studio.enabled is true")
+		}
+		if len([]byte(strings.TrimSpace(c.ImageStudio.InternalSecret))) < 32 {
+			return fmt.Errorf("image_studio.internal_secret must be at least 32 bytes")
+		}
+		if c.ImageStudio.TicketTTLSeconds <= 0 {
+			return fmt.Errorf("image_studio.ticket_ttl_seconds must be positive")
+		}
 	}
 	switch c.Log.Level {
 	case "debug", "info", "warn", "error":

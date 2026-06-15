@@ -924,6 +924,51 @@ func TestValidateConfigWithLinuxDoEnabled(t *testing.T) {
 	}
 }
 
+func TestValidateImageStudioConfig(t *testing.T) {
+	resetViperWithJWTSecret(t)
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+
+	// 默认禁用时，无需任何密钥即可通过校验。
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() with image_studio disabled: unexpected error: %v", err)
+	}
+
+	// 启用但缺私钥路径 → 报错。
+	cfg.ImageStudio.Enabled = true
+	if err := cfg.Validate(); err == nil {
+		t.Fatalf("Validate() should fail when enabled but jwt_private_key_file empty")
+	}
+
+	// 补私钥路径，仍缺内部密钥 → 报错。
+	cfg.ImageStudio.JWTPrivateKeyFile = "data/jwt_private.pem"
+	if err := cfg.Validate(); err == nil {
+		t.Fatalf("Validate() should fail when enabled but internal_secret empty")
+	}
+
+	// 内部密钥过短 → 报错。
+	cfg.ImageStudio.InternalSecret = "tooshort"
+	if err := cfg.Validate(); err == nil {
+		t.Fatalf("Validate() should fail when internal_secret shorter than 32 bytes")
+	}
+
+	// 合法配置 → 通过。
+	cfg.ImageStudio.InternalSecret = strings.Repeat("s", 32)
+	cfg.ImageStudio.TicketTTLSeconds = 60
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() with valid image_studio config: unexpected error: %v", err)
+	}
+
+	// 票据 TTL 非正 → 报错。
+	cfg.ImageStudio.TicketTTLSeconds = 0
+	if err := cfg.Validate(); err == nil {
+		t.Fatalf("Validate() should fail when ticket_ttl_seconds is not positive")
+	}
+}
+
 func TestValidateJWTSecretStrength(t *testing.T) {
 	if !isWeakJWTSecret("change-me-in-production") {
 		t.Fatalf("isWeakJWTSecret should detect weak secret")
