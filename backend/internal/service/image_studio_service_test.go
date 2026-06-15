@@ -43,7 +43,7 @@ func newImageStudioConfig(pemKey string) *config.Config {
 
 func TestImageStudioMintTicketVerifiesWithPublicKey(t *testing.T) {
 	pemKey, pubKey := generateTestRSAKeyPEM(t)
-	svc, err := NewImageStudioService(newImageStudioConfig(pemKey))
+	svc, err := NewImageStudioService(newImageStudioConfig(pemKey), nil)
 	if err != nil {
 		t.Fatalf("NewImageStudioService: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestImageStudioMintTicketJTIUnique(t *testing.T) {
 func TestImageStudioDisabledReturnsError(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.ImageStudio.Enabled = false
-	svc, err := NewImageStudioService(cfg)
+	svc, err := NewImageStudioService(cfg, nil)
 	if err != nil {
 		t.Fatalf("NewImageStudioService (disabled): %v", err)
 	}
@@ -131,7 +131,7 @@ func TestImageStudioEnabledWithBadPEMFails(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.ImageStudio.Enabled = true
 	cfg.ImageStudio.JWTPrivateKeyPEM = "-----BEGIN PRIVATE KEY-----\nnot-a-real-key\n-----END PRIVATE KEY-----"
-	if _, err := NewImageStudioService(cfg); err == nil {
+	if _, err := NewImageStudioService(cfg, nil); err == nil {
 		t.Fatalf("expected error for invalid PEM, got nil")
 	}
 }

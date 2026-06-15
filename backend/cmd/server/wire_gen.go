@@ -257,7 +257,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	availableChannelHandler := handler.NewAvailableChannelHandler(channelService, apiKeyService, settingService)
 	modelCatalogService := service.NewModelCatalogService(channelService, pricingService, paymentConfigService, settingService)
 	modelsPlazaHandler := handler.NewModelsPlazaHandler(modelCatalogService, settingService)
-	imageStudioService, err := service.NewImageStudioService(configConfig)
+	imageStudioService, err := service.NewImageStudioService(configConfig, apiKeyRepository)
 	if err != nil {
 		return nil, err
 	}

@@ -120,6 +120,13 @@ func registerRoutes(
 	routes.RegisterGatewayRoutes(r, h, apiKeyAuth, apiKeyService, subscriptionService, opsService, settingService, cfg)
 	routes.RegisterPaymentRoutes(v1, h.Payment, h.PaymentWebhook, h.Admin.Payment, jwtAuth, adminAuth, settingService)
 
+	// Service-to-service 内部端点（/internal/*），由 image-studio 后端调用。
+	// 仅在 image_studio 启用时注册；密钥来源为 image_studio.internal_secret。
+	if cfg.ImageStudio.Enabled {
+		internalSecret := middleware2.NewInternalSecretMiddleware(cfg.ImageStudio.InternalSecret)
+		routes.RegisterInternalRoutes(r, h, internalSecret)
+	}
+
 	handler.RegisterPageRoutes(v1, cfg.Pricing.DataDir, gin.HandlerFunc(jwtAuth), gin.HandlerFunc(adminAuth), settingService)
 
 	// 自定义功能：API Key 池绑定（独立包，主干仅一行注册）
