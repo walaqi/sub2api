@@ -277,6 +277,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/image-studio',
+    name: 'ImageStudio',
+    component: () => import('@/views/ImageStudioView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Image Studio',
+      titleKey: 'imageStudio.title',
+      descriptionKey: 'imageStudio.description'
+    }
+  },
+  {
     path: '/profile',
     name: 'Profile',
     component: () => import('@/views/user/ProfileView.vue'),
