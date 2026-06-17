@@ -625,6 +625,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 		_ = resp.Body.Close()
 		resp.Body = io.NopCloser(bytes.NewReader(respBody))
+		openAIImageDumpBytes(c, resp, respBody, "apikey_4xx")
 		upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(respBody))
 		upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
 		if s.shouldFailoverOpenAIUpstreamResponse(resp.StatusCode, upstreamMsg, respBody) {
@@ -648,6 +649,10 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 		return s.handleErrorResponse(upstreamCtx, resp, c, account, forwardBody)
 	}
 	defer func() { _ = resp.Body.Close() }()
+
+	// 排障转储（SUB2API_DUMP_OPENAI_IMAGE_DIR 启用时）：tee 原始上游字节到盘，
+	// 覆盖流式/非流式，成功失败都抓。未启用则零开销。
+	openAIImageDumpTeeBody(c, resp, "apikey_2xx")
 
 	var usage OpenAIUsage
 	imageCount := parsed.N

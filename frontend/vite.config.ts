@@ -38,6 +38,10 @@ export default defineConfig(({ mode }) => {
   // 加载环境变量
   const env = loadEnv(mode, process.cwd(), '')
   const backendUrl = env.VITE_DEV_PROXY_TARGET || 'http://localhost:8080'
+  // image-studio sub-app dev server. In production nginx reverse-proxies
+  // /image-studio/* to this backend stripping the prefix; here Vite does the
+  // same so :3000 stays a single same-origin entry point for both systems.
+  const imageStudioUrl = env.VITE_IMAGE_STUDIO_PROXY_TARGET || 'http://127.0.0.1:7000'
   const devPort = Number(env.VITE_DEV_PORT || 3000)
 
   return {
@@ -121,6 +125,16 @@ export default defineConfig(({ mode }) => {
         '/setup': {
           target: backendUrl,
           changeOrigin: true
+        },
+        // Same-origin mount of the image-studio sub-app. Trailing slash means
+        // bare /image-studio (the mother SPA's ticket-minting route) falls
+        // through to Vue; only /image-studio/* is proxied. The rewrite strips
+        // the prefix to match the sub-app's root-mounted routes, mirroring the
+        // production nginx contract (see studio server.go handleSession).
+        '/image-studio/': {
+          target: imageStudioUrl,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/image-studio/, '')
         }
       }
     }
