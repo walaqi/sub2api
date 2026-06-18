@@ -17,6 +17,9 @@ type BindKeyGiftSetting struct {
 	DeductionMode    gift.DeductionMode
 	RatioRecharge    *float64
 	ExpiresAfterDays *int
+	// Unlimit 来自表 A config JSONB（config.unlimit）。
+	// nil 或 true → 不限次数；仅 *false 才执行每月一次限制。
+	Unlimit *bool
 	// RegistrationWindow 来自表 A 的 config JSONB（config.registration_window）。
 	// nil 表示未配置窗口；由调用方按"不限制注册时间"处理。
 	RegistrationWindow *domain.BindKeyRegistrationWindow
@@ -75,6 +78,10 @@ func (r *entBindKeyGiftSettingResolver) Resolve(ctx context.Context, apiKeyID in
 	if row.Config != nil && row.Config.RegistrationWindow != nil {
 		w := *row.Config.RegistrationWindow
 		out.RegistrationWindow = &w
+	}
+	if row.Config != nil && row.Config.Unlimit != nil {
+		v := *row.Config.Unlimit
+		out.Unlimit = &v
 	}
 	return out, nil
 }
