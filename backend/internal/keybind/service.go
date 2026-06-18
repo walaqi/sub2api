@@ -166,7 +166,17 @@ func (s *Service) CheckEligibility(ctx context.Context, userID int64) (*Eligibil
 		return nil, err
 	}
 	res.AlreadyParticipated = already
-	res.Eligible = !already
+	if !already {
+		res.Eligible = true
+		return res, nil
+	}
+	// User participated this month, but if any pool key is unlimited they
+	// can still bind — the monthly gate is skipped for unlimited keys.
+	if s.hasUnlimitedPoolKeys(ctx) {
+		res.Eligible = true
+		return res, nil
+	}
+	res.Eligible = false
 	return res, nil
 }
 
@@ -467,6 +477,31 @@ func (s *Service) isKeyUnlimited(ctx context.Context, keyID int64) bool {
 		return true
 	}
 	return *setting.Unlimit
+}
+
+// hasUnlimitedPoolKeys returns true if the pool contains at least one active
+// key whose config allows unlimited binding (unlimit != false). Called by
+// CheckEligibility so the UI doesn't block users who can still claim unlimited keys.
+func (s *Service) hasUnlimitedPoolKeys(ctx context.Context) bool {
+	if s.giftSettingResolver == nil {
+		return true
+	}
+	ids, err := s.client.APIKey.Query().
+		Where(
+			apikey.UserIDEQ(s.poolUserID),
+			apikey.StatusEQ(domain.StatusActive),
+			apikey.DeletedAtIsNil(),
+		).
+		IDs(ctx)
+	if err != nil || len(ids) == 0 {
+		return false
+	}
+	for _, id := range ids {
+		if s.isKeyUnlimited(ctx, id) {
+			return true
+		}
+	}
+	return false
 }
 
 func hasSufficientRemaining(quota, used float64) bool {
