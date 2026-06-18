@@ -290,6 +290,10 @@ type PublicSettings struct {
 	// Models Plaza feature (user-facing model catalog with pricing)
 	ModelsPlazaEnabled bool `json:"models_plaza_enabled"`
 
+	// Image Studio feature (同源嵌入的文生图子应用入口)。来源是 config 开关
+	// image_studio.enabled，非 DB 软开关，仅用于前端侧栏入口显隐。
+	ImageStudioEnabled bool `json:"image_studio_enabled"`
+
 	// Affiliate (邀请返利) feature toggle
 	AffiliateEnabled bool `json:"affiliate_enabled"`
 

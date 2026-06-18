@@ -257,10 +257,15 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	availableChannelHandler := handler.NewAvailableChannelHandler(channelService, apiKeyService, settingService)
 	modelCatalogService := service.NewModelCatalogService(channelService, pricingService, paymentConfigService, settingService)
 	modelsPlazaHandler := handler.NewModelsPlazaHandler(modelCatalogService, settingService)
+	imageStudioService, err := service.NewImageStudioService(configConfig, apiKeyRepository, apiKeyService)
+	if err != nil {
+		return nil, err
+	}
+	imageStudioHandler := handler.NewImageStudioHandler(imageStudioService)
 	idempotencyCoordinator := service.ProvideIdempotencyCoordinator(idempotencyRepository, configConfig)
 	idempotencyCleanupService := service.ProvideIdempotencyCleanupService(idempotencyRepository, configConfig)
 	suspectThrottleService := service.ProvideSuspectThrottleService(abuseDetectionService, suspectStore, settingService, billingCacheService)
-	handlers := handler.ProvideHandlers(authHandler, userHandler, apiKeyHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, channelMonitorUserHandler, adminHandlers, gatewayHandler, openAIGatewayHandler, handlerSettingHandler, totpHandler, handlerPaymentHandler, paymentWebhookHandler, availableChannelHandler, modelsPlazaHandler, idempotencyCoordinator, idempotencyCleanupService, suspectThrottleService)
+	handlers := handler.ProvideHandlers(authHandler, userHandler, apiKeyHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, channelMonitorUserHandler, adminHandlers, gatewayHandler, openAIGatewayHandler, handlerSettingHandler, totpHandler, handlerPaymentHandler, paymentWebhookHandler, availableChannelHandler, modelsPlazaHandler, imageStudioHandler, idempotencyCoordinator, idempotencyCleanupService, suspectThrottleService)
 	jwtAuthMiddleware := middleware.NewJWTAuthMiddleware(authService, userService)
 	adminAuthMiddleware := middleware.NewAdminAuthMiddleware(authService, userService, settingService)
 	apiKeyAuthMiddleware := middleware.NewAPIKeyAuthMiddleware(apiKeyService, subscriptionService, configConfig)

@@ -363,6 +363,7 @@ export default {
     availableChannels: 'Available Channels',
     modelsPlaza: 'Models Plaza',
     chatPlaza: 'Chat Plaza',
+    imageStudio: 'Image Studio',
     subscriptions: 'Subscriptions',
     accounts: 'Accounts',
     proxies: 'Proxies',
@@ -1133,6 +1134,16 @@ export default {
     creatingKey: 'Minting temporary key...',
     keyReady: 'Temporary key ready, opening {client}',
     failed: 'Failed to open chat client, please retry',
+  },
+
+  imageStudio: {
+    title: 'Image Studio',
+    description: 'Open the standalone image generation studio',
+    redirecting: 'Entering Image Studio…',
+    disabled: 'Image Studio is not enabled yet. Please contact support.',
+    failed: 'Could not open Image Studio, please retry.',
+    retry: 'Retry',
+    back: 'Back',
   },
 
   affiliate: {

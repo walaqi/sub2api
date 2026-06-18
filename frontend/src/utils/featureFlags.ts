@@ -109,6 +109,11 @@ export const FeatureFlags = {
     mode: 'opt-in',
     label: 'Models Plaza',
   }),
+  imageStudio: defineFlag({
+    key: 'image_studio_enabled',
+    mode: 'opt-in',
+    label: 'Image Studio',
+  }),
   payment: defineFlag({
     key: 'payment_enabled',
     mode: 'opt-out',

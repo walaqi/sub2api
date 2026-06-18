@@ -250,6 +250,7 @@ export interface PublicSettings {
   available_channels_enabled: boolean
   affiliate_enabled: boolean
   models_plaza_enabled?: boolean
+  image_studio_enabled?: boolean
 }
 
 export interface AuthResponse {

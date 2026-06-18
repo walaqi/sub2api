@@ -363,6 +363,7 @@ export default {
     availableChannels: '可用渠道',
     modelsPlaza: '模型广场',
     chatPlaza: '聊天广场',
+    imageStudio: '图片工作台',
     subscriptions: '订阅管理',
     accounts: '账号管理',
     proxies: 'IP管理',
@@ -1137,6 +1138,16 @@ export default {
     creatingKey: '正在创建临时密钥…',
     keyReady: '临时密钥已就绪，正在跳转到 {client}',
     failed: '无法打开聊天客户端，请重试',
+  },
+
+  imageStudio: {
+    title: '图片工作台',
+    description: '进入独立的图片生成工作台',
+    redirecting: '正在进入图片工作台…',
+    disabled: '图片工作台尚未开启，请联系客服处理。',
+    failed: '无法进入图片工作台，请重试。',
+    retry: '重试',
+    back: '返回',
   },
 
   affiliate: {

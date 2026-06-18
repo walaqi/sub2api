@@ -833,6 +833,8 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 
 		ModelsPlazaEnabled: settings[SettingKeyModelsPlazaEnabled] == "true",
 
+		ImageStudioEnabled: s.cfg != nil && s.cfg.ImageStudio.Enabled,
+
 		AffiliateEnabled: settings[SettingKeyAffiliateEnabled] == "true",
 
 		RiskControlEnabled: settings[SettingKeyRiskControlEnabled] == "true",
@@ -1108,6 +1110,7 @@ type PublicSettingsInjectionPayload struct {
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
 	AvailableChannelsEnabled             bool `json:"available_channels_enabled"`
 	ModelsPlazaEnabled                   bool `json:"models_plaza_enabled"`
+	ImageStudioEnabled                   bool `json:"image_studio_enabled"`
 	AffiliateEnabled                     bool `json:"affiliate_enabled"`
 	RiskControlEnabled                   bool `json:"risk_control_enabled"`
 }
@@ -1171,6 +1174,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
 		ModelsPlazaEnabled:                   settings.ModelsPlazaEnabled,
+		ImageStudioEnabled:                   settings.ImageStudioEnabled,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
 	}, nil

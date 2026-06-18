@@ -97,6 +97,8 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 
 		ModelsPlazaEnabled: settings.ModelsPlazaEnabled,
 
+		ImageStudioEnabled: settings.ImageStudioEnabled,
+
 		AffiliateEnabled: settings.AffiliateEnabled,
 
 		RiskControlEnabled: settings.RiskControlEnabled,

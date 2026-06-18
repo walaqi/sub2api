@@ -313,6 +313,8 @@ type PublicSettings struct {
 
 	ModelsPlazaEnabled bool `json:"models_plaza_enabled"`
 
+	ImageStudioEnabled bool `json:"image_studio_enabled"`
+
 	AffiliateEnabled bool `json:"affiliate_enabled"`
 
 	RiskControlEnabled bool `json:"risk_control_enabled"`

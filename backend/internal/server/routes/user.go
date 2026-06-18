@@ -78,6 +78,12 @@ func RegisterUserRoutes(
 			channels.GET("/available", h.AvailableChannel.List)
 		}
 
+		// Image Studio 子应用入口票据签发
+		imageStudio := authenticated.Group("/image-studio")
+		{
+			imageStudio.GET("/ticket", h.ImageStudio.GetTicket)
+		}
+
 		// 使用记录
 		usage := authenticated.Group("/usage")
 		{
