@@ -325,16 +325,22 @@ func (s *Service) Commit(ctx context.Context, userID int64, reservationID string
 		return nil, fmt.Errorf("invalid reservation payload: %w", err)
 	}
 
+	// Resolve per-key config to determine whether monthly-limit applies.
+	// unlimit: nil or true → no monthly limit; only explicit false → enforce.
+	unlimited := s.isKeyUnlimited(ctx, keyID)
+
 	// Monthly-limit gate: enforced here because anonymous /reserve cannot
 	// know the caller's identity. We drop the reservation so a queued key
 	// is freed up for someone else; the lock entry expires naturally.
-	already, err := s.participation.HasParticipated(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	if already {
-		_ = s.redis.Del(ctx, resKey).Err()
-		return nil, ErrAlreadyParticipated
+	if !unlimited {
+		already, err := s.participation.HasParticipated(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		if already {
+			_ = s.redis.Del(ctx, resKey, redisLockedKeyPrefix+intToStr(keyID)).Err()
+			return nil, ErrAlreadyParticipated
+		}
 	}
 
 	// Per-key registration-window gate: a key may restrict claims to users
@@ -344,7 +350,7 @@ func (s *Service) Commit(ctx context.Context, userID int64, reservationID string
 	// queued key is freed for someone eligible.
 	if err := s.checkRegistrationWindow(ctx, userID, keyID); err != nil {
 		if errors.Is(err, ErrRegistrationWindow) {
-			_ = s.redis.Del(ctx, resKey).Err()
+			_ = s.redis.Del(ctx, resKey, redisLockedKeyPrefix+intToStr(keyID)).Err()
 		}
 		return nil, err
 	}
@@ -418,11 +424,11 @@ func (s *Service) Commit(ctx context.Context, userID int64, reservationID string
 		}
 	}
 
-	// Record participation. Lenient on failure: the key is already
-	// transferred, so refusing the response would be a worse UX than the
-	// (rare) case of a user slipping through twice in a month.
-	if err := s.participation.MarkParticipated(ctx, userID); err != nil {
-		log.Printf("[keybind] mark participation failed for user %d: %v", userID, err)
+	// Record participation (only when monthly limit is enforced).
+	if !unlimited {
+		if err := s.participation.MarkParticipated(ctx, userID); err != nil {
+			log.Printf("[keybind] mark participation failed for user %d: %v", userID, err)
+		}
 	}
 
 	// Fetch the now-claimed row for the response. Lookup error is non-fatal.
@@ -444,6 +450,23 @@ func (s *Service) disabledErr() error {
 		return ErrPoolUserNotConfigured.WithMetadata(map[string]string{"reason": s.configErrMsg})
 	}
 	return ErrPoolUserNotConfigured
+}
+
+// isKeyUnlimited resolves the per-key config and returns whether the monthly
+// participation limit should be skipped. Default (nil or true) → unlimited;
+// only explicit false → enforce monthly limit.
+func (s *Service) isKeyUnlimited(ctx context.Context, keyID int64) bool {
+	if s.giftSettingResolver == nil || keyID <= 0 {
+		return true
+	}
+	setting, err := s.giftSettingResolver.Resolve(ctx, keyID)
+	if err != nil || setting == nil {
+		return true
+	}
+	if setting.Unlimit == nil {
+		return true
+	}
+	return *setting.Unlimit
 }
 
 func hasSufficientRemaining(quota, used float64) bool {
