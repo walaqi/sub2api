@@ -4,11 +4,11 @@ set -euo pipefail
 # =============================================================================
 # manual_update.sh — 更新 sub2api + image-studio（首次安装或增量更新）
 #
-# 用法: sudo bash manual_update.sh
+# 用法: bash manual_update.sh（普通用户运行，需要 sudo 权限时会自动提权）
 #
 # 行为:
 #   1. git pull sub2api, rebuild, restart sub2api.service
-#   2. image-studio: 已存在则 pull+rebuild+restart; 不存在则 clone+build+配置+nginx+服务
+#   2. image-studio: 已存在则 pull+rebuild+restart; 不存在则 clone+build+配置+服务
 # =============================================================================
 
 # ─── 配置 ───────────────────────────────────────────────────────────────────────
@@ -42,18 +42,18 @@ generate_secret() {
 # 从 sub2api config.yaml 读取字段值（简易 YAML 取值，适用于顶层或 image_studio 块下的扁平键）
 read_yaml_field() {
     local file="$1" field="$2"
-    grep -E "^\s+${field}:" "$file" 2>/dev/null | head -1 | sed 's/.*:\s*"\?\([^"]*\)"\?.*/\1/' | xargs
+    local line
+    line=$(grep -E "^\s+${field}:" "$file" 2>/dev/null | head -1) || true
+    [ -z "$line" ] && return 0
+    echo "$line" | sed 's/.*:\s*"\?\([^"]*\)"\?.*/\1/' | xargs
 }
 
 # ─── 前置检查 ─────────────────────────────────────────────────────────────────
 require_cmd git
 require_cmd go
+require_cmd pnpm
 require_cmd openssl
-require_cmd systemctl
-
-if [ "$(id -u)" -ne 0 ]; then
-    error "请使用 root 权限运行: sudo bash $0"
-fi
+require_cmd sudo
 
 # =============================================================================
 # 第一部分: 更新 sub2api
@@ -80,13 +80,15 @@ if [ -d "$SUB2API_REPO/backend" ]; then
     # 再构建后端（-tags embed 将前端嵌入二进制）
     info "构建 sub2api 后端..."
     cd "$SUB2API_REPO/backend"
-    rm -f "$SUB2API_DIR/sub2api"
-    CGO_ENABLED=0 go build -tags embed -o "$SUB2API_DIR/sub2api" ./cmd/server/
+    sudo rm -f "$SUB2API_DIR/sub2api"
+    CGO_ENABLED=0 go build -tags embed -o /tmp/sub2api_build ./cmd/server/
+    sudo mv /tmp/sub2api_build "$SUB2API_DIR/sub2api"
 fi
 
+# sudo: 重启系统服务
 info "重启 $SUB2API_SERVICE..."
-systemctl restart "$SUB2API_SERVICE"
-systemctl is-active --quiet "$SUB2API_SERVICE" && info "sub2api 运行中 ✓" || warn "sub2api 启动可能有问题，请检查 journalctl -u $SUB2API_SERVICE"
+sudo systemctl restart "$SUB2API_SERVICE"
+sudo systemctl is-active --quiet "$SUB2API_SERVICE" && info "sub2api 运行中 ✓" || warn "sub2api 启动可能有问题，请检查 journalctl -u $SUB2API_SERVICE"
 
 # =============================================================================
 # 第二部分: image-studio
@@ -108,11 +110,12 @@ if [ "$IMAGE_STUDIO_EXISTS" = true ]; then
     cd "$IMAGE_STUDIO_APP_DIR"
     bash scripts/build.sh
 
+    # sudo: 重启系统服务
     info "重启 $IMAGE_STUDIO_SERVICE..."
-    systemctl restart "$IMAGE_STUDIO_SERVICE"
-    systemctl is-active --quiet "$IMAGE_STUDIO_SERVICE" && info "image-studio 运行中 ✓" || warn "image-studio 可能未正常启动"
+    sudo systemctl restart "$IMAGE_STUDIO_SERVICE"
+    sudo systemctl is-active --quiet "$IMAGE_STUDIO_SERVICE" && info "image-studio 运行中 ✓" || warn "image-studio 可能未正常启动"
 else
-    # ─── 首次安装：clone + build + 配置 + nginx + systemd ─────────────────────
+    # ─── 首次安装：clone + build + 配置 + systemd ────────────────────────────
     info "image-studio 不存在，开始首次安装..."
 
     # Clone
@@ -127,17 +130,17 @@ else
     # ─── 生成/同步密钥 ────────────────────────────────────────────────────────
     info "配置密钥..."
 
-    # 1. 生成 RSA 密钥对（如不存在）
+    # 1. 生成 RSA 密钥对（如不存在）— sudo: 写入 /opt/sub2api/data/
     if [ ! -f "$RSA_PRIVATE_KEY" ]; then
         info "生成 RSA 密钥对..."
-        mkdir -p "$(dirname "$RSA_PRIVATE_KEY")"
-        openssl genpkey -algorithm RSA -out "$RSA_PRIVATE_KEY" -pkeyopt rsa_keygen_bits:2048
-        openssl rsa -in "$RSA_PRIVATE_KEY" -pubout -out "$RSA_PUBLIC_KEY"
-        chmod 600 "$RSA_PRIVATE_KEY"
+        sudo mkdir -p "$(dirname "$RSA_PRIVATE_KEY")"
+        sudo openssl genpkey -algorithm RSA -out "$RSA_PRIVATE_KEY" -pkeyopt rsa_keygen_bits:2048
+        sudo openssl rsa -in "$RSA_PRIVATE_KEY" -pubout -out "$RSA_PUBLIC_KEY"
+        sudo chmod 600 "$RSA_PRIVATE_KEY"
         info "RSA 密钥对已生成: $RSA_PRIVATE_KEY / $RSA_PUBLIC_KEY"
     else
         info "RSA 私钥已存在，导出公钥..."
-        openssl rsa -in "$RSA_PRIVATE_KEY" -pubout -out "$RSA_PUBLIC_KEY" 2>/dev/null
+        sudo openssl rsa -in "$RSA_PRIVATE_KEY" -pubout -out "$RSA_PUBLIC_KEY" 2>/dev/null
     fi
 
     # 2. 读取或生成 internal_secret
@@ -170,7 +173,8 @@ else
     mkdir -p "$PACKAGE_DIR/data"
 
     # 复制公钥到 image-studio data 目录
-    cp "$RSA_PUBLIC_KEY" "$PUBLIC_KEY_DEST"
+    sudo cp "$RSA_PUBLIC_KEY" "$PUBLIC_KEY_DEST"
+    sudo chown "$(id -u):$(id -g)" "$PUBLIC_KEY_DEST"
 
     cat > "$CONFIG_TOML" << EOF
 [app]
@@ -234,9 +238,9 @@ log_all_requests = false
 EOF
     info "config.toml 已写入: $CONFIG_TOML"
 
-    # ─── 创建 systemd 服务 ────────────────────────────────────────────────────
+    # ─── 创建 systemd 服务 — sudo: 写入 /etc/systemd/system/ ─────────────────
     info "创建 systemd 服务..."
-    cat > /etc/systemd/system/${IMAGE_STUDIO_SERVICE}.service << EOF
+    sudo tee /etc/systemd/system/${IMAGE_STUDIO_SERVICE}.service > /dev/null << EOF
 [Unit]
 Description=ChatGPT Image Studio
 After=network.target ${SUB2API_SERVICE}.service
@@ -244,7 +248,7 @@ Wants=${SUB2API_SERVICE}.service
 
 [Service]
 Type=simple
-User=root
+User=$(whoami)
 WorkingDirectory=${PACKAGE_DIR}
 ExecStart=${PACKAGE_DIR}/chatgpt-image-studio
 Restart=always
@@ -257,10 +261,10 @@ SyslogIdentifier=${IMAGE_STUDIO_SERVICE}
 WantedBy=multi-user.target
 EOF
 
-    systemctl daemon-reload
-    systemctl enable "$IMAGE_STUDIO_SERVICE"
-    systemctl start "$IMAGE_STUDIO_SERVICE"
-    systemctl is-active --quiet "$IMAGE_STUDIO_SERVICE" && info "image-studio 服务已启动 ✓" || warn "image-studio 启动可能有问题"
+    sudo systemctl daemon-reload
+    sudo systemctl enable "$IMAGE_STUDIO_SERVICE"
+    sudo systemctl start "$IMAGE_STUDIO_SERVICE"
+    sudo systemctl is-active --quiet "$IMAGE_STUDIO_SERVICE" && info "image-studio 服务已启动 ✓" || warn "image-studio 启动可能有问题"
 
     # ─── 输出摘要 ──────────────────────────────────────────────────────────────
     echo ""
@@ -278,7 +282,7 @@ EOF
     info "   2. config.yaml image_studio.internal_secret = ${INTERNAL_SECRET}"
     info "   3. config.yaml image_studio.jwt_private_key_file = ${RSA_PRIVATE_KEY}"
     info "   4. 后台至少一个分组: 平台=OpenAI, allow_image_generation=true, 账号映射含 gpt-image-*"
-    info "   5. 确认后重启: systemctl restart $SUB2API_SERVICE"
+    info "   5. 确认后重启: sudo systemctl restart $SUB2API_SERVICE"
     info "   6. nginx 配置请参考 deploy/site-nginx.conf 手动配置"
     info "═══════════════════════════════════════════════════════════════"
 fi
