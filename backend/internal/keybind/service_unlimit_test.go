@@ -25,7 +25,6 @@ func TestIsKeyUnlimited(t *testing.T) {
 		client := newWindowTestClient(t)
 		svc := newWindowService(client)
 		const keyID = int64(101)
-		// config with unlimit unset (nil)
 		_, err := client.BindKeyGiftSetting.Create().
 			SetAPIKeyID(keyID).
 			SetDeductionMode("priority").
@@ -128,5 +127,172 @@ func TestResolveUnlimitField(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, got)
 		require.Nil(t, got.Unlimit)
+	})
+}
+
+func TestCheckEligibility_Unlimit(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("not participated -> eligible regardless of unlimit", func(t *testing.T) {
+		client := newWindowTestClient(t)
+		dataDir := t.TempDir()
+		poolUser, err := client.User.Create().
+			SetEmail("pool@test.com").
+			SetPasswordHash("x").
+			Save(ctx)
+		require.NoError(t, err)
+
+		svc := &Service{
+			client:              client,
+			poolUserID:          poolUser.ID,
+			participation:       NewParticipationStore(dataDir),
+			giftSettingResolver: NewBindKeyGiftSettingResolver(client),
+		}
+
+		claimUser := makeUser(t, client, 0)
+		res, err := svc.CheckEligibility(ctx, claimUser)
+		require.NoError(t, err)
+		require.True(t, res.Eligible)
+		require.False(t, res.AlreadyParticipated)
+	})
+
+	t.Run("participated + pool has unlimited key -> eligible", func(t *testing.T) {
+		client := newWindowTestClient(t)
+		dataDir := t.TempDir()
+		poolUser, err := client.User.Create().
+			SetEmail("pool@test.com").
+			SetPasswordHash("x").
+			Save(ctx)
+		require.NoError(t, err)
+
+		// Create an active pool key
+		poolKey, err := client.APIKey.Create().
+			SetUserID(poolUser.ID).
+			SetKey("sk-test-unlimited-001").
+			SetName("pool-key-1").
+			Save(ctx)
+		require.NoError(t, err)
+
+		// Mark key as unlimited (default, no setting row needed, but let's be explicit)
+		_, err = client.BindKeyGiftSetting.Create().
+			SetAPIKeyID(poolKey.ID).
+			SetDeductionMode("priority").
+			SetConfig(&domain.BindKeyConfig{Unlimit: boolPtr(true)}).
+			Save(ctx)
+		require.NoError(t, err)
+
+		svc := &Service{
+			client:              client,
+			poolUserID:          poolUser.ID,
+			participation:       NewParticipationStore(dataDir),
+			giftSettingResolver: NewBindKeyGiftSettingResolver(client),
+		}
+
+		claimUser := makeUser(t, client, 0)
+		// Mark as already participated
+		require.NoError(t, svc.participation.MarkParticipated(ctx, claimUser))
+
+		res, err := svc.CheckEligibility(ctx, claimUser)
+		require.NoError(t, err)
+		require.True(t, res.AlreadyParticipated)
+		require.True(t, res.Eligible)
+	})
+
+	t.Run("participated + pool only has limited keys -> not eligible", func(t *testing.T) {
+		client := newWindowTestClient(t)
+		dataDir := t.TempDir()
+		poolUser, err := client.User.Create().
+			SetEmail("pool@test.com").
+			SetPasswordHash("x").
+			Save(ctx)
+		require.NoError(t, err)
+
+		// Create an active pool key with unlimit=false
+		poolKey, err := client.APIKey.Create().
+			SetUserID(poolUser.ID).
+			SetKey("sk-test-limited-001").
+			SetName("pool-key-limited").
+			Save(ctx)
+		require.NoError(t, err)
+
+		_, err = client.BindKeyGiftSetting.Create().
+			SetAPIKeyID(poolKey.ID).
+			SetDeductionMode("priority").
+			SetConfig(&domain.BindKeyConfig{Unlimit: boolPtr(false)}).
+			Save(ctx)
+		require.NoError(t, err)
+
+		svc := &Service{
+			client:              client,
+			poolUserID:          poolUser.ID,
+			participation:       NewParticipationStore(dataDir),
+			giftSettingResolver: NewBindKeyGiftSettingResolver(client),
+		}
+
+		claimUser := makeUser(t, client, 0)
+		require.NoError(t, svc.participation.MarkParticipated(ctx, claimUser))
+
+		res, err := svc.CheckEligibility(ctx, claimUser)
+		require.NoError(t, err)
+		require.True(t, res.AlreadyParticipated)
+		require.False(t, res.Eligible)
+	})
+
+	t.Run("participated + pool has no keys -> not eligible", func(t *testing.T) {
+		client := newWindowTestClient(t)
+		dataDir := t.TempDir()
+		poolUser, err := client.User.Create().
+			SetEmail("pool@test.com").
+			SetPasswordHash("x").
+			Save(ctx)
+		require.NoError(t, err)
+
+		svc := &Service{
+			client:              client,
+			poolUserID:          poolUser.ID,
+			participation:       NewParticipationStore(dataDir),
+			giftSettingResolver: NewBindKeyGiftSettingResolver(client),
+		}
+
+		claimUser := makeUser(t, client, 0)
+		require.NoError(t, svc.participation.MarkParticipated(ctx, claimUser))
+
+		res, err := svc.CheckEligibility(ctx, claimUser)
+		require.NoError(t, err)
+		require.True(t, res.AlreadyParticipated)
+		require.False(t, res.Eligible)
+	})
+
+	t.Run("participated + pool key has no config row (default unlimited) -> eligible", func(t *testing.T) {
+		client := newWindowTestClient(t)
+		dataDir := t.TempDir()
+		poolUser, err := client.User.Create().
+			SetEmail("pool@test.com").
+			SetPasswordHash("x").
+			Save(ctx)
+		require.NoError(t, err)
+
+		// Pool key with no bind_key_gift_settings row → isKeyUnlimited defaults true
+		_, err = client.APIKey.Create().
+			SetUserID(poolUser.ID).
+			SetKey("sk-test-noconfig-001").
+			SetName("pool-key-noconfig").
+			Save(ctx)
+		require.NoError(t, err)
+
+		svc := &Service{
+			client:              client,
+			poolUserID:          poolUser.ID,
+			participation:       NewParticipationStore(dataDir),
+			giftSettingResolver: NewBindKeyGiftSettingResolver(client),
+		}
+
+		claimUser := makeUser(t, client, 0)
+		require.NoError(t, svc.participation.MarkParticipated(ctx, claimUser))
+
+		res, err := svc.CheckEligibility(ctx, claimUser)
+		require.NoError(t, err)
+		require.True(t, res.AlreadyParticipated)
+		require.True(t, res.Eligible)
 	})
 }
