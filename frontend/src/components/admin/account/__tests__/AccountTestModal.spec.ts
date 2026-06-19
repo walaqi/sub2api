@@ -74,7 +74,10 @@ function mountModal() {
     global: {
       stubs: {
         BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
-        Select: { template: '<div class="select-stub"></div>' },
+        Select: {
+          props: ['modelValue', 'options', 'valueKey', 'labelKey'],
+          template: '<div class="select-stub" :data-value-key="valueKey" :data-label-key="labelKey"></div>'
+        },
         TextArea: {
           props: ['modelValue'],
           emits: ['update:modelValue'],
@@ -143,5 +146,18 @@ describe('AccountTestModal', () => {
     const preview = wrapper.find('img[alt="test-image-1"]')
     expect(preview.exists()).toBe(true)
     expect(preview.attributes('src')).toBe('data:image/png;base64,QUJD')
+  })
+
+  it('模型下拉以 model_id（即 model_mapping 的 key）作为显示文本，避免显示名误导', async () => {
+    const wrapper = mountModal()
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    const select = wrapper.find('.select-stub')
+    expect(select.exists()).toBe(true)
+    // 下拉应直接展示原始 model_id（value 与 label 都用 id），
+    // 而不是 display_name，否则用户会看到对不上自己配置映射的友好名。
+    expect(select.attributes('data-value-key')).toBe('id')
+    expect(select.attributes('data-label-key')).toBe('id')
   })
 })

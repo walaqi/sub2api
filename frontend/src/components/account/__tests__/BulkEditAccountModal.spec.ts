@@ -100,18 +100,6 @@ describe('BulkEditAccountModal', () => {
     expect(wrapper.text()).not.toContain('gpt-5.3-codex')
   })
 
-  it('antigravity 映射预设包含图片映射并过滤 OpenAI 预设', async () => {
-    const wrapper = mountModal()
-
-    const mappingTab = wrapper.findAll('button').find((btn) => btn.text().includes('admin.accounts.modelMapping'))
-    expect(mappingTab).toBeTruthy()
-    await mappingTab!.trigger('click')
-
-    expect(wrapper.text()).toContain('3.1-Flash-Image透传')
-    expect(wrapper.text()).toContain('3-Pro-Image→3.1')
-    expect(wrapper.text()).not.toContain('GPT-5.3 Codex Spark')
-  })
-
   it('仅勾选模型限制且白名单留空时，应提交空 model_mapping 以支持所有模型', async () => {
     const wrapper = mountModal({
       selectedPlatforms: ['anthropic'],
@@ -234,10 +222,9 @@ describe('BulkEditAccountModal', () => {
     await wrapper.get('#bulk-edit-openai-compact-mode-enabled').setValue(true)
     await wrapper.get('[data-testid="bulk-edit-openai-compact-mode-select"]').setValue('force_on')
     await wrapper.get('#bulk-edit-openai-compact-model-mapping-enabled').setValue(true)
-    await wrapper.get('[data-testid="bulk-edit-openai-compact-model-mapping-add"]').trigger('click')
-    const inputs = wrapper.findAll('[data-testid="bulk-edit-openai-compact-model-mapping-input"]')
-    await inputs[0].setValue('gpt-5.4')
-    await inputs[1].setValue('gpt-5.4-openai-compact')
+    const compactMappingEditor = wrapper.get('#bulk-edit-openai-compact-model-mapping textarea')
+    await compactMappingEditor.setValue('{"gpt-5.4": "gpt-5.4-openai-compact"}')
+    await compactMappingEditor.trigger('input')
     await wrapper.get('#bulk-edit-account-form').trigger('submit.prevent')
     await flushPromises()
 

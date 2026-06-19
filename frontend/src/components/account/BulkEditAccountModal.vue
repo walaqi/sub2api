@@ -240,107 +240,12 @@
 
             <!-- Mapping Mode -->
             <div v-else>
-              <div class="mb-3 rounded-lg bg-purple-50 p-3 dark:bg-purple-900/20">
-                <p class="text-xs text-purple-700 dark:text-purple-400">
-                  <svg
-                    class="mr-1 inline h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  {{ t('admin.accounts.mapRequestModels') }}
-                </p>
-              </div>
-
-              <!-- Model Mapping List -->
-              <div v-if="modelMappings.length > 0" class="mb-3 space-y-2">
-                <div
-                  v-for="(mapping, index) in modelMappings"
-                  :key="index"
-                  class="flex items-center gap-2"
-                >
-                  <input
-                    v-model="mapping.from"
-                    type="text"
-                    class="input flex-1"
-                    :placeholder="t('admin.accounts.requestModel')"
-                  />
-                  <svg
-                    class="h-4 w-4 flex-shrink-0 text-gray-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M14 5l7 7m0 0l-7 7m7-7H3"
-                    />
-                  </svg>
-                  <input
-                    v-model="mapping.to"
-                    type="text"
-                    class="input flex-1"
-                    :placeholder="t('admin.accounts.actualModel')"
-                  />
-                  <button
-                    type="button"
-                    class="rounded-lg p-2 text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
-                    @click="removeModelMapping(index)"
-                  >
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                class="mb-3 w-full rounded-lg border-2 border-dashed border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-700 dark:border-dark-500 dark:text-gray-400 dark:hover:border-dark-400 dark:hover:text-gray-300"
-                @click="addModelMapping"
-              >
-                <svg
-                  class="mr-1 inline h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
-                {{ t('admin.accounts.addMapping') }}
-              </button>
-
-              <!-- Quick Add Buttons -->
-              <div class="flex flex-wrap gap-2">
-                <button
-                  v-for="preset in filteredPresets"
-                  :key="preset.label"
-                  type="button"
-                  :class="['rounded-lg px-3 py-1 text-xs transition-colors', preset.color]"
-                  @click="addPresetMapping(preset.from, preset.to)"
-                >
-                  + {{ preset.label }}
-                </button>
-              </div>
+              <ModelMappingJsonEditor
+                v-model="modelMappingJson"
+                :hint="t('admin.accounts.mapRequestModels')"
+                :validate-wildcards="true"
+                @validation="modelMappingJsonValid = $event"
+              />
             </div>
           </template>
         </div>
@@ -842,44 +747,12 @@
           id="bulk-edit-openai-compact-model-mapping"
           :class="!enableOpenAICompactModelMapping && 'pointer-events-none opacity-50'"
         >
-          <div v-if="openAICompactModelMappings.length > 0" class="mb-3 space-y-2">
-            <div
-              v-for="(mapping, index) in openAICompactModelMappings"
-              :key="index"
-              class="flex items-center gap-2"
-            >
-              <input
-                v-model="mapping.from"
-                type="text"
-                class="input flex-1"
-                :placeholder="t('admin.accounts.fromModel')"
-                data-testid="bulk-edit-openai-compact-model-mapping-input"
-              />
-              <span class="text-gray-400">→</span>
-              <input
-                v-model="mapping.to"
-                type="text"
-                class="input flex-1"
-                :placeholder="t('admin.accounts.toModel')"
-                data-testid="bulk-edit-openai-compact-model-mapping-input"
-              />
-              <button
-                type="button"
-                class="rounded-lg p-2 text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
-                @click="removeOpenAICompactModelMapping(index)"
-              >
-                <Icon name="trash" size="sm" />
-              </button>
-            </div>
-          </div>
-          <button
-            type="button"
-            class="mb-3 w-full rounded-lg border-2 border-dashed border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-700 dark:border-dark-500 dark:text-gray-400 dark:hover:border-dark-400 dark:hover:text-gray-300"
-            data-testid="bulk-edit-openai-compact-model-mapping-add"
-            @click="addOpenAICompactModelMapping"
-          >
-            + {{ t('admin.accounts.addMapping') }}
-          </button>
+          <ModelMappingJsonEditor
+            v-model="openAICompactMappingJson"
+            :hint="t('admin.accounts.openai.compactModelMappingDesc')"
+            :validate-wildcards="true"
+            @validation="openAICompactMappingJsonValid = $event"
+          />
         </div>
       </div>
 
@@ -1100,10 +973,10 @@ import Select from '@/components/common/Select.vue'
 import ProxySelector from '@/components/common/ProxySelector.vue'
 import GroupSelector from '@/components/common/GroupSelector.vue'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
+import ModelMappingJsonEditor from '@/components/common/ModelMappingJsonEditor.vue'
 import Icon from '@/components/icons/Icon.vue'
 import {
-  buildModelMappingObject as buildModelMappingPayload,
-  getPresetMappingsByPlatform
+  buildModelMappingObject as buildModelMappingPayload
 } from '@/composables/useModelWhitelist'
 import {
   OPENAI_WS_MODE_CTX_POOL,
@@ -1181,22 +1054,6 @@ const allAnthropicOAuthOrSetupToken = computed(() => {
   )
 })
 
-const filteredPresets = computed(() => {
-  if (targetSelectedPlatforms.value.length === 0) return []
-
-  const dedupedPresets = new Map<string, ReturnType<typeof getPresetMappingsByPlatform>[number]>()
-  for (const platform of targetSelectedPlatforms.value) {
-    for (const preset of getPresetMappingsByPlatform(platform)) {
-      const key = `${preset.from}=>${preset.to}`
-      if (!dedupedPresets.has(key)) {
-        dedupedPresets.set(key, preset)
-      }
-    }
-  }
-
-  return Array.from(dedupedPresets.values())
-})
-
 // Model mapping type
 interface ModelMapping {
   from: string
@@ -1231,7 +1088,8 @@ const pendingUpdatesForConfirm = ref<Record<string, unknown> | null>(null)
 const baseUrl = ref('')
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
-const modelMappings = ref<ModelMapping[]>([])
+const modelMappingJson = ref<Record<string, string> | null>(null)
+const modelMappingJsonValid = ref(true)
 const selectedErrorCodes = ref<number[]>([])
 const customErrorCodeInput = ref<number | null>(null)
 const interceptWarmupRequests = ref(false)
@@ -1247,7 +1105,8 @@ const openaiOAuthResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF
 const openaiAPIKeyResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
 const codexCLIOnlyEnabled = ref(false)
 const openAICompactMode = ref<OpenAICompactMode>('auto')
-const openAICompactModelMappings = ref<ModelMapping[]>([])
+const openAICompactMappingJson = ref<Record<string, string> | null>(null)
+const openAICompactMappingJsonValid = ref(true)
 const rpmLimitEnabled = ref(false)
 const bulkBaseRpm = ref<number | null>(null)
 const bulkRpmStrategy = ref<'tiered' | 'sticky_exempt'>('tiered')
@@ -1297,32 +1156,6 @@ const openAIWSModeConcurrencyHintKey = computed(() =>
 const openAIAPIKeyWSModeConcurrencyHintKey = computed(() =>
   resolveOpenAIWSModeConcurrencyHintKey(openaiAPIKeyResponsesWebSocketV2Mode.value)
 )
-
-// Model mapping helpers
-const addModelMapping = () => {
-  modelMappings.value.push({ from: '', to: '' })
-}
-
-const removeModelMapping = (index: number) => {
-  modelMappings.value.splice(index, 1)
-}
-
-const addOpenAICompactModelMapping = () => {
-  openAICompactModelMappings.value.push({ from: '', to: '' })
-}
-
-const removeOpenAICompactModelMapping = (index: number) => {
-  openAICompactModelMappings.value.splice(index, 1)
-}
-
-const addPresetMapping = (from: string, to: string) => {
-  const exists = modelMappings.value.some((m) => m.from === from)
-  if (exists) {
-    appStore.showInfo(t('admin.accounts.mappingExists', { model: from }))
-    return
-  }
-  modelMappings.value.push({ from, to })
-}
 
 // Error code helpers
 const toggleErrorCode = (code: number) => {
@@ -1376,15 +1209,20 @@ const removeErrorCode = (code: number) => {
 }
 
 const buildModelMappingObject = (): Record<string, string> | null => {
+  const mappings: ModelMapping[] = modelMappingJson.value
+    ? Object.entries(modelMappingJson.value).map(([from, to]) => ({ from, to }))
+    : []
   return buildModelMappingPayload(
     modelRestrictionMode.value,
     allowedModels.value,
-    modelMappings.value
+    mappings
   )
 }
 
 const buildOpenAICompactModelMapping = (): Record<string, string> | null => {
-  return buildModelMappingPayload('mapping', [], openAICompactModelMappings.value)
+  return openAICompactMappingJson.value && Object.keys(openAICompactMappingJson.value).length > 0
+    ? openAICompactMappingJson.value
+    : null
 }
 
 const buildUpdatePayload = (): Record<string, unknown> | null => {
@@ -1713,7 +1551,7 @@ watch(
       openaiPassthroughEnabled.value = false
       modelRestrictionMode.value = 'whitelist'
       allowedModels.value = []
-      modelMappings.value = []
+      modelMappingJson.value = null
       selectedErrorCodes.value = []
       customErrorCodeInput.value = null
       interceptWarmupRequests.value = false
@@ -1728,7 +1566,7 @@ watch(
       openaiAPIKeyResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
       codexCLIOnlyEnabled.value = false
       openAICompactMode.value = 'auto'
-      openAICompactModelMappings.value = []
+      openAICompactMappingJson.value = null
       rpmLimitEnabled.value = false
       bulkBaseRpm.value = null
       bulkRpmStrategy.value = 'tiered'
