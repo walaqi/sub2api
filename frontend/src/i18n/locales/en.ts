@@ -3496,7 +3496,7 @@ export default {
       modelMapping: 'Model Mapping',
       selectAllowedModels: 'Select allowed models. Leave empty to support all models.',
       mapRequestModels:
-        'Enter model mappings as JSON: {"request-model": "upstream-model"}. The key is the model the client requests, the value is the actual model forwarded upstream.',
+        'Enter model mappings as JSON: {\'{"request-model": "upstream-model"}\'}. The key is the model the client requests, the value is the actual model forwarded upstream.',
       selectedModels: 'Selected {count} model(s)',
       supportsAllModels: '(supports all models)',
       requestModel: 'Request model',
