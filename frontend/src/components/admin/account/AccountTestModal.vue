@@ -50,7 +50,7 @@
           :options="availableModels"
           :disabled="loadingModels || status === 'connecting'"
           value-key="id"
-          label-key="display_name"
+          label-key="id"
           :placeholder="loadingModels ? t('common.loading') + '...' : t('admin.accounts.selectTestModel')"
         />
       </div>
