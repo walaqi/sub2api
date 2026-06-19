@@ -371,50 +371,12 @@
 
             <!-- Model Mapping -->
             <div>
-              <div class="mb-1 flex items-center justify-between">
-                <label class="input-label text-xs mb-0">{{ t('admin.channels.form.modelMapping', 'Model Mapping') }}</label>
-                <button type="button" @click="addMappingEntry(sIdx)" class="text-xs text-primary-600 hover:text-primary-700">
-                  + {{ t('common.add', 'Add') }}
-                </button>
-              </div>
-              <div
-                v-if="Object.keys(section.model_mapping).length === 0"
-                class="rounded border border-dashed border-gray-300 p-2 text-center text-xs text-gray-400 dark:border-dark-500"
-              >
-                {{ t('admin.channels.form.noMappingRules', 'No mapping rules. Click "Add" to create one.') }}
-              </div>
-              <div v-else class="space-y-1">
-                <div
-                  v-for="(_, srcModel) in section.model_mapping"
-                  :key="srcModel"
-                  class="flex items-center gap-2"
-                >
-                  <input
-                    :value="srcModel"
-                    type="text"
-                    class="input flex-1 text-xs"
-                    :class="platformTextClass(section.platform)"
-                    :placeholder="t('admin.channels.form.mappingSource', 'Source model')"
-                    @change="renameMappingKey(sIdx, srcModel, ($event.target as HTMLInputElement).value)"
-                  />
-                  <span class="text-gray-400 text-xs">→</span>
-                  <input
-                    :value="section.model_mapping[srcModel]"
-                    type="text"
-                    class="input flex-1 text-xs"
-                    :class="platformTextClass(section.platform)"
-                    :placeholder="t('admin.channels.form.mappingTarget', 'Target model')"
-                    @input="section.model_mapping[srcModel] = ($event.target as HTMLInputElement).value"
-                  />
-                  <button
-                    type="button"
-                    @click="removeMappingEntry(sIdx, srcModel)"
-                    class="rounded p-0.5 text-gray-400 hover:text-red-500"
-                  >
-                    <Icon name="trash" size="sm" />
-                  </button>
-                </div>
-              </div>
+              <label class="input-label text-xs mb-1">{{ t('admin.channels.form.modelMapping', 'Model Mapping') }}</label>
+              <ModelMappingJsonEditor
+                :modelValue="section.model_mapping"
+                @update:modelValue="section.model_mapping = $event ?? {}"
+                :rows="5"
+              />
             </div>
 
             <!-- Model Pricing -->
@@ -648,6 +610,7 @@ import Icon from '@/components/icons/Icon.vue'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import PricingEntryCard from '@/components/admin/channel/PricingEntryCard.vue'
+import ModelMappingJsonEditor from '@/components/common/ModelMappingJsonEditor.vue'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { useKeyedDebouncedSearch } from '@/composables/useKeyedDebouncedSearch'
 
@@ -905,32 +868,6 @@ function updatePricingEntry(sectionIdx: number, idx: number, updated: PricingFor
 
 function removePricingEntry(sectionIdx: number, idx: number) {
   form.platforms[sectionIdx].model_pricing.splice(idx, 1)
-}
-
-// ── Model Mapping helpers ──
-function addMappingEntry(sectionIdx: number) {
-  const mapping = form.platforms[sectionIdx].model_mapping
-  let key = ''
-  let i = 1
-  while (key === '' || key in mapping) {
-    key = `model-${i}`
-    i++
-  }
-  mapping[key] = ''
-}
-
-function removeMappingEntry(sectionIdx: number, key: string) {
-  delete form.platforms[sectionIdx].model_mapping[key]
-}
-
-function renameMappingKey(sectionIdx: number, oldKey: string, newKey: string) {
-  newKey = newKey.trim()
-  if (!newKey || newKey === oldKey) return
-  const mapping = form.platforms[sectionIdx].model_mapping
-  if (newKey in mapping) return
-  const value = mapping[oldKey]
-  delete mapping[oldKey]
-  mapping[newKey] = value
 }
 
 // ── Account Stats Pricing helpers ──

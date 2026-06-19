@@ -11,11 +11,6 @@
       @submit.prevent="handleSubmit"
       class="space-y-5"
     >
-      <!-- 模型映射输入框共用的候选模型列表（仅作下拉建议，仍允许手动输入通配符等自定义值） -->
-      <datalist :id="modelMappingDatalistId">
-        <option v-for="m in modelMappingOptions" :key="m" :value="m" />
-      </datalist>
-
       <div>
         <label class="input-label">{{ t('common.name') }}</label>
         <input v-model="form.name" type="text" required class="input" data-tour="edit-account-form-name" />
@@ -147,7 +142,7 @@
               <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" />
               <p class="text-xs text-gray-500 dark:text-gray-400">
                 {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
-                <span v-if="allowedModels.length === 0 && modelMappings.length === 0">{{
+                <span v-if="allowedModels.length === 0 && !modelMappingJson">{{
                   t('admin.accounts.supportsAllModels')
                 }}</span>
               </p>
@@ -155,109 +150,12 @@
 
             <!-- Mapping Mode -->
             <div v-else>
-              <div class="mb-3 rounded-lg bg-purple-50 p-3 dark:bg-purple-900/20">
-                <p class="text-xs text-purple-700 dark:text-purple-400">
-                  <svg
-                    class="mr-1 inline h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  {{ t('admin.accounts.mapRequestModels') }}
-                </p>
-              </div>
-
-            <!-- Model Mapping List -->
-            <div v-if="modelMappings.length > 0" class="mb-3 space-y-2">
-              <div
-                v-for="(mapping, index) in modelMappings"
-                :key="getModelMappingKey(mapping)"
-                class="flex items-center gap-2"
-              >
-                <input
-                  v-model="mapping.from"
-                  type="text"
-                  :list="modelMappingDatalistId"
-                  :class="['input flex-1', isMappingFromInvalid(mapping) ? 'border-red-500 dark:border-red-500' : '']"
-                  :placeholder="t('admin.accounts.requestModel')"
-                />
-                <svg
-                  class="h-4 w-4 flex-shrink-0 text-gray-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M14 5l7 7m0 0l-7 7m7-7H3"
-                  />
-                </svg>
-                <input
-                  v-model="mapping.to"
-                  type="text"
-                  :list="modelMappingDatalistId"
-                  :class="['input flex-1', isMappingToInvalid(mapping) ? 'border-red-500 dark:border-red-500' : '']"
-                  :placeholder="t('admin.accounts.actualModel')"
-                />
-                <button
-                  type="button"
-                  @click="removeModelMapping(index)"
-                  class="rounded-lg p-2 text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
-                >
-                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              @click="addModelMapping"
-              class="mb-3 w-full rounded-lg border-2 border-dashed border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-700 dark:border-dark-500 dark:text-gray-400 dark:hover:border-dark-400 dark:hover:text-gray-300"
-            >
-              <svg
-                class="mr-1 inline h-4 w-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              {{ t('admin.accounts.addMapping') }}
-            </button>
-
-              <!-- Quick Add Buttons -->
-              <div class="flex flex-wrap gap-2">
-                <button
-                  v-for="preset in presetMappings"
-                  :key="preset.label"
-                  type="button"
-                  @click="addPresetMapping(preset.from, preset.to)"
-                  :class="['rounded-lg px-3 py-1 text-xs transition-colors', preset.color]"
-                >
-                  + {{ preset.label }}
-                </button>
-              </div>
+              <ModelMappingJsonEditor
+                v-model="modelMappingJson"
+                :hint="t('admin.accounts.mapRequestModels')"
+                :validate-wildcards="true"
+                @validation="modelMappingJsonValid = $event"
+              />
             </div>
           </template>
         </div>
@@ -464,7 +362,7 @@
             <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" />
             <p class="text-xs text-gray-500 dark:text-gray-400">
               {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
-              <span v-if="allowedModels.length === 0 && modelMappings.length === 0">{{
+              <span v-if="allowedModels.length === 0 && !modelMappingJson">{{
                 t('admin.accounts.supportsAllModels')
               }}</span>
             </p>
@@ -472,82 +370,12 @@
 
           <!-- Mapping Mode -->
           <div v-else>
-            <div class="mb-3 rounded-lg bg-purple-50 p-3 dark:bg-purple-900/20">
-              <p class="text-xs text-purple-700 dark:text-purple-400">
-                {{ t('admin.accounts.mapRequestModels') }}
-              </p>
-            </div>
-
-            <div v-if="modelMappings.length > 0" class="mb-3 space-y-2">
-              <div
-                v-for="(mapping, index) in modelMappings"
-                :key="'oauth-' + getModelMappingKey(mapping)"
-                class="flex items-center gap-2"
-              >
-                <input
-                  v-model="mapping.from"
-                  type="text"
-                  :list="modelMappingDatalistId"
-                  :class="['input flex-1', isMappingFromInvalid(mapping) ? 'border-red-500 dark:border-red-500' : '']"
-                  :placeholder="t('admin.accounts.requestModel')"
-                />
-                <svg
-                  class="h-4 w-4 flex-shrink-0 text-gray-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M14 5l7 7m0 0l-7 7m7-7H3"
-                  />
-                </svg>
-                <input
-                  v-model="mapping.to"
-                  type="text"
-                  :list="modelMappingDatalistId"
-                  :class="['input flex-1', isMappingToInvalid(mapping) ? 'border-red-500 dark:border-red-500' : '']"
-                  :placeholder="t('admin.accounts.actualModel')"
-                />
-                <button
-                  type="button"
-                  @click="removeModelMapping(index)"
-                  class="rounded-lg p-2 text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
-                >
-                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              @click="addModelMapping"
-              class="mb-3 w-full rounded-lg border-2 border-dashed border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-700 dark:border-dark-500 dark:text-gray-400 dark:hover:border-dark-400 dark:hover:text-gray-300"
-            >
-              + {{ t('admin.accounts.addMapping') }}
-            </button>
-
-            <!-- Quick Add Buttons -->
-            <div class="flex flex-wrap gap-2">
-              <button
-                v-for="preset in presetMappings"
-                :key="'oauth-' + preset.label"
-                type="button"
-                @click="addPresetMapping(preset.from, preset.to)"
-                :class="['rounded-lg px-3 py-1 text-xs transition-colors', preset.color]"
-              >
-                + {{ preset.label }}
-              </button>
-            </div>
+            <ModelMappingJsonEditor
+              v-model="modelMappingJson"
+              :hint="t('admin.accounts.mapRequestModels')"
+              :validate-wildcards="true"
+              @validation="modelMappingJsonValid = $event"
+            />
           </div>
         </template>
       </div>
@@ -678,7 +506,7 @@
             <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" />
             <p class="text-xs text-gray-500 dark:text-gray-400">
               {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
-              <span v-if="allowedModels.length === 0 && modelMappings.length === 0">{{
+              <span v-if="allowedModels.length === 0 && !modelMappingJson">{{
                 t('admin.accounts.supportsAllModels')
               }}</span>
             </p>
@@ -686,109 +514,12 @@
 
           <!-- Mapping Mode -->
           <div v-else>
-            <div class="mb-3 rounded-lg bg-purple-50 p-3 dark:bg-purple-900/20">
-              <p class="text-xs text-purple-700 dark:text-purple-400">
-                <svg
-                  class="mr-1 inline h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                {{ t('admin.accounts.mapRequestModels') }}
-              </p>
-            </div>
-
-            <!-- Model Mapping List -->
-            <div v-if="modelMappings.length > 0" class="mb-3 space-y-2">
-              <div
-                v-for="(mapping, index) in modelMappings"
-                :key="getModelMappingKey(mapping)"
-                class="flex items-center gap-2"
-              >
-                <input
-                  v-model="mapping.from"
-                  type="text"
-                  :list="modelMappingDatalistId"
-                  :class="['input flex-1', isMappingFromInvalid(mapping) ? 'border-red-500 dark:border-red-500' : '']"
-                  :placeholder="t('admin.accounts.requestModel')"
-                />
-                <svg
-                  class="h-4 w-4 flex-shrink-0 text-gray-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M14 5l7 7m0 0l-7 7m7-7H3"
-                  />
-                </svg>
-                <input
-                  v-model="mapping.to"
-                  type="text"
-                  :list="modelMappingDatalistId"
-                  :class="['input flex-1', isMappingToInvalid(mapping) ? 'border-red-500 dark:border-red-500' : '']"
-                  :placeholder="t('admin.accounts.actualModel')"
-                />
-                <button
-                  type="button"
-                  @click="removeModelMapping(index)"
-                  class="rounded-lg p-2 text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
-                >
-                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              @click="addModelMapping"
-              class="mb-3 w-full rounded-lg border-2 border-dashed border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-700 dark:border-dark-500 dark:text-gray-400 dark:hover:border-dark-400 dark:hover:text-gray-300"
-            >
-              <svg
-                class="mr-1 inline h-4 w-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              {{ t('admin.accounts.addMapping') }}
-            </button>
-
-            <!-- Quick Add Buttons -->
-            <div class="flex flex-wrap gap-2">
-              <button
-                v-for="preset in presetMappings"
-                :key="preset.label"
-                type="button"
-                @click="addPresetMapping(preset.from, preset.to)"
-                :class="['rounded-lg px-3 py-1 text-xs transition-colors', preset.color]"
-              >
-                + {{ preset.label }}
-              </button>
-            </div>
+            <ModelMappingJsonEditor
+              v-model="modelMappingJson"
+              :hint="t('admin.accounts.mapRequestModels')"
+              :validate-wildcards="true"
+              @validation="modelMappingJsonValid = $event"
+            />
           </div>
         </div>
       </div>
@@ -902,35 +633,18 @@
             <ModelWhitelistSelector v-model="allowedModels" platform="anthropic" />
             <p class="text-xs text-gray-500 dark:text-gray-400">
               {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
-              <span v-if="allowedModels.length === 0 && modelMappings.length === 0">{{ t('admin.accounts.supportsAllModels') }}</span>
+              <span v-if="allowedModels.length === 0 && !modelMappingJson">{{ t('admin.accounts.supportsAllModels') }}</span>
             </p>
           </div>
 
           <!-- Mapping Mode -->
-          <div v-else class="space-y-3">
-            <div v-for="(mapping, index) in modelMappings" :key="getModelMappingKey(mapping)" class="flex items-center gap-2">
-              <input v-model="mapping.from" type="text" class="input flex-1" :placeholder="t('admin.accounts.fromModel')" />
-              <span class="text-gray-400">→</span>
-              <input v-model="mapping.to" type="text" class="input flex-1" :placeholder="t('admin.accounts.toModel')" />
-              <button type="button" @click="modelMappings.splice(index, 1)" class="text-red-500 hover:text-red-700">
-                <Icon name="trash" size="sm" />
-              </button>
-            </div>
-            <button type="button" @click="modelMappings.push({ from: '', to: '' })" class="btn btn-secondary text-sm">
-              + {{ t('admin.accounts.addMapping') }}
-            </button>
-            <!-- Bedrock Preset Mappings -->
-            <div class="flex flex-wrap gap-2">
-              <button
-                v-for="preset in bedrockPresets"
-                :key="preset.from"
-                type="button"
-                @click="modelMappings.push({ from: preset.from, to: preset.to })"
-                :class="['rounded-lg px-3 py-1 text-xs transition-colors', preset.color]"
-              >
-                + {{ preset.label }}
-              </button>
-            </div>
+          <div v-else>
+            <ModelMappingJsonEditor
+              v-model="modelMappingJson"
+              :hint="t('admin.accounts.mapRequestModels')"
+              :validate-wildcards="true"
+              @validation="modelMappingJsonValid = $event"
+            />
           </div>
         </div>
 
@@ -1009,82 +723,12 @@
             </button>
           </div>
 
-          <div v-if="antigravityModelMappings.length > 0" class="mb-3 space-y-2">
-            <div
-              v-for="(mapping, index) in antigravityModelMappings"
-              :key="getAntigravityModelMappingKey(mapping)"
-              class="space-y-1"
-            >
-              <div class="flex items-center gap-2">
-                <input
-                  v-model="mapping.from"
-                  type="text"
-                  :class="[
-                    'input flex-1',
-                    !isValidWildcardPattern(mapping.from) ? 'border-red-500 dark:border-red-500' : '',
-                    mapping.to.includes('*') ? '' : ''
-                  ]"
-                  :placeholder="t('admin.accounts.requestModel')"
-                />
-                <svg class="h-4 w-4 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                </svg>
-                <input
-                  v-model="mapping.to"
-                  type="text"
-                  :class="[
-                    'input flex-1',
-                    mapping.to.includes('*') ? 'border-red-500 dark:border-red-500' : ''
-                  ]"
-                  :placeholder="t('admin.accounts.actualModel')"
-                />
-                <button
-                  type="button"
-                  @click="removeAntigravityModelMapping(index)"
-                  class="rounded-lg p-2 text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
-                >
-                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                </button>
-              </div>
-              <!-- 校验错误提示 -->
-              <p v-if="!isValidWildcardPattern(mapping.from)" class="text-xs text-red-500">
-                {{ t('admin.accounts.wildcardOnlyAtEnd') }}
-              </p>
-              <p v-if="mapping.to.includes('*')" class="text-xs text-red-500">
-                {{ t('admin.accounts.targetNoWildcard') }}
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            @click="addAntigravityModelMapping"
-            class="mb-3 w-full rounded-lg border-2 border-dashed border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-700 dark:border-dark-500 dark:text-gray-400 dark:hover:border-dark-400 dark:hover:text-gray-300"
-          >
-            <svg class="mr-1 inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-            {{ t('admin.accounts.addMapping') }}
-          </button>
-
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-for="preset in antigravityPresetMappings"
-              :key="preset.label"
-              type="button"
-              @click="addAntigravityPresetMapping(preset.from, preset.to)"
-              :class="['rounded-lg px-3 py-1 text-xs transition-colors', preset.color]"
-            >
-              + {{ preset.label }}
-            </button>
-          </div>
+          <ModelMappingJsonEditor
+            v-model="antigravityMappingJson"
+            :hint="t('admin.accounts.mapRequestModels')"
+            :validate-wildcards="true"
+            @validation="antigravityMappingJsonValid = $event"
+          />
         </div>
       </div>
 
@@ -1658,34 +1302,12 @@
         </div>
         <div>
           <label class="input-label">{{ t('admin.accounts.openai.compactModelMapping') }}</label>
-          <p class="input-hint">{{ t('admin.accounts.openai.compactModelMappingDesc') }}</p>
-          <div v-if="openAICompactModelMappings.length > 0" class="mb-3 space-y-2">
-            <div
-              v-for="(mapping, index) in openAICompactModelMappings"
-              :key="getOpenAICompactModelMappingKey(mapping)"
-              class="flex items-center gap-2"
-            >
-              <input
-                v-model="mapping.from"
-                type="text"
-                class="input flex-1"
-                :placeholder="t('admin.accounts.fromModel')"
-              />
-              <span class="text-gray-400">→</span>
-              <input
-                v-model="mapping.to"
-                type="text"
-                class="input flex-1"
-                :placeholder="t('admin.accounts.toModel')"
-              />
-              <button type="button" @click="removeOpenAICompactModelMapping(index)" class="text-red-500 hover:text-red-700">
-                <Icon name="trash" size="sm" />
-              </button>
-            </div>
-          </div>
-          <button type="button" @click="addOpenAICompactModelMapping" class="btn btn-secondary text-sm">
-            + {{ t('admin.accounts.addMapping') }}
-          </button>
+          <ModelMappingJsonEditor
+            v-model="openAICompactMappingJson"
+            :hint="t('admin.accounts.openai.compactModelMappingDesc')"
+            :validate-wildcards="true"
+            @validation="openAICompactMappingJsonValid = $event"
+          />
         </div>
       </div>
 
@@ -2241,6 +1863,7 @@ import ProxySelector from '@/components/common/ProxySelector.vue'
 import ProxyAdBanner from '@/components/common/ProxyAdBanner.vue'
 import GroupSelector from '@/components/common/GroupSelector.vue'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
+import ModelMappingJsonEditor from '@/components/common/ModelMappingJsonEditor.vue'
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import { applyInterceptWarmup } from '@/components/account/credentialsBuilder'
 import { formatDateTime, formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
@@ -2256,12 +1879,9 @@ import {
   resolveOpenAIWSModeFromExtra
 } from '@/utils/openaiWsMode'
 import {
-  getPresetMappingsByPlatform,
-  getModelsByPlatform,
   commonErrorCodes,
   buildModelMappingObject,
-  splitModelMappingObject,
-  isValidWildcardPattern
+  splitModelMappingObject
 } from '@/composables/useModelWhitelist'
 
 interface Props {
@@ -2289,8 +1909,6 @@ const baseUrlHint = computed(() => {
   return t('admin.accounts.baseUrlHint')
 })
 
-const antigravityPresetMappings = computed(() => getPresetMappingsByPlatform('antigravity'))
-const bedrockPresets = computed(() => getPresetMappingsByPlatform('bedrock'))
 
 // Model mapping type
 interface ModelMapping {
@@ -2323,8 +1941,11 @@ const isBedrockAPIKeyMode = computed(() =>
   props.account?.type === 'bedrock' &&
   (props.account?.credentials as Record<string, unknown>)?.auth_mode === 'apikey'
 )
-const modelMappings = ref<ModelMapping[]>([])
-const openAICompactModelMappings = ref<ModelMapping[]>([])
+const modelMappingJson = ref<Record<string, string> | null>(null)
+const openAICompactMappingJson = ref<Record<string, string> | null>(null)
+const modelMappingJsonValid = ref(true)
+const openAICompactMappingJsonValid = ref(true)
+const antigravityMappingJsonValid = ref(true)
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
 const DEFAULT_POOL_MODE_RETRY_COUNT = 3
@@ -2340,13 +1961,10 @@ const mixedScheduling = ref(false) // For antigravity accounts: enable mixed sch
 const allowOverages = ref(false) // For antigravity accounts: enable AI Credits overages
 const antigravityModelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const antigravityWhitelistModels = ref<string[]>([])
-const antigravityModelMappings = ref<ModelMapping[]>([])
+const antigravityMappingJson = ref<Record<string, string> | null>(null)
 const isSyncingAntigravityUpstream = ref(false)
 const tempUnschedEnabled = ref(false)
 const tempUnschedRules = ref<TempUnschedRuleForm[]>([])
-const getModelMappingKey = createStableObjectKeyResolver<ModelMapping>('edit-model-mapping')
-const getOpenAICompactModelMappingKey = createStableObjectKeyResolver<ModelMapping>('edit-openai-compact-model-mapping')
-const getAntigravityModelMappingKey = createStableObjectKeyResolver<ModelMapping>('edit-antigravity-model-mapping')
 const getTempUnschedRuleKey = createStableObjectKeyResolver<TempUnschedRuleForm>('edit-temp-unsched-rule')
 
 const showMixedChannelWarning = ref(false)
@@ -2532,48 +2150,6 @@ const openAICompactStatusKey = computed(() => {
   return 'admin.accounts.openai.compactAuto'
 })
 
-// Computed: current preset mappings based on platform
-const presetMappings = computed(() => getPresetMappingsByPlatform(props.account?.platform || 'anthropic'))
-
-// Candidate models for the model-mapping datalist (drop-down suggestions).
-// Users can still type a free-form value (e.g. wildcards) — the datalist只提供建议，不限制输入。
-const modelMappingOptions = computed(() => getModelsByPlatform(props.account?.platform || 'anthropic'))
-const modelMappingDatalistId = 'edit-account-model-options'
-
-// 单条映射的格式校验（与 buildModelMappingObject 的规则保持一致）
-const isMappingRowComplete = (m: ModelMapping) => {
-  const from = m.from.trim()
-  const to = m.to.trim()
-  // 整行为空 = 还没填，不算错误（保存时会被忽略）
-  if (!from && !to) return true
-  return Boolean(from) && Boolean(to)
-}
-const isMappingRowValid = (m: ModelMapping) => {
-  const from = m.from.trim()
-  const to = m.to.trim()
-  if (!from && !to) return true
-  return Boolean(from) && Boolean(to) && isValidWildcardPattern(from) && !to.includes('*')
-}
-// 校验一组映射：存在已填写但格式非法的行则返回 false
-const validateModelMappings = (mappings: ModelMapping[]): boolean =>
-  mappings.every((m) => isMappingRowValid(m))
-
-// 单个输入框是否应标红（用于模板内联提示）
-const isMappingFromInvalid = (m: ModelMapping) => {
-  const from = m.from.trim()
-  const to = m.to.trim()
-  if (!from && !to) return false
-  // from 为空但 to 已填（半填），或 from 通配符格式非法
-  return !from || !isValidWildcardPattern(from)
-}
-const isMappingToInvalid = (m: ModelMapping) => {
-  const from = m.from.trim()
-  const to = m.to.trim()
-  if (!from && !to) return false
-  // to 为空但 from 已填（半填），或 to 含通配符
-  return !to || to.includes('*')
-}
-
 const tempUnschedPresets = computed(() => [
   {
     label: t('admin.accounts.tempUnschedulable.presets.overloadLabel'),
@@ -2667,15 +2243,31 @@ const normalizePoolModeRetryCount = (value: number) => {
 const loadModelRestrictionFromMapping = (rawMapping?: Record<string, unknown>) => {
   const parsed = splitModelMappingObject(rawMapping)
   allowedModels.value = parsed.allowedModels
-  modelMappings.value = parsed.modelMappings
+  // Convert ModelMapping[] to Record<string, string> for JSON editor
+  const mappingObj: Record<string, string> = {}
+  for (const m of parsed.modelMappings) {
+    if (m.from.trim() && m.to.trim()) {
+      mappingObj[m.from.trim()] = m.to.trim()
+    }
+  }
+  modelMappingJson.value = Object.keys(mappingObj).length > 0 ? mappingObj : null
   modelRestrictionMode.value =
     parsed.modelMappings.length > 0 && parsed.allowedModels.length === 0
       ? 'mapping'
       : 'whitelist'
 }
 
-const buildModelRestrictionMapping = () =>
-  buildModelMappingObject('combined', allowedModels.value, modelMappings.value)
+const buildModelRestrictionMapping = () => {
+  // Convert JSON editor value back to ModelMapping[] for the existing builder
+  const mappings: ModelMapping[] = modelMappingJson.value
+    ? Object.entries(modelMappingJson.value).map(([from, to]) => ({ from, to }))
+    : []
+  return buildModelMappingObject('combined', allowedModels.value, mappings)
+}
+
+// Convert a JSON-editor Record value to ModelMapping[] for the existing builder
+const jsonToModelMappings = (value: Record<string, string> | null): ModelMapping[] =>
+  value ? Object.entries(value).map(([from, to]) => ({ from, to })) : []
 
 const syncFormFromAccount = (newAccount: Account | null) => {
   if (!newAccount) {
@@ -2718,7 +2310,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   openaiPassthroughEnabled.value = false
   openAICompactMode.value = 'auto'
   openAIResponsesMode.value = 'auto'
-  openAICompactModelMappings.value = []
+  openAICompactMappingJson.value = null
   openaiOAuthResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
   openaiAPIKeyResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
   codexCLIOnlyEnabled.value = false
@@ -2757,7 +2349,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
     const credentials = newAccount.credentials as Record<string, unknown> | undefined
     const compactMappings = credentials?.compact_model_mapping as Record<string, string> | undefined
     if (compactMappings && typeof compactMappings === 'object') {
-      openAICompactModelMappings.value = Object.entries(compactMappings).map(([from, to]) => ({ from, to }))
+      openAICompactMappingJson.value = Object.keys(compactMappings).length > 0 ? { ...compactMappings } : null
     }
   }
   if (newAccount.platform === 'anthropic' && newAccount.type === 'apikey') {
@@ -2815,24 +2407,28 @@ const syncFormFromAccount = (newAccount: Account | null) => {
     const rawAgMapping = credentials?.model_mapping as Record<string, string> | undefined
     if (rawAgMapping && typeof rawAgMapping === 'object') {
       const entries = Object.entries(rawAgMapping)
-      // 无论是白名单样式(key===value)还是真正的映射，都统一转换为映射列表
-      antigravityModelMappings.value = entries.map(([from, to]) => ({ from, to }))
+      // 无论是白名单样式(key===value)还是真正的映射，都统一转换为映射对象
+      antigravityMappingJson.value = entries.length > 0 ? Object.fromEntries(entries) : null
     } else {
       // 兼容旧数据：从 model_whitelist 读取，转换为映射格式
       const rawWhitelist = credentials?.model_whitelist
       if (Array.isArray(rawWhitelist) && rawWhitelist.length > 0) {
-        antigravityModelMappings.value = rawWhitelist
-          .map((v) => String(v).trim())
-          .filter((v) => v.length > 0)
-          .map((m) => ({ from: m, to: m }))
+        const wl: Record<string, string> = {}
+        for (const v of rawWhitelist) {
+          const m = String(v).trim()
+          if (m.length > 0) {
+            wl[m] = m
+          }
+        }
+        antigravityMappingJson.value = Object.keys(wl).length > 0 ? wl : null
       } else {
-        antigravityModelMappings.value = []
+        antigravityMappingJson.value = null
       }
     }
   } else {
     antigravityModelRestrictionMode.value = 'mapping'
     antigravityWhitelistModels.value = []
-    antigravityModelMappings.value = []
+    antigravityMappingJson.value = null
   }
 
   // Load quota control settings (Anthropic OAuth/SetupToken only)
@@ -2923,7 +2519,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
       loadModelRestrictionFromMapping(oauthCredentials.model_mapping as Record<string, unknown> | undefined)
     } else {
       modelRestrictionMode.value = 'whitelist'
-      modelMappings.value = []
+      modelMappingJson.value = null
       allowedModels.value = []
     }
     poolModeEnabled.value = false
@@ -2957,48 +2553,6 @@ watch(
   { immediate: true }
 )
 
-// Model mapping helpers
-const addModelMapping = () => {
-  modelMappings.value.push({ from: '', to: '' })
-}
-
-const removeModelMapping = (index: number) => {
-  modelMappings.value.splice(index, 1)
-}
-
-const addPresetMapping = (from: string, to: string) => {
-  const exists = modelMappings.value.some((m) => m.from === from)
-  if (exists) {
-    appStore.showInfo(t('admin.accounts.mappingExists', { model: from }))
-    return
-  }
-  modelMappings.value.push({ from, to })
-}
-
-const addAntigravityModelMapping = () => {
-  antigravityModelMappings.value.push({ from: '', to: '' })
-}
-
-const addOpenAICompactModelMapping = () => {
-  openAICompactModelMappings.value.push({ from: '', to: '' })
-}
-
-const removeOpenAICompactModelMapping = (index: number) => {
-  openAICompactModelMappings.value.splice(index, 1)
-}
-
-const removeAntigravityModelMapping = (index: number) => {
-  antigravityModelMappings.value.splice(index, 1)
-}
-
-const addAntigravityPresetMapping = (from: string, to: string) => {
-  const exists = antigravityModelMappings.value.some((m) => m.from === from)
-  if (exists) {
-    appStore.showInfo(t('admin.accounts.mappingExists', { model: from }))
-    return
-  }
-  antigravityModelMappings.value.push({ from, to })
-}
 
 const syncAntigravityUpstreamModels = async () => {
   if (!props.account?.id || isSyncingAntigravityUpstream.value) return
@@ -3013,12 +2567,15 @@ const syncAntigravityUpstreamModels = async () => {
     }
 
     let addedCount = 0
+    const merged: Record<string, string> = { ...(antigravityMappingJson.value || {}) }
     for (const model of upstreamModels) {
-      const exists = antigravityModelMappings.value.some((mapping) => mapping.from === model)
-      if (!exists) {
-        antigravityModelMappings.value.push({ from: model, to: model })
+      if (!(model in merged)) {
+        merged[model] = model
         addedCount += 1
       }
+    }
+    if (addedCount > 0) {
+      antigravityMappingJson.value = merged
     }
 
     if (addedCount > 0) {
@@ -3413,23 +2970,10 @@ const handleSubmit = async () => {
     return
   }
 
-  // 校验模型映射：不再静默丢弃非法/半填的条目，发现问题就阻止保存并提示。
-  // 三个数组分别对应不同平台/类型的映射区域；只校验实际有内容的那些。
-  const mappingGroupsToValidate = [
-    modelMappings.value,
-    openAICompactModelMappings.value,
-    antigravityModelMappings.value
-  ]
-  for (const group of mappingGroupsToValidate) {
-    // 半填（只填了一边）单独提示，更直观
-    if (group.some((m) => !isMappingRowComplete(m))) {
-      appStore.showError(t('admin.accounts.mappingIncomplete'))
-      return
-    }
-    if (!validateModelMappings(group)) {
-      appStore.showError(t('admin.accounts.mappingHasErrors'))
-      return
-    }
+  // Validate JSON editors
+  if (!modelMappingJsonValid.value || !openAICompactMappingJsonValid.value || !antigravityMappingJsonValid.value) {
+    appStore.showError(t('admin.accounts.mappingHasErrors'))
+    return
   }
 
   const updatePayload: Record<string, unknown> = { ...form }
@@ -3486,7 +3030,7 @@ const handleSubmit = async () => {
         newCredentials.model_mapping = currentCredentials.model_mapping
       }
       if (props.account.platform === 'openai') {
-        const compactModelMapping = buildModelMappingObject('mapping', [], openAICompactModelMappings.value)
+        const compactModelMapping = buildModelMappingObject('mapping', [], jsonToModelMappings(openAICompactMappingJson.value))
         if (compactModelMapping) {
           newCredentials.compact_model_mapping = compactModelMapping
         } else {
@@ -3666,7 +3210,7 @@ const handleSubmit = async () => {
         // 透传模式保留现有映射
         newCredentials.model_mapping = currentCredentials.model_mapping
       }
-      const compactModelMapping = buildModelMappingObject('mapping', [], openAICompactModelMappings.value)
+      const compactModelMapping = buildModelMappingObject('mapping', [], jsonToModelMappings(openAICompactMappingJson.value))
       if (compactModelMapping) {
         newCredentials.compact_model_mapping = compactModelMapping
       } else {
@@ -3691,7 +3235,7 @@ const handleSubmit = async () => {
       const antigravityModelMapping = buildModelMappingObject(
         'mapping',
         [],
-        antigravityModelMappings.value
+        jsonToModelMappings(antigravityMappingJson.value)
       )
       if (antigravityModelMapping) {
         newCredentials.model_mapping = antigravityModelMapping
