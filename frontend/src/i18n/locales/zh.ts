@@ -3640,7 +3640,7 @@ export default {
       modelWhitelist: '模型白名单',
       modelMapping: '模型映射',
       selectAllowedModels: '选择允许的模型。留空则支持所有模型。',
-      mapRequestModels: '以 JSON 格式填写模型映射：{"请求模型": "实际上游模型"}。键是客户端请求的模型，值是转发到上游的实际模型。',
+      mapRequestModels: '以 JSON 格式填写模型映射：{\'{"请求模型": "实际上游模型"}\'}。键是客户端请求的模型，值是转发到上游的实际模型。',
       selectedModels: '已选择 {count} 个模型',
       supportsAllModels: '（支持所有模型）',
       requestModel: '请求模型',
