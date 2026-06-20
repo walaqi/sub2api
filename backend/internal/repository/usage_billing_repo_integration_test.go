@@ -12,13 +12,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
+	"github.com/Wei-Shaw/sub2api/internal/gift"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
 func TestUsageBillingRepositoryApply_DeduplicatesBalanceBilling(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)
-	repo := NewUsageBillingRepository(client, integrationDB)
+	repo := NewUsageBillingRepository(client, integrationDB, gift.NewEngine(client, integrationDB))
 
 	user := mustCreateUser(t, client, &service.User{
 		Email:        fmt.Sprintf("usage-billing-user-%d@example.com", time.Now().UnixNano()),
@@ -83,7 +84,7 @@ func TestUsageBillingRepositoryApply_DeduplicatesBalanceBilling(t *testing.T) {
 func TestUsageBillingRepositoryApply_DeduplicatesSubscriptionBilling(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)
-	repo := NewUsageBillingRepository(client, integrationDB)
+	repo := NewUsageBillingRepository(client, integrationDB, gift.NewEngine(client, integrationDB))
 
 	user := mustCreateUser(t, client, &service.User{
 		Email:        fmt.Sprintf("usage-billing-sub-user-%d@example.com", time.Now().UnixNano()),
@@ -131,7 +132,7 @@ func TestUsageBillingRepositoryApply_DeduplicatesSubscriptionBilling(t *testing.
 func TestUsageBillingRepositoryApply_RequestFingerprintConflict(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)
-	repo := NewUsageBillingRepository(client, integrationDB)
+	repo := NewUsageBillingRepository(client, integrationDB, gift.NewEngine(client, integrationDB))
 
 	user := mustCreateUser(t, client, &service.User{
 		Email:        fmt.Sprintf("usage-billing-conflict-user-%d@example.com", time.Now().UnixNano()),
@@ -165,7 +166,7 @@ func TestUsageBillingRepositoryApply_RequestFingerprintConflict(t *testing.T) {
 func TestUsageBillingRepositoryApply_UpdatesAccountQuota(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)
-	repo := NewUsageBillingRepository(client, integrationDB)
+	repo := NewUsageBillingRepository(client, integrationDB, gift.NewEngine(client, integrationDB))
 
 	user := mustCreateUser(t, client, &service.User{
 		Email:        fmt.Sprintf("usage-billing-account-user-%d@example.com", time.Now().UnixNano()),
@@ -202,7 +203,7 @@ func TestUsageBillingRepositoryApply_UpdatesAccountQuota(t *testing.T) {
 func TestUsageBillingRepositoryApply_EnqueuesSchedulerOutboxOnQuotaCrossing(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)
-	repo := NewUsageBillingRepository(client, integrationDB)
+	repo := NewUsageBillingRepository(client, integrationDB, gift.NewEngine(client, integrationDB))
 
 	newFixture := func(t *testing.T, extra map[string]any) (int64, int64) {
 		t.Helper()
@@ -323,7 +324,7 @@ func TestDashboardAggregationRepositoryCleanupUsageBillingDedup_BatchDeletesOldR
 func TestUsageBillingRepositoryApply_DeduplicatesAgainstArchivedKey(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)
-	repo := NewUsageBillingRepository(client, integrationDB)
+	repo := NewUsageBillingRepository(client, integrationDB, gift.NewEngine(client, integrationDB))
 	aggRepo := newDashboardAggregationRepositoryWithSQL(integrationDB)
 
 	user := mustCreateUser(t, client, &service.User{
