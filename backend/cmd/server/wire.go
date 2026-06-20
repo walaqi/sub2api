@@ -101,6 +101,7 @@ func provideCleanup(
 	paymentOrderExpiry *service.PaymentOrderExpiryService,
 	channelMonitorRunner *service.ChannelMonitorRunner,
 	giftExpirer *gift.ExpirerService,
+	quotaFlusher *service.UserPlatformQuotaUsageFlusher,
 ) func() {
 	return func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -257,6 +258,12 @@ func provideCleanup(
 			}},
 			{"WebSearchHealthChecker", func() error {
 				service.StopWebSearchHealthChecker()
+				return nil
+			}},
+			{"UserPlatformQuotaUsageFlusher", func() error {
+				if quotaFlusher != nil {
+					quotaFlusher.Stop()
+				}
 				return nil
 			}},
 		}
