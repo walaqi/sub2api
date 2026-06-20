@@ -941,7 +941,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 		return nil, fmt.Errorf("upstream request failed: %s", safeErr)
 	}
 	if resp.StatusCode >= 400 {
-		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+		respBody := s.readUpstreamErrorBody(resp)
 		_ = resp.Body.Close()
 		resp.Body = io.NopCloser(bytes.NewReader(respBody))
 		openAIImageDumpBytes(c, resp, respBody, "oauth_responses_4xx")

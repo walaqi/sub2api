@@ -246,7 +246,7 @@ func TestGatewayServiceRecordUsage_ExtractsDeviceIDFromMetadataUserID(t *testing
 				Account: &Account{ID: 701},
 			}
 			if tc.parsedReq {
-				input.ParsedRequest = &ParsedRequest{MetadataUserID: tc.metadataUserID}
+				input.MetadataUserID = tc.metadataUserID
 			}
 
 			err := svc.RecordUsage(context.Background(), input)
