@@ -101,6 +101,7 @@ export interface User {
   last_active_at?: string | null
   created_at: string
   updated_at: string
+  deleted_at?: string | null
 }
 
 // 当前用户持有的单笔有效赠金（GET /user/gifts）。用于 Profile 页面逐条展示。
