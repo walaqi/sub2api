@@ -84,6 +84,8 @@ type Tx struct {
 	UserAttributeValue *UserAttributeValueClient
 	// UserGift is the client for interacting with the UserGift builders.
 	UserGift *UserGiftClient
+	// UserPlatformQuota is the client for interacting with the UserPlatformQuota builders.
+	UserPlatformQuota *UserPlatformQuotaClient
 	// UserSubscription is the client for interacting with the UserSubscription builders.
 	UserSubscription *UserSubscriptionClient
 
@@ -252,6 +254,7 @@ func (tx *Tx) init() {
 	tx.UserAttributeDefinition = NewUserAttributeDefinitionClient(tx.config)
 	tx.UserAttributeValue = NewUserAttributeValueClient(tx.config)
 	tx.UserGift = NewUserGiftClient(tx.config)
+	tx.UserPlatformQuota = NewUserPlatformQuotaClient(tx.config)
 	tx.UserSubscription = NewUserSubscriptionClient(tx.config)
 }
 

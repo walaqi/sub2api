@@ -418,8 +418,9 @@ func ProvideBillingCacheService(
 	rpmCache UserRPMCache,
 	rateRepo UserGroupRateRepository,
 	cfg *config.Config,
+	userPlatformQuotaRepo UserPlatformQuotaRepository,
 ) *BillingCacheService {
-	return NewBillingCacheService(cache, userRepo, subRepo, apiKeyRepo, rpmCache, rateRepo, cfg)
+	return NewBillingCacheService(cache, userRepo, subRepo, apiKeyRepo, rpmCache, rateRepo, cfg, userPlatformQuotaRepo)
 }
 
 // ProvideAbuseDetectionService wires the read-only multi-account detection service.
