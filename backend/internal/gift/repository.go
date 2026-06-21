@@ -123,7 +123,7 @@ func (r *repository) lockedSnapshot(ctx context.Context, tx *sql.Tx, userID int6
 	if err != nil {
 		return decimal.Zero, nil, fmt.Errorf("lock gifts: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var gifts []ActiveGift
 	for rows.Next() {
@@ -439,7 +439,7 @@ func (r *repository) listGiftsByUser(ctx context.Context, userID int64, status S
 	if err != nil {
 		return nil, 0, fmt.Errorf("list gifts: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	out := make([]UserGift, 0, pageSize)
 	for rows.Next() {

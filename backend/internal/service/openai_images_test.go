@@ -571,7 +571,7 @@ func parseOpenAIImageTestSSEEvents(body string) []openAIImageTestSSEEvent {
 	return events
 }
 
-func findOpenAIImageTestSSEEvent(events []openAIImageTestSSEEvent, name string) (openAIImageTestSSEEvent, bool) {
+func findOpenAIImageTestSSEEvent(events []openAIImageTestSSEEvent, name string) (openAIImageTestSSEEvent, bool) { //nolint:unused // test helper for future streaming tests
 	for _, event := range events {
 		if event.Name == name {
 			return event, true

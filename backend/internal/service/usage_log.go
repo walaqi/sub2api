@@ -150,9 +150,9 @@ type UsageLog struct {
 	ActualCost        float64
 	// GiftCost / RechargeCost 是赠金引擎本次扣费的分摊明细，仅 BalanceCost > 0 路径填充。
 	// 不变量：GiftCost + RechargeCost = ActualCost（订阅扣费下两者均为 0）。
-	GiftCost     float64
-	RechargeCost float64
-	RateMultiplier    float64
+	GiftCost       float64
+	RechargeCost   float64
+	RateMultiplier float64
 	// AccountRateMultiplier 账号计费倍率快照（nil 表示历史数据，按 1.0 处理）
 	AccountRateMultiplier *float64
 	// AccountStatsCost 账号统计定价预计算费用（nil = 使用默认公式 total_cost × account_rate_multiplier）

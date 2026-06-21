@@ -474,7 +474,7 @@ func (e *EasyPay) resolveCID(paymentType string) string {
 	return e.config["cid"]
 }
 
-func (e *EasyPay) post(ctx context.Context, endpoint string, params map[string]string) ([]byte, error) {
+func (e *EasyPay) post(ctx context.Context, endpoint string, params map[string]string) ([]byte, error) { //nolint:unused // kept for future payment provider flows
 	body, _, err := e.postRaw(ctx, endpoint, params)
 	return body, err
 }

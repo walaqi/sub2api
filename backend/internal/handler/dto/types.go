@@ -9,25 +9,25 @@ import (
 )
 
 type User struct {
-	ID            int64      `json:"id"`
-	Email         string     `json:"email"`
-	Username      string     `json:"username"`
-	Role          string     `json:"role"`
-	Balance         float64 `json:"balance"`
+	ID       int64   `json:"id"`
+	Email    string  `json:"email"`
+	Username string  `json:"username"`
+	Role     string  `json:"role"`
+	Balance  float64 `json:"balance"`
 	// GiftBalance 是 Σ(active gifts.remaining)。Balance = GiftBalance + RechargeBalance。
 	// 老前端忽略这两个字段不影响展示；新前端可拆分展示"赠金/实充"。
 	GiftBalance     float64 `json:"gift_balance"`
 	RechargeBalance float64 `json:"recharge_balance"`
 	// GiftExpiringSoon 是 GiftBalance 中 120 小时内即将过期的部分（不含永久赠金）。
 	// 不变量：0 ≤ GiftExpiringSoon ≤ GiftBalance。
-	GiftExpiringSoon float64 `json:"gift_expiring_soon"`
-	Concurrency   int        `json:"concurrency"`
-	Status        string     `json:"status"`
-	AllowedGroups []int64    `json:"allowed_groups"`
-	LastActiveAt  *time.Time `json:"last_active_at,omitempty"`
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
-	DeletedAt     *time.Time `json:"deleted_at,omitempty"`
+	GiftExpiringSoon float64    `json:"gift_expiring_soon"`
+	Concurrency      int        `json:"concurrency"`
+	Status           string     `json:"status"`
+	AllowedGroups    []int64    `json:"allowed_groups"`
+	LastActiveAt     *time.Time `json:"last_active_at,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+	DeletedAt        *time.Time `json:"deleted_at,omitempty"`
 
 	// 余额不足通知
 	BalanceNotifyEnabled       bool               `json:"balance_notify_enabled"`
@@ -467,9 +467,9 @@ type UsageLog struct {
 	ActualCost        float64 `json:"actual_cost"`
 	// GiftCost / RechargeCost: 本次扣费分摊到赠金 / 充值池的部分。
 	// 不变量：gift_cost + recharge_cost = actual_cost（订阅扣费下两者均为 0）。
-	GiftCost     float64 `json:"gift_cost"`
-	RechargeCost float64 `json:"recharge_cost"`
-	RateMultiplier    float64 `json:"rate_multiplier"`
+	GiftCost       float64 `json:"gift_cost"`
+	RechargeCost   float64 `json:"recharge_cost"`
+	RateMultiplier float64 `json:"rate_multiplier"`
 
 	BillingType  int8   `json:"billing_type"`
 	RequestType  string `json:"request_type"`

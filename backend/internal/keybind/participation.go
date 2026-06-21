@@ -67,12 +67,12 @@ func (p *ParticipationStore) HasParticipated(_ context.Context, userID int64) (b
 		}
 		return false, infraerrors.InternalServer("BIND_KEY_PARTICIPATION_IO", fmt.Sprintf("open participation file: %v", err))
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	if err := lockShared(f); err != nil {
 		return false, infraerrors.InternalServer("BIND_KEY_PARTICIPATION_IO", fmt.Sprintf("lock participation file: %v", err))
 	}
-	defer unlock(f)
+	defer func() { _ = unlock(f) }()
 
 	target := strconv.FormatInt(userID, 10)
 	scanner := bufio.NewScanner(f)
@@ -105,12 +105,12 @@ func (p *ParticipationStore) MarkParticipated(_ context.Context, userID int64) e
 	if err != nil {
 		return infraerrors.InternalServer("BIND_KEY_PARTICIPATION_IO", fmt.Sprintf("open participation file: %v", err))
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	if err := lockExclusive(f); err != nil {
 		return infraerrors.InternalServer("BIND_KEY_PARTICIPATION_IO", fmt.Sprintf("lock participation file: %v", err))
 	}
-	defer unlock(f)
+	defer func() { _ = unlock(f) }()
 
 	target := strconv.FormatInt(userID, 10)
 	if _, err := f.Seek(0, 0); err != nil {

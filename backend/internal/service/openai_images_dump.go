@@ -85,9 +85,9 @@ func sanitizeOpenAIImageDumpComponent(s string) string {
 	for _, r := range s {
 		switch {
 		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-', r == '_', r == '.':
-			b.WriteRune(r)
+			_, _ = b.WriteRune(r)
 		default:
-			b.WriteRune('_')
+			_, _ = b.WriteRune('_')
 		}
 	}
 	return b.String()

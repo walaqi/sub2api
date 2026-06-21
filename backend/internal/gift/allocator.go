@@ -12,9 +12,9 @@ const decimalScale = 8
 
 // AllocateInput 分摊算法的入参（纯函数）。
 type AllocateInput struct {
-	TotalCost   decimal.Decimal // 本次扣费总额
+	TotalCost    decimal.Decimal // 本次扣费总额
 	TotalBalance decimal.Decimal // users.balance 当前值
-	Gifts       []ActiveGift    // 用户当前所有 active 且未过期的赠金，已加锁读取
+	Gifts        []ActiveGift    // 用户当前所有 active 且未过期的赠金，已加锁读取
 }
 
 // ActiveGift 参与分摊的赠金快照。
@@ -145,7 +145,7 @@ func Allocate(in AllocateInput) (AllocateResult, error) {
 	if remaining.Sign() > 0 {
 		res.RechargeDelta = remaining
 		rechargePool = rechargePool.Sub(remaining)
-		remaining = decimal.Zero
+		_ = remaining // consumed; loop ends here
 	}
 
 	// 舍入收口：保证 Σ(GiftDeltas) + RechargeDelta ≡ TotalCost。

@@ -183,7 +183,7 @@ func mergeOpenAIResponsesImageMeta(dst *openAIResponsesImageResult, src openAIRe
 	}
 }
 
-func openAIResponsesImageResultSizes(results []openAIResponsesImageResult) []string {
+func openAIResponsesImageResultSizes(results []openAIResponsesImageResult) []string { //nolint:unused // WIP streaming images support
 	if len(results) == 0 {
 		return nil
 	}
@@ -221,7 +221,7 @@ func extractOpenAIResponsesImageMetaFromLifecycleEvent(payload []byte) (openAIRe
 	return meta, response.Get("created_at").Int(), true
 }
 
-func buildOpenAIImagesStreamPartialPayload(
+func buildOpenAIImagesStreamPartialPayload( //nolint:unused // WIP streaming images support
 	eventType string,
 	b64 string,
 	partialImageIndex int64,
@@ -259,7 +259,7 @@ func buildOpenAIImagesStreamPartialPayload(
 	return payload
 }
 
-func buildOpenAIImagesStreamCompletedPayload(
+func buildOpenAIImagesStreamCompletedPayload( //nolint:unused // WIP streaming images support
 	eventType string,
 	img openAIResponsesImageResult,
 	responseFormat string,
@@ -576,7 +576,7 @@ func collectOpenAIImagesFromResponsesBody(body []byte) ([]openAIResponsesImageRe
 	return nil, createdAt, usageRaw, openAIResponsesImageResult{}, foundFinal, nil
 }
 
-func extractOpenAIImagesUpstreamError(body []byte) *OpenAIImagesUpstreamError {
+func extractOpenAIImagesUpstreamError(body []byte) *OpenAIImagesUpstreamError { //nolint:unused // WIP streaming images support
 	var upstreamErr *OpenAIImagesUpstreamError
 	forEachOpenAISSEDataPayload(string(body), func(payload []byte) {
 		if upstreamErr != nil || !gjson.ValidBytes(payload) {
@@ -794,7 +794,7 @@ func (s *OpenAIGatewayService) handleOpenAIImagesErrorResponse(
 	return nil, upErr
 }
 
-func buildOpenAIImagesAPIResponse(
+func buildOpenAIImagesAPIResponse( //nolint:unused // WIP streaming images support
 	results []openAIResponsesImageResult,
 	createdAt int64,
 	usageRaw []byte,
@@ -844,7 +844,7 @@ func buildOpenAIImagesAPIResponse(
 	return out, nil
 }
 
-func openAIImagesStreamPrefix(parsed *OpenAIImagesRequest) string {
+func openAIImagesStreamPrefix(parsed *OpenAIImagesRequest) string { //nolint:unused // WIP streaming images support
 	if parsed != nil && parsed.IsEdits() {
 		return "image_edit"
 	}
@@ -860,7 +860,7 @@ func buildOpenAIImagesStreamErrorBody(message string) []byte {
 	return body
 }
 
-func buildOpenAIImagesStreamErrorBodyFromUpstream(err *OpenAIImagesUpstreamError) []byte {
+func buildOpenAIImagesStreamErrorBodyFromUpstream(err *OpenAIImagesUpstreamError) []byte { //nolint:unused // WIP streaming images support
 	if err == nil {
 		return buildOpenAIImagesStreamErrorBody("")
 	}
@@ -908,7 +908,7 @@ func (s *OpenAIGatewayService) writeOpenAIImagesStreamEvent(c *gin.Context, flus
 	return nil
 }
 
-func (s *OpenAIGatewayService) tryWriteOpenAIImagesStreamEvent(
+func (s *OpenAIGatewayService) tryWriteOpenAIImagesStreamEvent( //nolint:unused // WIP streaming images support
 	c *gin.Context,
 	flusher http.Flusher,
 	clientDisconnected *bool,
