@@ -19,7 +19,7 @@ func newAuthServiceForBypassTest(settings map[string]string, verifier TurnstileV
 	turnstileService := NewTurnstileService(settingService, verifier)
 	return NewAuthService(
 		nil, &userRepoStub{}, nil, nil, cfg, settingService,
-		nil, turnstileService, nil, nil, nil, nil, nil,
+		nil, turnstileService, nil, nil, nil, nil, nil, nil,
 	)
 }
 

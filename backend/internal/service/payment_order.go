@@ -79,7 +79,10 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	// Apply instance-level overrides (multiplier / product-name affixes) once
 	// the load balancer has picked a concrete instance. Defaults to the global
 	// PaymentConfig values when the instance has no metadata.
-	instanceMeta := ParseInstanceMetadata(sel.Metadata)
+	var instanceMeta ProviderInstanceMetadata
+	if sel != nil {
+		instanceMeta = ParseInstanceMetadata(sel.Metadata)
+	}
 	if plan == nil && req.OrderType == payment.OrderTypeBalance {
 		multiplier := instanceMeta.EffectiveMultiplier(cfg.BalanceRechargeMultiplier)
 		orderAmount = calculateCreditedBalance(req.Amount, multiplier)
@@ -548,7 +551,7 @@ func applyProductNameAffix(productName, prefix, suffix string) string {
 	return strings.TrimSpace(prefix + " " + productName + " " + suffix)
 }
 
-func hasPaymentProductNameAffix(cfg *PaymentConfig) bool {
+func hasPaymentProductNameAffix(cfg *PaymentConfig) bool { //nolint:unused // reserved for future use
 	if cfg == nil {
 		return false
 	}
@@ -557,7 +560,7 @@ func hasPaymentProductNameAffix(cfg *PaymentConfig) bool {
 	return pf != "" || sf != ""
 }
 
-func applyPaymentProductNameAffix(productName string, cfg *PaymentConfig) string {
+func applyPaymentProductNameAffix(productName string, cfg *PaymentConfig) string { //nolint:unused // reserved for future use
 	if !hasPaymentProductNameAffix(cfg) {
 		return productName
 	}

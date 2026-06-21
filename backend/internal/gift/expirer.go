@@ -116,7 +116,7 @@ func (s *ExpirerService) findUsersWithExpiredGifts(ctx context.Context) ([]int64
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var ids []int64
 	for rows.Next() {
@@ -167,13 +167,13 @@ func (s *ExpirerService) expireForUser(ctx context.Context, userID int64) error 
 		var id int64
 		var rem float64
 		if err := rows.Scan(&id, &rem); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return fmt.Errorf("scan: %w", err)
 		}
 		ids = append(ids, id)
 		totalRemaining += rem
 	}
-	rows.Close()
+	_ = rows.Close()
 	if err := rows.Err(); err != nil {
 		return fmt.Errorf("rows.Err: %w", err)
 	}

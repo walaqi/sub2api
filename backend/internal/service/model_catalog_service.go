@@ -105,7 +105,7 @@ func (s *ModelCatalogService) GetCatalog(ctx context.Context) (*ModelCatalog, er
 		}
 	}
 
-	v, err, _ := s.cacheSF.Do("catalog", func() (interface{}, error) {
+	v, err, _ := s.cacheSF.Do("catalog", func() (any, error) {
 		// double-check：等待 singleflight 期间可能已有别的 goroutine 刷新过缓存
 		if cached, ok := s.cache.Load().(*modelCatalogCache); ok && cached != nil {
 			if time.Since(cached.loadedAt) < modelCatalogCacheTTL {

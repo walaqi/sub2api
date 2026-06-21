@@ -14,15 +14,16 @@ const (
 type RequestType int16
 
 const (
-	RequestTypeUnknown RequestType = 0
-	RequestTypeSync    RequestType = 1
-	RequestTypeStream  RequestType = 2
-	RequestTypeWSV2    RequestType = 3
+	RequestTypeUnknown      RequestType = 0
+	RequestTypeSync         RequestType = 1
+	RequestTypeStream       RequestType = 2
+	RequestTypeWSV2         RequestType = 3
+	RequestTypeCyberBlocked RequestType = 4 // cyber_policy 命中（透传但被上游安全策略拒绝）
 )
 
 func (t RequestType) IsValid() bool {
 	switch t {
-	case RequestTypeUnknown, RequestTypeSync, RequestTypeStream, RequestTypeWSV2:
+	case RequestTypeUnknown, RequestTypeSync, RequestTypeStream, RequestTypeWSV2, RequestTypeCyberBlocked:
 		return true
 	default:
 		return false
@@ -44,6 +45,8 @@ func (t RequestType) String() string {
 		return "stream"
 	case RequestTypeWSV2:
 		return "ws_v2"
+	case RequestTypeCyberBlocked:
+		return "cyber"
 	default:
 		return "unknown"
 	}
@@ -63,8 +66,10 @@ func ParseUsageRequestType(value string) (RequestType, error) {
 		return RequestTypeStream, nil
 	case "ws_v2":
 		return RequestTypeWSV2, nil
+	case "cyber":
+		return RequestTypeCyberBlocked, nil
 	default:
-		return RequestTypeUnknown, fmt.Errorf("invalid request_type, allowed values: unknown, sync, stream, ws_v2")
+		return RequestTypeUnknown, fmt.Errorf("invalid request_type, allowed values: unknown, sync, stream, ws_v2, cyber")
 	}
 }
 
@@ -145,9 +150,9 @@ type UsageLog struct {
 	ActualCost        float64
 	// GiftCost / RechargeCost 是赠金引擎本次扣费的分摊明细，仅 BalanceCost > 0 路径填充。
 	// 不变量：GiftCost + RechargeCost = ActualCost（订阅扣费下两者均为 0）。
-	GiftCost     float64
-	RechargeCost float64
-	RateMultiplier    float64
+	GiftCost       float64
+	RechargeCost   float64
+	RateMultiplier float64
 	// AccountRateMultiplier 账号计费倍率快照（nil 表示历史数据，按 1.0 处理）
 	AccountRateMultiplier *float64
 	// AccountStatsCost 账号统计定价预计算费用（nil = 使用默认公式 total_cost × account_rate_multiplier）

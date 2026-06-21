@@ -111,5 +111,8 @@ type UserAttributeValue func(*sql.Selector)
 // UserGift is the predicate function for usergift builders.
 type UserGift func(*sql.Selector)
 
+// UserPlatformQuota is the predicate function for userplatformquota builders.
+type UserPlatformQuota func(*sql.Selector)
+
 // UserSubscription is the predicate function for usersubscription builders.
 type UserSubscription func(*sql.Selector)

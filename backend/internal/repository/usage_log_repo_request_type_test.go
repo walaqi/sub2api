@@ -597,7 +597,7 @@ func (s usageLogScannerStub) Scan(dest ...any) error {
 	}
 	for i := range dest {
 		dv := reflect.ValueOf(dest[i])
-		if dv.Kind() != reflect.Ptr {
+		if dv.Kind() != reflect.Pointer {
 			return fmt.Errorf("dest[%d] is not pointer", i)
 		}
 		dv.Elem().Set(reflect.ValueOf(s.values[i]))
@@ -651,7 +651,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullFloat64{},
 			now,
 			sql.NullString{Valid: true, String: "device-abc"}, // device_id
-			sql.NullString{Valid: true, String: "fp-abc123"},   // client_fingerprint
+			sql.NullString{Valid: true, String: "fp-abc123"},  // client_fingerprint
 		}})
 		require.NoError(t, err)
 		require.Equal(t, 2, log.ImageCount)

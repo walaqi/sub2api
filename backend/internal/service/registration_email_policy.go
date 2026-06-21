@@ -185,7 +185,7 @@ func normalizeRegistrationEmailRegex(entry string) (string, error) {
 // compileRegistrationEmailRegex compiles (and caches) a regex pattern body.
 func compileRegistrationEmailRegex(pattern string) (*regexp.Regexp, error) {
 	if cached, ok := compiledRegistrationEmailRegexCache.Load(pattern); ok {
-		return cached.(*regexp.Regexp), nil
+		return cached.(*regexp.Regexp), nil //nolint:errcheck // type assertion always succeeds
 	}
 	re, err := regexp.Compile(pattern)
 	if err != nil {

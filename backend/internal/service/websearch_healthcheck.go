@@ -189,7 +189,7 @@ func (c *WebSearchHealthChecker) checkProvider(ctx context.Context, providerType
 		c.store(providerType, result)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	result.StatusCode = resp.StatusCode
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {

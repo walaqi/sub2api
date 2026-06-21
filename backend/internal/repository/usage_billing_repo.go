@@ -13,8 +13,8 @@ import (
 )
 
 type usageBillingRepository struct {
-	db          *sql.DB
-	giftEngine  *gift.Engine
+	db         *sql.DB
+	giftEngine *gift.Engine
 }
 
 // NewUsageBillingRepository 接收 gift.Engine 以接管 BalanceCost 维度的扣费分摊（赠金子系统）。
@@ -184,7 +184,7 @@ func incrementUsageBillingSubscription(ctx context.Context, tx *sql.Tx, subscrip
 	return service.ErrSubscriptionNotFound
 }
 
-func deductUsageBillingBalance(ctx context.Context, tx *sql.Tx, userID int64, amount float64) (float64, error) {
+func deductUsageBillingBalance(ctx context.Context, tx *sql.Tx, userID int64, amount float64) (float64, error) { //nolint:unused // reserved for billing deduction path
 	var newBalance float64
 	err := tx.QueryRowContext(ctx, `
 		UPDATE users
