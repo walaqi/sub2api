@@ -43,9 +43,9 @@ generate_secret() {
 read_yaml_field() {
     local file="$1" field="$2"
     local line
-    line=$(grep -E "^\s+${field}:" "$file" 2>/dev/null | head -1) || true
+    line=$(grep -E "^[[:space:]]+${field}:" "$file" 2>/dev/null | head -1) || true
     [ -z "$line" ] && return 0
-    echo "$line" | sed 's/.*:\s*"\?\([^"]*\)"\?.*/\1/' | xargs
+    echo "$line" | sed 's/.*:[[:space:]]*"\{0,1\}\([^"]*\)"\{0,1\}.*/\1/' | xargs
 }
 
 # ─── 前置检查 ─────────────────────────────────────────────────────────────────
