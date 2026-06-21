@@ -769,6 +769,39 @@ func TestOpenAIGatewayServiceForwardImages_OAuthNonStreamModerationBlockedReturn
 	require.Contains(t, gjson.Get(rec.Body.String(), "error.message").String(), "safety system")
 }
 
+func TestOpenAIImagesSSEClientErrorsAreNotRetryable(t *testing.T) {
+	tests := []struct {
+		name       string
+		payload    string
+		wantStatus int
+	}{
+		{
+			name:       "invalid request",
+			payload:    `{"type":"error","error":{"type":"invalid_request_error","code":"invalid_value","message":"bad size"}}`,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "content policy",
+			payload:    `{"type":"error","error":{"type":"image_generation_user_error","code":"content_policy_violation","message":"blocked"}}`,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "rate limit remains distinct from server error",
+			payload:    `{"type":"error","error":{"type":"rate_limit_exceeded","code":"rate_limit_exceeded","message":"try again"}}`,
+			wantStatus: http.StatusTooManyRequests,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			upstreamErr := openAIImagesUpstreamErrorFromSSEPayload([]byte(tt.payload))
+			require.NotNil(t, upstreamErr)
+			require.Equal(t, tt.wantStatus, upstreamErr.StatusCode)
+			require.False(t, IsOpenAIImagesRetryableUpstreamError(upstreamErr))
+		})
+	}
+}
+
 func TestOpenAIGatewayServiceForwardImages_APIKeyGenerationUsesConfiguredV1BaseURL(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	body := []byte(`{"model":"gpt-image-2","prompt":"draw a cat","response_format":"b64_json"}`)
