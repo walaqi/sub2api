@@ -40,10 +40,11 @@ generate_secret() {
 }
 
 # 从 sub2api config.yaml 读取字段值（简易 YAML 取值，适用于顶层或 image_studio 块下的扁平键）
+# 注：config.yaml 可能仅 root 可读，使用 sudo grep
 read_yaml_field() {
     local file="$1" field="$2"
     local line
-    line=$(grep -E "^[[:space:]]+${field}:" "$file" 2>/dev/null | head -1) || true
+    line=$(sudo grep -E "^[[:space:]]+${field}:" "$file" 2>/dev/null | head -1) || true
     [ -z "$line" ] && return 0
     echo "$line" | sed 's/.*:[[:space:]]*"\{0,1\}\([^"]*\)"\{0,1\}.*/\1/' | xargs
 }
