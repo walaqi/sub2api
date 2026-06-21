@@ -21,6 +21,9 @@ func TestAllowUserViewErrorRequests_PersistsToDB(t *testing.T) {
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
 		AllowUserViewErrorRequests: true,
+		// default_subscriptions 必填（fork 的 DEFAULT_SUBSCRIPTIONS_EMPTY 守卫，
+		// 见 buildSystemSettingsUpdates）；与 setting_service_backend_mode_test.go 对齐。
+		DefaultSubscriptions: []DefaultSubscriptionSetting{{GroupID: 11, ValidityDays: 30}},
 	})
 	require.NoError(t, err)
 
