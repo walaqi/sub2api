@@ -29,6 +29,11 @@ export function isImageUsage(row: Pick<ImageBillingRow, 'image_count' | 'billing
 }
 
 export function getDisplayBillingMode(row: Pick<ImageBillingRow, 'billing_mode' | 'image_count'> | null | undefined): string | null | undefined {
+  // 历史图片用量行可能没有持久化 billing_mode（早期数据 billing_mode 为 null），
+  // 但 image_count>0 时仍应展示为图片计费，否则会被误标成 Token。
+  if (isImageUsage(row)) {
+    return BILLING_MODE_IMAGE
+  }
   return row?.billing_mode
 }
 
