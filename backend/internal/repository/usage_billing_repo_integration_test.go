@@ -81,6 +81,37 @@ func TestUsageBillingRepositoryApply_DeduplicatesBalanceBilling(t *testing.T) {
 	require.Equal(t, 1, dedupCount)
 }
 
+func TestUsageBillingRepositoryApply_FlagsGiftEngineOverdraft(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	repo := NewUsageBillingRepository(client, integrationDB, gift.NewEngine(client, integrationDB))
+
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("usage-billing-overdraft-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      5,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID: user.ID,
+		Key:    "sk-usage-billing-overdraft-" + uuid.NewString(),
+		Name:   "billing-overdraft",
+	})
+
+	result, err := repo.Apply(ctx, &service.UsageBillingCommand{
+		RequestID:   uuid.NewString(),
+		APIKeyID:    apiKey.ID,
+		UserID:      user.ID,
+		BalanceCost: 10,
+	})
+	require.NoError(t, err)
+	require.True(t, result.Applied)
+	require.NotNil(t, result.NewBalance)
+	require.InDelta(t, -5, *result.NewBalance, 0.000001)
+	require.True(t, result.BalanceOverdrafted)
+	require.NotNil(t, result.RechargeCost)
+	require.InDelta(t, 10, *result.RechargeCost, 0.000001)
+}
+
 func TestUsageBillingRepositoryApply_DeduplicatesSubscriptionBilling(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)

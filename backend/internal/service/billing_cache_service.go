@@ -1092,6 +1092,21 @@ func scaleRPMLimit(limit, ratePercent int) int {
 	return scaled
 }
 
+func (s *BillingCacheService) minimumBalanceReserve() float64 {
+	if s == nil || s.cfg == nil || s.cfg.Billing.MinimumBalanceReserve <= 0 {
+		return 0
+	}
+	return s.cfg.Billing.MinimumBalanceReserve
+}
+
+func (s *BillingCacheService) balanceBelowEligibilityThreshold(balance float64) bool {
+	if balance <= 0 {
+		return true
+	}
+	minimumReserve := s.minimumBalanceReserve()
+	return minimumReserve > 0 && balance < minimumReserve
+}
+
 // checkBalanceEligibility 检查余额模式资格（group-aware + fail-closed）。
 // 拦截条件：充值余额（rechargePool = balance - 全局 gift_balance）≤ 0 且不存在
 // 当前请求分组可用的 active priority 赠金。
@@ -1116,12 +1131,16 @@ func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, userI
 		s.circuitBreaker.OnSuccess()
 	}
 
+	if s.balanceBelowEligibilityThreshold(balance) {
+		return ErrInsufficientBalance
+	}
+
 	// fail closed：非 simple 模式下 gift checker 是硬依赖，缺失即 misconfiguration。
 	if s.priorityGiftChecker == nil {
 		if s.cfg != nil && config.NormalizeRunMode(s.cfg.RunMode) == config.RunModeSimple {
 			// simple 模式本就跳过所有计费（CheckBillingEligibility 顶部已 return）；
 			// 极端兜底：退化 balance-only。
-			if balance <= 0 {
+			if s.balanceBelowEligibilityThreshold(balance) {
 				return ErrInsufficientBalance
 			}
 			return nil

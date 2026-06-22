@@ -148,6 +148,7 @@ type UsageBillingApplyResult struct {
 	Applied              bool
 	APIKeyQuotaExhausted bool
 	NewBalance           *float64           // post-deduction balance (nil = no balance deduction)
+	BalanceOverdrafted   bool               // true when the sufficient-balance guard missed and debt was still recorded
 	QuotaState           *AccountQuotaState // post-increment quota state (nil = no quota increment)
 	// GiftCost / RechargeCost 是赠金引擎本次扣费的分摊明细（仅 BalanceCost > 0 时填充）。
 	// 用于把"赠金扣减 / 充值池扣减"持久化到 usage_logs。
