@@ -1339,6 +1339,18 @@ func (s *adminServiceImpl) GetUserBalanceHistory(ctx context.Context, userID int
 		return codes, total, totalRecharged, nil
 	}
 
+	if codeType == RedeemTypeGiftBalance {
+		codes, total, err := s.listGiftBalanceHistory(ctx, userID, params)
+		if err != nil {
+			return nil, 0, 0, err
+		}
+		totalRecharged, err := s.redeemCodeRepo.SumPositiveBalanceByUser(ctx, userID)
+		if err != nil {
+			return nil, 0, 0, err
+		}
+		return codes, total, totalRecharged, nil
+	}
+
 	if codeType == "" {
 		return s.getAllUserBalanceHistory(ctx, userID, params)
 	}
@@ -1370,13 +1382,17 @@ func (s *adminServiceImpl) getAllUserBalanceHistory(ctx context.Context, userID 
 	if err != nil {
 		return nil, 0, 0, err
 	}
-	codes := mergeBalanceHistoryCodes(redeemCodes, affiliateCodes, params)
+	giftCodes, giftTotal, err := s.listGiftBalanceHistoryForMerge(ctx, userID, needed)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+	codes := mergeBalanceHistoryCodes(redeemCodes, append(affiliateCodes, giftCodes...), params)
 
 	totalRecharged, err := s.redeemCodeRepo.SumPositiveBalanceByUser(ctx, userID)
 	if err != nil {
 		return nil, 0, 0, err
 	}
-	return codes, redeemTotal + affiliateTotal, totalRecharged, nil
+	return codes, redeemTotal + affiliateTotal + giftTotal, totalRecharged, nil
 }
 
 func (s *adminServiceImpl) listRedeemBalanceHistoryForMerge(ctx context.Context, userID int64, needed int) ([]RedeemCode, int64, error) {
@@ -1511,6 +1527,134 @@ WHERE user_id = $1
 		return 0, nil
 	}
 	return total.Int64, nil
+}
+
+func (s *adminServiceImpl) listGiftBalanceHistory(ctx context.Context, userID int64, params pagination.PaginationParams) ([]RedeemCode, int64, error) {
+	if s == nil || s.entClient == nil || userID <= 0 {
+		return nil, 0, nil
+	}
+
+	rows, err := s.entClient.QueryContext(ctx, `
+SELECT id,
+       amount::double precision,
+       source,
+       COALESCE(source_ref, ''),
+       created_at
+FROM user_gifts
+WHERE user_id = $1
+ORDER BY created_at DESC, id DESC
+OFFSET $2
+LIMIT $3`, userID, params.Offset(), params.Limit())
+	if err != nil {
+		return nil, 0, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	codes := make([]RedeemCode, 0, params.Limit())
+	for rows.Next() {
+		var id int64
+		var amount float64
+		var source, sourceRef string
+		var createdAt time.Time
+		if err := rows.Scan(&id, &amount, &source, &sourceRef, &createdAt); err != nil {
+			return nil, 0, err
+		}
+		usedBy := userID
+		usedAt := createdAt
+		note := giftSourceLabel(source)
+		if sourceRef != "" {
+			note += " (" + sourceRef + ")"
+		}
+		codes = append(codes, RedeemCode{
+			ID:        -(1000000000 + id), // negative with large offset to avoid collision with affiliate IDs
+			Code:      fmt.Sprintf("GIFT-%d", id),
+			Type:      RedeemTypeGiftBalance,
+			Value:     amount,
+			Status:    StatusUsed,
+			Notes:     note,
+			UsedBy:    &usedBy,
+			UsedAt:    &usedAt,
+			CreatedAt: createdAt,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	total, err := countGiftBalanceHistory(ctx, s.entClient, userID)
+	if err != nil {
+		return nil, 0, err
+	}
+	return codes, total, nil
+}
+
+func countGiftBalanceHistory(ctx context.Context, client *dbent.Client, userID int64) (int64, error) {
+	rows, err := client.QueryContext(ctx, `
+SELECT COUNT(*)
+FROM user_gifts
+WHERE user_id = $1`, userID)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var total sql.NullInt64
+	if rows.Next() {
+		if err := rows.Scan(&total); err != nil {
+			return 0, err
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	if !total.Valid {
+		return 0, nil
+	}
+	return total.Int64, nil
+}
+
+func (s *adminServiceImpl) listGiftBalanceHistoryForMerge(ctx context.Context, userID int64, needed int) ([]RedeemCode, int64, error) {
+	if needed <= 0 {
+		return nil, 0, nil
+	}
+
+	var (
+		out   []RedeemCode
+		total int64
+	)
+	for page := 1; len(out) < needed; page++ {
+		params := pagination.PaginationParams{Page: page, PageSize: 1000}
+		codes, currentTotal, err := s.listGiftBalanceHistory(ctx, userID, params)
+		if err != nil {
+			return nil, 0, err
+		}
+		total = currentTotal
+		out = append(out, codes...)
+		if len(codes) < params.Limit() || int64(len(out)) >= total {
+			break
+		}
+	}
+	if len(out) > needed {
+		out = out[:needed]
+	}
+	return out, total, nil
+}
+
+// giftSourceLabel returns a human-readable label for a gift source.
+func giftSourceLabel(source string) string {
+	switch source {
+	case "keybind":
+		return "Key Bind"
+	case "oauth_first_bind":
+		return "OAuth First Bind"
+	case "promo_code":
+		return "Promo Code"
+	default:
+		if source != "" {
+			return source
+		}
+		return "Gift"
+	}
 }
 
 func mergeBalanceHistoryCodes(redeemCodes, affiliateCodes []RedeemCode, params pagination.PaginationParams) []RedeemCode {

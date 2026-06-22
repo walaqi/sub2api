@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -631,13 +632,92 @@ func (s *RedeemService) GetStats(ctx context.Context) (map[string]any, error) {
 	return stats, nil
 }
 
-// GetUserHistory 获取用户的兑换历史
+// GetUserHistory 获取用户的兑换历史（含赠金记录）
 func (s *RedeemService) GetUserHistory(ctx context.Context, userID int64, limit int) ([]RedeemCode, error) {
 	codes, err := s.redeemRepo.ListByUser(ctx, userID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("get user redeem history: %w", err)
 	}
-	return codes, nil
+
+	// Also fetch gift records and merge them in
+	giftCodes, err := s.listGiftHistoryForUser(ctx, userID, limit)
+	if err != nil {
+		// Non-fatal: log and return redeem codes only
+		logger.LegacyPrintf("service.redeem", "[GetUserHistory] failed to load gift history for user %d: %v", userID, err)
+		return codes, nil
+	}
+	if len(giftCodes) == 0 {
+		return codes, nil
+	}
+
+	// Merge by time descending, cap at limit
+	combined := append(codes, giftCodes...)
+	sort.SliceStable(combined, func(i, j int) bool {
+		ti := combined[i].CreatedAt
+		if combined[i].UsedAt != nil {
+			ti = *combined[i].UsedAt
+		}
+		tj := combined[j].CreatedAt
+		if combined[j].UsedAt != nil {
+			tj = *combined[j].UsedAt
+		}
+		return ti.After(tj)
+	})
+	if len(combined) > limit {
+		combined = combined[:limit]
+	}
+	return combined, nil
+}
+
+// listGiftHistoryForUser fetches gift grant records for the user-facing history view.
+func (s *RedeemService) listGiftHistoryForUser(ctx context.Context, userID int64, limit int) ([]RedeemCode, error) {
+	if s.entClient == nil || userID <= 0 {
+		return nil, nil
+	}
+
+	rows, err := s.entClient.QueryContext(ctx, `
+SELECT id,
+       amount::double precision,
+       source,
+       COALESCE(source_ref, ''),
+       created_at
+FROM user_gifts
+WHERE user_id = $1
+ORDER BY created_at DESC, id DESC
+LIMIT $2`, userID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	codes := make([]RedeemCode, 0)
+	for rows.Next() {
+		var id int64
+		var amount float64
+		var source, sourceRef string
+		var createdAt time.Time
+		if err := rows.Scan(&id, &amount, &source, &sourceRef, &createdAt); err != nil {
+			return nil, err
+		}
+		usedBy := userID
+		usedAt := createdAt
+		note := giftSourceLabel(source)
+		if sourceRef != "" {
+			note += " (" + sourceRef + ")"
+		}
+		codes = append(codes, RedeemCode{
+			ID:        -(1000000000 + id),
+			Code:      fmt.Sprintf("GIFT-%d", id),
+			Type:      RedeemTypeGiftBalance,
+			Value:     amount,
+			Status:    StatusUsed,
+			Notes:     note,
+			UsedBy:    &usedBy,
+			UsedAt:    &usedAt,
+			CreatedAt: createdAt,
+		})
+	}
+	return codes, rows.Err()
 }
 
 // reduceOrCancelSubscription 缩短订阅天数，剩余天数 <= 0 时取消订阅
