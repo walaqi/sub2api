@@ -117,7 +117,7 @@
           </div>
         </div>
 
-        <!-- Row 2: Today Stats -->
+        <!-- Row 2: Range Stats (refreshes with date range) -->
         <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <!-- Today Tokens -->
           <div class="card p-4">
@@ -130,25 +130,19 @@
                   {{ t('admin.dashboard.todayTokens') }}
                 </p>
                 <p class="text-xl font-bold text-gray-900 dark:text-white">
-                  {{ formatTokens(stats.today_tokens) }}
+                  {{ formatTokens(rangeTokens) }}
                 </p>
                 <p class="text-xs">
                   <span
                     class="text-green-600 dark:text-green-400"
                     :title="t('admin.dashboard.actual')"
-                    >${{ formatCost(stats.today_actual_cost) }}</span
-                  >
-                  <span class="text-gray-400 dark:text-gray-500"> / </span>
-                  <span
-                    class="text-orange-500 dark:text-orange-400"
-                    :title="t('admin.dashboard.accountCost')"
-                    >${{ formatCost(stats.today_account_cost) }}</span
+                    >${{ formatCost(rangeActualCost) }}</span
                   >
                   <span class="text-gray-400 dark:text-gray-500"> / </span>
                   <span
                     class="text-gray-400 dark:text-gray-500"
                     :title="t('admin.dashboard.standard')"
-                    >${{ formatCost(stats.today_cost) }}</span
+                    >${{ formatCost(rangeCost) }}</span
                   >
                 </p>
               </div>
@@ -166,7 +160,7 @@
                   {{ t('admin.dashboard.todayRequests') }}
                 </p>
                 <p class="text-xl font-bold text-gray-900 dark:text-white">
-                  {{ stats.today_requests }}
+                  {{ formatNumber(rangeRequests) }}
                 </p>
                 <p class="text-xs text-gray-500 dark:text-gray-400">
                   {{ t('common.total') }}: {{ formatNumber(stats.total_requests) }}
@@ -359,6 +353,12 @@ let chartLoadSeq = 0
 let usersTrendLoadSeq = 0
 let rankingLoadSeq = 0
 const rankingLimit = 12
+
+// Range-aggregated stats derived from trendData (responds to date range changes)
+const rangeRequests = computed(() => trendData.value.reduce((s, p) => s + p.requests, 0))
+const rangeTokens = computed(() => trendData.value.reduce((s, p) => s + p.total_tokens, 0))
+const rangeActualCost = computed(() => trendData.value.reduce((s, p) => s + p.actual_cost, 0))
+const rangeCost = computed(() => trendData.value.reduce((s, p) => s + p.cost, 0))
 
 // Helper function to format date in local timezone
 const formatLocalDate = (date: Date): string => {
