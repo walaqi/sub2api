@@ -1641,7 +1641,12 @@ func (s *UsageLogRepoSuite) TestListWithFilters_CombinedFilters() {
 
 // --- GetUserSpendingRanking ---
 
-func (s *UsageLogRepoSuite) TestGetUserSpendingRanking_BasicQuery() {
+// TestGetUserSpendingRanking_SQLColumnsValid verifies that the ranking query
+// executes without error after removing non-existent gift_cost/recharge_cost
+// columns from the CTE. This is a regression test for the 500 error on
+// /admin/dashboard/users-ranking caused by referencing columns that only
+// exist in usage_logs but were never selected into the user_spend CTE.
+func (s *UsageLogRepoSuite) TestGetUserSpendingRanking_SQLColumnsValid() {
 	user := mustCreateUser(s.T(), s.client, &service.User{Email: fmt.Sprintf("ranking-basic-%d@test.com", time.Now().UnixNano())})
 	apiKey := mustCreateApiKey(s.T(), s.client, &service.APIKey{UserID: user.ID, Key: fmt.Sprintf("sk-rank-basic-%d", time.Now().UnixNano()), Name: "k"})
 	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: fmt.Sprintf("acc-rank-basic-%d", time.Now().UnixNano())})
