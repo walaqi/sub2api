@@ -1696,4 +1696,6 @@ func (s *UsageLogRepoSuite) TestGetUserSpendingRanking_NewUsersCount() {
 	s.Require().NotNil(result)
 	// new_users should count at least our newly created user
 	s.Require().True(result.NewUsers >= 1, "new_users should be >= 1, got %d", result.NewUsers)
+	// active_users should count at least our user (has usage_logs in range)
+	s.Require().True(result.ActiveUsers >= 1, "active_users should be >= 1, got %d", result.ActiveUsers)
 }
