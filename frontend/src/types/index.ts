@@ -1454,6 +1454,8 @@ export interface UsageStatsResponse {
   total_tokens: number
   total_cost: number // 标准计费
   total_actual_cost: number // 实际扣除
+  total_gift_cost?: number // 赠金扣除
+  total_recharge_cost?: number // 充值池扣除
   average_duration_ms: number
   models?: Record<string, number>
 }

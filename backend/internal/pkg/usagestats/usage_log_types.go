@@ -226,6 +226,8 @@ type UserDashboardStats struct {
 	TotalTokens              int64   `json:"total_tokens"`
 	TotalCost                float64 `json:"total_cost"`        // 累计标准计费
 	TotalActualCost          float64 `json:"total_actual_cost"` // 累计实际扣除
+	TotalGiftCost            float64 `json:"total_gift_cost"`
+	TotalRechargeCost        float64 `json:"total_recharge_cost"`
 
 	// 今日 Token 使用统计
 	TodayRequests            int64   `json:"today_requests"`
@@ -236,6 +238,8 @@ type UserDashboardStats struct {
 	TodayTokens              int64   `json:"today_tokens"`
 	TodayCost                float64 `json:"today_cost"`        // 今日标准计费
 	TodayActualCost          float64 `json:"today_actual_cost"` // 今日实际扣除
+	TodayGiftCost            float64 `json:"today_gift_cost"`
+	TodayRechargeCost        float64 `json:"today_recharge_cost"`
 
 	// 性能统计
 	AverageDurationMs float64 `json:"average_duration_ms"`
@@ -287,6 +291,8 @@ type UsageStats struct {
 	TotalTokens              int64          `json:"total_tokens"`
 	TotalCost                float64        `json:"total_cost"`
 	TotalActualCost          float64        `json:"total_actual_cost"`
+	TotalGiftCost            float64        `json:"total_gift_cost"`
+	TotalRechargeCost        float64        `json:"total_recharge_cost"`
 	TotalAccountCost         *float64       `json:"total_account_cost,omitempty"`
 	AverageDurationMs        float64        `json:"average_duration_ms"`
 	Endpoints                []EndpointStat `json:"endpoints,omitempty"`

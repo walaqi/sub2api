@@ -17,16 +17,17 @@
       </div>
     </div>
 
-    <!-- API Keys -->
+    <!-- Gift Balance -->
     <div class="card p-4">
       <div class="flex items-center gap-3">
-        <div class="rounded-lg bg-blue-100 p-2 dark:bg-blue-900/30">
-          <Icon name="key" size="md" class="text-blue-600 dark:text-blue-400" :stroke-width="2" />
+        <div class="rounded-lg bg-amber-100 p-2 dark:bg-amber-900/30">
+          <Icon name="gift" size="md" class="text-amber-600 dark:text-amber-400" :stroke-width="2" />
         </div>
         <div>
-          <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('dashboard.apiKeys') }}</p>
-          <p class="text-xl font-bold text-gray-900 dark:text-white">{{ stats?.total_api_keys || 0 }}</p>
-          <p class="text-xs text-green-600 dark:text-green-400">{{ stats?.active_api_keys || 0 }} {{ t('common.active') }}</p>
+          <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('dashboard.giftBalance') }}</p>
+          <p class="text-xl font-bold text-amber-600 dark:text-amber-400">${{ formatBalance(user?.gift_balance || 0) }}</p>
+          <p v-if="(user?.gift_expiring_soon ?? 0) > 0" class="text-xs text-orange-500 dark:text-orange-400">{{ t('dashboard.giftExpiring') }}: ${{ formatBalance(user?.gift_expiring_soon || 0) }}</p>
+          <p v-else class="text-xs text-gray-500 dark:text-gray-400">{{ t('common.available') }}</p>
         </div>
       </div>
     </div>
@@ -244,6 +245,7 @@ const props = defineProps<{
   balance: number
   isSimple: boolean
   platformQuotas?: PlatformQuotaItem[] | null
+  user?: { gift_balance?: number; gift_expiring_soon?: number } | null
 }>()
 const { t } = useI18n()
 
