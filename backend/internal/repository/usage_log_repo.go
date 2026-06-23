@@ -2439,8 +2439,6 @@ func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTi
 				user_id,
 				email,
 				actual_cost,
-				gift_cost,
-				recharge_cost,
 				requests,
 				tokens,
 				COALESCE(SUM(actual_cost) OVER (), 0) as total_actual_cost,
@@ -2454,8 +2452,6 @@ func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTi
 			user_id,
 			email,
 			actual_cost,
-			gift_cost,
-			recharge_cost,
 			requests,
 			tokens,
 			total_actual_cost,
@@ -2491,11 +2487,19 @@ func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTi
 		return nil, err
 	}
 
+	// Count new users registered within the time range
+	var newUsers int64
+	newUsersQuery := `SELECT COUNT(*) FROM users WHERE created_at >= $1 AND created_at < $2 AND deleted_at IS NULL`
+	if err = scanSingleRow(ctx, r.sql, newUsersQuery, []any{startTime, endTime}, &newUsers); err != nil {
+		return nil, err
+	}
+
 	return &UserSpendingRankingResponse{
 		Ranking:         ranking,
 		TotalActualCost: totalActualCost,
 		TotalRequests:   totalRequests,
 		TotalTokens:     totalTokens,
+		NewUsers:        newUsers,
 	}, nil
 }
 

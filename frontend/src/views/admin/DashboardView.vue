@@ -180,7 +180,7 @@
                   {{ t('admin.dashboard.users') }}
                 </p>
                 <p class="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                  {{ rangeActiveUsers }}
+                  {{ rankingNewUsers }}
                 </p>
                 <p class="text-xs text-gray-500 dark:text-gray-400">
                   {{ t('common.total') }}: {{ formatNumber(stats.total_users) }}
@@ -349,6 +349,7 @@ const rankingItems = ref<UserSpendingRankingItem[]>([])
 const rankingTotalActualCost = ref(0)
 const rankingTotalRequests = ref(0)
 const rankingTotalTokens = ref(0)
+const rankingNewUsers = ref(0)
 let chartLoadSeq = 0
 let usersTrendLoadSeq = 0
 let rankingLoadSeq = 0
@@ -359,8 +360,6 @@ const rangeRequests = computed(() => trendData.value.reduce((s, p) => s + p.requ
 const rangeTokens = computed(() => trendData.value.reduce((s, p) => s + p.total_tokens, 0))
 const rangeActualCost = computed(() => trendData.value.reduce((s, p) => s + p.actual_cost, 0))
 const rangeCost = computed(() => trendData.value.reduce((s, p) => s + p.cost, 0))
-// Active users in selected range (unique user_ids from userTrend)
-const rangeActiveUsers = computed(() => new Set(userTrend.value.map(p => p.user_id)).size)
 
 // Helper function to format date in local timezone
 const formatLocalDate = (date: Date): string => {
@@ -663,6 +662,7 @@ const loadUserSpendingRanking = async () => {
     rankingTotalActualCost.value = response.total_actual_cost || 0
     rankingTotalRequests.value = response.total_requests || 0
     rankingTotalTokens.value = response.total_tokens || 0
+    rankingNewUsers.value = response.new_users || 0
   } catch (error) {
     if (currentSeq !== rankingLoadSeq) return
     console.error('Error loading user spending ranking:', error)
@@ -670,6 +670,7 @@ const loadUserSpendingRanking = async () => {
     rankingTotalActualCost.value = 0
     rankingTotalRequests.value = 0
     rankingTotalTokens.value = 0
+    rankingNewUsers.value = 0
     rankingError.value = true
   } finally {
     if (currentSeq === rankingLoadSeq) {
