@@ -379,7 +379,7 @@ const contactInfo = ref('')
 
 // Helper functions for history display
 const isBalanceType = (type: string) => {
-  return type === 'balance' || type === 'admin_balance'
+  return type === 'balance' || type === 'admin_balance' || type === 'gift_balance'
 }
 
 const isSubscriptionType = (type: string) => {
@@ -387,12 +387,14 @@ const isSubscriptionType = (type: string) => {
 }
 
 const isAdminAdjustment = (type: string) => {
-  return type === 'admin_balance' || type === 'admin_concurrency'
+  return type === 'admin_balance' || type === 'admin_concurrency' || type === 'gift_balance'
 }
 
 const getHistoryItemTitle = (item: RedeemHistoryItem) => {
   if (item.type === 'balance') {
     return t('redeem.balanceAddedRedeem')
+  } else if (item.type === 'gift_balance') {
+    return t('redeem.balanceAddedGift')
   } else if (item.type === 'admin_balance') {
     return item.value >= 0 ? t('redeem.balanceAddedAdmin') : t('redeem.balanceDeductedAdmin')
   } else if (item.type === 'concurrency') {
