@@ -37,6 +37,7 @@ func newGatewayRoutesTestRouter() *gin.Engine {
 		nil,
 		nil,
 		&config.Config{},
+		nil, // redisClient — nil is safe, throttle middleware passes through
 	)
 
 	return router
