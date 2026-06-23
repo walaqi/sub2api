@@ -160,6 +160,7 @@ type UserSpendingRankingResponse struct {
 	TotalActualCost float64                   `json:"total_actual_cost"`
 	TotalRequests   int64                     `json:"total_requests"`
 	TotalTokens     int64                     `json:"total_tokens"`
+	NewUsers        int64                     `json:"new_users"`
 }
 
 // UserBreakdownItem represents per-user usage breakdown within a dimension (group, model, endpoint).
