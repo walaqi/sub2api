@@ -420,15 +420,15 @@ func (s *AnnouncementService) listUserReadStatusByReadAt(
 ) ([]AnnouncementUserReadStatus, *pagination.PaginationResult, error) {
 	searchTrimmed := strings.TrimSpace(search)
 
-	// Build WHERE clause
+	// Build WHERE clause (for users table only, no announcement_id needed)
 	whereClauses := []string{"u.deleted_at IS NULL"}
-	args := []any{announcementID}
-	argIdx := 2
+	var countArgs []any
+	countArgIdx := 1
 
 	if searchTrimmed != "" {
-		whereClauses = append(whereClauses, fmt.Sprintf("(u.email ILIKE '%%' || $%d || '%%' OR u.username ILIKE '%%' || $%d || '%%')", argIdx, argIdx))
-		args = append(args, searchTrimmed)
-		argIdx++
+		whereClauses = append(whereClauses, fmt.Sprintf("(u.email ILIKE '%%' || $%d || '%%' OR u.username ILIKE '%%' || $%d || '%%')", countArgIdx, countArgIdx))
+		countArgs = append(countArgs, searchTrimmed)
+		countArgIdx++ //nolint:ineffassign // kept for clarity matching dataArgIdx pattern
 	}
 
 	where := strings.Join(whereClauses, " AND ")
@@ -439,10 +439,10 @@ func (s *AnnouncementService) listUserReadStatusByReadAt(
 		orderDir = "ASC NULLS LAST"
 	}
 
-	// Count query
+	// Count query (uses only countArgs, no announcementID)
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM users u WHERE %s`, where)
 	var total int64
-	countRows, err := s.entClient.QueryContext(ctx, countQuery, args...)
+	countRows, err := s.entClient.QueryContext(ctx, countQuery, countArgs...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("count users: %w", err)
 	}
@@ -463,7 +463,19 @@ func (s *AnnouncementService) listUserReadStatusByReadAt(
 		}, nil
 	}
 
-	// Data query with LEFT JOIN
+	// Data query with LEFT JOIN — args start with announcementID ($1), then search ($2 if present), then offset/limit
+	dataArgs := []any{announcementID}
+	dataArgIdx := 2
+
+	// Rebuild WHERE with shifted parameter indices (since $1 is now announcementID for the JOIN)
+	dataWhereClauses := []string{"u.deleted_at IS NULL"}
+	if searchTrimmed != "" {
+		dataWhereClauses = append(dataWhereClauses, fmt.Sprintf("(u.email ILIKE '%%' || $%d || '%%' OR u.username ILIKE '%%' || $%d || '%%')", dataArgIdx, dataArgIdx))
+		dataArgs = append(dataArgs, searchTrimmed)
+		dataArgIdx++
+	}
+	dataWhere := strings.Join(dataWhereClauses, " AND ")
+
 	dataQuery := fmt.Sprintf(`
 		SELECT u.id, u.email, COALESCE(u.username, ''), u.balance, ar.read_at
 		FROM users u
@@ -471,10 +483,10 @@ func (s *AnnouncementService) listUserReadStatusByReadAt(
 		WHERE %s
 		ORDER BY ar.read_at %s, u.id DESC
 		OFFSET $%d LIMIT $%d
-	`, where, orderDir, argIdx, argIdx+1)
-	args = append(args, params.Offset(), params.Limit())
+	`, dataWhere, orderDir, dataArgIdx, dataArgIdx+1)
+	dataArgs = append(dataArgs, params.Offset(), params.Limit())
 
-	rows, err := s.entClient.QueryContext(ctx, dataQuery, args...)
+	rows, err := s.entClient.QueryContext(ctx, dataQuery, dataArgs...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("query users by read_at: %w", err)
 	}

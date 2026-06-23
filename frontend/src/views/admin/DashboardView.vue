@@ -180,7 +180,7 @@
                   {{ t('admin.dashboard.users') }}
                 </p>
                 <p class="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                  +{{ stats.today_new_users }}
+                  {{ rangeActiveUsers }}
                 </p>
                 <p class="text-xs text-gray-500 dark:text-gray-400">
                   {{ t('common.total') }}: {{ formatNumber(stats.total_users) }}
@@ -359,6 +359,8 @@ const rangeRequests = computed(() => trendData.value.reduce((s, p) => s + p.requ
 const rangeTokens = computed(() => trendData.value.reduce((s, p) => s + p.total_tokens, 0))
 const rangeActualCost = computed(() => trendData.value.reduce((s, p) => s + p.actual_cost, 0))
 const rangeCost = computed(() => trendData.value.reduce((s, p) => s + p.cost, 0))
+// Active users in selected range (unique user_ids from userTrend)
+const rangeActiveUsers = computed(() => new Set(userTrend.value.map(p => p.user_id)).size)
 
 // Helper function to format date in local timezone
 const formatLocalDate = (date: Date): string => {
