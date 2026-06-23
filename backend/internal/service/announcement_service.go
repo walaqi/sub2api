@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"sort"
 	"strings"
 	"time"
 
+	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 )
@@ -16,6 +18,7 @@ type AnnouncementService struct {
 	readRepo         AnnouncementReadRepository
 	userRepo         UserRepository
 	userSubRepo      UserSubscriptionRepository
+	entClient        *dbent.Client
 }
 
 func NewAnnouncementService(
@@ -23,12 +26,14 @@ func NewAnnouncementService(
 	readRepo AnnouncementReadRepository,
 	userRepo UserRepository,
 	userSubRepo UserSubscriptionRepository,
+	entClient *dbent.Client,
 ) *AnnouncementService {
 	return &AnnouncementService{
 		announcementRepo: announcementRepo,
 		readRepo:         readRepo,
 		userRepo:         userRepo,
 		userSubRepo:      userSubRepo,
+		entClient:        entClient,
 	}
 }
 
@@ -336,6 +341,12 @@ func (s *AnnouncementService) ListUserReadStatus(
 		return nil, nil, err
 	}
 
+	// When sorting by read_at, use a custom SQL path with LEFT JOIN
+	sortBy := strings.ToLower(strings.TrimSpace(params.SortBy))
+	if sortBy == "read_at" && s.entClient != nil {
+		return s.listUserReadStatusByReadAt(ctx, ann, announcementID, params, search)
+	}
+
 	filters := UserListFilters{
 		Search: strings.TrimSpace(search),
 	}
@@ -345,6 +356,17 @@ func (s *AnnouncementService) ListUserReadStatus(
 		return nil, nil, fmt.Errorf("list users: %w", err)
 	}
 
+	return s.buildReadStatusResult(ctx, ann, announcementID, users, page)
+}
+
+// buildReadStatusResult takes paginated users and enriches them with read status and eligibility.
+func (s *AnnouncementService) buildReadStatusResult(
+	ctx context.Context,
+	ann *Announcement,
+	announcementID int64,
+	users []User,
+	page *pagination.PaginationResult,
+) ([]AnnouncementUserReadStatus, *pagination.PaginationResult, error) {
 	userIDs := make([]int64, 0, len(users))
 	for i := range users {
 		userIDs = append(userIDs, users[i].ID)
@@ -385,6 +407,137 @@ func (s *AnnouncementService) ListUserReadStatus(
 	}
 
 	return out, page, nil
+}
+
+// listUserReadStatusByReadAt uses a custom SQL query to sort by read_at (from announcement_reads).
+// read_at DESC: read users first (most recent first), then unread users.
+func (s *AnnouncementService) listUserReadStatusByReadAt(
+	ctx context.Context,
+	ann *Announcement,
+	announcementID int64,
+	params pagination.PaginationParams,
+	search string,
+) ([]AnnouncementUserReadStatus, *pagination.PaginationResult, error) {
+	searchTrimmed := strings.TrimSpace(search)
+
+	// Build WHERE clause
+	whereClauses := []string{"u.deleted_at IS NULL"}
+	args := []any{announcementID}
+	argIdx := 2
+
+	if searchTrimmed != "" {
+		whereClauses = append(whereClauses, fmt.Sprintf("(u.email ILIKE '%%' || $%d || '%%' OR u.username ILIKE '%%' || $%d || '%%')", argIdx, argIdx))
+		args = append(args, searchTrimmed)
+		argIdx++
+	}
+
+	where := strings.Join(whereClauses, " AND ")
+
+	// Sort order: read_at DESC NULLS LAST (read users first, unread at bottom)
+	orderDir := "DESC NULLS LAST"
+	if params.NormalizedSortOrder(pagination.SortOrderDesc) == pagination.SortOrderAsc {
+		orderDir = "ASC NULLS LAST"
+	}
+
+	// Count query
+	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM users u WHERE %s`, where)
+	var total int64
+	countRows, err := s.entClient.QueryContext(ctx, countQuery, args...)
+	if err != nil {
+		return nil, nil, fmt.Errorf("count users: %w", err)
+	}
+	if countRows.Next() {
+		if err := countRows.Scan(&total); err != nil {
+			_ = countRows.Close()
+			return nil, nil, err
+		}
+	}
+	_ = countRows.Close()
+	if err := countRows.Err(); err != nil {
+		return nil, nil, err
+	}
+
+	if total == 0 {
+		return []AnnouncementUserReadStatus{}, &pagination.PaginationResult{
+			Total: 0, Page: params.Page, PageSize: params.PageSize, Pages: 0,
+		}, nil
+	}
+
+	// Data query with LEFT JOIN
+	dataQuery := fmt.Sprintf(`
+		SELECT u.id, u.email, COALESCE(u.username, ''), u.balance, ar.read_at
+		FROM users u
+		LEFT JOIN announcement_reads ar ON ar.user_id = u.id AND ar.announcement_id = $1
+		WHERE %s
+		ORDER BY ar.read_at %s, u.id DESC
+		OFFSET $%d LIMIT $%d
+	`, where, orderDir, argIdx, argIdx+1)
+	args = append(args, params.Offset(), params.Limit())
+
+	rows, err := s.entClient.QueryContext(ctx, dataQuery, args...)
+	if err != nil {
+		return nil, nil, fmt.Errorf("query users by read_at: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var users []User
+	var readMap = make(map[int64]time.Time)
+	for rows.Next() {
+		var uid int64
+		var email, username string
+		var balance float64
+		var readAt sql.NullTime
+		if err := rows.Scan(&uid, &email, &username, &balance, &readAt); err != nil {
+			return nil, nil, err
+		}
+		users = append(users, User{ID: uid, Email: email, Username: username, Balance: balance})
+		if readAt.Valid {
+			readMap[uid] = readAt.Time
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, err
+	}
+
+	// Build result
+	out := make([]AnnouncementUserReadStatus, 0, len(users))
+	for i := range users {
+		u := users[i]
+		subs, err := s.userSubRepo.ListActiveByUserID(ctx, u.ID)
+		if err != nil {
+			return nil, nil, fmt.Errorf("list active subscriptions: %w", err)
+		}
+		activeGroupIDs := make(map[int64]struct{}, len(subs))
+		for j := range subs {
+			activeGroupIDs[subs[j].GroupID] = struct{}{}
+		}
+
+		var ptr *time.Time
+		if t, ok := readMap[u.ID]; ok {
+			ptr = &t
+		}
+
+		out = append(out, AnnouncementUserReadStatus{
+			UserID:   u.ID,
+			Email:    u.Email,
+			Username: u.Username,
+			Balance:  u.Balance,
+			Eligible: domain.AnnouncementTargeting(ann.Targeting).Matches(u.Balance, activeGroupIDs),
+			ReadAt:   ptr,
+		})
+	}
+
+	pages := int64(0)
+	if params.PageSize > 0 {
+		pages = (total + int64(params.PageSize) - 1) / int64(params.PageSize)
+	}
+
+	return out, &pagination.PaginationResult{
+		Total:    total,
+		Page:     params.Page,
+		PageSize: params.PageSize,
+		Pages:    int(pages),
+	}, nil
 }
 
 func isValidAnnouncementStatus(status string) bool {
