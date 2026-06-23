@@ -189,21 +189,21 @@
             </div>
           </div>
 
-          <!-- API Keys -->
+          <!-- Active Users -->
           <div class="card p-4">
             <div class="flex items-center gap-3">
               <div class="rounded-lg bg-blue-100 p-2 dark:bg-blue-900/30">
-                <Icon name="key" size="md" class="text-blue-600 dark:text-blue-400" :stroke-width="2" />
+                <Icon name="users" size="md" class="text-blue-600 dark:text-blue-400" :stroke-width="2" />
               </div>
               <div>
                 <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {{ t('admin.dashboard.apiKeys') }}
+                  {{ t('admin.dashboard.activeUsers') }}
                 </p>
                 <p class="text-xl font-bold text-gray-900 dark:text-white">
-                  {{ stats.total_api_keys }}
+                  {{ rankingActiveUsers }}
                 </p>
-                <p class="text-xs text-green-600 dark:text-green-400">
-                  {{ stats.active_api_keys }} {{ t('common.active') }}
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('common.total') }}: {{ formatNumber(stats.total_users) }}
                 </p>
               </div>
             </div>
@@ -350,6 +350,7 @@ const rankingTotalActualCost = ref(0)
 const rankingTotalRequests = ref(0)
 const rankingTotalTokens = ref(0)
 const rankingNewUsers = ref(0)
+const rankingActiveUsers = ref(0)
 let chartLoadSeq = 0
 let usersTrendLoadSeq = 0
 let rankingLoadSeq = 0
@@ -663,6 +664,7 @@ const loadUserSpendingRanking = async () => {
     rankingTotalRequests.value = response.total_requests || 0
     rankingTotalTokens.value = response.total_tokens || 0
     rankingNewUsers.value = response.new_users || 0
+    rankingActiveUsers.value = response.active_users || 0
   } catch (error) {
     if (currentSeq !== rankingLoadSeq) return
     console.error('Error loading user spending ranking:', error)
@@ -671,6 +673,7 @@ const loadUserSpendingRanking = async () => {
     rankingTotalRequests.value = 0
     rankingTotalTokens.value = 0
     rankingNewUsers.value = 0
+    rankingActiveUsers.value = 0
     rankingError.value = true
   } finally {
     if (currentSeq === rankingLoadSeq) {

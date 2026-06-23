@@ -524,6 +524,7 @@ func (h *DashboardHandler) GetUserSpendingRanking(c *gin.Context) {
 		"total_requests":    ranking.TotalRequests,
 		"total_tokens":      ranking.TotalTokens,
 		"new_users":         ranking.NewUsers,
+		"active_users":      ranking.ActiveUsers,
 		"start_date":        startTime.Format("2006-01-02"),
 		"end_date":          endTime.Add(-24 * time.Hour).Format("2006-01-02"),
 	}

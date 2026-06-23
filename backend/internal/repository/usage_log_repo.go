@@ -2494,12 +2494,20 @@ func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTi
 		return nil, err
 	}
 
+	// Count active users (distinct users with usage) within the time range
+	var activeUsers int64
+	activeUsersQuery := `SELECT COUNT(DISTINCT user_id) FROM usage_logs WHERE created_at >= $1 AND created_at < $2`
+	if err = scanSingleRow(ctx, r.sql, activeUsersQuery, []any{startTime, endTime}, &activeUsers); err != nil {
+		return nil, err
+	}
+
 	return &UserSpendingRankingResponse{
 		Ranking:         ranking,
 		TotalActualCost: totalActualCost,
 		TotalRequests:   totalRequests,
 		TotalTokens:     totalTokens,
 		NewUsers:        newUsers,
+		ActiveUsers:     activeUsers,
 	}, nil
 }
 
