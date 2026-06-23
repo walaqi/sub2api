@@ -1638,3 +1638,57 @@ func (s *UsageLogRepoSuite) TestListWithFilters_CombinedFilters() {
 	s.Require().Len(logs, 2)
 	s.Require().Equal(int64(2), page.Total)
 }
+
+// --- GetUserSpendingRanking ---
+
+func (s *UsageLogRepoSuite) TestGetUserSpendingRanking_BasicQuery() {
+	user := mustCreateUser(s.T(), s.client, &service.User{Email: fmt.Sprintf("ranking-basic-%d@test.com", time.Now().UnixNano())})
+	apiKey := mustCreateApiKey(s.T(), s.client, &service.APIKey{UserID: user.ID, Key: fmt.Sprintf("sk-rank-basic-%d", time.Now().UnixNano()), Name: "k"})
+	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: fmt.Sprintf("acc-rank-basic-%d", time.Now().UnixNano())})
+
+	now := time.Now()
+	s.createUsageLog(user, apiKey, account, 10, 20, 0.5, now)
+	s.createUsageLog(user, apiKey, account, 15, 25, 0.75, now)
+
+	startTime := now.Add(-1 * time.Hour)
+	endTime := now.Add(1 * time.Hour)
+
+	result, err := s.repo.GetUserSpendingRanking(s.ctx, startTime, endTime, 10)
+	s.Require().NoError(err, "GetUserSpendingRanking")
+	s.Require().NotNil(result)
+	s.Require().True(len(result.Ranking) > 0, "should have at least one ranking entry")
+
+	// Find our user in the ranking
+	var found bool
+	for _, item := range result.Ranking {
+		if item.UserID == user.ID {
+			found = true
+			s.Require().InDelta(1.25, item.ActualCost, 0.001)
+			s.Require().Equal(int64(2), item.Requests)
+			break
+		}
+	}
+	s.Require().True(found, "user should appear in ranking")
+}
+
+func (s *UsageLogRepoSuite) TestGetUserSpendingRanking_NewUsersCount() {
+	// Create a user with created_at within the range
+	now := time.Now()
+	rangeStart := now.Add(-1 * time.Hour)
+	rangeEnd := now.Add(1 * time.Hour)
+
+	user := mustCreateUser(s.T(), s.client, &service.User{
+		Email:     fmt.Sprintf("ranking-newuser-%d@test.com", time.Now().UnixNano()),
+		CreatedAt: now, // within range
+	})
+	apiKey := mustCreateApiKey(s.T(), s.client, &service.APIKey{UserID: user.ID, Key: fmt.Sprintf("sk-rank-new-%d", time.Now().UnixNano()), Name: "k"})
+	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: fmt.Sprintf("acc-rank-new-%d", time.Now().UnixNano())})
+
+	s.createUsageLog(user, apiKey, account, 10, 20, 0.5, now)
+
+	result, err := s.repo.GetUserSpendingRanking(s.ctx, rangeStart, rangeEnd, 10)
+	s.Require().NoError(err, "GetUserSpendingRanking with new_users")
+	s.Require().NotNil(result)
+	// new_users should count at least our newly created user
+	s.Require().True(result.NewUsers >= 1, "new_users should be >= 1, got %d", result.NewUsers)
+}
