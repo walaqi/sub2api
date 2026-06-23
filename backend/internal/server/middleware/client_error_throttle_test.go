@@ -23,7 +23,7 @@ func setupThrottleTest(t *testing.T) (*gin.Engine, *miniredis.Miniredis, *redis.
 	t.Cleanup(mr.Close)
 
 	rc := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	t.Cleanup(func() { rc.Close() })
+	t.Cleanup(func() { _ = rc.Close() })
 
 	r := gin.New()
 	return r, mr, rc
