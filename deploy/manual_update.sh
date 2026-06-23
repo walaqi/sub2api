@@ -107,9 +107,36 @@ if [ "$IMAGE_STUDIO_EXISTS" = true ]; then
     info "image-studio 已存在，拉取更新..."
     git -C "$IMAGE_STUDIO_APP_DIR" pull --ff-only
 
+    # ─── 保护现有配置（build.sh 会 rm -rf dist/package） ─────────────────────
+    PACKAGE_DIR="$IMAGE_STUDIO_APP_DIR/dist/package"
+    CONFIG_TOML="$PACKAGE_DIR/data/config.toml"
+    CONFIG_BACKUP="/tmp/image-studio-config-backup.toml"
+    PEM_BACKUP="/tmp/image-studio-pubkey-backup.pem"
+    PUBLIC_KEY_FILE="$PACKAGE_DIR/data/image_studio_public.pem"
+
+    if [ -f "$CONFIG_TOML" ]; then
+        info "备份现有 config.toml..."
+        cp "$CONFIG_TOML" "$CONFIG_BACKUP"
+    fi
+    if [ -f "$PUBLIC_KEY_FILE" ]; then
+        cp "$PUBLIC_KEY_FILE" "$PEM_BACKUP"
+    fi
+
     info "重新构建 image-studio..."
     cd "$IMAGE_STUDIO_APP_DIR"
     bash scripts/build.sh
+
+    # ─── 恢复配置 ─────────────────────────────────────────────────────────────
+    if [ -f "$CONFIG_BACKUP" ]; then
+        info "恢复 config.toml..."
+        mkdir -p "$PACKAGE_DIR/data"
+        cp "$CONFIG_BACKUP" "$CONFIG_TOML"
+        rm -f "$CONFIG_BACKUP"
+    fi
+    if [ -f "$PEM_BACKUP" ]; then
+        cp "$PEM_BACKUP" "$PUBLIC_KEY_FILE"
+        rm -f "$PEM_BACKUP"
+    fi
 
     # sudo: 重启系统服务
     info "重启 $IMAGE_STUDIO_SERVICE..."
