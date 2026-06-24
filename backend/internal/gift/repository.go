@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/lib/pq"
 	"github.com/shopspring/decimal"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -144,7 +143,6 @@ func (r *repository) lockedSnapshot(ctx context.Context, tx *sql.Tx, userID int6
 }
 
 // applyDeductions 把分摊结果落库：多行 UPDATE user_gifts + 一次 UPDATE users。
-// 联动作废由调用方根据 res.RevokeRatioGifts 自行处理（独立 SQL）。
 // 返回新的 users.balance。
 func (r *repository) applyDeductions(ctx context.Context, tx *sql.Tx, userID int64, totalCost decimal.Decimal, res AllocateResult) (decimal.Decimal, error) {
 	// 1. 多行 UPDATE user_gifts
@@ -176,31 +174,6 @@ func (r *repository) applyDeductions(ctx context.Context, tx *sql.Tx, userID int
 	}
 	newBalance, _ := decimal.NewFromString(newBalanceStr)
 	return newBalance, nil
-}
-
-// revokeRatioGifts 把指定 ratio 赠金集体作废，并把对应 remaining 之和从 users.balance 扣掉。
-func (r *repository) revokeRatioGifts(ctx context.Context, tx *sql.Tx, userID int64, giftIDs []int64, totalRemaining decimal.Decimal) error {
-	if len(giftIDs) == 0 {
-		return nil
-	}
-	// 把 []int64 转为 PG 数组参数
-	if _, err := tx.ExecContext(ctx, `
-		UPDATE user_gifts SET remaining = 0, status = 'revoked', updated_at = NOW()
-		WHERE id = ANY($1)
-	`, pq.Array(giftIDs)); err != nil {
-		return fmt.Errorf("revoke gifts: %w", err)
-	}
-	remF, _ := totalRemaining.Float64()
-	if remF <= 0 {
-		return nil
-	}
-	if _, err := tx.ExecContext(ctx, `
-		UPDATE users SET balance = balance - $1, updated_at = NOW()
-		WHERE id = $2 AND deleted_at IS NULL
-	`, remF, userID); err != nil {
-		return fmt.Errorf("subtract revoked balance: %w", err)
-	}
-	return nil
 }
 
 // deductFromRechargePool 在事务内重校验 recharge_pool，按 min(requested, cap) 扣减。
@@ -339,6 +312,30 @@ func (r *repository) giftBalanceBreakdown(ctx context.Context, userID int64, exp
 		return 0, 0, fmt.Errorf("gift balance breakdown: %w", err)
 	}
 	return giftBalance, expiringSoon, nil
+}
+
+// hasActivePriorityGift 返回用户是否存在至少一笔 active 且未过期、remaining > 0 的 priority 赠金。
+// 只读、不加锁；供 billing preflight 判定是否放行。
+// 使用 ent query builder 确保跨数据库方言兼容。
+func (r *repository) hasActivePriorityGift(ctx context.Context, userID int64) (bool, error) {
+	now := time.Now()
+	count, err := r.entClient.UserGift.Query().
+		Where(
+			usergift.UserID(userID),
+			usergift.Status(string(StatusActive)),
+			usergift.DeductionMode(string(DeductionModePriority)),
+			usergift.RemainingGT(0),
+			usergift.Or(
+				usergift.ExpiresAtIsNil(),
+				usergift.ExpiresAtGT(now),
+			),
+		).
+		Limit(1).
+		Count(ctx)
+	if err != nil {
+		return false, fmt.Errorf("has active priority gift: %w", err)
+	}
+	return count > 0, nil
 }
 
 // revokeOneGift 撤销单笔赠金（active → revoked）。事务内：

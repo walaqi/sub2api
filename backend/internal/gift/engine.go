@@ -70,9 +70,6 @@ func (e *Engine) Grant(ctx context.Context, in GrantInput) (*UserGift, error) {
 
 // AllocateBreakdown 是一次扣费的分摊明细，用于持久化到 usage_logs。
 // 不变量：GiftCost + RechargeCost = totalCost（订阅扣费路径不调用此引擎，因此两者均为 0）。
-//
-// **不包含 ratio 联动作废的 RevokedRemaining**——那不是"用户消费"而是"作废"，
-// 走单独 metrics gift_revoked_total，不污染使用记录。
 type AllocateBreakdown struct {
 	GiftCost     float64
 	RechargeCost float64
@@ -84,7 +81,6 @@ type AllocateBreakdown struct {
 //  1. 锁读 users + active gifts
 //  2. 调 Allocate 计算分摊（纯函数）
 //  3. 落库：UPDATE user_gifts × N + UPDATE users
-//  4. 若 RevokeRatioGifts，作废所有仍 active 的 ratio 赠金并同步扣 balance
 func (e *Engine) AllocateAndDeduct(ctx context.Context, tx *sql.Tx, userID int64, totalCost float64) (float64, error) {
 	newBalance, _, err := e.AllocateAndDeductWithBreakdown(ctx, tx, userID, totalCost)
 	return newBalance, err
@@ -123,15 +119,8 @@ func (e *Engine) AllocateAndDeductWithBreakdown(
 		return 0, AllocateBreakdown{}, err
 	}
 
-	if res.RevokeRatioGifts && len(res.RevokedGiftIDs) > 0 {
-		if err := e.repo.revokeRatioGifts(ctx, tx, userID, res.RevokedGiftIDs, res.RevokedRemaining); err != nil {
-			return 0, AllocateBreakdown{}, err
-		}
-		newBalance = newBalance.Sub(res.RevokedRemaining)
-	}
-
 	// 聚合 breakdown：本次实际扣给用户的赠金 = Σ(gift_deltas)；充值池扣减 = RechargeDelta。
-	// 两者之和守恒等于 totalCost（不计联动作废，那是单独事件）。
+	// 不变量：两者之和守恒等于 totalCost。
 	giftSum := decimal.Zero
 	for _, d := range res.GiftDeltas {
 		giftSum = giftSum.Add(d)
@@ -212,6 +201,13 @@ const GiftExpiringSoonThreshold = 120 * time.Hour
 // 单条 SQL 算两个值，避免两次往返。
 func (e *Engine) GetGiftBalanceBreakdown(ctx context.Context, userID int64) (float64, float64, error) {
 	return e.repo.giftBalanceBreakdown(ctx, userID, GiftExpiringSoonThreshold)
+}
+
+// HasActivePriorityGift 返回用户是否持有至少一笔 active 且未过期的 priority 赠金（remaining > 0）。
+// 供 billing preflight 使用：当 rechargePool ≤ 0 且无 active priority 赠金时拦截请求。
+// 只读、不加锁。
+func (e *Engine) HasActivePriorityGift(ctx context.Context, userID int64) (bool, error) {
+	return e.repo.hasActivePriorityGift(ctx, userID)
 }
 
 // ListActiveGiftsForDisplay 返回用户当前持有的所有有效赠金（status='active' 且未过期），

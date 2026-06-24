@@ -108,6 +108,14 @@ type suspectMembershipReader interface {
 	IsSuspect(ctx context.Context, userID int64) (bool, error)
 }
 
+// priorityGiftChecker checks whether a user has active priority gifts that can
+// independently support billing (without requiring recharge balance), and
+// provides the gift balance for computing rechargePool.
+type priorityGiftChecker interface {
+	HasActivePriorityGift(ctx context.Context, userID int64) (bool, error)
+	GetGiftBalance(ctx context.Context, userID int64) (float64, error)
+}
+
 // BillingCacheService 计费缓存服务
 // 负责余额和订阅数据的缓存管理，提供高性能的计费资格检查
 type BillingCacheService struct {
@@ -125,6 +133,11 @@ type BillingCacheService struct {
 	// Both nil when the feature is not wired; checkRPM then behaves exactly as before.
 	suspectSettings suspectThrottleReader
 	suspectStore    suspectMembershipReader
+
+	// priorityGiftChecker is used by checkBalanceEligibility to allow requests
+	// when balance ≤ 0 but the user holds active priority gifts that can cover costs.
+	// nil when gift engine is not wired; falls back to legacy balance-only check.
+	priorityGiftChecker priorityGiftChecker
 
 	cacheWriteChan     chan cacheWriteTask
 	cacheWriteWg       sync.WaitGroup
@@ -176,6 +189,17 @@ func (s *BillingCacheService) SetSuspectThrottle(settings suspectThrottleReader,
 	}
 	s.suspectSettings = settings
 	s.suspectStore = store
+}
+
+// SetPriorityGiftChecker wires the gift engine for billing preflight.
+// When set, checkBalanceEligibility allows requests even when balance ≤ 0 if
+// the user holds active priority gifts (which can independently cover costs).
+// Wired post-construction to keep the DI graph acyclic.
+func (s *BillingCacheService) SetPriorityGiftChecker(checker priorityGiftChecker) {
+	if s == nil {
+		return
+	}
+	s.priorityGiftChecker = checker
 }
 
 // Stop 关闭缓存写入工作池
@@ -932,6 +956,9 @@ func scaleRPMLimit(limit, ratePercent int) int {
 }
 
 // checkBalanceEligibility 检查余额模式资格
+// 拦截条件：充值余额（rechargePool = balance - gift_balance）≤ 0 且不存在 active 的 priority 赠金。
+// priority 赠金可以独立支撑请求（不依赖充值余额），因此有 priority 赠金时放行。
+// ratio 赠金需要充值余额配对，不参与拦截判断。
 func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, userID int64) error {
 	balance, err := s.GetUserBalance(ctx, userID)
 	if err != nil {
@@ -945,11 +972,44 @@ func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, userI
 		s.circuitBreaker.OnSuccess()
 	}
 
-	if balance <= 0 {
-		return ErrInsufficientBalance
+	// Fast path: if no gift checker wired, fall back to legacy balance-only check.
+	if s.priorityGiftChecker == nil {
+		if balance <= 0 {
+			return ErrInsufficientBalance
+		}
+		return nil
 	}
 
-	return nil
+	// Compute rechargePool = balance - gift_balance.
+	// This is the "real money" the user has; gift balance cannot be spent without
+	// recharge pairing (ratio) or is consumed first (priority).
+	giftBalance, err := s.priorityGiftChecker.GetGiftBalance(ctx, userID)
+	if err != nil {
+		// Non-fatal: fall back to legacy balance-only check (conservative for users
+		// with balance > 0; slightly permissive but same as before the fix).
+		logger.LegacyPrintf("service.billing_cache", "Warning: gift balance check failed for user %d: %v, falling back to balance check", userID, err)
+		if balance <= 0 {
+			return ErrInsufficientBalance
+		}
+		return nil
+	}
+
+	rechargePool := balance - giftBalance
+	if rechargePool > 0 {
+		return nil
+	}
+
+	// rechargePool ≤ 0: only pass if user has active priority gifts
+	hasPriority, err := s.priorityGiftChecker.HasActivePriorityGift(ctx, userID)
+	if err != nil {
+		logger.LegacyPrintf("service.billing_cache", "Warning: priority gift check failed for user %d: %v", userID, err)
+		return ErrInsufficientBalance
+	}
+	if hasPriority {
+		return nil
+	}
+
+	return ErrInsufficientBalance
 }
 
 // checkSubscriptionEligibility 检查订阅模式资格

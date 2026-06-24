@@ -2,7 +2,6 @@ package gift
 
 import (
 	"errors"
-	"sort"
 
 	"github.com/shopspring/decimal"
 )
@@ -33,13 +32,6 @@ type AllocateResult struct {
 	GiftDeltas map[int64]decimal.Decimal
 	// RechargeDelta 充值池本次的扣减量（正数；可能 > recharge_pool 表示透支）。
 	RechargeDelta decimal.Decimal
-	// RevokeRatioGifts 在本次扣费后是否需要联动作废所有仍 active 的 ratio 赠金。
-	// 仅当扣完后 recharge_pool ≤ 0 且有 ratio 赠金未耗尽时为 true。
-	RevokeRatioGifts bool
-	// RevokedRemaining 若 RevokeRatioGifts=true，记录将被作废的 ratio 赠金 remaining 之和（用于同步扣 balance）。
-	RevokedRemaining decimal.Decimal
-	// RevokedGiftIDs 被作废的 ratio 赠金 ID 列表。
-	RevokedGiftIDs []int64
 }
 
 // Allocate 是赠金扣费的核心纯函数：根据当前赠金快照与待扣总额，计算各笔赠金减量与充值池减量。
@@ -50,7 +42,8 @@ type AllocateResult struct {
 //     T 单位扣费分摊：gift_part = T·r/(1+r), recharge_part = T/(1+r)
 //  3. 剩余扣 recharge_pool（可透支）
 //
-// 完成后若 recharge_pool ≤ 0 且仍有 ratio 赠金 remaining > 0，则联动作废。
+// ratio 赠金在 rechargePool ≤ 0 时不参与消费（比例配对需要充值余额），
+// 但不会被作废——用户后续充值后 ratio 赠金自然恢复配对消费。
 //
 // 不变量：Σ(GiftDeltas) + RechargeDelta ≡ TotalCost（精确相等，舍入误差归在链尾）。
 func Allocate(in AllocateInput) (AllocateResult, error) {
@@ -144,8 +137,9 @@ func Allocate(in AllocateInput) (AllocateResult, error) {
 	// Stage 3: 剩余压充值池（允许透支）
 	if remaining.Sign() > 0 {
 		res.RechargeDelta = remaining
-		rechargePool = rechargePool.Sub(remaining)
-		_ = remaining // consumed; loop ends here
+		// NOTE: rechargePool 不再被后续使用（联动作废逻辑已移除，见 PR#31）。
+		// 旧代码在此处更新 rechargePool 后用于判定是否 revoke ratio gifts，
+		// 现在 ratio gifts 在 rechargePool≤0 时保持 active 休眠，不再作废。
 	}
 
 	// 舍入收口：保证 Σ(GiftDeltas) + RechargeDelta ≡ TotalCost。
@@ -159,24 +153,6 @@ func Allocate(in AllocateInput) (AllocateResult, error) {
 		res.RechargeDelta = res.RechargeDelta.Add(diff)
 	}
 	res.RechargeDelta = roundScale(res.RechargeDelta)
-
-	// 联动作废检查：扣完后 rechargePool ≤ 0 且仍有 ratio 赠金 remaining > 0
-	if rechargePool.Sign() <= 0 {
-		var revokedIDs []int64
-		revokedSum := decimal.Zero
-		for _, g := range ratio {
-			if g.Remaining.Sign() > 0 {
-				revokedIDs = append(revokedIDs, g.ID)
-				revokedSum = revokedSum.Add(g.Remaining)
-			}
-		}
-		if len(revokedIDs) > 0 {
-			res.RevokeRatioGifts = true
-			res.RevokedRemaining = roundScale(revokedSum)
-			sort.Slice(revokedIDs, func(i, j int) bool { return revokedIDs[i] < revokedIDs[j] })
-			res.RevokedGiftIDs = revokedIDs
-		}
-	}
 
 	return res, nil
 }
