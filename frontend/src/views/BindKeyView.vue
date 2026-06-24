@@ -119,37 +119,6 @@
           </div>
         </div>
 
-        <!-- Monthly limit reached -->
-        <div
-          v-else-if="monthlyBlocked"
-          class="card border-purple-200 bg-purple-50 dark:border-purple-800/50 dark:bg-purple-900/20"
-        >
-          <div class="p-6 md:p-8">
-            <div class="flex items-start gap-4">
-              <div
-                class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-900/30"
-              >
-                <Icon name="checkCircle" size="md" class="text-purple-600 dark:text-purple-400" />
-              </div>
-              <div class="flex-1">
-                <h3 class="text-sm font-semibold text-purple-800 dark:text-purple-300">
-                  {{ tr.monthlyLimitTitle }}
-                </h3>
-                <p class="mt-2 text-sm text-purple-700 dark:text-purple-400">
-                  {{ tr.monthlyLimitBody }}
-                </p>
-                <p
-                  v-if="resetCountdown"
-                  class="mt-3 text-sm text-purple-700 dark:text-purple-400"
-                >
-                  {{ tr.nextResetLabel }}:
-                  <span class="font-mono font-semibold">{{ resetCountdown }}</span>
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- Registration window not met (per-key, surfaced from commit error) -->
         <div
           v-else-if="registrationBlocked"
@@ -175,6 +144,37 @@
         </div>
 
         <div v-else class="space-y-6">
+          <!-- Monthly limit hint (non-blocking — unlimit keys still work) -->
+            <div
+              v-if="monthlyBlocked"
+              class="card border-purple-200 bg-purple-50 dark:border-purple-800/50 dark:bg-purple-900/20"
+            >
+              <div class="p-6 md:p-8">
+                <div class="flex items-start gap-4">
+                  <div
+                    class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-900/30"
+                  >
+                    <Icon name="exclamationCircle" size="md" class="text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div class="flex-1">
+                    <h3 class="text-sm font-semibold text-purple-800 dark:text-purple-300">
+                      {{ tr.monthlyLimitTitle }}
+                    </h3>
+                    <p class="mt-2 text-sm text-purple-700 dark:text-purple-400">
+                      {{ tr.monthlyLimitHint }}
+                    </p>
+                    <p
+                      v-if="resetCountdown"
+                      class="mt-3 text-sm text-purple-700 dark:text-purple-400"
+                    >
+                      {{ tr.nextResetLabel }}:
+                      <span class="font-mono font-semibold">{{ resetCountdown }}</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           <!-- Pending reservation banner -->
             <div
               v-if="pending"
@@ -510,6 +510,7 @@ const en: Copy = {
   successBound: 'The key {key} is now bound to your account.',
   monthlyLimitTitle: 'You have already bound a key this month',
   monthlyLimitBody: 'Each account can claim one key per natural month. Eligibility resets on the 1st of next month.',
+  monthlyLimitHint: 'You have already claimed a monthly-limited key this month. You can still bind keys that have no monthly limit.',
   nextResetLabel: 'Next reset in',
   daysShort: 'd',
   hoursShort: 'h',
@@ -583,6 +584,7 @@ const zh: Copy = {
   successBound: 'Key {key} 已成功绑定到你的账户。',
   monthlyLimitTitle: '本月已参与绑定',
   monthlyLimitBody: '每个账号每个自然月只能领取一次。下月 1 日 0 点自动恢复资格。',
+  monthlyLimitHint: '你本月已领取过限次 Key，但仍可绑定不限次数的 Key。',
   nextResetLabel: '下次重置',
   daysShort: '天',
   hoursShort: '小时',
@@ -1059,12 +1061,11 @@ async function submitAuth(): Promise<void> {
       })
     }
     // After successful auth, isAuthenticated should be true. Refresh
-    // eligibility before committing so anonymous users who already
-    // participated this month see the monthly-limit card directly,
-    // instead of hitting /commit and bouncing through an error state.
+    // eligibility before committing. Only bail on feature_disabled — monthly
+    // limit is now non-blocking (unlimit keys bypass it; backend validates).
     if (isAuthenticated.value) {
       await fetchEligibility()
-      if (monthlyBlocked.value || featureDisabled.value) {
+      if (featureDisabled.value) {
         clearPending()
         pending.value = null
         return
@@ -1099,12 +1100,12 @@ onMounted(async () => {
     await fetchEligibility()
   }
   // Auto-commit if we returned to the page already logged in with a live
-  // pending and we still have eligibility.
+  // pending and the feature is enabled. Monthly limit is no longer blocking
+  // here — unlimit keys bypass it, and the backend validates on commit.
   if (
     pending.value &&
     isAuthenticated.value &&
-    !featureDisabled.value &&
-    !monthlyBlocked.value
+    !featureDisabled.value
   ) {
     await commitReservation()
   }
