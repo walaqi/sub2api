@@ -463,28 +463,29 @@ func (s *Service) disabledErr() error {
 }
 
 // isKeyUnlimited resolves the per-key config and returns whether the monthly
-// participation limit should be skipped. Default (nil or true) → unlimited;
-// only explicit false → enforce monthly limit.
+// participation limit should be skipped. Only explicit *Unlimit == true skips
+// the monthly limit; all other cases (nil, false, missing config, resolver
+// error) enforce the limit by default.
 func (s *Service) isKeyUnlimited(ctx context.Context, keyID int64) bool {
 	if s.giftSettingResolver == nil || keyID <= 0 {
-		return true
+		return false
 	}
 	setting, err := s.giftSettingResolver.Resolve(ctx, keyID)
 	if err != nil || setting == nil {
-		return true
+		return false
 	}
 	if setting.Unlimit == nil {
-		return true
+		return false
 	}
 	return *setting.Unlimit
 }
 
 // hasUnlimitedPoolKeys returns true if the pool contains at least one active
-// key whose config allows unlimited binding (unlimit != false). Called by
-// CheckEligibility so the UI doesn't block users who can still claim unlimited keys.
+// key whose config has explicit unlimit == true. Called by CheckEligibility so
+// the UI doesn't block users who can still claim unlimited keys.
 func (s *Service) hasUnlimitedPoolKeys(ctx context.Context) bool {
 	if s.giftSettingResolver == nil {
-		return true
+		return false
 	}
 	ids, err := s.client.APIKey.Query().
 		Where(
