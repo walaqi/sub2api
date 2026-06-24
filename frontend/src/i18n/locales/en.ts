@@ -1311,6 +1311,7 @@ export default {
     title: 'Profile Settings',
     description: 'Manage your account information and settings',
     accountBalance: 'Account Balance',
+    rechargeBalance: 'Recharge',
     giftBalance: 'Gift',
     giftExpiringSoonHint: '({amount} expiring soon)',
     giftExpiringSoonShort: 'expiring soon',

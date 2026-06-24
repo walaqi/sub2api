@@ -71,6 +71,12 @@
                 </p>
                 <p
                   v-if="(user?.gift_balance ?? 0) > 0"
+                  class="mt-0.5 text-xs text-gray-500 dark:text-gray-400"
+                >
+                  {{ t('profile.rechargeBalance') }}: {{ formatCurrency(user?.recharge_balance ?? (user?.balance || 0)) }}
+                </p>
+                <p
+                  v-if="(user?.gift_balance ?? 0) > 0"
                   data-testid="profile-overview-metric-gift-balance"
                   class="mt-1 text-xs font-medium text-amber-600 dark:text-amber-400"
                 >
