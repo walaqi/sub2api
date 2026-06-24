@@ -30,7 +30,7 @@ import (
 
 const (
 	reservationTTL          = 5 * time.Minute
-	maxKeysPerReserve       = 50
+	maxKeysPerReserve       = 200
 	balanceRemainingMinimum = 0.5 // require > 50% remaining quota
 
 	redisLockedKeyPrefix      = "bindkey:locked:"      // bindkey:locked:<api_key_id> -> reservation_id
