@@ -1,3 +1,5 @@
+//go:build unit
+
 package service
 
 import (
@@ -129,4 +131,124 @@ func TestBillingCacheServiceEnqueueAfterStopReturnsFalse(t *testing.T) {
 		amount: 1,
 	})
 	require.False(t, enqueued)
+}
+
+// --- checkBalanceEligibility tests ---
+
+type balanceEligibilityUserRepoStub struct {
+	mockUserRepo
+	balance float64
+}
+
+func (s *balanceEligibilityUserRepoStub) GetByID(_ context.Context, _ int64) (*User, error) {
+	return &User{Balance: s.balance}, nil
+}
+
+type priorityGiftCheckerStub struct {
+	has         bool
+	err         error
+	giftBalance float64
+	giftErr     error
+}
+
+func (s *priorityGiftCheckerStub) HasActivePriorityGift(_ context.Context, _ int64) (bool, error) {
+	return s.has, s.err
+}
+
+func (s *priorityGiftCheckerStub) GetGiftBalance(_ context.Context, _ int64) (float64, error) {
+	return s.giftBalance, s.giftErr
+}
+
+func TestCheckBalanceEligibility_PositiveRechargePool_Passes(t *testing.T) {
+	// balance=100, gift=30 → rechargePool=70 > 0 → pass
+	svc := NewBillingCacheService(nil, &balanceEligibilityUserRepoStub{balance: 100}, nil, nil, nil, nil, &config.Config{}, nil)
+	t.Cleanup(svc.Stop)
+	svc.SetPriorityGiftChecker(&priorityGiftCheckerStub{giftBalance: 30})
+
+	err := svc.checkBalanceEligibility(context.Background(), 1)
+	require.NoError(t, err)
+}
+
+func TestCheckBalanceEligibility_ZeroRechargePool_NoPriorityGift_Rejects(t *testing.T) {
+	// User 518 scenario: balance=60, gift=60 → rechargePool=0, only ratio gift → reject
+	svc := NewBillingCacheService(nil, &balanceEligibilityUserRepoStub{balance: 60}, nil, nil, nil, nil, &config.Config{}, nil)
+	t.Cleanup(svc.Stop)
+	svc.SetPriorityGiftChecker(&priorityGiftCheckerStub{giftBalance: 60, has: false})
+
+	err := svc.checkBalanceEligibility(context.Background(), 1)
+	require.ErrorIs(t, err, ErrInsufficientBalance)
+}
+
+func TestCheckBalanceEligibility_ZeroRechargePool_HasPriorityGift_Passes(t *testing.T) {
+	// balance=50, gift=50 → rechargePool=0, but has priority gift → pass
+	svc := NewBillingCacheService(nil, &balanceEligibilityUserRepoStub{balance: 50}, nil, nil, nil, nil, &config.Config{}, nil)
+	t.Cleanup(svc.Stop)
+	svc.SetPriorityGiftChecker(&priorityGiftCheckerStub{giftBalance: 50, has: true})
+
+	err := svc.checkBalanceEligibility(context.Background(), 1)
+	require.NoError(t, err)
+}
+
+func TestCheckBalanceEligibility_NegativeRechargePool_HasPriorityGift_Passes(t *testing.T) {
+	// balance=40, gift=50 → rechargePool=-10, has priority gift → pass
+	svc := NewBillingCacheService(nil, &balanceEligibilityUserRepoStub{balance: 40}, nil, nil, nil, nil, &config.Config{}, nil)
+	t.Cleanup(svc.Stop)
+	svc.SetPriorityGiftChecker(&priorityGiftCheckerStub{giftBalance: 50, has: true})
+
+	err := svc.checkBalanceEligibility(context.Background(), 1)
+	require.NoError(t, err)
+}
+
+func TestCheckBalanceEligibility_NegativeBalance_NoGift_Rejects(t *testing.T) {
+	// balance=-5, gift=0 → rechargePool=-5, no priority → reject
+	svc := NewBillingCacheService(nil, &balanceEligibilityUserRepoStub{balance: -5}, nil, nil, nil, nil, &config.Config{}, nil)
+	t.Cleanup(svc.Stop)
+	svc.SetPriorityGiftChecker(&priorityGiftCheckerStub{giftBalance: 0, has: false})
+
+	err := svc.checkBalanceEligibility(context.Background(), 1)
+	require.ErrorIs(t, err, ErrInsufficientBalance)
+}
+
+func TestCheckBalanceEligibility_CheckerNil_FallsBackToBalance(t *testing.T) {
+	// No checker wired, balance > 0 → pass (legacy behavior)
+	svc := NewBillingCacheService(nil, &balanceEligibilityUserRepoStub{balance: 10}, nil, nil, nil, nil, &config.Config{}, nil)
+	t.Cleanup(svc.Stop)
+
+	err := svc.checkBalanceEligibility(context.Background(), 1)
+	require.NoError(t, err)
+
+	// No checker wired, balance ≤ 0 → reject (legacy behavior)
+	svc2 := NewBillingCacheService(nil, &balanceEligibilityUserRepoStub{balance: 0}, nil, nil, nil, nil, &config.Config{}, nil)
+	t.Cleanup(svc2.Stop)
+
+	err = svc2.checkBalanceEligibility(context.Background(), 1)
+	require.ErrorIs(t, err, ErrInsufficientBalance)
+}
+
+func TestCheckBalanceEligibility_GiftBalanceError_FallsBackToBalance(t *testing.T) {
+	// GetGiftBalance fails, balance > 0 → pass (fallback)
+	svc := NewBillingCacheService(nil, &balanceEligibilityUserRepoStub{balance: 60}, nil, nil, nil, nil, &config.Config{}, nil)
+	t.Cleanup(svc.Stop)
+	svc.SetPriorityGiftChecker(&priorityGiftCheckerStub{giftErr: errors.New("db down")})
+
+	err := svc.checkBalanceEligibility(context.Background(), 1)
+	require.NoError(t, err)
+
+	// GetGiftBalance fails, balance ≤ 0 → reject (fallback)
+	svc2 := NewBillingCacheService(nil, &balanceEligibilityUserRepoStub{balance: 0}, nil, nil, nil, nil, &config.Config{}, nil)
+	t.Cleanup(svc2.Stop)
+	svc2.SetPriorityGiftChecker(&priorityGiftCheckerStub{giftErr: errors.New("db down")})
+
+	err = svc2.checkBalanceEligibility(context.Background(), 1)
+	require.ErrorIs(t, err, ErrInsufficientBalance)
+}
+
+func TestCheckBalanceEligibility_PriorityCheckError_Rejects(t *testing.T) {
+	// rechargePool ≤ 0, HasActivePriorityGift errors → conservative reject
+	svc := NewBillingCacheService(nil, &balanceEligibilityUserRepoStub{balance: 60}, nil, nil, nil, nil, &config.Config{}, nil)
+	t.Cleanup(svc.Stop)
+	svc.SetPriorityGiftChecker(&priorityGiftCheckerStub{giftBalance: 60, err: errors.New("db down")})
+
+	err := svc.checkBalanceEligibility(context.Background(), 1)
+	require.ErrorIs(t, err, ErrInsufficientBalance)
 }

@@ -6,7 +6,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-// 测试不变量：Σ(GiftDeltas) + RechargeDelta ≡ TotalCost；联动作废后总扣 = TotalCost + RevokedRemaining。
+// 测试不变量：Σ(GiftDeltas) + RechargeDelta ≡ TotalCost。
 func assertConservation(t *testing.T, in AllocateInput, res AllocateResult) {
 	t.Helper()
 	sum := res.RechargeDelta
@@ -116,16 +116,12 @@ func TestAllocate_MultipleRatio_LowerFirst(t *testing.T) {
 	assertConservation(t, in, res)
 }
 
-func TestAllocate_RatioTriggersRevoke(t *testing.T) {
-	// 设计稿走查例：priority A=20, ratio B=30 (r=2.0), recharge=50, balance=100
-	// 第二次扣 50：
-	// stage 1: priority A 已扣完，跳过
-	// stage 2: B 上限 cap_by_gift = 3.33·1.5/... 这里我们直接构造扣完场景
-	// 改为：余额 = 40（A=0, B=3.33, recharge=36.67），扣 50
-	// stage 2 B: capByGift=3.33·3/2=5.0, capByRecharge=36.67·3=110, T=min(50,5,110)=5
-	//   gift=5·2/3≈3.33, recharge=5/3≈1.67
-	// stage 3: 剩 45 全压 recharge_pool → recharge_pool = 36.67-1.67-45 = -10 → 触底
-	// 因为没有其他 ratio 赠金，B 已耗尽，RevokeRatioGifts=false（B remaining=0）
+func TestAllocate_RatioNoRevoke_GiftExhausted(t *testing.T) {
+	// When ratio gift is fully consumed during stage 2, no remaining to worry about.
+	// balance = 40 (ratio gift remaining=3.33, rechargePool=36.67), deduct 50
+	// stage 2: capByGift=3.33·3/2=5.0, T=min(50,5,36.67·3)=5
+	//   gift≈3.33, recharge≈1.67
+	// stage 3: 45 → rechargePool goes negative (OK, no revoke)
 	in := AllocateInput{
 		TotalCost:    d("50"),
 		TotalBalance: d("40"),
@@ -134,22 +130,19 @@ func TestAllocate_RatioTriggersRevoke(t *testing.T) {
 		},
 	}
 	res, _ := Allocate(in)
-	if res.RevokeRatioGifts {
-		t.Fatalf("no ratio gifts left to revoke after exhaustion")
-	}
 	assertConservation(t, in, res)
 }
 
-func TestAllocate_RatioRevokeWhenRechargeBottoms(t *testing.T) {
-	// 充值池触底时联动作废"仍 active"的 ratio 赠金
+func TestAllocate_RatioNoRevoke_RechargeBottoms(t *testing.T) {
+	// Previously this test asserted RevokeRatioGifts=true. Now ratio gifts
+	// are NOT revoked — they remain active and dormant until user recharges.
 	// balance=20, gifts: ratio A r=2 remaining=10, ratio B r=3 remaining=5
 	// recharge_pool = 20 - 10 - 5 = 5
-	// 扣 50：
-	//   stage 2 A (r=2): capByGift=10·3/2=15, capByRecharge=5·3=15, T=min(50,15,15)=15
-	//                    gift=10, recharge=5；A 用尽，rechargePool=0
-	//   stage 2 B (r=3): capByRecharge=0，T=0，跳过；B remaining=5 仍 active
-	//   stage 3: 剩 35 全压 → rechargePool = -35
-	// 触底时 B remaining=5 → RevokeRatioGifts=true, RevokedRemaining=5
+	// stage 2 A (r=2): capByGift=10·3/2=15, capByRecharge=5·3=15, T=min(50,15,15)=15
+	//                  gift=10, recharge=5; A exhausted, rechargePool=0
+	// stage 2 B (r=3): capByRecharge=0, T=0, skip; B remaining=5 stays active
+	// stage 3: 35 all to rechargePool → goes negative
+	// B is NOT revoked (remains active for when user recharges).
 	in := AllocateInput{
 		TotalCost:    d("50"),
 		TotalBalance: d("20"),
@@ -162,11 +155,34 @@ func TestAllocate_RatioRevokeWhenRechargeBottoms(t *testing.T) {
 	if !res.GiftDeltas[1].Equal(d("10")) {
 		t.Fatalf("A should be fully consumed, got %s", res.GiftDeltas[1])
 	}
-	if !res.RevokeRatioGifts || !res.RevokedRemaining.Equal(d("5")) {
-		t.Fatalf("expected revoke B with 5, got revoke=%v sum=%s ids=%v", res.RevokeRatioGifts, res.RevokedRemaining, res.RevokedGiftIDs)
+	// B should NOT be touched (no revoke, no deduction)
+	if _, exists := res.GiftDeltas[2]; exists {
+		t.Fatalf("B should not be deducted, got %s", res.GiftDeltas[2])
 	}
-	if len(res.RevokedGiftIDs) != 1 || res.RevokedGiftIDs[0] != 2 {
-		t.Fatalf("expected revoked id [2], got %v", res.RevokedGiftIDs)
+	assertConservation(t, in, res)
+}
+
+func TestAllocate_RatioSkippedWhenRechargePoolZero(t *testing.T) {
+	// User 518 scenario: only ratio gift, rechargePool=0 from the start.
+	// balance=60, ratio gift remaining=60 → rechargePool = 60-60 = 0
+	// stage 2: capByRecharge=0, ratio gift NOT consumed
+	// stage 3: full cost goes to recharge (overdraft)
+	// ratio gift remains active (not revoked).
+	in := AllocateInput{
+		TotalCost:    d("0.53"),
+		TotalBalance: d("60"),
+		Gifts: []ActiveGift{
+			{ID: 1, Mode: DeductionModeRatio, Remaining: d("60"), RatioRecharge: d("2")},
+		},
+	}
+	res, _ := Allocate(in)
+	// ratio gift should not be consumed
+	if _, exists := res.GiftDeltas[1]; exists {
+		t.Fatalf("ratio gift should not be consumed when rechargePool=0, got %s", res.GiftDeltas[1])
+	}
+	// full cost goes to recharge pool (overdraft)
+	if !res.RechargeDelta.Equal(d("0.53")) {
+		t.Fatalf("recharge expected 0.53, got %s", res.RechargeDelta)
 	}
 	assertConservation(t, in, res)
 }
@@ -190,6 +206,28 @@ func TestAllocate_PriorityPlusRatioPlusRecharge(t *testing.T) {
 	}
 	// 由于 8 位舍入，gift_part 与 recharge_part 不会精确为分数
 	// 只断言守恒
+	assertConservation(t, in, res)
+}
+
+func TestAllocate_PriorityCoversWhenRechargePoolZero(t *testing.T) {
+	// User has priority gift and rechargePool=0.
+	// priority gift can independently support requests.
+	// balance=50, priority gift remaining=50 → rechargePool=0
+	// stage 1: priority absorbs full cost
+	in := AllocateInput{
+		TotalCost:    d("10"),
+		TotalBalance: d("50"),
+		Gifts: []ActiveGift{
+			{ID: 1, Mode: DeductionModePriority, Remaining: d("50")},
+		},
+	}
+	res, _ := Allocate(in)
+	if !res.GiftDeltas[1].Equal(d("10")) {
+		t.Fatalf("priority should absorb 10, got %s", res.GiftDeltas[1])
+	}
+	if !res.RechargeDelta.IsZero() {
+		t.Fatalf("recharge should be zero, got %s", res.RechargeDelta)
+	}
 	assertConservation(t, in, res)
 }
 
