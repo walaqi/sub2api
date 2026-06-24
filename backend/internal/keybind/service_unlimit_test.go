@@ -15,13 +15,13 @@ func boolPtr(v bool) *bool { return &v }
 func TestIsKeyUnlimited(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("no setting row -> unlimited (default)", func(t *testing.T) {
+	t.Run("no setting row -> limited (default)", func(t *testing.T) {
 		client := newWindowTestClient(t)
 		svc := newWindowService(client)
-		require.True(t, svc.isKeyUnlimited(ctx, 9999))
+		require.False(t, svc.isKeyUnlimited(ctx, 9999))
 	})
 
-	t.Run("unlimit=nil -> unlimited (default)", func(t *testing.T) {
+	t.Run("unlimit=nil -> limited (default)", func(t *testing.T) {
 		client := newWindowTestClient(t)
 		svc := newWindowService(client)
 		const keyID = int64(101)
@@ -31,7 +31,7 @@ func TestIsKeyUnlimited(t *testing.T) {
 			SetConfig(&domain.BindKeyConfig{}).
 			Save(ctx)
 		require.NoError(t, err)
-		require.True(t, svc.isKeyUnlimited(ctx, keyID))
+		require.False(t, svc.isKeyUnlimited(ctx, keyID))
 	})
 
 	t.Run("unlimit=true -> unlimited", func(t *testing.T) {
@@ -60,16 +60,16 @@ func TestIsKeyUnlimited(t *testing.T) {
 		require.False(t, svc.isKeyUnlimited(ctx, keyID))
 	})
 
-	t.Run("nil resolver -> unlimited", func(t *testing.T) {
+	t.Run("nil resolver -> limited", func(t *testing.T) {
 		svc := &Service{giftSettingResolver: nil}
-		require.True(t, svc.isKeyUnlimited(ctx, 1))
+		require.False(t, svc.isKeyUnlimited(ctx, 1))
 	})
 
-	t.Run("keyID <= 0 -> unlimited", func(t *testing.T) {
+	t.Run("keyID <= 0 -> limited", func(t *testing.T) {
 		client := newWindowTestClient(t)
 		svc := newWindowService(client)
-		require.True(t, svc.isKeyUnlimited(ctx, 0))
-		require.True(t, svc.isKeyUnlimited(ctx, -1))
+		require.False(t, svc.isKeyUnlimited(ctx, 0))
+		require.False(t, svc.isKeyUnlimited(ctx, -1))
 	})
 }
 
@@ -263,7 +263,7 @@ func TestCheckEligibility_Unlimit(t *testing.T) {
 		require.False(t, res.Eligible)
 	})
 
-	t.Run("participated + pool key has no config row (default unlimited) -> eligible", func(t *testing.T) {
+	t.Run("participated + pool key has no config row (default limited) -> not eligible", func(t *testing.T) {
 		client := newWindowTestClient(t)
 		dataDir := t.TempDir()
 		poolUser, err := client.User.Create().
@@ -272,7 +272,7 @@ func TestCheckEligibility_Unlimit(t *testing.T) {
 			Save(ctx)
 		require.NoError(t, err)
 
-		// Pool key with no bind_key_gift_settings row → isKeyUnlimited defaults true
+		// Pool key with no bind_key_gift_settings row → isKeyUnlimited defaults false
 		_, err = client.APIKey.Create().
 			SetUserID(poolUser.ID).
 			SetKey("sk-test-noconfig-001").
@@ -293,6 +293,6 @@ func TestCheckEligibility_Unlimit(t *testing.T) {
 		res, err := svc.CheckEligibility(ctx, claimUser)
 		require.NoError(t, err)
 		require.True(t, res.AlreadyParticipated)
-		require.True(t, res.Eligible)
+		require.False(t, res.Eligible)
 	})
 }
