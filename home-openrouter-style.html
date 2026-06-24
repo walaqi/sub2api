@@ -759,11 +759,11 @@
         </div>
 
         <pre class="or-code-pane or-code-pane-c" style="text-align: left;"><span class="or-c-comment"># 一个密钥,调用任意已接入的模型</span>
-<span class="or-c-prompt">$</span> <span class="or-c-cmd">curl</span> <span class="or-c-flag">-X POST</span> <span class="or-c-url">https://api.your-domain.com/v1/messages</span> \
+<span class="or-c-prompt">$</span> <span class="or-c-cmd">curl</span> <span class="or-c-flag">-X POST</span> <span class="or-c-url">https://cc.atai8.cc/v1/messages</span> \
   -H <span class="or-c-string">"Authorization: Bearer $YOUR_KEY"</span> \
   -H <span class="or-c-string">"Content-Type: application/json"</span> \
   -d <span class="or-c-string">'{
-    <span class="or-c-key">"model"</span>: <span class="or-c-model">"claude-sonnet-4-5"</span>,
+    <span class="or-c-key">"model"</span>: <span class="or-c-model">"claude-opus-4-8"</span>,
     <span class="or-c-key">"max_tokens"</span>: 1024,
     <span class="or-c-key">"messages"</span>: [
       { <span class="or-c-key">"role"</span>: <span class="or-c-string">"user"</span>, <span class="or-c-key">"content"</span>: <span class="or-c-string">"用一句话解释 API 网关"</span> }
@@ -771,11 +771,11 @@
   }'</span></pre>
 
         <pre class="or-code-pane or-code-pane-g" style="text-align: left;"><span class="or-c-comment"># OpenAI 兼容协议,直接换 model 即可</span>
-<span class="or-c-prompt">$</span> <span class="or-c-cmd">curl</span> <span class="or-c-flag">-X POST</span> <span class="or-c-url">https://api.your-domain.com/v1/chat/completions</span> \
+<span class="or-c-prompt">$</span> <span class="or-c-cmd">curl</span> <span class="or-c-flag">-X POST</span> <span class="or-c-url">https://cc.atai8.cc/v1/chat/completions</span> \
   -H <span class="or-c-string">"Authorization: Bearer $YOUR_KEY"</span> \
   -H <span class="or-c-string">"Content-Type: application/json"</span> \
   -d <span class="or-c-string">'{
-    <span class="or-c-key">"model"</span>: <span class="or-c-model">"gpt-4o"</span>,
+    <span class="or-c-key">"model"</span>: <span class="or-c-model">"gpt-5.5"</span>,
     <span class="or-c-key">"messages"</span>: [
       { <span class="or-c-key">"role"</span>: <span class="or-c-string">"user"</span>, <span class="or-c-key">"content"</span>: <span class="or-c-string">"用一句话解释 API 网关"</span> }
     ]
