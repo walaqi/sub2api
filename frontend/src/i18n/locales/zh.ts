@@ -1315,6 +1315,7 @@ export default {
     title: '个人设置',
     description: '管理您的账户信息和设置',
     accountBalance: '账户余额',
+    rechargeBalance: '充值',
     giftBalance: '赠金',
     giftExpiringSoonHint: '(其中 {amount} 即将过期)',
     giftExpiringSoonShort: '即将过期',
