@@ -578,7 +578,7 @@ const zh: Copy = {
   howItWorks3: '若未登录，可在下方直接登录或注册完成绑定。',
   howItWorks4: '可领取条件：Key 处于激活状态、尚未被领取、剩余配额 > 50%。',
   expired: '预留已过期，请重新粘贴 Key 再试。',
-  noEligible: '列表中没有可用的 Key。这些 Key 可能已被绑定，或剩余配额不足 50%。',
+  noEligible: '系统里没有可用的Key。这些key可能已经被绑定。',
   emptyInput: '请至少粘贴一个 Key。',
   successBound: 'Key {key} 已成功绑定到你的账户。',
   monthlyLimitTitle: '本月已参与绑定',
