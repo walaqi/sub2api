@@ -12,7 +12,7 @@
         <div>
           <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('dashboard.balance') }}</p>
           <p class="text-xl font-bold text-emerald-600 dark:text-emerald-400">${{ formatBalance(balance) }}</p>
-          <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('common.available') }}</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('profile.rechargeBalance') }}: ${{ formatBalance(user?.recharge_balance ?? balance) }}</p>
         </div>
       </div>
     </div>
@@ -245,7 +245,7 @@ const props = defineProps<{
   balance: number
   isSimple: boolean
   platformQuotas?: PlatformQuotaItem[] | null
-  user?: { gift_balance?: number; gift_expiring_soon?: number } | null
+  user?: { gift_balance?: number; gift_expiring_soon?: number; recharge_balance?: number } | null
 }>()
 const { t } = useI18n()
 
