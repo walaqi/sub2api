@@ -109,6 +109,9 @@ func RegisterAdminRoutes(
 
 		// 多账户滥用检测
 		registerAbuseRoutes(admin, h)
+
+		// 退费评估
+		registerRefundAssessmentRoutes(admin, h)
 	}
 }
 
@@ -712,5 +715,12 @@ func registerGiftOpsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 
 		// C. 用户余额拆分查询
 		ops.GET("/users/:user_id/balance", h.Admin.GiftOps.GetUserBalance)
+	}
+}
+
+func registerRefundAssessmentRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	ra := admin.Group("/refund-assessment")
+	{
+		ra.GET("", h.Admin.RefundAssessment.GetAssessment)
 	}
 }

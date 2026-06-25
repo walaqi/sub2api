@@ -633,6 +633,7 @@ var ProviderSet = wire.NewSet(
 	ProvideAbuseDetectionService,
 	ProvideSuspectThrottleService,
 	ProvideUserPlatformQuotaUsageFlusher,
+	NewRefundAssessmentService,
 )
 
 // ProvideUserPlatformQuotaUsageFlusher 创建并启动 UserPlatformQuotaUsageFlusher。
