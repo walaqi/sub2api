@@ -49,6 +49,7 @@ type BindKeyGiftSettingPayload struct {
 	DeductionMode    string   `json:"deduction_mode" binding:"required"`
 	RatioRecharge    *float64 `json:"ratio_recharge,omitempty"`
 	ExpiresAfterDays *int     `json:"expires_after_days,omitempty"`
+	Unlimit          *bool    `json:"unlimit,omitempty"`
 }
 
 // BindKeyGiftSettingResponse 是表 A 的响应 DTO。
@@ -95,6 +96,9 @@ func (h *GiftOpsHandler) UpsertBindKeyGiftSetting(c *gin.Context) {
 		if req.ExpiresAfterDays != nil {
 			create = create.SetExpiresAfterDays(*req.ExpiresAfterDays)
 		}
+		if req.Unlimit != nil {
+			create = create.SetConfig(&domain.BindKeyConfig{Unlimit: req.Unlimit})
+		}
 		saved, err = create.Save(ctx)
 	} else {
 		update := existing.Update().SetDeductionMode(req.DeductionMode)
@@ -107,6 +111,10 @@ func (h *GiftOpsHandler) UpsertBindKeyGiftSetting(c *gin.Context) {
 			update = update.SetExpiresAfterDays(*req.ExpiresAfterDays)
 		} else {
 			update = update.ClearExpiresAfterDays()
+		}
+		if req.Unlimit != nil {
+			cfg := mergeUnlimit(existing.Config, req.Unlimit)
+			update = update.SetConfig(cfg)
 		}
 		saved, err = update.Save(ctx)
 	}
@@ -297,6 +305,16 @@ func mergeRegistrationWindow(cur *domain.BindKeyConfig, window *domain.BindKeyRe
 		*out = *cur
 	}
 	out.RegistrationWindow = window
+	return out
+}
+
+// mergeUnlimit 返回一份新的 config，把 unlimit 写入，保留已有的 registration_window 等字段不变。
+func mergeUnlimit(cur *domain.BindKeyConfig, unlimit *bool) *domain.BindKeyConfig {
+	out := &domain.BindKeyConfig{}
+	if cur != nil {
+		*out = *cur
+	}
+	out.Unlimit = unlimit
 	return out
 }
 
