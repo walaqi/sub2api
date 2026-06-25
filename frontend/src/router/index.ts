@@ -711,6 +711,17 @@ const routes: RouteRecordRaw[] = [
       requiresPayment: true
     }
   },
+  {
+    path: '/admin/orders/refund-assessment',
+    name: 'AdminRefundAssessment',
+    component: () => import('@/views/admin/orders/RefundAssessmentView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: '退费评估',
+      requiresPayment: true
+    }
+  },
 
   // ==================== 404 Not Found ====================
   {

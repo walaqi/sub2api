@@ -39,6 +39,7 @@ type AdminHandlers struct {
 	GiftOps                *admin.GiftOpsHandler
 	Abuse                  *admin.AbuseHandler
 	Compliance             *admin.ComplianceHandler
+	RefundAssessment       *admin.RefundAssessmentHandler
 }
 
 // Handlers contains all HTTP handlers
