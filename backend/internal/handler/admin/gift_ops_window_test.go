@@ -165,3 +165,98 @@ func TestDeleteRegistrationWindow_NoRowIsNoop(t *testing.T) {
 	rec := doJSON(t, r, http.MethodDelete, "/api/v1/admin/ops/bind-key-gifts/12345/registration-window", "")
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 }
+
+func TestUpsertBindKeyGiftSetting_UnlimitWritesConfig(t *testing.T) {
+	client := newGiftOpsTestClient(t)
+	r := setupGiftOpsRouter(client)
+	ctx := context.Background()
+
+	// Create with unlimit=true
+	rec := doJSON(t, r, http.MethodPost, "/api/v1/admin/ops/bind-key-gifts",
+		`{"api_key_id":100,"deduction_mode":"ratio","ratio_recharge":2.0,"unlimit":true}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	row, err := client.BindKeyGiftSetting.Query().
+		Where(bindkeygiftsetting.APIKeyIDEQ(100)).Only(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, row.Config)
+	require.NotNil(t, row.Config.Unlimit)
+	require.True(t, *row.Config.Unlimit)
+}
+
+func TestUpsertBindKeyGiftSetting_UnlimitPreservesWindow(t *testing.T) {
+	client := newGiftOpsTestClient(t)
+	r := setupGiftOpsRouter(client)
+	ctx := context.Background()
+
+	// 1. Create with a registration window first.
+	rec := doJSON(t, r, http.MethodPut, "/api/v1/admin/ops/bind-key-gifts/200/registration-window",
+		`{"enabled":true,"min_days":0,"max_days":60}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	// 2. Upsert the gift with unlimit=true — window must survive.
+	rec = doJSON(t, r, http.MethodPost, "/api/v1/admin/ops/bind-key-gifts",
+		`{"api_key_id":200,"deduction_mode":"priority","unlimit":true}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	row, err := client.BindKeyGiftSetting.Query().
+		Where(bindkeygiftsetting.APIKeyIDEQ(200)).Only(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, row.Config)
+	require.NotNil(t, row.Config.Unlimit)
+	require.True(t, *row.Config.Unlimit)
+	require.NotNil(t, row.Config.RegistrationWindow, "window must survive unlimit upsert")
+	require.Equal(t, 60, row.Config.RegistrationWindow.MaxDays)
+}
+
+func TestUpsertBindKeyGiftSetting_WindowPreservesUnlimit(t *testing.T) {
+	client := newGiftOpsTestClient(t)
+	r := setupGiftOpsRouter(client)
+	ctx := context.Background()
+
+	// 1. Create with unlimit=true.
+	rec := doJSON(t, r, http.MethodPost, "/api/v1/admin/ops/bind-key-gifts",
+		`{"api_key_id":300,"deduction_mode":"priority","unlimit":true}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	// 2. Add a registration window — unlimit must survive.
+	rec = doJSON(t, r, http.MethodPut, "/api/v1/admin/ops/bind-key-gifts/300/registration-window",
+		`{"enabled":true,"min_days":1,"max_days":90}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	row, err := client.BindKeyGiftSetting.Query().
+		Where(bindkeygiftsetting.APIKeyIDEQ(300)).Only(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, row.Config)
+	require.NotNil(t, row.Config.Unlimit, "unlimit must survive window update")
+	require.True(t, *row.Config.Unlimit)
+	require.NotNil(t, row.Config.RegistrationWindow)
+	require.Equal(t, 90, row.Config.RegistrationWindow.MaxDays)
+}
+
+func TestUpsertBindKeyGiftSetting_NoUnlimitDoesNotTouchConfig(t *testing.T) {
+	client := newGiftOpsTestClient(t)
+	r := setupGiftOpsRouter(client)
+	ctx := context.Background()
+
+	// 1. Create with unlimit + window.
+	rec := doJSON(t, r, http.MethodPost, "/api/v1/admin/ops/bind-key-gifts",
+		`{"api_key_id":400,"deduction_mode":"priority","unlimit":true}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	rec = doJSON(t, r, http.MethodPut, "/api/v1/admin/ops/bind-key-gifts/400/registration-window",
+		`{"enabled":true,"min_days":0,"max_days":7}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	// 2. Update without unlimit field — config must remain unchanged.
+	rec = doJSON(t, r, http.MethodPost, "/api/v1/admin/ops/bind-key-gifts",
+		`{"api_key_id":400,"deduction_mode":"ratio","ratio_recharge":1.5}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	row, err := client.BindKeyGiftSetting.Query().
+		Where(bindkeygiftsetting.APIKeyIDEQ(400)).Only(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, row.Config)
+	require.NotNil(t, row.Config.Unlimit, "unlimit must survive when field is absent from payload")
+	require.True(t, *row.Config.Unlimit)
+	require.NotNil(t, row.Config.RegistrationWindow)
+}
