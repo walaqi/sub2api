@@ -112,23 +112,30 @@ func (s *RefundAssessmentService) Assess(ctx context.Context, email string) (*Re
 
 	// 5. FIFO 分摊
 	effectiveUsed := totalRechargeUsed + totalRefundDeducted
+	currentPool := s.resolveCurrentPool(ctx, user)
+
+	// 5.1 补偿未追踪入账（注册赠送等直接写 balance 的来源不会产生 redeem_codes 记录）
+	totalEverCredited := effectiveUsed + currentPool
+	slotSum := 0.0
+	for _, sl := range slots {
+		slotSum += sl.Amount
+	}
+	if gap := roundTo8(totalEverCredited - slotSum); gap > 0.01 {
+		slots = append([]PoolSlot{{
+			Source:     "signup_grant",
+			SourceID:   0,
+			CreditedAt: user.CreatedAt,
+			Amount:     gap,
+			PayAmount:  0,
+			Ratio:      0,
+			Note:       "注册赠送 / 未追踪入账",
+		}}, slots...)
+	}
+
 	AllocateFIFO(slots, effectiveUsed)
 
 	// 6. 计算汇总
 	summary := computeSummary(slots)
-
-	// 7. 当前充值池
-	currentPool := 0.0
-	if s.giftEngine != nil {
-		if pool, gerr := s.giftEngine.GetRechargePool(ctx, user.ID); gerr == nil {
-			currentPool = pool
-		}
-	} else {
-		currentPool = user.Balance
-	}
-	if currentPool < 0 {
-		currentPool = 0
-	}
 
 	return &RefundAssessmentResult{
 		UserID:              user.ID,
@@ -460,4 +467,20 @@ func truncateNote(s string, maxLen int) string {
 		return s
 	}
 	return string(runes[:maxLen]) + "…"
+}
+
+// resolveCurrentPool 获取用户当前充值池余额（复用 gift engine 或直接取 user.Balance）。
+func (s *RefundAssessmentService) resolveCurrentPool(ctx context.Context, user *User) float64 {
+	pool := 0.0
+	if s.giftEngine != nil {
+		if p, err := s.giftEngine.GetRechargePool(ctx, user.ID); err == nil {
+			pool = p
+		}
+	} else {
+		pool = user.Balance
+	}
+	if pool < 0 {
+		pool = 0
+	}
+	return pool
 }

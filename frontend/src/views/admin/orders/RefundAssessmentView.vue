@@ -241,6 +241,7 @@ function sourceLabel(source: string): string {
     case 'redeem_balance': return '兑换码'
     case 'admin_balance': return '管理员调整'
     case 'affiliate_transfer': return '推荐返佣'
+    case 'signup_grant': return '注册赠送'
     default: return source
   }
 }
@@ -251,6 +252,7 @@ function sourceTagClass(source: string): string {
     case 'redeem_balance': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
     case 'admin_balance': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
     case 'affiliate_transfer': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+    case 'signup_grant': return 'bg-gray-100 text-gray-700 dark:bg-gray-700/30 dark:text-gray-300'
     default: return 'bg-gray-100 text-gray-700'
   }
 }
