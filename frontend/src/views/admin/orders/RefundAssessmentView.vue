@@ -215,7 +215,7 @@ async function doSearch() {
 
   try {
     const resp = await getRefundAssessment(trimmed)
-    result.value = resp.data.data
+    result.value = resp.data
   } catch (e: any) {
     const msg = e?.response?.data?.message || e?.message || '查询失败'
     error.value = msg
