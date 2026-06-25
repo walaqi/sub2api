@@ -161,24 +161,6 @@ func TestMaskCode(t *testing.T) {
 	}
 }
 
-func TestParseRefundDeductedFromDetail(t *testing.T) {
-	cases := []struct {
-		detail string
-		want   float64
-	}{
-		{`{"balanceDeducted": 50.5, "reason": "test"}`, 50.5},
-		{`{"reason": "no deduct field"}`, 0},
-		{``, 0},
-		{`invalid json`, 0},
-	}
-	for _, tc := range cases {
-		got := parseRefundDeductedFromDetail(tc.detail)
-		if got != tc.want {
-			t.Errorf("parseRefundDeductedFromDetail(%q) = %f, want %f", tc.detail, got, tc.want)
-		}
-	}
-}
-
 // --- helpers ---
 
 func assertClose(t *testing.T, name string, got, want float64) {

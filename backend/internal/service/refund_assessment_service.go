@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"math"
 	"sort"
@@ -18,9 +17,9 @@ import (
 
 // PoolSlotSource 标识槽位来源类型
 const (
-	SlotSourcePaymentOrder     = "payment_order"
-	SlotSourceRedeemBalance    = "redeem_balance"
-	SlotSourceAdminBalance     = "admin_balance"
+	SlotSourcePaymentOrder      = "payment_order"
+	SlotSourceRedeemBalance     = "redeem_balance"
+	SlotSourceAdminBalance      = "admin_balance"
 	SlotSourceAffiliateTransfer = "affiliate_transfer"
 )
 
@@ -29,12 +28,12 @@ type PoolSlot struct {
 	Source         string    `json:"source"`
 	SourceID       int64     `json:"source_id"`
 	CreditedAt     time.Time `json:"credited_at"`
-	Amount         float64   `json:"amount"`      // 到账余额
-	PayAmount      float64   `json:"pay_amount"`  // 实付金额（免费来源=0，兑换码=面值）
-	Ratio          float64   `json:"ratio"`       // pay_amount / amount（免费=0，兑换码=1）
-	Consumed       float64   `json:"consumed"`    // FIFO 分配到的余额消耗
-	ConsumedMoney  float64   `json:"consumed_money"` // consumed × ratio
-	Remaining      float64   `json:"remaining"`   // amount - consumed
+	Amount         float64   `json:"amount"`          // 到账余额
+	PayAmount      float64   `json:"pay_amount"`      // 实付金额（免费来源=0，兑换码=面值）
+	Ratio          float64   `json:"ratio"`           // pay_amount / amount（免费=0，兑换码=1）
+	Consumed       float64   `json:"consumed"`        // FIFO 分配到的余额消耗
+	ConsumedMoney  float64   `json:"consumed_money"`  // consumed × ratio
+	Remaining      float64   `json:"remaining"`       // amount - consumed
 	RefundStatus   string    `json:"refund_status"`   // "" | "refunded" | "partially_refunded"
 	RefundDeducted float64   `json:"refund_deducted"` // 该订单退费时扣减的余额
 	Note           string    `json:"note"`
@@ -285,9 +284,10 @@ ORDER BY po.completed_at ASC`, userID)
 			ratio = payAmount / amount
 		}
 		refundStatus := ""
-		if status == "refunded" {
+		switch status {
+		case "refunded":
 			refundStatus = "refunded"
-		} else if status == "partially_refunded" {
+		case "partially_refunded":
 			refundStatus = "partially_refunded"
 		}
 		slots = append(slots, PoolSlot{
@@ -460,25 +460,4 @@ func truncateNote(s string, maxLen int) string {
 		return s
 	}
 	return string(runes[:maxLen]) + "…"
-}
-
-// parseRefundDeductedFromDetail extracts balanceDeducted from a JSON detail string.
-// Exported for testing.
-func parseRefundDeductedFromDetail(detail string) float64 {
-	if detail == "" {
-		return 0
-	}
-	var m map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(detail), &m); err != nil {
-		return 0
-	}
-	raw, ok := m["balanceDeducted"]
-	if !ok {
-		return 0
-	}
-	var v float64
-	if err := json.Unmarshal(raw, &v); err != nil {
-		return 0
-	}
-	return v
 }

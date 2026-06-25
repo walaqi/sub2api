@@ -22,7 +22,7 @@ func NewRefundAssessmentHandler(assessmentService *service.RefundAssessmentServi
 type refundAssessmentSlotDTO struct {
 	Source         string  `json:"source"`
 	SourceID       int64   `json:"source_id"`
-	CreditedAt     int64   `json:"credited_at"`      // unix ms
+	CreditedAt     int64   `json:"credited_at"` // unix ms
 	Amount         float64 `json:"amount"`
 	PayAmount      float64 `json:"pay_amount"`
 	Ratio          float64 `json:"ratio"`
