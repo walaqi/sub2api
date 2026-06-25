@@ -314,13 +314,28 @@ ORDER BY po.completed_at ASC`, userID)
 
 func (s *RefundAssessmentService) queryRedeemBalanceSlots(ctx context.Context, userID int64) ([]PoolSlot, error) {
 	rows, err := s.entClient.QueryContext(ctx, `
-SELECT id, value::double precision, used_at, code
-FROM redeem_codes
-WHERE used_by = $1
-  AND type = 'balance'
-  AND value > 0
-  AND used_at IS NOT NULL
-ORDER BY used_at ASC`, userID)
+SELECT rc.id,
+       rc.value::double precision,
+       rc.used_at,
+       rc.code,
+       COALESCE(po.pay_amount::double precision, rc.value::double precision) AS real_pay_amount
+FROM redeem_codes rc
+LEFT JOIN payment_orders po
+  ON po.recharge_code = rc.code
+  AND po.user_id = $1
+WHERE rc.used_by = $1
+  AND rc.type = 'balance'
+  AND rc.value > 0
+  AND rc.used_at IS NOT NULL
+  AND NOT EXISTS (
+      SELECT 1 FROM payment_orders po2
+      WHERE po2.recharge_code = rc.code
+        AND po2.user_id = $1
+        AND po2.order_type = 'balance'
+        AND po2.status IN ('completed', 'refunded', 'partially_refunded')
+        AND po2.completed_at IS NOT NULL
+  )
+ORDER BY rc.used_at ASC`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -329,21 +344,26 @@ ORDER BY used_at ASC`, userID)
 	var slots []PoolSlot
 	for rows.Next() {
 		var (
-			id     int64
-			value  float64
-			usedAt time.Time
-			code   string
+			id           int64
+			value        float64
+			usedAt       time.Time
+			code         string
+			realPayAmt   float64
 		)
-		if err := rows.Scan(&id, &value, &usedAt, &code); err != nil {
+		if err := rows.Scan(&id, &value, &usedAt, &code, &realPayAmt); err != nil {
 			return nil, err
+		}
+		ratio := 0.0
+		if value > 0 {
+			ratio = realPayAmt / value
 		}
 		slots = append(slots, PoolSlot{
 			Source:     SlotSourceRedeemBalance,
 			SourceID:   id,
 			CreditedAt: usedAt,
 			Amount:     value,
-			PayAmount:  value, // ratio = 1:1
-			Ratio:      1.0,
+			PayAmount:  realPayAmt,
+			Ratio:      roundTo8(ratio),
 			Note:       fmt.Sprintf("兑换码 %s", maskCode(code)),
 		})
 	}
