@@ -41,7 +41,7 @@ export interface RefundAssessmentResponse {
 }
 
 export function getRefundAssessment(email: string) {
-  return apiClient.get<{ code: string; data: RefundAssessmentResponse }>(
+  return apiClient.get<RefundAssessmentResponse>(
     '/admin/refund-assessment',
     { params: { email } }
   )

@@ -110,5 +110,5 @@ func (h *RefundAssessmentHandler) GetAssessment(c *gin.Context) {
 		},
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": "OK", "data": resp})
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": resp})
 }
