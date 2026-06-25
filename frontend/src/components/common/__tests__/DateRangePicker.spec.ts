@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import { ref } from 'vue'
 
 import DateRangePicker from '../DateRangePicker.vue'
@@ -53,7 +53,7 @@ describe('DateRangePicker', () => {
     expect(wrapper.text()).toContain('Last 24 Hours')
   })
 
-  it('emits range updates with last24Hours preset when applied', async () => {
+  it('emits range updates immediately when a preset is clicked', async () => {
     const now = new Date()
     const today = formatLocalDate(now)
 
@@ -76,7 +76,7 @@ describe('DateRangePicker', () => {
     expect(presetButton).toBeDefined()
 
     await presetButton!.trigger('click')
-    await wrapper.find('.date-picker-apply').trigger('click')
+    await flushPromises()
 
     const nowAfterClick = new Date()
     const yesterdayAfterClick = new Date(nowAfterClick.getTime() - 24 * 60 * 60 * 1000)
