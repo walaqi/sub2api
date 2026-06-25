@@ -680,6 +680,7 @@ SELECT id,
        amount::double precision,
        source,
        COALESCE(source_ref, ''),
+       status,
        created_at
 FROM user_gifts
 WHERE user_id = $1
@@ -694,9 +695,9 @@ LIMIT $2`, userID, limit)
 	for rows.Next() {
 		var id int64
 		var amount float64
-		var source, sourceRef string
+		var source, sourceRef, giftStatus string
 		var createdAt time.Time
-		if err := rows.Scan(&id, &amount, &source, &sourceRef, &createdAt); err != nil {
+		if err := rows.Scan(&id, &amount, &source, &sourceRef, &giftStatus, &createdAt); err != nil {
 			return nil, err
 		}
 		usedBy := userID
@@ -710,7 +711,7 @@ LIMIT $2`, userID, limit)
 			Code:      fmt.Sprintf("GIFT-%d", id),
 			Type:      RedeemTypeGiftBalance,
 			Value:     amount,
-			Status:    StatusUsed,
+			Status:    giftStatus,
 			Notes:     note,
 			UsedBy:    &usedBy,
 			UsedAt:    &usedAt,

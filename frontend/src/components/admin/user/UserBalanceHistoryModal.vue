@@ -111,6 +111,19 @@
               <div>
                 <p class="text-sm font-medium text-gray-900 dark:text-white">
                   {{ getItemTitle(item) }}
+                  <span
+                    v-if="item.type === 'gift_balance' && item.status && item.status !== 'active'"
+                    :class="[
+                      'ml-1.5 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium leading-tight',
+                      item.status === 'revoked'
+                        ? 'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400'
+                        : item.status === 'expired'
+                          ? 'bg-gray-100 text-gray-500 dark:bg-dark-600 dark:text-dark-400'
+                          : 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400'
+                    ]"
+                  >
+                    {{ getGiftStatusLabel(item.status) }}
+                  </span>
                 </p>
                 <!-- Notes (admin adjustment reason) -->
                 <p
@@ -244,6 +257,16 @@ const isBalanceType = (type: string) => type === 'balance' || type === 'admin_ba
 
 // Helper: check if subscription type
 const isSubscriptionType = (type: string) => type === 'subscription'
+
+// Helper: gift status label for badge display
+const getGiftStatusLabel = (status: string) => {
+  switch (status) {
+    case 'revoked': return t('admin.users.giftStatusRevoked')
+    case 'expired': return t('admin.users.giftStatusExpired')
+    case 'exhausted': return t('admin.users.giftStatusExhausted')
+    default: return status
+  }
+}
 
 // Icon name based on type
 const getIconName = (item: BalanceHistoryItem) => {
