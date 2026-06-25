@@ -89,6 +89,40 @@
           </div>
         </div>
 
+        <!-- 可退建议 -->
+        <div v-if="paidSlots.length > 0" class="card border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
+          <h3 class="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">退费建议</h3>
+          <div class="flex items-center gap-8">
+            <div>
+              <span class="text-xs text-gray-500">用户总实付</span>
+              <p class="text-sm font-medium">¥{{ fmt(totalPaid) }}</p>
+            </div>
+            <div>
+              <span class="text-xs text-gray-500">已消耗实付</span>
+              <p class="text-sm font-medium text-red-600">¥{{ fmt(result.summary.total_paid_money_spent) }}</p>
+            </div>
+            <div>
+              <span class="text-xs text-gray-500">建议可退</span>
+              <p class="text-lg font-bold text-green-600">¥{{ fmt(totalRefundable) }}</p>
+            </div>
+          </div>
+          <div v-if="paidSlots.length > 1" class="mt-3 space-y-2">
+            <div
+              v-for="slot in paidSlots"
+              :key="slot.source_id"
+              class="flex items-center justify-between rounded border border-green-100 px-3 py-2 text-sm dark:border-green-800/50"
+              :class="slot.refund_status ? 'opacity-50' : ''"
+            >
+              <span class="text-gray-600 dark:text-gray-400">{{ slot.note }}</span>
+              <span v-if="!slot.refund_status" class="font-medium text-green-600">可退 ¥{{ fmt(refundableAmount(slot)) }}</span>
+              <span v-else class="text-xs text-gray-500">
+                {{ slot.refund_status === 'refunded' ? '已退' : '部分退' }}
+                <span v-if="slot.refund_deducted > 0">（扣减 ¥{{ fmt(slot.refund_deducted) }}）</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
         <!-- FIFO 明细表格 -->
         <div class="card overflow-hidden">
           <div class="border-b border-gray-200 px-4 py-3 dark:border-dark-600">
@@ -153,37 +187,6 @@
           </div>
         </div>
 
-        <!-- 退费建议 -->
-        <div v-if="paidSlots.length > 0" class="card p-4">
-          <h3 class="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">退费建议（付费订单）</h3>
-          <div class="space-y-3">
-            <div
-              v-for="slot in paidSlots"
-              :key="slot.source_id"
-              class="rounded-lg border border-gray-200 p-3 dark:border-dark-600"
-              :class="slot.refund_status ? 'opacity-60' : ''"
-            >
-              <div class="flex items-center justify-between">
-                <div class="text-sm font-medium">{{ slot.note }}</div>
-                <div v-if="!slot.refund_status" class="text-right">
-                  <span class="text-xs text-gray-500">可退实付: </span>
-                  <span class="text-lg font-bold text-green-600">¥{{ fmt(refundableAmount(slot)) }}</span>
-                </div>
-                <div v-else class="text-xs text-gray-500">
-                  {{ slot.refund_status === 'refunded' ? '已退费' : '部分退费' }}
-                  <span v-if="slot.refund_deducted > 0">（扣减 ¥{{ fmt(slot.refund_deducted) }}）</span>
-                </div>
-              </div>
-              <div class="mt-1 flex flex-wrap gap-4 text-xs text-gray-500">
-                <span>到账: {{ fmt(slot.amount) }}</span>
-                <span>实付: ¥{{ fmt(slot.pay_amount) }}</span>
-                <span>倍率: 1:{{ (1/slot.ratio).toFixed(1) }}</span>
-                <span>FIFO已消耗余额: {{ fmt(slot.consumed) }}</span>
-                <span>换算实付消耗: ¥{{ fmt(slot.consumed_money) }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
       </template>
     </div>
   </AppLayout>
@@ -202,7 +205,17 @@ const result = ref<RefundAssessmentResponse | null>(null)
 
 const paidSlots = computed(() => {
   if (!result.value) return []
-  return result.value.slots.filter(s => s.source === 'payment_order')
+  return result.value.slots.filter(s => s.ratio > 0 && s.pay_amount > 0)
+})
+
+const totalRefundable = computed(() => {
+  return paidSlots.value
+    .filter(s => !s.refund_status)
+    .reduce((sum, s) => sum + refundableAmount(s), 0)
+})
+
+const totalPaid = computed(() => {
+  return paidSlots.value.reduce((sum, s) => sum + s.pay_amount, 0)
 })
 
 async function doSearch() {
