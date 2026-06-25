@@ -112,23 +112,35 @@ func (s *RefundAssessmentService) Assess(ctx context.Context, email string) (*Re
 
 	// 5. FIFO 分摊
 	effectiveUsed := totalRechargeUsed + totalRefundDeducted
+	rawPool := s.resolveRawPool(ctx, user)
+	currentPool := rawPool
+	if currentPool < 0 {
+		currentPool = 0
+	}
+
+	// 5.1 补偿未追踪入账（注册赠送等直接写 balance 的来源不会产生 redeem_codes 记录）
+	// 用未截断余额计算，否则负余额(透支)会被误判为缺口
+	totalEverCredited := effectiveUsed + rawPool
+	slotSum := 0.0
+	for _, sl := range slots {
+		slotSum += sl.Amount
+	}
+	if gap := roundTo8(totalEverCredited - slotSum); gap > 0.01 {
+		slots = append([]PoolSlot{{
+			Source:     "signup_grant",
+			SourceID:   0,
+			CreditedAt: user.CreatedAt,
+			Amount:     gap,
+			PayAmount:  0,
+			Ratio:      0,
+			Note:       "注册赠送 / 未追踪入账",
+		}}, slots...)
+	}
+
 	AllocateFIFO(slots, effectiveUsed)
 
 	// 6. 计算汇总
 	summary := computeSummary(slots)
-
-	// 7. 当前充值池
-	currentPool := 0.0
-	if s.giftEngine != nil {
-		if pool, gerr := s.giftEngine.GetRechargePool(ctx, user.ID); gerr == nil {
-			currentPool = pool
-		}
-	} else {
-		currentPool = user.Balance
-	}
-	if currentPool < 0 {
-		currentPool = 0
-	}
 
 	return &RefundAssessmentResult{
 		UserID:              user.ID,
@@ -307,13 +319,28 @@ ORDER BY po.completed_at ASC`, userID)
 
 func (s *RefundAssessmentService) queryRedeemBalanceSlots(ctx context.Context, userID int64) ([]PoolSlot, error) {
 	rows, err := s.entClient.QueryContext(ctx, `
-SELECT id, value::double precision, used_at, code
-FROM redeem_codes
-WHERE used_by = $1
-  AND type = 'balance'
-  AND value > 0
-  AND used_at IS NOT NULL
-ORDER BY used_at ASC`, userID)
+SELECT rc.id,
+       rc.value::double precision,
+       rc.used_at,
+       rc.code,
+       COALESCE(po.pay_amount::double precision, rc.value::double precision) AS real_pay_amount
+FROM redeem_codes rc
+LEFT JOIN payment_orders po
+  ON po.recharge_code = rc.code
+  AND po.user_id = $1
+WHERE rc.used_by = $1
+  AND rc.type = 'balance'
+  AND rc.value > 0
+  AND rc.used_at IS NOT NULL
+  AND NOT EXISTS (
+      SELECT 1 FROM payment_orders po2
+      WHERE po2.recharge_code = rc.code
+        AND po2.user_id = $1
+        AND po2.order_type = 'balance'
+        AND po2.status IN ('completed', 'refunded', 'partially_refunded')
+        AND po2.completed_at IS NOT NULL
+  )
+ORDER BY rc.used_at ASC`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -322,21 +349,26 @@ ORDER BY used_at ASC`, userID)
 	var slots []PoolSlot
 	for rows.Next() {
 		var (
-			id     int64
-			value  float64
-			usedAt time.Time
-			code   string
+			id           int64
+			value        float64
+			usedAt       time.Time
+			code         string
+			realPayAmt   float64
 		)
-		if err := rows.Scan(&id, &value, &usedAt, &code); err != nil {
+		if err := rows.Scan(&id, &value, &usedAt, &code, &realPayAmt); err != nil {
 			return nil, err
+		}
+		ratio := 0.0
+		if value > 0 {
+			ratio = realPayAmt / value
 		}
 		slots = append(slots, PoolSlot{
 			Source:     SlotSourceRedeemBalance,
 			SourceID:   id,
 			CreditedAt: usedAt,
 			Amount:     value,
-			PayAmount:  value, // ratio = 1:1
-			Ratio:      1.0,
+			PayAmount:  realPayAmt,
+			Ratio:      roundTo8(ratio),
 			Note:       fmt.Sprintf("兑换码 %s", maskCode(code)),
 		})
 	}
@@ -460,4 +492,14 @@ func truncateNote(s string, maxLen int) string {
 		return s
 	}
 	return string(runes[:maxLen]) + "…"
+}
+
+// resolveRawPool 获取用户当前充值池余额（不截断负值，供 gap 计算使用）。
+func (s *RefundAssessmentService) resolveRawPool(ctx context.Context, user *User) float64 {
+	if s.giftEngine != nil {
+		if p, err := s.giftEngine.GetRechargePool(ctx, user.ID); err == nil {
+			return p
+		}
+	}
+	return user.Balance
 }
