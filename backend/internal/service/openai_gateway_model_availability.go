@@ -6,10 +6,10 @@ import (
 )
 
 // DiagnoseModelAvailabilityForPlatform reports whether the requested model
-// is configured to be served by any account in the group for the given
-// platform. The fork's OpenAIGatewayService serves multiple OpenAI-compatible
-// platforms (e.g. Grok), so the platform argument scopes the account scan
-// (empty platform normalizes to OpenAI).
+// is configured to be served by any OpenAI-compatible account in the group
+// for the given platform (e.g. PlatformOpenAI, PlatformGrok). The platform
+// scopes the candidate pool so distinct OpenAI-compatible platforms do not
+// cross-contaminate diagnosis results.
 //
 // Safe to call on the error path: returns {true,true} on any internal
 // failure or when the inputs preclude meaningful diagnosis (empty model,
