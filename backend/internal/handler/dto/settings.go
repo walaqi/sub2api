@@ -258,6 +258,15 @@ type SystemSettings struct {
 	// Affiliate (邀请返利) feature switch
 	AffiliateEnabled bool `json:"affiliate_enabled"`
 
+	// Referral Reward (双向邀请赠金) feature switch + params
+	ReferralRewardEnabled     bool    `json:"referral_reward_enabled"`
+	ReferralInviteeAmount     float64 `json:"referral_invitee_amount"`
+	ReferralInviteeExpiryDays int     `json:"referral_invitee_expiry_days"`
+	ReferralInviterAmount     float64 `json:"referral_inviter_amount"`
+	ReferralInviterExpiryDays int     `json:"referral_inviter_expiry_days"`
+	ReferralSpendThreshold    float64 `json:"referral_spend_threshold"`
+	ReferralDiscountValidDays int     `json:"referral_discount_valid_days"`
+
 	// OpenAI fast/flex policy
 	OpenAIFastPolicySettings *OpenAIFastPolicySettings `json:"openai_fast_policy_settings,omitempty"`
 
@@ -332,6 +341,8 @@ type PublicSettings struct {
 	ImageStudioEnabled bool `json:"image_studio_enabled"`
 
 	AffiliateEnabled bool `json:"affiliate_enabled"`
+
+	ReferralRewardEnabled bool `json:"referral_reward_enabled"`
 
 	RiskControlEnabled bool `json:"risk_control_enabled"`
 

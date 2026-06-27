@@ -152,6 +152,13 @@ type SystemSettings struct {
 	AffiliateRebateFreezeHours   int
 	AffiliateRebateDurationDays  int
 	AffiliateRebatePerInviteeCap float64
+	ReferralRewardEnabled        bool
+	ReferralInviteeAmount        float64
+	ReferralInviteeExpiryDays    int
+	ReferralInviterAmount        float64
+	ReferralInviterExpiryDays    int
+	ReferralSpendThreshold       float64
+	ReferralDiscountValidDays    int
 	DefaultUserRPMLimit          int
 	DefaultSubscriptions         []DefaultSubscriptionSetting
 
@@ -308,6 +315,9 @@ type PublicSettings struct {
 
 	// Affiliate (邀请返利) feature toggle
 	AffiliateEnabled bool `json:"affiliate_enabled"`
+
+	// Referral Reward (双向邀请赠金) feature toggle
+	ReferralRewardEnabled bool `json:"referral_reward_enabled"`
 
 	// 风控中心功能开关
 	RiskControlEnabled bool `json:"risk_control_enabled"`

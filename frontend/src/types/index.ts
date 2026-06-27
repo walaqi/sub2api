@@ -251,6 +251,7 @@ export interface PublicSettings {
   available_channels_enabled: boolean
   service_quota_enabled: boolean
   affiliate_enabled: boolean
+  referral_reward_enabled?: boolean
   models_plaza_enabled?: boolean
   image_studio_enabled?: boolean
   allow_user_view_error_requests?: boolean

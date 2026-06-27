@@ -854,6 +854,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyAvailableChannelsEnabled,
 		SettingKeyModelsPlazaEnabled,
 		SettingKeyAffiliateEnabled,
+		SettingKeyReferralRewardEnabled,
 		SettingKeyRiskControlEnabled,
 		SettingKeyAllowUserViewErrorRequests,
 	}
@@ -970,6 +971,8 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ImageStudioEnabled: s.cfg != nil && s.cfg.ImageStudio.Enabled,
 
 		AffiliateEnabled: settings[SettingKeyAffiliateEnabled] == "true",
+
+		ReferralRewardEnabled: settings[SettingKeyReferralRewardEnabled] == "true",
 
 		RiskControlEnabled: settings[SettingKeyRiskControlEnabled] == "true",
 
@@ -1307,6 +1310,7 @@ type PublicSettingsInjectionPayload struct {
 	ModelsPlazaEnabled                   bool `json:"models_plaza_enabled"`
 	ImageStudioEnabled                   bool `json:"image_studio_enabled"`
 	AffiliateEnabled                     bool `json:"affiliate_enabled"`
+	ReferralRewardEnabled                bool `json:"referral_reward_enabled"`
 	RiskControlEnabled                   bool `json:"risk_control_enabled"`
 	AllowUserViewErrorRequests           bool `json:"allow_user_view_error_requests"`
 }
@@ -1372,6 +1376,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ModelsPlazaEnabled:                   settings.ModelsPlazaEnabled,
 		ImageStudioEnabled:                   settings.ImageStudioEnabled,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
+		ReferralRewardEnabled:                settings.ReferralRewardEnabled,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
 		AllowUserViewErrorRequests:           settings.AllowUserViewErrorRequests,
 	}, nil
@@ -2018,6 +2023,33 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 
 	// Affiliate (邀请返利) feature switch
 	updates[SettingKeyAffiliateEnabled] = strconv.FormatBool(settings.AffiliateEnabled)
+
+	// Referral Reward (双向邀请赠金) feature switch + params
+	updates[SettingKeyReferralRewardEnabled] = strconv.FormatBool(settings.ReferralRewardEnabled)
+	if settings.ReferralInviteeAmount <= 0 {
+		settings.ReferralInviteeAmount = 10
+	}
+	updates[SettingKeyReferralInviteeAmount] = strconv.FormatFloat(settings.ReferralInviteeAmount, 'f', 2, 64)
+	if settings.ReferralInviteeExpiryDays < 1 {
+		settings.ReferralInviteeExpiryDays = 2
+	}
+	updates[SettingKeyReferralInviteeExpiryDays] = strconv.Itoa(settings.ReferralInviteeExpiryDays)
+	if settings.ReferralInviterAmount <= 0 {
+		settings.ReferralInviterAmount = 10
+	}
+	updates[SettingKeyReferralInviterAmount] = strconv.FormatFloat(settings.ReferralInviterAmount, 'f', 2, 64)
+	if settings.ReferralInviterExpiryDays < 1 {
+		settings.ReferralInviterExpiryDays = 30
+	}
+	updates[SettingKeyReferralInviterExpiryDays] = strconv.Itoa(settings.ReferralInviterExpiryDays)
+	if settings.ReferralSpendThreshold <= 0 {
+		settings.ReferralSpendThreshold = 10
+	}
+	updates[SettingKeyReferralSpendThreshold] = strconv.FormatFloat(settings.ReferralSpendThreshold, 'f', 2, 64)
+	if settings.ReferralDiscountValidDays < 1 {
+		settings.ReferralDiscountValidDays = 30
+	}
+	updates[SettingKeyReferralDiscountValidDays] = strconv.Itoa(settings.ReferralDiscountValidDays)
 
 	// 风控中心功能开关
 	updates[SettingKeyRiskControlEnabled] = strconv.FormatBool(settings.RiskControlEnabled)
@@ -3054,6 +3086,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		// Affiliate (邀请返利) feature (default disabled; opt-in)
 		SettingKeyAffiliateEnabled: "false",
 
+		// Referral Reward (双向邀请赠金) feature (default disabled; opt-in)
+		SettingKeyReferralRewardEnabled: "false",
+
 		// 风控中心功能（默认关闭，显式启用）
 		SettingKeyRiskControlEnabled: "false",
 
@@ -3569,6 +3604,34 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 
 	// Affiliate (邀请返利) feature (default: disabled; strict true)
 	result.AffiliateEnabled = settings[SettingKeyAffiliateEnabled] == "true"
+
+	// Referral Reward (双向邀请赠金) feature (default: disabled; strict true)
+	result.ReferralRewardEnabled = settings[SettingKeyReferralRewardEnabled] == "true"
+	// Referral reward parameters (defaults match GetReferralRewardConfig)
+	result.ReferralInviteeAmount = 10
+	if v, err := strconv.ParseFloat(strings.TrimSpace(settings[SettingKeyReferralInviteeAmount]), 64); err == nil && v > 0 {
+		result.ReferralInviteeAmount = v
+	}
+	result.ReferralInviteeExpiryDays = 2
+	if v, err := strconv.Atoi(strings.TrimSpace(settings[SettingKeyReferralInviteeExpiryDays])); err == nil && v >= 1 {
+		result.ReferralInviteeExpiryDays = v
+	}
+	result.ReferralInviterAmount = 10
+	if v, err := strconv.ParseFloat(strings.TrimSpace(settings[SettingKeyReferralInviterAmount]), 64); err == nil && v > 0 {
+		result.ReferralInviterAmount = v
+	}
+	result.ReferralInviterExpiryDays = 30
+	if v, err := strconv.Atoi(strings.TrimSpace(settings[SettingKeyReferralInviterExpiryDays])); err == nil && v >= 1 {
+		result.ReferralInviterExpiryDays = v
+	}
+	result.ReferralSpendThreshold = 10
+	if v, err := strconv.ParseFloat(strings.TrimSpace(settings[SettingKeyReferralSpendThreshold]), 64); err == nil && v > 0 {
+		result.ReferralSpendThreshold = v
+	}
+	result.ReferralDiscountValidDays = 30
+	if v, err := strconv.Atoi(strings.TrimSpace(settings[SettingKeyReferralDiscountValidDays])); err == nil && v >= 1 {
+		result.ReferralDiscountValidDays = v
+	}
 
 	// 风控中心功能（默认关闭，严格 true 才启用）
 	result.RiskControlEnabled = settings[SettingKeyRiskControlEnabled] == "true"
