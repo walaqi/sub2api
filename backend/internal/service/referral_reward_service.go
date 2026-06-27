@@ -352,8 +352,9 @@ func (s *ReferralRewardService) execer(ctx context.Context) interface {
 // ReferralStatus 是用户可见的邀请奖励状态。
 type ReferralStatus struct {
 	Enabled         bool              `json:"enabled"`
-	InviteeReward   *InviteeRewardDTO `json:"invitee_reward"`   // 当前用户作为被邀请人的奖励状态（nil=非被邀请人）
-	InviterProgress []InviteeProgress `json:"inviter_progress"` // 当前用户作为邀请人，各被邀请人的消费进度
+	AffCode         string            `json:"aff_code"`          // 用户的邀请码（用于生成邀请链接）
+	InviteeReward   *InviteeRewardDTO `json:"invitee_reward"`    // 当前用户作为被邀请人的奖励状态（nil=非被邀请人）
+	InviterProgress []InviteeProgress `json:"inviter_progress"`  // 当前用户作为邀请人，各被邀请人的消费进度
 }
 
 type InviteeRewardDTO struct {
@@ -371,7 +372,7 @@ type InviteeProgress struct {
 // GetReferralStatus 查询当前用户的邀请奖励状态。
 func (s *ReferralRewardService) GetReferralStatus(ctx context.Context, userID int64) (*ReferralStatus, error) {
 	if s == nil || s.entClient == nil {
-		return &ReferralStatus{}, nil
+		return &ReferralStatus{InviterProgress: []InviteeProgress{}}, nil
 	}
 
 	execer := s.execer(ctx)
@@ -382,38 +383,62 @@ func (s *ReferralRewardService) GetReferralStatus(ctx context.Context, userID in
 
 	status := &ReferralStatus{Enabled: enabled}
 
-	// 1. 作为被邀请人的奖励状态
-	rows, err := execer.QueryContext(ctx,
-		`SELECT invitee_reward_granted FROM referral_reward_tracker WHERE invitee_id = $1 LIMIT 1`, userID)
-	if err == nil {
-		if rows.Next() {
-			var granted bool
-			_ = rows.Scan(&granted)
-			cfg := ReferralRewardConfig{InviteeAmount: 10}
-			if s.settingService != nil {
-				cfg = s.settingService.GetReferralRewardConfig(ctx)
-			}
-			status.InviteeReward = &InviteeRewardDTO{Granted: granted, Amount: cfg.InviteeAmount}
-		}
-		_ = rows.Close()
+	// 0. 获取用户的邀请码
+	affRows, err := execer.QueryContext(ctx,
+		`SELECT aff_code FROM user_affiliates WHERE user_id = $1 LIMIT 1`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("query aff_code: %w", err)
 	}
+	if affRows.Next() {
+		var code string
+		if err := affRows.Scan(&code); err != nil {
+			_ = affRows.Close()
+			return nil, fmt.Errorf("scan aff_code: %w", err)
+		}
+		status.AffCode = code
+	}
+	_ = affRows.Close()
+
+	// 1. 作为被邀请人的奖励状态
+	inviteeRows, err := execer.QueryContext(ctx,
+		`SELECT invitee_reward_granted FROM referral_reward_tracker WHERE invitee_id = $1 LIMIT 1`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("query invitee reward: %w", err)
+	}
+	if inviteeRows.Next() {
+		var granted bool
+		if err := inviteeRows.Scan(&granted); err != nil {
+			_ = inviteeRows.Close()
+			return nil, fmt.Errorf("scan invitee reward: %w", err)
+		}
+		cfg := ReferralRewardConfig{InviteeAmount: 10}
+		if s.settingService != nil {
+			cfg = s.settingService.GetReferralRewardConfig(ctx)
+		}
+		status.InviteeReward = &InviteeRewardDTO{Granted: granted, Amount: cfg.InviteeAmount}
+	}
+	_ = inviteeRows.Close()
 
 	// 2. 作为邀请人的各被邀请人进度
-	rows, err = execer.QueryContext(ctx, `
+	progressRows, err := execer.QueryContext(ctx, `
 SELECT invitee_id, invitee_spend_tracked::double precision, spend_threshold::double precision, inviter_reward_granted
 FROM referral_reward_tracker
 WHERE inviter_id = $1
 ORDER BY created_at DESC
 LIMIT 50`, userID)
-	if err == nil {
-		defer func() { _ = rows.Close() }()
-		for rows.Next() {
-			var p InviteeProgress
-			if err := rows.Scan(&p.InviteeID, &p.SpendTracked, &p.Threshold, &p.Granted); err != nil {
-				break
-			}
-			status.InviterProgress = append(status.InviterProgress, p)
+	if err != nil {
+		return nil, fmt.Errorf("query inviter progress: %w", err)
+	}
+	defer func() { _ = progressRows.Close() }()
+	for progressRows.Next() {
+		var p InviteeProgress
+		if err := progressRows.Scan(&p.InviteeID, &p.SpendTracked, &p.Threshold, &p.Granted); err != nil {
+			return nil, fmt.Errorf("scan inviter progress: %w", err)
 		}
+		status.InviterProgress = append(status.InviterProgress, p)
+	}
+	if err := progressRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate inviter progress: %w", err)
 	}
 
 	if status.InviterProgress == nil {

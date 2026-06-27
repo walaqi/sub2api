@@ -128,15 +128,14 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiClient } from '@/api/client'
-import { useAuthStore } from '@/stores/auth'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 
 const { t } = useI18n()
-const authStore = useAuthStore()
 
 interface ReferralStatusResponse {
   enabled: boolean
+  aff_code: string
   invitee_reward: { granted: boolean; amount: number } | null
   inviter_progress: Array<{
     invitee_id: number
@@ -151,11 +150,8 @@ const status = ref<ReferralStatusResponse | null>(null)
 const copied = ref(false)
 
 const inviteLink = computed(() => {
-  const user = authStore.user
-  if (!user) return ''
-  // Use the affiliate code from user profile as the invite link
   const base = window.location.origin
-  const affCode = (user as any).aff_code || ''
+  const affCode = status.value?.aff_code || ''
   return affCode ? `${base}/register?aff=${affCode}` : `${base}/register`
 })
 
