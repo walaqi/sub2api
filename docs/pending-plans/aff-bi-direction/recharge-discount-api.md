@@ -107,9 +107,11 @@ GET /api/v1/user/recharge-discount
 ```json
 {
   "code": 0,
-  "data": null
+  "message": "success"
 }
 ```
+
+注意：无折扣时 `data` 字段被省略（omitempty），前端应以 `data ?? null` 兼容。
 
 | 字段 | 说明 |
 |------|------|

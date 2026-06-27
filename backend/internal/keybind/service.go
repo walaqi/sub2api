@@ -21,7 +21,6 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
-	"github.com/Wei-Shaw/sub2api/ent/bindkeygiftsetting"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/internal/domain"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -497,23 +496,11 @@ func (s *Service) disabledErr() error {
 // resolveRechargeDiscountConfig 从 per-key 配置中提取充值折扣参数。
 // 返回 nil 表示该 key 未配置或未启用充值折扣。
 func (s *Service) resolveRechargeDiscountConfig(setting *BindKeyGiftSetting) *domain.BindKeyRechargeDiscount {
-	if setting == nil {
+	if setting == nil || setting.RechargeDiscount == nil {
 		return nil
 	}
-	// BindKeyGiftSetting.config 的 RechargeDiscount 字段通过 resolver 间接获取。
-	// 需要重新读取 config JSONB — resolver 当前只解析 Unlimit 和 RegistrationWindow。
-	// 为了最小改动，直接查 DB 获取 config。
-	if s.client == nil {
-		return nil
-	}
-	row, err := s.client.BindKeyGiftSetting.Query().
-		Where(bindkeygiftsetting.APIKeyIDEQ(setting.APIKeyID)).
-		Only(context.Background())
-	if err != nil || row == nil || row.Config == nil {
-		return nil
-	}
-	cfg := row.Config.RechargeDiscount
-	if cfg == nil || !cfg.Enabled {
+	cfg := setting.RechargeDiscount
+	if !cfg.Enabled {
 		return nil
 	}
 	if cfg.DiscountRate <= 0 || cfg.DiscountRate > 1 || cfg.MaxDiscountableAmount <= 0 || cfg.ValidDays < 1 {
