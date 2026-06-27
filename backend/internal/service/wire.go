@@ -660,6 +660,10 @@ func ProvideBalanceNotifyService(emailService *EmailService, settingRepo Setting
 func ProvidePaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService, notificationEmailService *NotificationEmailService, giftEngine *gift.Engine) *PaymentService {
 	svc := NewPaymentService(entClient, registry, loadBalancer, redeemService, subscriptionSvc, configService, userRepo, groupRepo, affiliateService, giftEngine)
 	svc.SetNotificationEmailService(notificationEmailService)
+	// 注入充值折扣仓库（entClient 为 nil 时降级为关闭）
+	if entClient != nil {
+		svc.SetRechargeDiscountRepo(NewRechargeDiscountRepoAdapter(entClient))
+	}
 	return svc
 }
 

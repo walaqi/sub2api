@@ -18,9 +18,10 @@ type RechargeDiscountRepo interface {
 	QueryBestActiveDiscountForUpdate(ctx context.Context, userID int64) (*RechargeDiscountRecord, error)
 	UpdateTotalDiscounted(ctx context.Context, discountID int64, appliedAmount float64) error
 	InsertApplication(ctx context.Context, app *RechargeDiscountApplicationRecord) error
+	UpdateApplicationGiftID(ctx context.Context, paymentOrderID int64, giftID int64) error
 }
 
-// RechargeDiscountRecord mirrors repository.RechargeDiscount for the service layer.
+// RechargeDiscountRecord 充值折扣记录（service 层使用）。
 type RechargeDiscountRecord struct {
 	ID                    int64
 	UserID                int64
@@ -30,7 +31,7 @@ type RechargeDiscountRecord struct {
 	ValidUntil            *time.Time
 }
 
-// RechargeDiscountApplicationRecord mirrors repository.RechargeDiscountApplication.
+// RechargeDiscountApplicationRecord 折扣发放记录（service 层使用）。
 type RechargeDiscountApplicationRecord struct {
 	UserID               int64
 	DiscountID           int64
@@ -44,12 +45,26 @@ type RechargeDiscountApplicationRecord struct {
 // applyRechargeDiscountForOrder 在 doBalance 中 markCompleted 前调用。
 // 强一致：失败返回 error，订单保持 RECHARGING 可重试。
 // 幂等：recharge_discount_applications(payment_order_id) 唯一索引。
+//
+// 两阶段设计：
+//   Phase 1（事务外）：快速判断是否需要处理（幂等已处理/无折扣/无bonus）→ 无需 entClient
+//   Phase 2（事务内）：claim order + FOR UPDATE 锁 + 更新 + 发放 + commit → 需要 entClient
+//
+// 并发安全：Phase 1 是乐观读（可能读到旧值），Phase 2 的 FOR UPDATE 锁 + InsertApplication
+// 唯一索引是真正的安全保障。
 func (s *PaymentService) applyRechargeDiscountForOrder(ctx context.Context, o *dbent.PaymentOrder) error {
 	if s.rechargeDiscountRepo == nil {
 		return nil
 	}
 
-	// 1. 幂等检查
+	orderAmount := o.Amount
+	if orderAmount <= 0 || math.IsNaN(orderAmount) || math.IsInf(orderAmount, 0) {
+		return nil
+	}
+
+	// === Phase 1: 乐观快速退出（事务外）===
+
+	// 幂等快速检查（已处理则跳过，避免开事务）
 	exists, err := s.rechargeDiscountRepo.CheckApplicationExists(ctx, o.ID)
 	if err != nil {
 		return fmt.Errorf("check discount application: %w", err)
@@ -58,7 +73,7 @@ func (s *PaymentService) applyRechargeDiscountForOrder(ctx context.Context, o *d
 		return nil
 	}
 
-	// 2. 查询用户最优有效折扣（FOR UPDATE 锁行）
+	// 乐观查询折扣（不加锁，仅用于快速退出无折扣场景）
 	discount, err := s.rechargeDiscountRepo.QueryBestActiveDiscountForUpdate(ctx, o.UserID)
 	if err != nil {
 		return fmt.Errorf("query active discount: %w", err)
@@ -67,13 +82,9 @@ func (s *PaymentService) applyRechargeDiscountForOrder(ctx context.Context, o *d
 		return nil
 	}
 
-	// 3. 计算 eligible amount
+	// 计算 eligible amount
 	remaining := discount.MaxDiscountableAmount - discount.TotalDiscounted
 	if remaining <= 0 {
-		return nil
-	}
-	orderAmount := o.Amount
-	if orderAmount <= 0 || math.IsNaN(orderAmount) || math.IsInf(orderAmount, 0) {
 		return nil
 	}
 
@@ -86,10 +97,12 @@ func (s *PaymentService) applyRechargeDiscountForOrder(ctx context.Context, o *d
 		return nil
 	}
 
-	// 4. giftEngine required from this point
+	// === Phase 2: 事务内原子操作 ===
+
 	if s.giftEngine == nil || s.entClient == nil {
 		return fmt.Errorf("recharge discount: gift engine or ent client not configured")
 	}
+
 	tx, err := s.entClient.Tx(ctx)
 	if err != nil {
 		return fmt.Errorf("begin discount tx: %w", err)
@@ -98,21 +111,66 @@ func (s *PaymentService) applyRechargeDiscountForOrder(ctx context.Context, o *d
 
 	txCtx := dbent.NewTxContext(ctx, tx)
 
-	// 4a. 更新 total_discounted
-	if err := s.rechargeDiscountRepo.UpdateTotalDiscounted(txCtx, discount.ID, appliedAmount); err != nil {
+	// 事务内重新幂等检查（防并发重试同时通过 Phase 1）
+	existsInTx, err := s.rechargeDiscountRepo.CheckApplicationExists(txCtx, o.ID)
+	if err != nil {
+		return fmt.Errorf("check discount application in tx: %w", err)
+	}
+	if existsInTx {
+		return nil
+	}
+
+	// 事务内 FOR UPDATE 重新查询（锁行，获取最新 total_discounted）
+	discountLocked, err := s.rechargeDiscountRepo.QueryBestActiveDiscountForUpdate(txCtx, o.UserID)
+	if err != nil {
+		return fmt.Errorf("query discount for update: %w", err)
+	}
+	if discountLocked == nil {
+		return nil
+	}
+
+	// 用锁后的最新值重新计算
+	remainingLocked := discountLocked.MaxDiscountableAmount - discountLocked.TotalDiscounted
+	if remainingLocked <= 0 {
+		return nil
+	}
+	appliedAmountFinal := math.Min(orderAmount, remainingLocked)
+	bonusFinal := decimal.NewFromFloat(appliedAmountFinal).
+		Mul(decimal.NewFromFloat(discountLocked.DiscountRate)).
+		Round(8).
+		InexactFloat64()
+	if bonusFinal <= 0 {
+		return nil
+	}
+
+	// 先 claim order（InsertApplication unique index 是最终幂等保障）
+	if err := s.rechargeDiscountRepo.InsertApplication(txCtx, &RechargeDiscountApplicationRecord{
+		UserID:               o.UserID,
+		DiscountID:           discountLocked.ID,
+		PaymentOrderID:       o.ID,
+		AppliedAmount:        appliedAmountFinal,
+		BonusAmount:          bonusFinal,
+		DiscountRateSnapshot: discountLocked.DiscountRate,
+		GiftID:               nil,
+	}); err != nil {
+		return fmt.Errorf("claim discount application: %w", err)
+	}
+
+	// 更新 total_discounted
+	if err := s.rechargeDiscountRepo.UpdateTotalDiscounted(txCtx, discountLocked.ID, appliedAmountFinal); err != nil {
 		return fmt.Errorf("update total_discounted: %w", err)
 	}
 
-	// 4b. 发放赠金
+	// 发放赠金
 	var expiresAt *time.Time
-	if discount.ValidUntil != nil {
-		t := *discount.ValidUntil
+	if discountLocked.ValidUntil != nil {
+		t := *discountLocked.ValidUntil
 		expiresAt = &t
 	}
-	sourceRef := fmt.Sprintf("discount:%d:order:%d", discount.ID, o.ID)
+	sourceRef := fmt.Sprintf("discount:%d:order:%d", discountLocked.ID, o.ID)
 	grantResult, err := s.giftEngine.Grant(txCtx, gift.GrantInput{
 		UserID:    o.UserID,
-		Amount:    bonus,
+		Amount:    bonusFinal,
 		Mode:      gift.DeductionModePriority,
 		ExpiresAt: expiresAt,
 		Source:    gift.SourceRechargeDiscount,
@@ -122,22 +180,9 @@ func (s *PaymentService) applyRechargeDiscountForOrder(ctx context.Context, o *d
 		return fmt.Errorf("grant discount bonus: %w", err)
 	}
 
-	var giftID *int64
+	// 回填 gift_id（可选，失败不阻塞）
 	if grantResult != nil {
-		giftID = &grantResult.ID
-	}
-
-	// 4c. 写应用记录
-	if err := s.rechargeDiscountRepo.InsertApplication(txCtx, &RechargeDiscountApplicationRecord{
-		UserID:               o.UserID,
-		DiscountID:           discount.ID,
-		PaymentOrderID:       o.ID,
-		AppliedAmount:        appliedAmount,
-		BonusAmount:          bonus,
-		DiscountRateSnapshot: discount.DiscountRate,
-		GiftID:               giftID,
-	}); err != nil {
-		return fmt.Errorf("insert discount application: %w", err)
+		_ = s.rechargeDiscountRepo.UpdateApplicationGiftID(txCtx, o.ID, grantResult.ID)
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -147,9 +192,9 @@ func (s *PaymentService) applyRechargeDiscountForOrder(ctx context.Context, o *d
 	slog.Info("recharge discount applied",
 		"user_id", o.UserID,
 		"order_id", o.ID,
-		"applied_amount", appliedAmount,
-		"bonus", bonus,
-		"discount_rate", discount.DiscountRate,
+		"applied_amount", appliedAmountFinal,
+		"bonus", bonusFinal,
+		"discount_rate", discountLocked.DiscountRate,
 	)
 	return nil
 }

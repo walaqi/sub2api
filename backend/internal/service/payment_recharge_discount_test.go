@@ -56,6 +56,10 @@ func (s *rechargeDiscountRepoStub) InsertApplication(_ context.Context, app *Rec
 	return nil
 }
 
+func (s *rechargeDiscountRepoStub) UpdateApplicationGiftID(_ context.Context, _ int64, _ int64) error {
+	return nil
+}
+
 // --- Tests ---
 
 func TestApplyRechargeDiscount_NilRepo_Skips(t *testing.T) {
@@ -176,6 +180,9 @@ func (s *queryErrorRepoStub) UpdateTotalDiscounted(_ context.Context, _ int64, _
 	return nil
 }
 func (s *queryErrorRepoStub) InsertApplication(_ context.Context, _ *RechargeDiscountApplicationRecord) error {
+	return nil
+}
+func (s *queryErrorRepoStub) UpdateApplicationGiftID(_ context.Context, _ int64, _ int64) error {
 	return nil
 }
 
