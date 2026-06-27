@@ -702,7 +702,11 @@ export default {
     viewUsage: 'View Usage',
     checkDetailedLogs: 'Check detailed usage logs',
     redeemCode: 'Redeem Code',
-    addBalanceWithCode: 'Add balance with a code'
+    addBalanceWithCode: 'Add balance with a code',
+    bindGiftKey: 'Bind Gift Key',
+    bindGiftKeyDesc: 'Claim a key and receive bonus credits',
+    superReferral: 'Super Referral',
+    superReferralDesc: 'Dual-reward referral bonus'
   },
 
   // Groups (shared)

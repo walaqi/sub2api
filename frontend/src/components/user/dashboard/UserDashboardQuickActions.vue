@@ -48,6 +48,36 @@
           class="text-gray-400 transition-colors group-hover:text-amber-500 dark:text-dark-500"
         />
       </button>
+
+      <button @click="router.push('/bind-key')" class="group flex w-full items-center gap-4 rounded-xl bg-gray-50 p-4 text-left transition-all duration-200 hover:bg-gray-100 dark:bg-dark-800/50 dark:hover:bg-dark-800">
+        <div class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-violet-100 transition-transform group-hover:scale-105 dark:bg-violet-900/30">
+          <Icon name="giftKey" size="lg" class="text-violet-600 dark:text-violet-400" />
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-medium text-gray-900 dark:text-white">{{ t('dashboard.bindGiftKey') }}</p>
+          <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('dashboard.bindGiftKeyDesc') }}</p>
+        </div>
+        <Icon
+          name="chevronRight"
+          size="md"
+          class="text-gray-400 transition-colors group-hover:text-violet-500 dark:text-dark-500"
+        />
+      </button>
+
+      <button @click="router.push('/referral')" class="group flex w-full items-center gap-4 rounded-xl bg-gray-50 p-4 text-left transition-all duration-200 hover:bg-gray-100 dark:bg-dark-800/50 dark:hover:bg-dark-800">
+        <div class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-indigo-100 transition-transform group-hover:scale-105 dark:bg-indigo-900/30">
+          <Icon name="userPlus" size="lg" class="text-indigo-600 dark:text-indigo-400" />
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-medium text-gray-900 dark:text-white">{{ t('dashboard.superReferral') }}</p>
+          <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('dashboard.superReferralDesc') }}</p>
+        </div>
+        <Icon
+          name="chevronRight"
+          size="md"
+          class="text-gray-400 transition-colors group-hover:text-indigo-500 dark:text-dark-500"
+        />
+      </button>
     </div>
   </div>
 </template>

@@ -701,7 +701,11 @@ export default {
     viewUsage: '查看使用记录',
     checkDetailedLogs: '查看详细的使用日志',
     redeemCode: '兑换码',
-    addBalanceWithCode: '使用兑换码充值'
+    addBalanceWithCode: '使用兑换码充值',
+    bindGiftKey: '绑定赠金',
+    bindGiftKeyDesc: '领取专属 Key 获得赠金',
+    superReferral: '超级邀请',
+    superReferralDesc: '超级邀请双向返利'
   },
 
   // Groups (shared)
