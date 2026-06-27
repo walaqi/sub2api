@@ -190,6 +190,7 @@ type PaymentService struct {
 	affiliateService         *AffiliateService
 	notificationEmailService *NotificationEmailService
 	giftEngine               *gift.Engine
+	rechargeDiscountRepo     RechargeDiscountRepo
 }
 
 func NewPaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService, giftEngine *gift.Engine) *PaymentService {
