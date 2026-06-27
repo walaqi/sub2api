@@ -72,6 +72,9 @@ func (s *ReferralRewardService) OnInviterBound(ctx context.Context, inviterID, i
 // TrackSpendAndMaybeGrantInviterReward 每次计费成功后异步调用。
 // 累加被邀请人消费额，达标后发放邀请人赠金。
 // 幂等：referral_spend_events 唯一索引保证同一 eventID 不重复累加。
+//
+// 竞态安全：若 tracker 尚未创建（OnInviterBound 异步还没跑完），整个事务 rollback，
+// event 不被标记为已处理——下次 billing 事件会自然重试。
 func (s *ReferralRewardService) TrackSpendAndMaybeGrantInviterReward(ctx context.Context, inviteeID int64, eventID string, spendAmount float64) error {
 	if s == nil || s.entClient == nil || s.giftEngine == nil {
 		return nil
@@ -89,20 +92,7 @@ func (s *ReferralRewardService) TrackSpendAndMaybeGrantInviterReward(ctx context
 	txCtx := dbent.NewTxContext(ctx, tx)
 	execer := tx.Client()
 
-	// 1. 事件幂等检查 + 插入
-	res, err := execer.ExecContext(txCtx,
-		`INSERT INTO referral_spend_events (event_id, invitee_id, amount) VALUES ($1, $2, $3) ON CONFLICT (event_id) DO NOTHING`,
-		eventID, inviteeID, spendAmount)
-	if err != nil {
-		return fmt.Errorf("insert spend event: %w", err)
-	}
-	affected, _ := res.RowsAffected()
-	if affected == 0 {
-		// 已处理过
-		return nil
-	}
-
-	// 2. FOR UPDATE 锁 tracker 行
+	// 1. FOR UPDATE 锁 tracker 行（必须先锁再插 event，确保无 tracker 时能安全 rollback）
 	rows, err := execer.QueryContext(txCtx, `
 SELECT id, inviter_id, invitee_spend_tracked, spend_threshold, inviter_reward_granted
 FROM referral_reward_tracker
@@ -131,8 +121,22 @@ FOR UPDATE`, inviteeID)
 	_ = rows.Close()
 
 	if tracker == nil {
-		// 没有 tracker 行（invitee 非被邀请人，或 tracker 未创建）
-		return tx.Commit()
+		// tracker 尚未创建 → rollback，不标记 event 为已处理。
+		// 后续 billing event 或 OnInviterBound 回填会正常累计。
+		return nil // defer rollback
+	}
+
+	// 2. 事件幂等检查 + 插入（在锁定 tracker 之后，确保 tracker 存在才消费 event slot）
+	res, err := execer.ExecContext(txCtx,
+		`INSERT INTO referral_spend_events (event_id, invitee_id, amount) VALUES ($1, $2, $3) ON CONFLICT (event_id) DO NOTHING`,
+		eventID, inviteeID, spendAmount)
+	if err != nil {
+		return fmt.Errorf("insert spend event: %w", err)
+	}
+	affected, _ := res.RowsAffected()
+	if affected == 0 {
+		// 已处理过
+		return nil
 	}
 
 	// 3. 累加消费
@@ -184,14 +188,53 @@ func (s *ReferralRewardService) ensureTracker(ctx context.Context, inviterID, in
 	return nil
 }
 
-// grantInviteeReward 发放被邀请人注册赠金。
+// grantInviteeReward 发放被邀请人注册赠金（幂等）。
+// 在事务内 FOR UPDATE 锁 tracker → 检查 invitee_reward_granted → grant → 标记。
+// 防止 hook 重放或 "grant 成功但 update tracker 失败" 后重复发放。
 func (s *ReferralRewardService) grantInviteeReward(ctx context.Context, inviterID, inviteeID int64, cfg ReferralRewardConfig) error {
-	if s.giftEngine == nil {
+	if s.giftEngine == nil || s.entClient == nil {
 		return nil
 	}
 
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return fmt.Errorf("begin invitee reward tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	txCtx := dbent.NewTxContext(ctx, tx)
+	execer := tx.Client()
+
+	// FOR UPDATE 锁 tracker 行
+	rows, err := execer.QueryContext(txCtx, `
+SELECT id, invitee_reward_granted
+FROM referral_reward_tracker
+WHERE inviter_id = $1 AND invitee_id = $2
+FOR UPDATE`, inviterID, inviteeID)
+	if err != nil {
+		return fmt.Errorf("lock tracker for invitee reward: %w", err)
+	}
+
+	var trackerID int64
+	var alreadyGranted bool
+	if rows.Next() {
+		if err := rows.Scan(&trackerID, &alreadyGranted); err != nil {
+			_ = rows.Close()
+			return err
+		}
+	} else {
+		_ = rows.Close()
+		return nil // tracker 不存在，跳过
+	}
+	_ = rows.Close()
+
+	if alreadyGranted {
+		return nil // 已发放过，幂等退出
+	}
+
+	// 发放赠金
 	expiresAt := time.Now().Add(time.Duration(cfg.InviteeExpiryDays) * 24 * time.Hour)
-	grantResult, err := s.giftEngine.Grant(ctx, gift.GrantInput{
+	grantResult, err := s.giftEngine.Grant(txCtx, gift.GrantInput{
 		UserID:    inviteeID,
 		Amount:    cfg.InviteeAmount,
 		Mode:      gift.DeductionModePriority,
@@ -203,18 +246,19 @@ func (s *ReferralRewardService) grantInviteeReward(ctx context.Context, inviterI
 		return fmt.Errorf("grant invitee reward: %w", err)
 	}
 
-	// 更新 tracker 记录
-	execer := s.execer(ctx)
-	_, err = execer.ExecContext(ctx,
-		`UPDATE referral_reward_tracker SET invitee_reward_granted = TRUE, invitee_reward_gift_id = $1, invitee_reward_at = NOW(), updated_at = NOW() WHERE inviter_id = $2 AND invitee_id = $3`,
-		grantResult.ID, inviterID, inviteeID)
+	// 标记已发放（同一事务内，原子性保证）
+	_, err = execer.ExecContext(txCtx,
+		`UPDATE referral_reward_tracker SET invitee_reward_granted = TRUE, invitee_reward_gift_id = $1, invitee_reward_at = NOW(), updated_at = NOW() WHERE id = $2`,
+		grantResult.ID, trackerID)
 	if err != nil {
-		log.Printf("[referral] update tracker invitee reward for invitee=%d: %v", inviteeID, err)
+		return fmt.Errorf("mark invitee reward granted: %w", err)
 	}
-	return nil
+
+	return tx.Commit()
 }
 
 // inheritDiscountFromInviter 继承邀请人的最佳活跃充值折扣。
+// 使用邀请人的 max_discountable_amount（非 remaining）和可配置的 valid_days。
 func (s *ReferralRewardService) inheritDiscountFromInviter(ctx context.Context, inviterID, inviteeID int64) error {
 	if s.discountRepo == nil {
 		return nil
@@ -227,20 +271,20 @@ func (s *ReferralRewardService) inheritDiscountFromInviter(ctx context.Context, 
 	}
 
 	best := discounts[0] // 已按 rate DESC 排序
-	remaining := best.MaxDiscountableAmount - best.TotalDiscounted
-	if remaining <= 0 {
-		return nil
-	}
 
-	// 为被邀请人创建继承折扣
-	validUntil := time.Now().Add(30 * 24 * time.Hour) // 继承折扣固定 30 天
-	if best.ValidUntil != nil && best.ValidUntil.Before(validUntil) {
-		validUntil = *best.ValidUntil // 不超过邀请人折扣的过期时间
+	// 读取可配置有效天数
+	discountValidDays := 30
+	if s.settingService != nil {
+		cfg := s.settingService.GetReferralRewardConfig(ctx)
+		if cfg.DiscountValidDays >= 1 {
+			discountValidDays = cfg.DiscountValidDays
+		}
 	}
+	validUntil := time.Now().Add(time.Duration(discountValidDays) * 24 * time.Hour)
 
 	sourceRef := fmt.Sprintf("inviter:%d", inviterID)
 	_, err = s.discountRepo.CreateDiscount(ctx, inviteeID, "referral_inherit", sourceRef, nil,
-		best.DiscountRate, remaining, time.Now(), &validUntil)
+		best.DiscountRate, best.MaxDiscountableAmount, time.Now(), &validUntil)
 	if err != nil {
 		return fmt.Errorf("create inherited discount: %w", err)
 	}

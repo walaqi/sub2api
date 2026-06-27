@@ -121,20 +121,22 @@ func TestInheritDiscountFromInviter_HasDiscount_CreatesInherited(t *testing.T) {
 	assert.Equal(t, "referral_inherit", call.Source)
 	assert.Equal(t, "inviter:10", call.SourceRef)
 	assert.Equal(t, 0.15, call.Rate)
-	assert.Equal(t, 300.0, call.MaxAmount) // remaining = 500 - 200
-	// ValidUntil should be the inviter's (10 days < default 30 days)
+	assert.Equal(t, 500.0, call.MaxAmount) // 使用邀请人的 max_discountable_amount（非 remaining）
+	// ValidUntil = now + 30 days (default DiscountValidDays, settingService is nil)
 	assert.NotNil(t, call.ValidUntil)
-	assert.True(t, call.ValidUntil.Before(time.Now().Add(11*24*time.Hour)))
+	assert.True(t, call.ValidUntil.After(time.Now().Add(29*24*time.Hour)))
+	assert.True(t, call.ValidUntil.Before(time.Now().Add(31*24*time.Hour)))
 }
 
-func TestInheritDiscountFromInviter_Exhausted_NoOp(t *testing.T) {
+func TestInheritDiscountFromInviter_InviterExhausted_StillCreatesForInvitee(t *testing.T) {
+	// 邀请人折扣已耗尽，但被邀请人获得的是全新的 full-amount 折扣
 	validUntil := time.Now().Add(5 * 24 * time.Hour)
 	repo := &discountRepoForReferralStub{
 		discounts: []RechargeDiscountSummary{
 			{
 				DiscountRate:          0.1,
 				MaxDiscountableAmount: 100,
-				TotalDiscounted:       100, // fully used
+				TotalDiscounted:       100, // fully used by inviter
 				ValidUntil:            &validUntil,
 			},
 		},
@@ -143,7 +145,9 @@ func TestInheritDiscountFromInviter_Exhausted_NoOp(t *testing.T) {
 
 	err := svc.inheritDiscountFromInviter(context.Background(), 1, 2)
 	assert.NoError(t, err)
-	assert.Empty(t, repo.createdCalls)
+	// 被邀请人仍然获得折扣（使用邀请人的 max_discountable_amount）
+	require.Len(t, repo.createdCalls, 1)
+	assert.Equal(t, 100.0, repo.createdCalls[0].MaxAmount)
 }
 
 func TestInheritDiscountFromInviter_NilRepo_NoOp(t *testing.T) {

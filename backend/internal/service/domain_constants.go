@@ -141,6 +141,7 @@ const (
 	SettingKeyReferralInviterAmount            = "referral_inviter_amount"              // 邀请人达标赠金金额 (USD, 默认 10)
 	SettingKeyReferralInviterExpiryDays        = "referral_inviter_expiry_days"         // 邀请人赠金过期天数 (默认 30)
 	SettingKeyReferralSpendThreshold           = "referral_spend_threshold"             // 被邀请人消费达标阈值 (USD, 默认 10)
+	SettingKeyReferralDiscountValidDays        = "referral_discount_valid_days"          // 裂变继承折扣有效天数 (默认 30)
 	SettingKeyRiskControlEnabled               = "risk_control_enabled"                // 是否启用风控中心入口与审计链路
 	SettingKeyContentModerationConfig          = "content_moderation_config"           // 内容审计配置（JSON）
 	SettingKeyCyberSessionBlockEnabled         = "cyber_session_block_enabled"         // cyber 命中后会话级自动屏蔽总开关(默认关)

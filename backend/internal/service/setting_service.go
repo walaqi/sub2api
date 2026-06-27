@@ -2586,6 +2586,7 @@ type ReferralRewardConfig struct {
 	InviterAmount     float64
 	InviterExpiryDays int
 	SpendThreshold    float64
+	DiscountValidDays int // 裂变继承折扣有效天数
 }
 
 // GetReferralRewardConfig 读取双向邀请赠金配置，缺失时使用默认值。
@@ -2596,6 +2597,7 @@ func (s *SettingService) GetReferralRewardConfig(ctx context.Context) ReferralRe
 		InviterAmount:     10,
 		InviterExpiryDays: 30,
 		SpendThreshold:    10,
+		DiscountValidDays: 30,
 	}
 	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralInviteeAmount); err == nil {
 		if f, e := strconv.ParseFloat(v, 64); e == nil && f > 0 {
@@ -2620,6 +2622,11 @@ func (s *SettingService) GetReferralRewardConfig(ctx context.Context) ReferralRe
 	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralSpendThreshold); err == nil {
 		if f, e := strconv.ParseFloat(v, 64); e == nil && f > 0 {
 			cfg.SpendThreshold = f
+		}
+	}
+	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralDiscountValidDays); err == nil {
+		if d, e := strconv.Atoi(v); e == nil && d >= 1 {
+			cfg.DiscountValidDays = d
 		}
 	}
 	return cfg
