@@ -419,6 +419,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
 
+  // 超级邀请：邀请奖励状态页面（需登录）
+  {
+    path: '/referral',
+    name: 'Referral',
+    component: () => import('@/views/user/ReferralView.vue'),
+    meta: {
+      requiresAuth: true,
+      title: 'Super Referral',
+      titleKey: 'referral.title',
+    }
+  },
+
   // ==================== Admin Routes ====================
   {
     path: '/admin',
