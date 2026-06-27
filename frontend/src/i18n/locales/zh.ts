@@ -5838,7 +5838,7 @@ export default {
           referralInviteeExpiryDays: '被邀请人赠金有效期',
           referralInviteeExpiryDaysHint: '被邀请人注册赠金的过期天数（从发放时刻起算）。',
           referralSpendThreshold: '消费达标阈值',
-          referralSpendThresholdHint: '被邀请人累计消费达到此金额后触发邀请人奖励。',
+          referralSpendThresholdHint: '被邀请人累计消费达到此金额后触发邀请人奖励。修改仅对新建立的邀请关系生效，不影响已有的邀请关系。',
           referralInviterAmount: '邀请人达标奖励',
           referralInviterAmountHint: '被邀请人消费达标后，邀请人获得的赠金金额（USD）。',
           referralInviterExpiryDays: '邀请人赠金有效期',

@@ -5679,7 +5679,7 @@ export default {
           referralInviteeExpiryDays: 'Invitee Bonus Expiry',
           referralInviteeExpiryDaysHint: 'Number of days before the invitee signup bonus expires (from grant time).',
           referralSpendThreshold: 'Spending Threshold',
-          referralSpendThresholdHint: 'Inviter reward is triggered once the invitee cumulative spending reaches this amount.',
+          referralSpendThresholdHint: 'Inviter reward is triggered once the invitee cumulative spending reaches this amount. Changes only apply to new referral relationships, not existing ones.',
           referralInviterAmount: 'Inviter Reward',
           referralInviterAmountHint: 'Amount (USD) credited to the inviter once the invitee reaches the spending threshold.',
           referralInviterExpiryDays: 'Inviter Reward Expiry',
