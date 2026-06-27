@@ -17,7 +17,10 @@ CREATE TABLE IF NOT EXISTS referral_reward_tracker (
     invitee_spend_tracked   DECIMAL(20,8) NOT NULL DEFAULT 0,
     spend_threshold         DECIMAL(20,8) NOT NULL DEFAULT 10,
     created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    -- DB-level 防御性约束
+    CONSTRAINT chk_rrt_spend_tracked_non_negative CHECK (invitee_spend_tracked >= 0),
+    CONSTRAINT chk_rrt_spend_threshold_positive CHECK (spend_threshold > 0)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_rrt_inviter_invitee ON referral_reward_tracker(inviter_id, invitee_id);
@@ -31,7 +34,8 @@ CREATE TABLE IF NOT EXISTS referral_spend_events (
     event_id        VARCHAR(128) NOT NULL,
     invitee_id      BIGINT NOT NULL,
     amount          DECIMAL(20,8) NOT NULL,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT chk_rse_amount_positive CHECK (amount > 0)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_rse_event ON referral_spend_events(event_id);
