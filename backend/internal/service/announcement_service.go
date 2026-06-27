@@ -413,7 +413,11 @@ func (s *AnnouncementService) buildReadStatusResult(
 			Email:    u.Email,
 			Username: u.Username,
 			Balance:  u.Balance,
-			Eligible: domain.AnnouncementTargeting(ann.Targeting).Matches(domain.UserTargetingContext{Balance: u.Balance, ActiveSubscriptionGroupIDs: activeGroupIDs}),
+			Eligible: func() bool {
+				tc := domain.UserTargetingContext{Balance: u.Balance, ActiveSubscriptionGroupIDs: activeGroupIDs}
+				s.fillReferralTargeting(ctx, u.ID, &tc)
+				return domain.AnnouncementTargeting(ann.Targeting).Matches(tc)
+			}(),
 			ReadAt:   ptr,
 		})
 	}
@@ -546,7 +550,11 @@ func (s *AnnouncementService) listUserReadStatusByReadAt(
 			Email:    u.Email,
 			Username: u.Username,
 			Balance:  u.Balance,
-			Eligible: domain.AnnouncementTargeting(ann.Targeting).Matches(domain.UserTargetingContext{Balance: u.Balance, ActiveSubscriptionGroupIDs: activeGroupIDs}),
+			Eligible: func() bool {
+				tc := domain.UserTargetingContext{Balance: u.Balance, ActiveSubscriptionGroupIDs: activeGroupIDs}
+				s.fillReferralTargeting(ctx, u.ID, &tc)
+				return domain.AnnouncementTargeting(ann.Targeting).Matches(tc)
+			}(),
 			ReadAt:   ptr,
 		})
 	}
@@ -583,7 +591,8 @@ func isValidAnnouncementNotifyMode(mode string) bool {
 }
 
 // fillReferralTargeting 查询用户的 affiliate 状态并填充到 UserTargetingContext。
-// 查询失败时静默降级（referral 条件不命中），不阻断公告列表。
+// 查询失败时 ReferralKnown 保持 false → referral 条件 fail-closed（一律不命中），
+// 避免 DB 异常时 no_inviter 误投放给非目标用户。
 func (s *AnnouncementService) fillReferralTargeting(ctx context.Context, userID int64, tc *domain.UserTargetingContext) {
 	if s.entClient == nil {
 		return
@@ -600,7 +609,11 @@ func (s *AnnouncementService) fillReferralTargeting(ctx context.Context, userID 
 		if err := rows.Scan(&inviterID, &affCount); err != nil {
 			return
 		}
+		tc.ReferralKnown = true
 		tc.HasInviter = inviterID.Valid && inviterID.Int64 > 0
 		tc.IsInviter = affCount > 0
+	} else {
+		// 无 user_affiliates 行 = 确认该用户非被邀请人也非邀请人
+		tc.ReferralKnown = true
 	}
 }

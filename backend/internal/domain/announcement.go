@@ -72,6 +72,7 @@ type AnnouncementCondition struct {
 type UserTargetingContext struct {
 	Balance                    float64
 	ActiveSubscriptionGroupIDs map[int64]struct{}
+	ReferralKnown              bool // true 表示 HasInviter/IsInviter 已成功查询；false 时 referral 条件一律不命中（fail-closed）
 	HasInviter                 bool // user_affiliates.inviter_id IS NOT NULL
 	IsInviter                  bool // user_affiliates.aff_count > 0
 }
@@ -138,6 +139,9 @@ func (c AnnouncementCondition) Matches(ctx UserTargetingContext) bool {
 		}
 
 	case AnnouncementConditionTypeReferral:
+		if !ctx.ReferralKnown {
+			return false // fail-closed: DB 查询失败时 referral 条件一律不命中
+		}
 		if c.Operator != AnnouncementOperatorEQ {
 			return false
 		}

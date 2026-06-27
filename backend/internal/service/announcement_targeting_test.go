@@ -75,8 +75,8 @@ func TestAnnouncementTargeting_Matches_ReferralCondition(t *testing.T) {
 			}},
 		},
 	}
-	require.True(t, hasInviterTargeting.Matches(domain.UserTargetingContext{HasInviter: true}))
-	require.False(t, hasInviterTargeting.Matches(domain.UserTargetingContext{HasInviter: false}))
+	require.True(t, hasInviterTargeting.Matches(domain.UserTargetingContext{ReferralKnown: true, HasInviter: true}))
+	require.False(t, hasInviterTargeting.Matches(domain.UserTargetingContext{ReferralKnown: true, HasInviter: false}))
 
 	// 只展示给邀请人
 	isInviterTargeting := AnnouncementTargeting{
@@ -86,8 +86,8 @@ func TestAnnouncementTargeting_Matches_ReferralCondition(t *testing.T) {
 			}},
 		},
 	}
-	require.True(t, isInviterTargeting.Matches(domain.UserTargetingContext{IsInviter: true}))
-	require.False(t, isInviterTargeting.Matches(domain.UserTargetingContext{IsInviter: false}))
+	require.True(t, isInviterTargeting.Matches(domain.UserTargetingContext{ReferralKnown: true, IsInviter: true}))
+	require.False(t, isInviterTargeting.Matches(domain.UserTargetingContext{ReferralKnown: true, IsInviter: false}))
 
 	// 只展示给非被邀请人
 	noInviterTargeting := AnnouncementTargeting{
@@ -97,8 +97,8 @@ func TestAnnouncementTargeting_Matches_ReferralCondition(t *testing.T) {
 			}},
 		},
 	}
-	require.True(t, noInviterTargeting.Matches(domain.UserTargetingContext{HasInviter: false}))
-	require.False(t, noInviterTargeting.Matches(domain.UserTargetingContext{HasInviter: true}))
+	require.True(t, noInviterTargeting.Matches(domain.UserTargetingContext{ReferralKnown: true, HasInviter: false}))
+	require.False(t, noInviterTargeting.Matches(domain.UserTargetingContext{ReferralKnown: true, HasInviter: true}))
 
 	// 无效 referral_value → 不命中
 	invalidTargeting := AnnouncementTargeting{
@@ -108,7 +108,11 @@ func TestAnnouncementTargeting_Matches_ReferralCondition(t *testing.T) {
 			}},
 		},
 	}
-	require.False(t, invalidTargeting.Matches(domain.UserTargetingContext{HasInviter: true, IsInviter: true}))
+	require.False(t, invalidTargeting.Matches(domain.UserTargetingContext{ReferralKnown: true, HasInviter: true, IsInviter: true}))
+
+	// ReferralKnown=false → fail-closed，所有 referral 条件不命中
+	require.False(t, hasInviterTargeting.Matches(domain.UserTargetingContext{ReferralKnown: false, HasInviter: true}))
+	require.False(t, noInviterTargeting.Matches(domain.UserTargetingContext{ReferralKnown: false, HasInviter: false}))
 }
 
 func TestAnnouncementTargeting_NormalizeAndValidate_ReferralCondition(t *testing.T) {
@@ -160,9 +164,11 @@ func TestAnnouncementTargeting_Matches_CombinedReferralAndBalance(t *testing.T) 
 	}
 
 	// 被邀请人 + 低余额 → 命中
-	require.True(t, targeting.Matches(domain.UserTargetingContext{HasInviter: true, Balance: 3}))
+	require.True(t, targeting.Matches(domain.UserTargetingContext{ReferralKnown: true, HasInviter: true, Balance: 3}))
 	// 被邀请人 + 高余额 → 不命中
-	require.False(t, targeting.Matches(domain.UserTargetingContext{HasInviter: true, Balance: 10}))
+	require.False(t, targeting.Matches(domain.UserTargetingContext{ReferralKnown: true, HasInviter: true, Balance: 10}))
 	// 非被邀请人 + 低余额 → 不命中
-	require.False(t, targeting.Matches(domain.UserTargetingContext{HasInviter: false, Balance: 3}))
+	require.False(t, targeting.Matches(domain.UserTargetingContext{ReferralKnown: true, HasInviter: false, Balance: 3}))
+	// ReferralKnown=false → fail-closed
+	require.False(t, targeting.Matches(domain.UserTargetingContext{ReferralKnown: false, HasInviter: true, Balance: 3}))
 }
