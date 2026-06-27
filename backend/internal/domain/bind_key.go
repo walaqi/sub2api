@@ -38,7 +38,7 @@ type BindKeyRegistrationWindow struct {
 // bonus = min(充值本金, 剩余可折扣额度) × DiscountRate。
 //
 // 校验约束：
-//   - 0 < DiscountRate <= 1.0
+//   - 0 < DiscountRate <= 10.0
 //   - MaxDiscountableAmount > 0
 //   - ValidDays >= 1
 type BindKeyRechargeDiscount struct {

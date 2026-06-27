@@ -54,9 +54,9 @@ func TestSetBindKeyRechargeDiscount_Validation(t *testing.T) {
 			wantSubstr: "discount_rate",
 		},
 		{
-			name:       "discount_rate over 1",
+			name:       "discount_rate over 10",
 			apiKeyID:   "42",
-			body:       `{"enabled":true,"discount_rate":1.5,"max_discountable_amount":100,"valid_days":30}`,
+			body:       `{"enabled":true,"discount_rate":10.5,"max_discountable_amount":100,"valid_days":30}`,
 			wantStatus: http.StatusBadRequest,
 			wantSubstr: "discount_rate",
 		},
@@ -75,9 +75,9 @@ func TestSetBindKeyRechargeDiscount_Validation(t *testing.T) {
 			wantSubstr: "valid_days",
 		},
 		{
-			name:       "discount_rate exactly 1 is valid (passes validation, fails on nil DB)",
+			name:       "discount_rate exactly 10 is valid (passes validation, fails on nil DB)",
 			apiKeyID:   "42",
-			body:       `{"enabled":true,"discount_rate":1.0,"max_discountable_amount":100,"valid_days":1}`,
+			body:       `{"enabled":true,"discount_rate":10.0,"max_discountable_amount":100,"valid_days":1}`,
 			wantStatus: 0, // skip status check — nil entClient panics; validation coverage is the point
 			wantSubstr: "",
 		},

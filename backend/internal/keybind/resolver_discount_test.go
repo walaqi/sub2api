@@ -109,11 +109,11 @@ func TestResolveRechargeDiscountConfig_Validates(t *testing.T) {
 			wantNil: true,
 		},
 		{
-			name: "rate over 1",
+			name: "rate over 10",
 			setting: &BindKeyGiftSetting{
 				RechargeDiscount: &domain.BindKeyRechargeDiscount{
 					Enabled:               true,
-					DiscountRate:          1.5,
+					DiscountRate:          10.5,
 					MaxDiscountableAmount: 100,
 					ValidDays:             7,
 				},
@@ -157,11 +157,11 @@ func TestResolveRechargeDiscountConfig_Validates(t *testing.T) {
 			wantNil: false,
 		},
 		{
-			name: "rate exactly 1 is valid",
+			name: "rate exactly 10 is valid",
 			setting: &BindKeyGiftSetting{
 				RechargeDiscount: &domain.BindKeyRechargeDiscount{
 					Enabled:               true,
-					DiscountRate:          1.0,
+					DiscountRate:          10.0,
 					MaxDiscountableAmount: 50,
 					ValidDays:             1,
 				},

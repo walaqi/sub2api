@@ -503,7 +503,7 @@ func (s *Service) resolveRechargeDiscountConfig(setting *BindKeyGiftSetting) *do
 	if !cfg.Enabled {
 		return nil
 	}
-	if cfg.DiscountRate <= 0 || cfg.DiscountRate > 1 || cfg.MaxDiscountableAmount <= 0 || cfg.ValidDays < 1 {
+	if cfg.DiscountRate <= 0 || cfg.DiscountRate > 10 || cfg.MaxDiscountableAmount <= 0 || cfg.ValidDays < 1 {
 		return nil
 	}
 	return cfg

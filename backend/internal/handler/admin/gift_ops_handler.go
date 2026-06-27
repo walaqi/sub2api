@@ -321,8 +321,8 @@ func (h *GiftOpsHandler) SetBindKeyRechargeDiscount(c *gin.Context) {
 		response.BadRequest(c, "invalid request: "+err.Error())
 		return
 	}
-	if req.DiscountRate <= 0 || req.DiscountRate > 1.0 {
-		response.BadRequest(c, "discount_rate must be in (0, 1.0]")
+	if req.DiscountRate <= 0 || req.DiscountRate > 10.0 {
+		response.BadRequest(c, "discount_rate must be in (0, 10.0]")
 		return
 	}
 	if req.MaxDiscountableAmount <= 0 {
