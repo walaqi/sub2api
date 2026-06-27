@@ -30,9 +30,12 @@ const (
 type Source string
 
 const (
-	SourceKeybind        Source = "keybind"
-	SourceOAuthFirstBind Source = "oauth_first_bind"
-	SourcePromoCode      Source = "promo_code"
+	SourceKeybind          Source = "keybind"
+	SourceOAuthFirstBind   Source = "oauth_first_bind"
+	SourcePromoCode        Source = "promo_code"
+	SourceRechargeDiscount Source = "recharge_discount"
+	SourceReferralInvitee  Source = "referral_invitee"
+	SourceReferralInviter  Source = "referral_inviter"
 )
 
 // GrantInput 发放赠金的入参。
