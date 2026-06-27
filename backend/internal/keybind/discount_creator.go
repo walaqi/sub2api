@@ -25,7 +25,7 @@ func NewEntDiscountCreator(client *dbent.Client) RechargeDiscountCreator {
 }
 
 func (c *entDiscountCreator) CreateBindKeyDiscount(ctx context.Context, userID, apiKeyID int64, rate, maxAmount float64, validDays int) (int64, error) {
-	if rate <= 0 || rate > 1 || maxAmount <= 0 || validDays < 1 {
+	if rate <= 0 || rate > 10 || maxAmount <= 0 || validDays < 1 {
 		return 0, fmt.Errorf("invalid discount params: rate=%f max=%f days=%d", rate, maxAmount, validDays)
 	}
 

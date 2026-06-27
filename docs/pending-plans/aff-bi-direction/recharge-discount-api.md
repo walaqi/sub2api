@@ -24,7 +24,7 @@ PUT /api/v1/admin/ops/bind-key-gifts/:api_key_id/recharge-discount
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
 | enabled | bool | required | 是否启用 |
-| discount_rate | float | (0, 1.0] | 折扣比例，0.1 = 额外 10% |
+| discount_rate | float | (0, 10.0] | 折扣比例，0.1 = 额外 10%，5.0 = 额外 500% |
 | max_discountable_amount | float | > 0 | 可参与折扣的充值本金上限 (USD) |
 | valid_days | int | >= 1 | 从绑定时刻起算的有效天数 |
 
