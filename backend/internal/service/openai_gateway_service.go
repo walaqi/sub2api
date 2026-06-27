@@ -356,6 +356,7 @@ type OpenAIGatewayService struct {
 	balanceNotifyService  *BalanceNotifyService
 	settingService        *SettingService
 	userPlatformQuotaRepo UserPlatformQuotaRepository
+	referralReward        *ReferralRewardService // 可选，nil 时不追踪消费
 
 	openaiWSPoolOnce              sync.Once
 	openaiWSStateStoreOnce        sync.Once
@@ -444,6 +445,11 @@ func NewOpenAIGatewayService(
 	}
 	svc.logOpenAIWSModeBootstrap()
 	return svc
+}
+
+// SetReferralRewardService 注入邀请奖励服务（Wire 阶段调用）。
+func (s *OpenAIGatewayService) SetReferralRewardService(svc *ReferralRewardService) {
+	s.referralReward = svc
 }
 
 // ResolveChannelMapping 解析渠道级模型映射（代理到 ChannelService）
@@ -6106,7 +6112,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	}
 
 	billingErr := func() error {
-		_, err := applyUsageBilling(ctx, requestID, usageLog, &postUsageBillingParams{
+		applied, err := applyUsageBilling(ctx, requestID, usageLog, &postUsageBillingParams{
 			Cost:                  cost,
 			User:                  user,
 			APIKey:                apiKey,
@@ -6118,6 +6124,16 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 			APIKeyService:         input.APIKeyService,
 			Platform:              PlatformFromAPIKey(apiKey),
 		}, s.billingDeps(), s.usageBillingRepo)
+		if err == nil && applied && !isSubscriptionBilling && cost.ActualCost > 0 && s.referralReward != nil {
+			eventID := fmt.Sprintf("billing:%s:%d", requestID, apiKey.ID)
+			balanceCost := cost.ActualCost
+			userID := user.ID
+			hookCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			go func() {
+				defer cancel()
+				_ = s.referralReward.TrackSpendAndMaybeGrantInviterReward(hookCtx, userID, eventID, balanceCost)
+			}()
+		}
 		return err
 	}()
 
