@@ -59,6 +59,22 @@ func WithBalanceGift(updater UserBalanceUpdater, authCache APIKeyAuthCacheInvali
 	}
 }
 
+// RechargeDiscountCreator 抽象出"绑 key 成功后创建充值折扣记录"的最小动作。
+// keybind 不直接依赖 repository 包，通过接口注入实现。
+type RechargeDiscountCreator interface {
+	// CreateBindKeyDiscount 为用户创建 bind_key 来源的充值折扣记录。
+	// 由调用方从 BindKeyGiftSetting 的 RechargeDiscount 配置中提取参数。
+	// 返回值：created discount ID（0 表示未创建，如幂等冲突或无需创建）。
+	CreateBindKeyDiscount(ctx context.Context, userID, apiKeyID int64, rate, maxAmount float64, validDays int) (int64, error)
+}
+
+// WithRechargeDiscountCreator 注入"绑定成功后创建充值折扣记录"的能力。
+func WithRechargeDiscountCreator(creator RechargeDiscountCreator) Option {
+	return func(s *Service) {
+		s.discountCreator = creator
+	}
+}
+
 // giftEngineUpdater 通过 gift.Engine 发放赠金。
 // 实际发放参数（mode / ratio_recharge / expires_at）由 resolver 按 api_key_id 查表 A 决定。
 // 表中无对应行 → 走默认 priority、永不过期。

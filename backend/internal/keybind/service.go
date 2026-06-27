@@ -21,6 +21,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
+	"github.com/Wei-Shaw/sub2api/ent/bindkeygiftsetting"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/internal/domain"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -92,6 +93,9 @@ type Service struct {
 	userBalanceUpdater UserBalanceUpdater
 	authCacheInval     APIKeyAuthCacheInvalidator
 	billingCacheInval  BillingBalanceInvalidator
+
+	// 可选依赖：绑定成功后创建充值折扣记录。nil 时不创建。
+	discountCreator RechargeDiscountCreator
 }
 
 // NewService constructs a Service. It resolves the pool user once at
@@ -434,6 +438,20 @@ func (s *Service) Commit(ctx context.Context, userID int64, reservationID string
 		}
 	}
 
+	// 创建充值折扣记录（如果 key 配置了 RechargeDiscount）。
+	// 与赠金分开处理：折扣创建失败仅记日志，不影响 key 转移和赠金。
+	if s.discountCreator != nil && s.giftSettingResolver != nil {
+		if setting, err := s.giftSettingResolver.Resolve(ctx, keyID); err == nil && setting != nil {
+			if cfg := s.resolveRechargeDiscountConfig(setting); cfg != nil {
+				if _, err := s.discountCreator.CreateBindKeyDiscount(ctx, userID, keyID, cfg.DiscountRate, cfg.MaxDiscountableAmount, cfg.ValidDays); err != nil {
+					log.Printf("[keybind] create recharge discount for user %d key %d failed: %v", userID, keyID, err)
+				} else {
+					log.Printf("[keybind] created recharge discount for user %d (key %d, rate=%.2f, max=%.2f, days=%d)", userID, keyID, cfg.DiscountRate, cfg.MaxDiscountableAmount, cfg.ValidDays)
+				}
+			}
+		}
+	}
+
 	// Record participation (only when monthly limit is enforced).
 	if !unlimited {
 		if err := s.participation.MarkParticipated(ctx, userID); err != nil {
@@ -460,6 +478,34 @@ func (s *Service) disabledErr() error {
 		return ErrPoolUserNotConfigured.WithMetadata(map[string]string{"reason": s.configErrMsg})
 	}
 	return ErrPoolUserNotConfigured
+}
+
+// resolveRechargeDiscountConfig 从 per-key 配置中提取充值折扣参数。
+// 返回 nil 表示该 key 未配置或未启用充值折扣。
+func (s *Service) resolveRechargeDiscountConfig(setting *BindKeyGiftSetting) *domain.BindKeyRechargeDiscount {
+	if setting == nil {
+		return nil
+	}
+	// BindKeyGiftSetting.config 的 RechargeDiscount 字段通过 resolver 间接获取。
+	// 需要重新读取 config JSONB — resolver 当前只解析 Unlimit 和 RegistrationWindow。
+	// 为了最小改动，直接查 DB 获取 config。
+	if s.client == nil {
+		return nil
+	}
+	row, err := s.client.BindKeyGiftSetting.Query().
+		Where(bindkeygiftsetting.APIKeyIDEQ(setting.APIKeyID)).
+		Only(context.Background())
+	if err != nil || row == nil || row.Config == nil {
+		return nil
+	}
+	cfg := row.Config.RechargeDiscount
+	if cfg == nil || !cfg.Enabled {
+		return nil
+	}
+	if cfg.DiscountRate <= 0 || cfg.DiscountRate > 1 || cfg.MaxDiscountableAmount <= 0 || cfg.ValidDays < 1 {
+		return nil
+	}
+	return cfg
 }
 
 // isKeyUnlimited resolves the per-key config and returns whether the monthly
