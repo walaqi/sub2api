@@ -76,7 +76,9 @@ func buildReferralService(t *testing.T, client *dbent.Client, db *sql.DB, enable
 	settingRepo := &integrationSettingRepoStub{enabled: enabled}
 	settingSvc := &SettingService{settingRepo: settingRepo}
 
-	return NewReferralRewardService(client, giftEngine, settingSvc, discountRepo)
+	// affiliateService=nil is safe: integration tests focus on TrackSpend,
+	// not GetReferralStatus which uses affiliateService for EnsureUserAffiliate.
+	return NewReferralRewardService(client, giftEngine, settingSvc, discountRepo, nil)
 }
 
 // integrationSettingRepoStub implements the minimal SettingRepository for integration tests

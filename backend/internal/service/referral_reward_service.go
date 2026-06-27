@@ -389,10 +389,12 @@ func (s *ReferralRewardService) GetReferralStatus(ctx context.Context, userID in
 	// 0. 获取用户的邀请码（lazy-create：无 user_affiliates 行时自动创建并生成 aff_code）
 	if s.affiliateService != nil {
 		summary, err := s.affiliateService.EnsureUserAffiliate(ctx, userID)
-		if err == nil && summary != nil {
+		if err != nil {
+			return nil, fmt.Errorf("ensure user affiliate: %w", err)
+		}
+		if summary != nil {
 			status.AffCode = summary.AffCode
 		}
-		// EnsureUserAffiliate 失败不阻断状态查询，aff_code 为空前端会 fallback
 	}
 
 	// 1. 作为被邀请人的奖励状态
