@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS user_recharge_discounts (
     valid_until             TIMESTAMPTZ,
     created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT chk_urd_rate CHECK (discount_rate > 0 AND discount_rate <= 10),
+    CONSTRAINT chk_urd_rate CHECK (discount_rate > 0 AND discount_rate <= 1),
     CONSTRAINT chk_urd_max CHECK (max_discountable_amount > 0),
     CONSTRAINT chk_urd_total CHECK (total_discounted >= 0 AND total_discounted <= max_discountable_amount),
     CONSTRAINT chk_urd_source CHECK (source IN ('bind_key', 'referral_inherit'))
