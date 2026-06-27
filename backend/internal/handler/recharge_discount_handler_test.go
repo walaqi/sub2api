@@ -38,6 +38,9 @@ func (s *discountRepoStub) UpdateApplicationGiftID(_ context.Context, _ int64, _
 func (s *discountRepoStub) QueryActiveDiscountsReadOnly(_ context.Context, _ int64) ([]service.RechargeDiscountSummary, error) {
 	return s.discounts, s.err
 }
+func (s *discountRepoStub) CreateDiscount(_ context.Context, _ int64, _, _ string, _ *int64, _, _ float64, _ time.Time, _ *time.Time) (int64, error) {
+	return 0, nil
+}
 
 func TestGetMyActiveDiscount_NilRepo_ReturnsNull(t *testing.T) {
 	gin.SetMode(gin.TestMode)

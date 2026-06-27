@@ -209,6 +209,7 @@ type AffiliateService struct {
 	settingService       *SettingService
 	authCacheInvalidator APIKeyAuthCacheInvalidator
 	billingCacheService  *BillingCacheService
+	inviterBoundHook     InviterBoundHook // 可选，nil 时不触发
 }
 
 func NewAffiliateService(repo AffiliateRepository, settingService *SettingService, authCacheInvalidator APIKeyAuthCacheInvalidator, billingCacheService *BillingCacheService) *AffiliateService {
@@ -218,6 +219,11 @@ func NewAffiliateService(repo AffiliateRepository, settingService *SettingServic
 		authCacheInvalidator: authCacheInvalidator,
 		billingCacheService:  billingCacheService,
 	}
+}
+
+// SetInviterBoundHook 注入邀请绑定成功后的 hook（Wire 阶段调用）。
+func (s *AffiliateService) SetInviterBoundHook(hook InviterBoundHook) {
+	s.inviterBoundHook = hook
 }
 
 // IsEnabled reports whether the affiliate (邀请返利) feature is turned on.
@@ -308,6 +314,17 @@ func (s *AffiliateService) BindInviterByCode(ctx context.Context, userID int64, 
 	if !bound {
 		return ErrAffiliateAlreadyBound
 	}
+
+	// 邀请关系绑定成功 → 触发 hook（异步，不阻塞注册流程）
+	if s.inviterBoundHook != nil {
+		inviterID := inviterSummary.UserID
+		hookCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		go func() {
+			defer cancel()
+			s.inviterBoundHook.OnInviterBound(hookCtx, inviterID, userID)
+		}()
+	}
+
 	return nil
 }
 

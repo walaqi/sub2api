@@ -623,6 +623,7 @@ var ProviderSet = wire.NewSet(
 	NewModelPricingResolver,
 	NewContentModerationService,
 	NewAffiliateService,
+	ProvideReferralRewardService,
 	ProvidePaymentConfigService,
 	ProvidePaymentService,
 	ProvidePaymentOrderExpiryService,
@@ -635,6 +636,14 @@ var ProviderSet = wire.NewSet(
 	ProvideUserPlatformQuotaUsageFlusher,
 	NewRefundAssessmentService,
 )
+
+// ProvideReferralRewardService 创建 ReferralRewardService 并注入 AffiliateService 的 hook。
+func ProvideReferralRewardService(entClient *dbent.Client, giftEngine *gift.Engine, settingService *SettingService, affiliateService *AffiliateService) *ReferralRewardService {
+	discountRepo := NewRechargeDiscountRepoAdapter(entClient)
+	svc := NewReferralRewardService(entClient, giftEngine, settingService, discountRepo)
+	affiliateService.SetInviterBoundHook(svc)
+	return svc
+}
 
 // ProvideUserPlatformQuotaUsageFlusher 创建并启动 UserPlatformQuotaUsageFlusher。
 func ProvideUserPlatformQuotaUsageFlusher(cfg *config.Config, cache BillingCache, quotaRepo UserPlatformQuotaRepository, tw *TimingWheelService) *UserPlatformQuotaUsageFlusher {

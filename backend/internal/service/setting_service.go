@@ -2570,6 +2570,61 @@ func (s *SettingService) IsAffiliateEnabled(ctx context.Context) bool {
 	return value == "true"
 }
 
+// IsReferralRewardEnabled 检查双向邀请赠金是否启用（独立于 affiliate_enabled）
+func (s *SettingService) IsReferralRewardEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyReferralRewardEnabled)
+	if err != nil {
+		return false
+	}
+	return value == "true"
+}
+
+// ReferralRewardConfig 返回双向邀请赠金的可配置参数。
+type ReferralRewardConfig struct {
+	InviteeAmount     float64
+	InviteeExpiryDays int
+	InviterAmount     float64
+	InviterExpiryDays int
+	SpendThreshold    float64
+}
+
+// GetReferralRewardConfig 读取双向邀请赠金配置，缺失时使用默认值。
+func (s *SettingService) GetReferralRewardConfig(ctx context.Context) ReferralRewardConfig {
+	cfg := ReferralRewardConfig{
+		InviteeAmount:     10,
+		InviteeExpiryDays: 2,
+		InviterAmount:     10,
+		InviterExpiryDays: 30,
+		SpendThreshold:    10,
+	}
+	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralInviteeAmount); err == nil {
+		if f, e := strconv.ParseFloat(v, 64); e == nil && f > 0 {
+			cfg.InviteeAmount = f
+		}
+	}
+	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralInviteeExpiryDays); err == nil {
+		if d, e := strconv.Atoi(v); e == nil && d >= 1 {
+			cfg.InviteeExpiryDays = d
+		}
+	}
+	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralInviterAmount); err == nil {
+		if f, e := strconv.ParseFloat(v, 64); e == nil && f > 0 {
+			cfg.InviterAmount = f
+		}
+	}
+	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralInviterExpiryDays); err == nil {
+		if d, e := strconv.Atoi(v); e == nil && d >= 1 {
+			cfg.InviterExpiryDays = d
+		}
+	}
+	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralSpendThreshold); err == nil {
+		if f, e := strconv.ParseFloat(v, 64); e == nil && f > 0 {
+			cfg.SpendThreshold = f
+		}
+	}
+	return cfg
+}
+
 // GetAffiliateRebateRatePercent 读取并 clamp 全局返利比例。
 // 解析失败、缺失或越界都回退到 AffiliateRebateRateDefault — 该比例从不抛错，
 // 调用方只关心一个可用的数值。

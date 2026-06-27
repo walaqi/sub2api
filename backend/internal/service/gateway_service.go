@@ -650,6 +650,7 @@ type GatewayService struct {
 	tlsFPProfileService   *TLSFingerprintProfileService
 	balanceNotifyService  *BalanceNotifyService
 	userPlatformQuotaRepo UserPlatformQuotaRepository
+	referralReward        *ReferralRewardService // 可选，nil 时不追踪消费
 }
 
 // NewGatewayService creates a new GatewayService
@@ -731,6 +732,11 @@ func NewGatewayService(
 		svc.initDebugGatewayBodyFile(path)
 	}
 	return svc
+}
+
+// SetReferralRewardService 注入邀请奖励服务（Wire 阶段调用）。
+func (s *GatewayService) SetReferralRewardService(svc *ReferralRewardService) {
+	s.referralReward = svc
 }
 
 // GenerateSessionHash 从预解析请求计算粘性会话 hash
@@ -9418,7 +9424,7 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 		quotaPlatform = PlatformFromAPIKey(apiKey)
 	}
 	requestID := usageLog.RequestID
-	_, billingErr := applyUsageBilling(ctx, requestID, usageLog, &postUsageBillingParams{
+	applied, billingErr := applyUsageBilling(ctx, requestID, usageLog, &postUsageBillingParams{
 		Cost:                  cost,
 		User:                  user,
 		APIKey:                apiKey,
@@ -9434,6 +9440,21 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 	if billingErr != nil {
 		return billingErr
 	}
+
+	// 异步追踪被邀请人消费（达标后触发邀请人奖励）
+	if applied && !isSubscriptionBilling && cost.ActualCost > 0 && s.referralReward != nil {
+		eventID := fmt.Sprintf("billing:%s:%d", requestID, apiKey.ID)
+		balanceCost := cost.ActualCost
+		userID := user.ID
+		hookCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		go func() {
+			defer cancel()
+			if err := s.referralReward.TrackSpendAndMaybeGrantInviterReward(hookCtx, userID, eventID, balanceCost); err != nil {
+				slog.Warn("referral spend tracking failed", "user_id", userID, "event_id", eventID, "error", err)
+			}
+		}()
+	}
+
 	writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.gateway")
 
 	return nil

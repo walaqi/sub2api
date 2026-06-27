@@ -24,6 +24,8 @@ type RechargeDiscountRepo interface {
 	UpdateApplicationGiftID(ctx context.Context, paymentOrderID int64, giftID int64) error
 	// QueryActiveDiscountsReadOnly returns active discounts for display (no FOR UPDATE).
 	QueryActiveDiscountsReadOnly(ctx context.Context, userID int64) ([]RechargeDiscountSummary, error)
+	// CreateDiscount inserts a new discount record (idempotent via ON CONFLICT DO NOTHING).
+	CreateDiscount(ctx context.Context, userID int64, source, sourceRef string, originAPIKeyID *int64, rate, maxAmount float64, validFrom time.Time, validUntil *time.Time) (int64, error)
 }
 
 // RechargeDiscountRecord 充值折扣记录（service 层使用）。
