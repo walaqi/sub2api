@@ -61,6 +61,10 @@ func (s *rechargeDiscountRepoStub) UpdateApplicationGiftID(_ context.Context, _ 
 	return nil
 }
 
+func (s *rechargeDiscountRepoStub) QueryActiveDiscountsReadOnly(_ context.Context, _ int64) ([]RechargeDiscountSummary, error) {
+	return nil, nil
+}
+
 // --- Tests ---
 
 func TestApplyRechargeDiscount_NilRepo_Skips(t *testing.T) {
@@ -206,6 +210,9 @@ func (s *queryErrorRepoStub) ClaimApplication(_ context.Context, _ *RechargeDisc
 }
 func (s *queryErrorRepoStub) UpdateApplicationGiftID(_ context.Context, _ int64, _ int64) error {
 	return nil
+}
+func (s *queryErrorRepoStub) QueryActiveDiscountsReadOnly(_ context.Context, _ int64) ([]RechargeDiscountSummary, error) {
+	return nil, nil
 }
 
 // --- Helpers ---

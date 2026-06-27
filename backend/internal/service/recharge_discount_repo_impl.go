@@ -152,3 +152,49 @@ func nullableInt64Ptr(v *int64) any {
 	}
 	return *v
 }
+
+// QueryActiveDiscountsReadOnly returns all active (non-exhausted, non-expired) discounts for a user.
+// Read-only: no FOR UPDATE, safe to call outside transactions.
+func (r *rechargeDiscountRepoImpl) QueryActiveDiscountsReadOnly(ctx context.Context, userID int64) ([]RechargeDiscountSummary, error) {
+	rows, err := r.execer(ctx).QueryContext(ctx, `
+SELECT id, source, source_ref, discount_rate,
+       max_discountable_amount::double precision,
+       total_discounted::double precision,
+       valid_from, valid_until
+FROM user_recharge_discounts
+WHERE user_id = $1
+  AND valid_from <= NOW()
+  AND (valid_until IS NULL OR valid_until >= NOW())
+  AND total_discounted < max_discountable_amount
+ORDER BY discount_rate DESC, valid_until ASC NULLS LAST`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("query active discounts: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var results []RechargeDiscountSummary
+	for rows.Next() {
+		var d RechargeDiscountSummary
+		var validUntil sql.NullTime
+		if err := rows.Scan(&d.ID, &d.Source, &d.SourceRef, &d.DiscountRate, &d.MaxDiscountableAmount, &d.TotalDiscounted, &d.ValidFrom, &validUntil); err != nil {
+			return nil, err
+		}
+		if validUntil.Valid {
+			d.ValidUntil = &validUntil.Time
+		}
+		results = append(results, d)
+	}
+	return results, rows.Err()
+}
+
+// RechargeDiscountSummary is the read-only view of an active discount for user display.
+type RechargeDiscountSummary struct {
+	ID                    int64
+	Source                string
+	SourceRef             string
+	DiscountRate          float64
+	MaxDiscountableAmount float64
+	TotalDiscounted       float64
+	ValidFrom             time.Time
+	ValidUntil            *time.Time
+}

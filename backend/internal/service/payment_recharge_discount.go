@@ -22,6 +22,8 @@ type RechargeDiscountRepo interface {
 	// claimed=false 表示 ON CONFLICT 冲突（其他并发已处理，调用方应立即退出）。
 	ClaimApplication(ctx context.Context, app *RechargeDiscountApplicationRecord) (claimed bool, err error)
 	UpdateApplicationGiftID(ctx context.Context, paymentOrderID int64, giftID int64) error
+	// QueryActiveDiscountsReadOnly returns active discounts for display (no FOR UPDATE).
+	QueryActiveDiscountsReadOnly(ctx context.Context, userID int64) ([]RechargeDiscountSummary, error)
 }
 
 // RechargeDiscountRecord 充值折扣记录（service 层使用）。

@@ -37,6 +37,23 @@
               <p class="mt-1 text-base font-semibold text-gray-900 dark:text-white">{{ user?.username || '' }}</p>
               <p class="mt-0.5 text-sm font-medium text-green-600 dark:text-green-400">{{ t('payment.currentBalance') }}: {{ user?.balance?.toFixed(2) || '0.00' }}</p>
             </div>
+            <!-- Recharge Discount Hint -->
+            <div v-if="activeDiscount" class="card border-violet-200 bg-violet-50 p-4 dark:border-violet-800/50 dark:bg-violet-900/20">
+              <div class="flex items-start gap-3">
+                <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-900/30">
+                  <Icon name="sparkles" size="sm" class="text-violet-600 dark:text-violet-400" />
+                </div>
+                <div class="flex-1 text-sm">
+                  <p class="font-medium text-violet-800 dark:text-violet-200">{{ t('payment.discountHintTitle') }}</p>
+                  <p class="mt-1 text-violet-700 dark:text-violet-300">
+                    {{ t('payment.discountHintBody', { rate: (activeDiscount.discount_rate * 100).toFixed(0), remaining: activeDiscount.remaining_quota.toFixed(2) }) }}
+                  </p>
+                  <p v-if="activeDiscount.valid_until_unix_ms" class="mt-0.5 text-xs text-violet-600 dark:text-violet-400">
+                    {{ t('payment.discountHintExpiry', { date: formatDiscountExpiry(activeDiscount.valid_until_unix_ms) }) }}
+                  </p>
+                </div>
+              </div>
+            </div>
             <div v-if="enabledMethods.length === 0" class="card py-16 text-center">
               <p class="text-gray-500 dark:text-gray-400">{{ t('payment.notAvailable') }}</p>
             </div>
@@ -253,6 +270,7 @@ import { usePaymentStore } from '@/stores/payment'
 import { useSubscriptionStore } from '@/stores/subscriptions'
 import { useAppStore } from '@/stores'
 import { paymentAPI } from '@/api/payment'
+import { getMyActiveRechargeDiscount, type ActiveRechargeDiscount } from '@/api/user'
 import { extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiError'
 import { isMobileDevice } from '@/utils/device'
 import type { SubscriptionPlan, CheckoutInfoResponse, CreateOrderResult, OrderType } from '@/types/payment'
@@ -306,6 +324,7 @@ const amount = ref<number | null>(null)
 const selectedMethod = ref('')
 const selectedPlan = ref<SubscriptionPlan | null>(null)
 const previewImage = ref('')
+const activeDiscount = ref<ActiveRechargeDiscount | null>(null)
 
 const paymentPhase = ref<'select' | 'paying'>('select')
 
@@ -542,6 +561,14 @@ const localeCode = computed(() => {
 
 function formatSelectedPaymentAmount(value: number): string {
   return formatPaymentAmount(value, selectedCurrency.value, localeCode.value)
+}
+
+function formatDiscountExpiry(unixMs: number): string {
+  const d = new Date(unixMs)
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
 }
 
 const methodOptions = computed<PaymentMethodOption[]>(() =>
@@ -1076,5 +1103,7 @@ onMounted(async () => {
   finally { loading.value = false }
   // Fetch active subscriptions (uses cache, non-blocking)
   subscriptionStore.fetchActiveSubscriptions().catch(() => {})
+  // Fetch active recharge discount (non-blocking)
+  getMyActiveRechargeDiscount().then(d => { activeDiscount.value = d }).catch(() => {})
 })
 </script>

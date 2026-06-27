@@ -1,6 +1,7 @@
 package handler
 
 import (
+	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/handler/admin"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
@@ -121,30 +122,37 @@ func ProvideHandlers(
 	availableChannelHandler *AvailableChannelHandler,
 	modelsPlazaHandler *ModelsPlazaHandler,
 	imageStudioHandler *ImageStudioHandler,
+	rechargeDiscountHandler *RechargeDiscountHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 	_ *service.SuspectThrottleService,
 ) *Handlers {
 	return &Handlers{
-		Auth:             authHandler,
-		User:             userHandler,
-		APIKey:           apiKeyHandler,
-		Usage:            usageHandler,
-		Redeem:           redeemHandler,
-		Subscription:     subscriptionHandler,
-		Announcement:     announcementHandler,
-		ChannelMonitor:   channelMonitorUserHandler,
-		Admin:            adminHandlers,
-		Gateway:          gatewayHandler,
-		OpenAIGateway:    openaiGatewayHandler,
-		Setting:          settingHandler,
-		Totp:             totpHandler,
-		Payment:          paymentHandler,
-		PaymentWebhook:   paymentWebhookHandler,
-		AvailableChannel: availableChannelHandler,
-		ModelsPlaza:      modelsPlazaHandler,
-		ImageStudio:      imageStudioHandler,
+		Auth:              authHandler,
+		User:              userHandler,
+		APIKey:            apiKeyHandler,
+		Usage:             usageHandler,
+		Redeem:            redeemHandler,
+		Subscription:      subscriptionHandler,
+		Announcement:      announcementHandler,
+		ChannelMonitor:    channelMonitorUserHandler,
+		Admin:             adminHandlers,
+		Gateway:           gatewayHandler,
+		OpenAIGateway:     openaiGatewayHandler,
+		Setting:           settingHandler,
+		Totp:              totpHandler,
+		Payment:           paymentHandler,
+		PaymentWebhook:    paymentWebhookHandler,
+		AvailableChannel:  availableChannelHandler,
+		ModelsPlaza:       modelsPlazaHandler,
+		ImageStudio:       imageStudioHandler,
+		RechargeDiscount:  rechargeDiscountHandler,
 	}
+}
+
+// ProvideRechargeDiscountHandler creates RechargeDiscountHandler with the repo backed by ent client.
+func ProvideRechargeDiscountHandler(entClient *dbent.Client) *RechargeDiscountHandler {
+	return NewRechargeDiscountHandler(service.NewRechargeDiscountRepoAdapter(entClient))
 }
 
 // ProviderSet is the Wire provider set for all handlers
@@ -167,6 +175,7 @@ var ProviderSet = wire.NewSet(
 	NewAvailableChannelHandler,
 	NewModelsPlazaHandler,
 	NewImageStudioHandler,
+	ProvideRechargeDiscountHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,

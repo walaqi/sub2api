@@ -61,9 +61,17 @@ type ReservationResult struct {
 
 // CommitResult is returned after a successful Commit.
 type CommitResult struct {
-	APIKeyID  int64        `json:"api_key_id"`
-	MaskedKey string       `json:"masked_key"`
-	Gift      *GrantedGift `json:"gift,omitempty"`
+	APIKeyID  int64            `json:"api_key_id"`
+	MaskedKey string           `json:"masked_key"`
+	Gift      *GrantedGift     `json:"gift,omitempty"`
+	Discount  *GrantedDiscount `json:"discount,omitempty"`
+}
+
+// GrantedDiscount describes a recharge discount created during bind.
+type GrantedDiscount struct {
+	DiscountRate          float64 `json:"discount_rate"`
+	MaxDiscountableAmount float64 `json:"max_discountable_amount"`
+	ValidDays             int     `json:"valid_days"`
 }
 
 // EligibilityResult tells the UI whether the caller may participate this
@@ -440,6 +448,7 @@ func (s *Service) Commit(ctx context.Context, userID int64, reservationID string
 
 	// 创建充值折扣记录（如果 key 配置了 RechargeDiscount）。
 	// 与赠金分开处理：折扣创建失败仅记日志，不影响 key 转移和赠金。
+	var grantedDiscount *GrantedDiscount
 	if s.discountCreator != nil && s.giftSettingResolver != nil {
 		if setting, err := s.giftSettingResolver.Resolve(ctx, keyID); err == nil && setting != nil {
 			if cfg := s.resolveRechargeDiscountConfig(setting); cfg != nil {
@@ -447,6 +456,11 @@ func (s *Service) Commit(ctx context.Context, userID int64, reservationID string
 					log.Printf("[keybind] create recharge discount for user %d key %d failed: %v", userID, keyID, err)
 				} else {
 					log.Printf("[keybind] created recharge discount for user %d (key %d, rate=%.2f, max=%.2f, days=%d)", userID, keyID, cfg.DiscountRate, cfg.MaxDiscountableAmount, cfg.ValidDays)
+					grantedDiscount = &GrantedDiscount{
+						DiscountRate:          cfg.DiscountRate,
+						MaxDiscountableAmount: cfg.MaxDiscountableAmount,
+						ValidDays:             cfg.ValidDays,
+					}
 				}
 			}
 		}
@@ -464,13 +478,13 @@ func (s *Service) Commit(ctx context.Context, userID int64, reservationID string
 	if err != nil {
 		// The transfer succeeded; degrade gracefully.
 		_ = s.redis.Del(ctx, resKey, redisLockedKeyPrefix+intToStr(keyID)).Err()
-		return &CommitResult{APIKeyID: keyID, MaskedKey: "", Gift: grantedGift}, nil
+		return &CommitResult{APIKeyID: keyID, MaskedKey: "", Gift: grantedGift, Discount: grantedDiscount}, nil
 	}
 
 	// Consume reservation atomically (best-effort; TTL also cleans them up).
 	_ = s.redis.Del(ctx, resKey, redisLockedKeyPrefix+intToStr(keyID)).Err()
 
-	return &CommitResult{APIKeyID: row.ID, MaskedKey: maskKey(row.Key), Gift: grantedGift}, nil
+	return &CommitResult{APIKeyID: row.ID, MaskedKey: maskKey(row.Key), Gift: grantedGift, Discount: grantedDiscount}, nil
 }
 
 func (s *Service) disabledErr() error {
