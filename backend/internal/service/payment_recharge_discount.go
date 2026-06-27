@@ -17,7 +17,10 @@ type RechargeDiscountRepo interface {
 	CheckApplicationExists(ctx context.Context, paymentOrderID int64) (bool, error)
 	QueryBestActiveDiscountForUpdate(ctx context.Context, userID int64) (*RechargeDiscountRecord, error)
 	UpdateTotalDiscounted(ctx context.Context, discountID int64, appliedAmount float64) error
-	InsertApplication(ctx context.Context, app *RechargeDiscountApplicationRecord) error
+	// ClaimApplication 尝试插入 application 记录（占位）。
+	// 返回 claimed=true 表示本次成功插入（可继续发放），
+	// claimed=false 表示 ON CONFLICT 冲突（其他并发已处理，调用方应立即退出）。
+	ClaimApplication(ctx context.Context, app *RechargeDiscountApplicationRecord) (claimed bool, err error)
 	UpdateApplicationGiftID(ctx context.Context, paymentOrderID int64, giftID int64) error
 }
 
@@ -143,8 +146,9 @@ func (s *PaymentService) applyRechargeDiscountForOrder(ctx context.Context, o *d
 		return nil
 	}
 
-	// 先 claim order（InsertApplication unique index 是最终幂等保障）
-	if err := s.rechargeDiscountRepo.InsertApplication(txCtx, &RechargeDiscountApplicationRecord{
+	// 先 claim order（unique index 是最终幂等保障）
+	// claimed=false 表示并发已处理，立即退出不发 gift
+	claimed, err := s.rechargeDiscountRepo.ClaimApplication(txCtx, &RechargeDiscountApplicationRecord{
 		UserID:               o.UserID,
 		DiscountID:           discountLocked.ID,
 		PaymentOrderID:       o.ID,
@@ -152,8 +156,13 @@ func (s *PaymentService) applyRechargeDiscountForOrder(ctx context.Context, o *d
 		BonusAmount:          bonusFinal,
 		DiscountRateSnapshot: discountLocked.DiscountRate,
 		GiftID:               nil,
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("claim discount application: %w", err)
+	}
+	if !claimed {
+		// 另一个并发执行已处理该订单，安全退出
+		return nil
 	}
 
 	// 更新 total_discounted

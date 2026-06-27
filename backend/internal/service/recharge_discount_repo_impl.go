@@ -91,16 +91,17 @@ func (r *rechargeDiscountRepoImpl) UpdateTotalDiscounted(ctx context.Context, di
 	return nil
 }
 
-func (r *rechargeDiscountRepoImpl) InsertApplication(ctx context.Context, app *RechargeDiscountApplicationRecord) error {
-	_, err := r.execer(ctx).ExecContext(ctx, `
+func (r *rechargeDiscountRepoImpl) ClaimApplication(ctx context.Context, app *RechargeDiscountApplicationRecord) (bool, error) {
+	res, err := r.execer(ctx).ExecContext(ctx, `
 INSERT INTO recharge_discount_applications (user_id, discount_id, payment_order_id, applied_amount, bonus_amount, discount_rate_snapshot, gift_id)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
 ON CONFLICT (payment_order_id) DO NOTHING`,
 		app.UserID, app.DiscountID, app.PaymentOrderID, app.AppliedAmount, app.BonusAmount, app.DiscountRateSnapshot, nullableInt64Ptr(app.GiftID))
 	if err != nil {
-		return fmt.Errorf("insert recharge_discount_applications: %w", err)
+		return false, fmt.Errorf("insert recharge_discount_applications: %w", err)
 	}
-	return nil
+	affected, _ := res.RowsAffected()
+	return affected > 0, nil
 }
 
 func (r *rechargeDiscountRepoImpl) UpdateApplicationGiftID(ctx context.Context, paymentOrderID int64, giftID int64) error {
