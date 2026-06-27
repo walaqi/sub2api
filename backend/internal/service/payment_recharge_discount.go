@@ -45,7 +45,7 @@ type RechargeDiscountApplicationRecord struct {
 // 强一致：失败返回 error，订单保持 RECHARGING 可重试。
 // 幂等：recharge_discount_applications(payment_order_id) 唯一索引。
 func (s *PaymentService) applyRechargeDiscountForOrder(ctx context.Context, o *dbent.PaymentOrder) error {
-	if s.rechargeDiscountRepo == nil || s.giftEngine == nil {
+	if s.rechargeDiscountRepo == nil {
 		return nil
 	}
 
@@ -86,7 +86,10 @@ func (s *PaymentService) applyRechargeDiscountForOrder(ctx context.Context, o *d
 		return nil
 	}
 
-	// 4. 同一事务内：更新折扣 → 发放赠金 → 写应用记录
+	// 4. giftEngine required from this point
+	if s.giftEngine == nil || s.entClient == nil {
+		return fmt.Errorf("recharge discount: gift engine or ent client not configured")
+	}
 	tx, err := s.entClient.Tx(ctx)
 	if err != nil {
 		return fmt.Errorf("begin discount tx: %w", err)
