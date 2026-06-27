@@ -235,6 +235,12 @@ func (s *AnnouncementService) ListForUser(ctx context.Context, userID int64, unr
 		activeGroupIDs[activeSubs[i].GroupID] = struct{}{}
 	}
 
+	targetCtx := domain.UserTargetingContext{
+		Balance:                    user.Balance,
+		ActiveSubscriptionGroupIDs: activeGroupIDs,
+	}
+	s.fillReferralTargeting(ctx, userID, &targetCtx)
+
 	now := time.Now()
 	anns, err := s.announcementRepo.ListActive(ctx, now)
 	if err != nil {
@@ -248,7 +254,7 @@ func (s *AnnouncementService) ListForUser(ctx context.Context, userID int64, unr
 		if !a.IsActiveAt(now) {
 			continue
 		}
-		if !a.Targeting.Matches(user.Balance, activeGroupIDs) {
+		if !a.Targeting.Matches(targetCtx) {
 			continue
 		}
 		visible = append(visible, a)
@@ -320,7 +326,13 @@ func (s *AnnouncementService) MarkRead(ctx context.Context, userID, announcement
 		activeGroupIDs[activeSubs[i].GroupID] = struct{}{}
 	}
 
-	if !a.Targeting.Matches(user.Balance, activeGroupIDs) {
+	targetCtx := domain.UserTargetingContext{
+		Balance:                    user.Balance,
+		ActiveSubscriptionGroupIDs: activeGroupIDs,
+	}
+	s.fillReferralTargeting(ctx, userID, &targetCtx)
+
+	if !a.Targeting.Matches(targetCtx) {
 		return ErrAnnouncementNotFound
 	}
 
@@ -401,7 +413,7 @@ func (s *AnnouncementService) buildReadStatusResult(
 			Email:    u.Email,
 			Username: u.Username,
 			Balance:  u.Balance,
-			Eligible: domain.AnnouncementTargeting(ann.Targeting).Matches(u.Balance, activeGroupIDs),
+			Eligible: domain.AnnouncementTargeting(ann.Targeting).Matches(domain.UserTargetingContext{Balance: u.Balance, ActiveSubscriptionGroupIDs: activeGroupIDs}),
 			ReadAt:   ptr,
 		})
 	}
@@ -534,7 +546,7 @@ func (s *AnnouncementService) listUserReadStatusByReadAt(
 			Email:    u.Email,
 			Username: u.Username,
 			Balance:  u.Balance,
-			Eligible: domain.AnnouncementTargeting(ann.Targeting).Matches(u.Balance, activeGroupIDs),
+			Eligible: domain.AnnouncementTargeting(ann.Targeting).Matches(domain.UserTargetingContext{Balance: u.Balance, ActiveSubscriptionGroupIDs: activeGroupIDs}),
 			ReadAt:   ptr,
 		})
 	}
@@ -567,5 +579,28 @@ func isValidAnnouncementNotifyMode(mode string) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+// fillReferralTargeting 查询用户的 affiliate 状态并填充到 UserTargetingContext。
+// 查询失败时静默降级（referral 条件不命中），不阻断公告列表。
+func (s *AnnouncementService) fillReferralTargeting(ctx context.Context, userID int64, tc *domain.UserTargetingContext) {
+	if s.entClient == nil {
+		return
+	}
+	rows, err := s.entClient.QueryContext(ctx,
+		`SELECT inviter_id, aff_count FROM user_affiliates WHERE user_id = $1 LIMIT 1`, userID)
+	if err != nil {
+		return
+	}
+	defer func() { _ = rows.Close() }()
+	if rows.Next() {
+		var inviterID sql.NullInt64
+		var affCount int
+		if err := rows.Scan(&inviterID, &affCount); err != nil {
+			return
+		}
+		tc.HasInviter = inviterID.Valid && inviterID.Int64 > 0
+		tc.IsInviter = affCount > 0
 	}
 }
