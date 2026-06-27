@@ -4698,9 +4698,14 @@ export default {
         conditionType: 'Condition type',
         conditionSubscription: 'Subscription',
         conditionBalance: 'Balance',
+        conditionReferral: 'Referral',
         operator: 'Operator',
         balanceValue: 'Balance threshold',
-        selectPackages: 'Select packages'
+        selectPackages: 'Select packages',
+        referralValue: 'Referral condition',
+        referralHasInviter: 'Is an invitee',
+        referralIsInviter: 'Is an inviter',
+        referralNoInviter: 'Not an invitee'
       },
       operators: {
         gt: '>',

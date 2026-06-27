@@ -4850,9 +4850,14 @@ export default {
         conditionType: '条件类型',
         conditionSubscription: '订阅套餐',
         conditionBalance: '余额',
+        conditionReferral: '邀请关系',
         operator: '运算符',
         balanceValue: '余额阈值',
-        selectPackages: '选择套餐'
+        selectPackages: '选择套餐',
+        referralValue: '邀请条件',
+        referralHasInviter: '是被邀请人',
+        referralIsInviter: '是邀请人',
+        referralNoInviter: '非被邀请人'
       },
       operators: {
         gt: '>',

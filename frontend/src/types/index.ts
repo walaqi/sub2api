@@ -304,15 +304,18 @@ export interface UpdateSubscriptionRequest {
 export type AnnouncementStatus = 'draft' | 'active' | 'archived'
 export type AnnouncementNotifyMode = 'silent' | 'popup'
 
-export type AnnouncementConditionType = 'subscription' | 'balance'
+export type AnnouncementConditionType = 'subscription' | 'balance' | 'referral'
 
 export type AnnouncementOperator = 'in' | 'gt' | 'gte' | 'lt' | 'lte' | 'eq'
+
+export type AnnouncementReferralValue = 'has_inviter' | 'is_inviter' | 'no_inviter'
 
 export interface AnnouncementCondition {
   type: AnnouncementConditionType
   operator: AnnouncementOperator
   group_ids?: number[]
   value?: number
+  referral_value?: AnnouncementReferralValue
 }
 
 export interface AnnouncementConditionGroup {
