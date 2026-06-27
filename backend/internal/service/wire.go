@@ -640,7 +640,7 @@ var ProviderSet = wire.NewSet(
 // ProvideReferralRewardService 创建 ReferralRewardService 并注入 AffiliateService 的 hook。
 func ProvideReferralRewardService(entClient *dbent.Client, giftEngine *gift.Engine, settingService *SettingService, affiliateService *AffiliateService) *ReferralRewardService {
 	discountRepo := NewRechargeDiscountRepoAdapter(entClient)
-	svc := NewReferralRewardService(entClient, giftEngine, settingService, discountRepo)
+	svc := NewReferralRewardService(entClient, giftEngine, settingService, discountRepo, affiliateService)
 	affiliateService.SetInviterBoundHook(svc)
 	return svc
 }

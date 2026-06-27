@@ -14,10 +14,11 @@ import (
 // ReferralRewardService 实现双向邀请赠金逻辑。
 // 实现 InviterBoundHook 接口：被邀请人注册绑定邀请关系后触发。
 type ReferralRewardService struct {
-	entClient      *dbent.Client
-	giftEngine     *gift.Engine
-	settingService *SettingService
-	discountRepo   RechargeDiscountRepo // 用于折扣继承
+	entClient        *dbent.Client
+	giftEngine       *gift.Engine
+	settingService   *SettingService
+	discountRepo     RechargeDiscountRepo // 用于折扣继承
+	affiliateService *AffiliateService    // 用于 EnsureUserAffiliate（lazy 创建 aff_code）
 }
 
 // NewReferralRewardService 构造 ReferralRewardService。
@@ -26,12 +27,14 @@ func NewReferralRewardService(
 	giftEngine *gift.Engine,
 	settingService *SettingService,
 	discountRepo RechargeDiscountRepo,
+	affiliateService *AffiliateService,
 ) *ReferralRewardService {
 	return &ReferralRewardService{
-		entClient:      entClient,
-		giftEngine:     giftEngine,
-		settingService: settingService,
-		discountRepo:   discountRepo,
+		entClient:        entClient,
+		giftEngine:       giftEngine,
+		settingService:   settingService,
+		discountRepo:     discountRepo,
+		affiliateService: affiliateService,
 	}
 }
 
@@ -383,21 +386,14 @@ func (s *ReferralRewardService) GetReferralStatus(ctx context.Context, userID in
 
 	status := &ReferralStatus{Enabled: enabled}
 
-	// 0. 获取用户的邀请码
-	affRows, err := execer.QueryContext(ctx,
-		`SELECT aff_code FROM user_affiliates WHERE user_id = $1 LIMIT 1`, userID)
-	if err != nil {
-		return nil, fmt.Errorf("query aff_code: %w", err)
-	}
-	if affRows.Next() {
-		var code string
-		if err := affRows.Scan(&code); err != nil {
-			_ = affRows.Close()
-			return nil, fmt.Errorf("scan aff_code: %w", err)
+	// 0. 获取用户的邀请码（lazy-create：无 user_affiliates 行时自动创建并生成 aff_code）
+	if s.affiliateService != nil {
+		summary, err := s.affiliateService.EnsureUserAffiliate(ctx, userID)
+		if err == nil && summary != nil {
+			status.AffCode = summary.AffCode
 		}
-		status.AffCode = code
+		// EnsureUserAffiliate 失败不阻断状态查询，aff_code 为空前端会 fallback
 	}
-	_ = affRows.Close()
 
 	// 1. 作为被邀请人的奖励状态
 	inviteeRows, err := execer.QueryContext(ctx,
