@@ -349,4 +349,78 @@ func (s *ReferralRewardService) execer(ctx context.Context) interface {
 	return s.entClient
 }
 
+// ReferralStatus 是用户可见的邀请奖励状态。
+type ReferralStatus struct {
+	Enabled         bool              `json:"enabled"`
+	InviteeReward   *InviteeRewardDTO `json:"invitee_reward"`   // 当前用户作为被邀请人的奖励状态（nil=非被邀请人）
+	InviterProgress []InviteeProgress `json:"inviter_progress"` // 当前用户作为邀请人，各被邀请人的消费进度
+}
+
+type InviteeRewardDTO struct {
+	Granted bool    `json:"granted"`
+	Amount  float64 `json:"amount"`
+}
+
+type InviteeProgress struct {
+	InviteeID    int64   `json:"invitee_id"`
+	SpendTracked float64 `json:"spend_tracked"`
+	Threshold    float64 `json:"threshold"`
+	Granted      bool    `json:"granted"`
+}
+
+// GetReferralStatus 查询当前用户的邀请奖励状态。
+func (s *ReferralRewardService) GetReferralStatus(ctx context.Context, userID int64) (*ReferralStatus, error) {
+	if s == nil || s.entClient == nil {
+		return &ReferralStatus{}, nil
+	}
+
+	execer := s.execer(ctx)
+	enabled := false
+	if s.settingService != nil {
+		enabled = s.settingService.IsReferralRewardEnabled(ctx)
+	}
+
+	status := &ReferralStatus{Enabled: enabled}
+
+	// 1. 作为被邀请人的奖励状态
+	rows, err := execer.QueryContext(ctx,
+		`SELECT invitee_reward_granted FROM referral_reward_tracker WHERE invitee_id = $1 LIMIT 1`, userID)
+	if err == nil {
+		if rows.Next() {
+			var granted bool
+			_ = rows.Scan(&granted)
+			cfg := ReferralRewardConfig{InviteeAmount: 10}
+			if s.settingService != nil {
+				cfg = s.settingService.GetReferralRewardConfig(ctx)
+			}
+			status.InviteeReward = &InviteeRewardDTO{Granted: granted, Amount: cfg.InviteeAmount}
+		}
+		_ = rows.Close()
+	}
+
+	// 2. 作为邀请人的各被邀请人进度
+	rows, err = execer.QueryContext(ctx, `
+SELECT invitee_id, invitee_spend_tracked::double precision, spend_threshold::double precision, inviter_reward_granted
+FROM referral_reward_tracker
+WHERE inviter_id = $1
+ORDER BY created_at DESC
+LIMIT 50`, userID)
+	if err == nil {
+		defer func() { _ = rows.Close() }()
+		for rows.Next() {
+			var p InviteeProgress
+			if err := rows.Scan(&p.InviteeID, &p.SpendTracked, &p.Threshold, &p.Granted); err != nil {
+				break
+			}
+			status.InviterProgress = append(status.InviterProgress, p)
+		}
+	}
+
+	if status.InviterProgress == nil {
+		status.InviterProgress = []InviteeProgress{}
+	}
+
+	return status, nil
+}
+
 func referralPtrStr(s string) *string { return &s }

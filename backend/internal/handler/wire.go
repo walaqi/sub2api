@@ -123,6 +123,7 @@ func ProvideHandlers(
 	modelsPlazaHandler *ModelsPlazaHandler,
 	imageStudioHandler *ImageStudioHandler,
 	rechargeDiscountHandler *RechargeDiscountHandler,
+	referralHandler *ReferralHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 	_ *service.SuspectThrottleService,
@@ -147,6 +148,7 @@ func ProvideHandlers(
 		ModelsPlaza:       modelsPlazaHandler,
 		ImageStudio:       imageStudioHandler,
 		RechargeDiscount:  rechargeDiscountHandler,
+		Referral:          referralHandler,
 	}
 }
 
@@ -176,6 +178,7 @@ var ProviderSet = wire.NewSet(
 	NewModelsPlazaHandler,
 	NewImageStudioHandler,
 	ProvideRechargeDiscountHandler,
+	NewReferralHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,
