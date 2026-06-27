@@ -73,8 +73,8 @@ func (s *ReferralRewardService) OnInviterBound(ctx context.Context, inviterID, i
 // 累加被邀请人消费额，达标后发放邀请人赠金。
 // 幂等：referral_spend_events 唯一索引保证同一 eventID 不重复累加。
 //
-// 竞态安全：若 tracker 尚未创建（OnInviterBound 异步还没跑完），整个事务 rollback，
-// event 不被标记为已处理——下次 billing 事件会自然重试。
+// 竞态安全：若 tracker 尚未创建（OnInviterBound 异步还没跑完），从 user_affiliates
+// 查 inviter 并补建 tracker，然后继续处理当前 spend。不丢失任何 billing event。
 func (s *ReferralRewardService) TrackSpendAndMaybeGrantInviterReward(ctx context.Context, inviteeID int64, eventID string, spendAmount float64) error {
 	if s == nil || s.entClient == nil || s.giftEngine == nil {
 		return nil
@@ -92,7 +92,7 @@ func (s *ReferralRewardService) TrackSpendAndMaybeGrantInviterReward(ctx context
 	txCtx := dbent.NewTxContext(ctx, tx)
 	execer := tx.Client()
 
-	// 1. FOR UPDATE 锁 tracker 行（必须先锁再插 event，确保无 tracker 时能安全 rollback）
+	// 1. FOR UPDATE 锁 tracker 行
 	rows, err := execer.QueryContext(txCtx, `
 SELECT id, inviter_id, invitee_spend_tracked, spend_threshold, inviter_reward_granted
 FROM referral_reward_tracker
@@ -120,13 +120,39 @@ FOR UPDATE`, inviteeID)
 	}
 	_ = rows.Close()
 
+	// 无 tracker：尝试从 user_affiliates 查 inviter 并补建
 	if tracker == nil {
-		// tracker 尚未创建 → rollback，不标记 event 为已处理。
-		// 后续 billing event 或 OnInviterBound 回填会正常累计。
-		return nil // defer rollback
+		inviterID, err := s.lookupInviterID(txCtx, execer, inviteeID)
+		if err != nil || inviterID == 0 {
+			// 该用户不是被邀请人，无需追踪
+			return nil // defer rollback (无副作用)
+		}
+		cfg := s.settingService.GetReferralRewardConfig(ctx)
+		// 在事务内直接插入 tracker（幂等）
+		insertRows, err := execer.QueryContext(txCtx, `
+INSERT INTO referral_reward_tracker (inviter_id, invitee_id, spend_threshold)
+VALUES ($1, $2, $3)
+ON CONFLICT (inviter_id, invitee_id) DO UPDATE SET updated_at = NOW()
+RETURNING id, inviter_id, invitee_spend_tracked, spend_threshold, inviter_reward_granted`,
+			inviterID, inviteeID, cfg.SpendThreshold)
+		if err != nil {
+			return fmt.Errorf("ensure tracker in tx: %w", err)
+		}
+		if insertRows.Next() {
+			t := &trackerRow{}
+			if err := insertRows.Scan(&t.id, &t.inviterID, &t.spendTracked, &t.threshold, &t.inviterGranted); err != nil {
+				_ = insertRows.Close()
+				return err
+			}
+			tracker = t
+		}
+		_ = insertRows.Close()
+		if tracker == nil {
+			return nil
+		}
 	}
 
-	// 2. 事件幂等检查 + 插入（在锁定 tracker 之后，确保 tracker 存在才消费 event slot）
+	// 2. 事件幂等检查 + 插入（tracker 已锁定/创建，可安全消费 event slot）
 	res, err := execer.ExecContext(txCtx,
 		`INSERT INTO referral_spend_events (event_id, invitee_id, amount) VALUES ($1, $2, $3) ON CONFLICT (event_id) DO NOTHING`,
 		eventID, inviteeID, spendAmount)
@@ -174,6 +200,28 @@ FOR UPDATE`, inviteeID)
 	}
 
 	return tx.Commit()
+}
+
+// lookupInviterID 从 user_affiliates 表查询 invitee 的 inviter。
+// 返回 0 表示该用户不是被邀请人。
+func (s *ReferralRewardService) lookupInviterID(ctx context.Context, execer interface {
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+}, inviteeID int64) (int64, error) {
+	rows, err := execer.QueryContext(ctx,
+		`SELECT inviter_id FROM user_affiliates WHERE user_id = $1 AND inviter_id IS NOT NULL LIMIT 1`,
+		inviteeID)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		return 0, nil
+	}
+	var inviterID int64
+	if err := rows.Scan(&inviterID); err != nil {
+		return 0, err
+	}
+	return inviterID, rows.Close()
 }
 
 // ensureTracker 创建 tracker 行（幂等）。

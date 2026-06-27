@@ -128,15 +128,17 @@ func TestInheritDiscountFromInviter_HasDiscount_CreatesInherited(t *testing.T) {
 	assert.True(t, call.ValidUntil.Before(time.Now().Add(31*24*time.Hour)))
 }
 
-func TestInheritDiscountFromInviter_InviterExhausted_StillCreatesForInvitee(t *testing.T) {
-	// 邀请人折扣已耗尽，但被邀请人获得的是全新的 full-amount 折扣
-	validUntil := time.Now().Add(5 * 24 * time.Hour)
+func TestInheritDiscountFromInviter_PartiallyUsed_InheritsFullMaxAmount(t *testing.T) {
+	// 邀请人折扣已部分使用，但被邀请人继承的是完整 max_discountable_amount（非 remaining）。
+	// 注意：生产环境中 QueryActiveDiscountsReadOnly 会过滤掉 total_discounted >= max 的行，
+	// 所以完全耗尽的折扣不会出现在此处。本测试验证部分使用场景。
+	validUntil := time.Now().Add(20 * 24 * time.Hour)
 	repo := &discountRepoForReferralStub{
 		discounts: []RechargeDiscountSummary{
 			{
 				DiscountRate:          0.1,
 				MaxDiscountableAmount: 100,
-				TotalDiscounted:       100, // fully used by inviter
+				TotalDiscounted:       80, // 部分使用（生产中 80 < 100 会被查出来）
 				ValidUntil:            &validUntil,
 			},
 		},
@@ -145,9 +147,20 @@ func TestInheritDiscountFromInviter_InviterExhausted_StillCreatesForInvitee(t *t
 
 	err := svc.inheritDiscountFromInviter(context.Background(), 1, 2)
 	assert.NoError(t, err)
-	// 被邀请人仍然获得折扣（使用邀请人的 max_discountable_amount）
+	// 被邀请人获得完整 max_discountable_amount，不受邀请人已消费额度影响
 	require.Len(t, repo.createdCalls, 1)
 	assert.Equal(t, 100.0, repo.createdCalls[0].MaxAmount)
+}
+
+func TestInheritDiscountFromInviter_ExhaustedNotReturned_NoOp(t *testing.T) {
+	// 生产中 QueryActiveDiscountsReadOnly 过滤 total_discounted < max_discountable_amount，
+	// 完全耗尽的折扣不会被返回 → 空列表 → 不继承。此测试模拟该行为。
+	repo := &discountRepoForReferralStub{discounts: nil} // 耗尽后查询返回空
+	svc := &ReferralRewardService{discountRepo: repo}
+
+	err := svc.inheritDiscountFromInviter(context.Background(), 1, 2)
+	assert.NoError(t, err)
+	assert.Empty(t, repo.createdCalls)
 }
 
 func TestInheritDiscountFromInviter_NilRepo_NoOp(t *testing.T) {
