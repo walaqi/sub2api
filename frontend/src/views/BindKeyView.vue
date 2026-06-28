@@ -174,6 +174,12 @@
                     <Icon name="exclamationCircle" size="md" class="text-purple-600 dark:text-purple-400" />
                   </div>
                   <div class="flex-1">
+                    <p
+                      v-if="limitedKeyAttempted"
+                      class="mb-2 text-sm font-medium text-red-600 dark:text-red-400"
+                    >
+                      {{ tr.limitedKeyWarning }}
+                    </p>
                     <h3 class="text-sm font-semibold text-purple-800 dark:text-purple-300">
                       {{ tr.monthlyLimitTitle }}
                     </h3>
@@ -528,6 +534,7 @@ const en: Copy = {
   monthlyLimitTitle: 'You have already bound a key this month',
   monthlyLimitBody: 'Each account can claim one key per natural month. Eligibility resets on the 1st of next month.',
   monthlyLimitHint: 'You have already claimed a monthly-limited key this month. You can still bind keys that have no monthly limit.',
+  limitedKeyWarning: 'The key you just tried has a monthly bind limit!',
   nextResetLabel: 'Next reset in',
   daysShort: 'd',
   hoursShort: 'h',
@@ -607,6 +614,7 @@ const zh: Copy = {
   monthlyLimitTitle: '本月已参与绑定',
   monthlyLimitBody: '每个账号每个自然月只能领取一次。下月 1 日 0 点自动恢复资格。',
   monthlyLimitHint: '你本月已领取过限次 Key，但仍可绑定不限次数的 Key。',
+  limitedKeyWarning: '这是一个限制绑定次数的 Key!',
   nextResetLabel: '下次重置',
   daysShort: '天',
   hoursShort: '小时',
@@ -769,6 +777,7 @@ const loadingEligibility = ref(false)
 // it's driven purely by the commit error BIND_KEY_REGISTRATION_WINDOW.
 const registrationBlocked = ref(false)
 const registrationWindow = ref<{ min_days: number | null; max_days: number | null } | null>(null)
+const limitedKeyAttempted = ref(false)
 
 const featureDisabled = computed(
   () => eligibility.value?.eligible === false && eligibility.value?.reason === 'feature_disabled'
@@ -974,6 +983,7 @@ async function commitReservation(): Promise<void> {
     } else if (code === 'BIND_KEY_ALREADY_PARTICIPATED') {
       // Server-side gate fired (e.g. user opened two tabs). Flip the UI
       // into the monthly-limit state so it's consistent with refresh.
+      limitedKeyAttempted.value = true
       eligibility.value = {
         eligible: false,
         already_participated: true,

@@ -366,7 +366,8 @@ type InviteeRewardDTO struct {
 }
 
 type InviteeProgress struct {
-	InviteeID    int64   `json:"invitee_id"`
+	InviteeName  string  `json:"invitee_name"`
+	InviteeEmail string  `json:"invitee_email"`
 	SpendTracked float64 `json:"spend_tracked"`
 	Threshold    float64 `json:"threshold"`
 	Granted      bool    `json:"granted"`
@@ -419,10 +420,12 @@ func (s *ReferralRewardService) GetReferralStatus(ctx context.Context, userID in
 
 	// 2. 作为邀请人的各被邀请人进度
 	progressRows, err := execer.QueryContext(ctx, `
-SELECT invitee_id, invitee_spend_tracked::double precision, spend_threshold::double precision, inviter_reward_granted
-FROM referral_reward_tracker
-WHERE inviter_id = $1
-ORDER BY created_at DESC
+SELECT COALESCE(u.username, ''), COALESCE(u.email, ''),
+       t.invitee_spend_tracked::double precision, t.spend_threshold::double precision, t.inviter_reward_granted
+FROM referral_reward_tracker t
+LEFT JOIN users u ON u.id = t.invitee_id
+WHERE t.inviter_id = $1
+ORDER BY t.created_at DESC
 LIMIT 50`, userID)
 	if err != nil {
 		return nil, fmt.Errorf("query inviter progress: %w", err)
@@ -430,7 +433,7 @@ LIMIT 50`, userID)
 	defer func() { _ = progressRows.Close() }()
 	for progressRows.Next() {
 		var p InviteeProgress
-		if err := progressRows.Scan(&p.InviteeID, &p.SpendTracked, &p.Threshold, &p.Granted); err != nil {
+		if err := progressRows.Scan(&p.InviteeName, &p.InviteeEmail, &p.SpendTracked, &p.Threshold, &p.Granted); err != nil {
 			return nil, fmt.Errorf("scan inviter progress: %w", err)
 		}
 		status.InviterProgress = append(status.InviterProgress, p)

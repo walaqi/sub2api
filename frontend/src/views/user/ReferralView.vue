@@ -67,17 +67,17 @@
 
             <div v-if="status?.inviter_progress?.length" class="mt-4 space-y-3">
               <div
-                v-for="item in status.inviter_progress"
-                :key="item.invitee_id"
+                v-for="(item, idx) in status.inviter_progress"
+                :key="idx"
                 class="flex items-center justify-between rounded-lg border border-gray-200 p-3 dark:border-dark-700"
               >
                 <div class="flex items-center gap-3">
                   <div class="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
-                    {{ item.invitee_id.toString().slice(-2) }}
+                    {{ (item.invitee_name || '_').slice(0, 2) }}
                   </div>
                   <div>
                     <p class="text-sm text-gray-700 dark:text-dark-200">
-                      {{ t('referral.inviteeLabel', { id: item.invitee_id }) }}
+                      {{ item.invitee_name || '_' }}<span class="text-gray-400 dark:text-dark-500">({{ item.invitee_email }})</span>
                     </p>
                     <div class="mt-1 flex items-center gap-2">
                       <div class="h-1.5 w-24 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-700">
@@ -138,7 +138,8 @@ interface ReferralStatusResponse {
   aff_code: string
   invitee_reward: { granted: boolean; amount: number } | null
   inviter_progress: Array<{
-    invitee_id: number
+    invitee_name: string
+    invitee_email: string
     spend_tracked: number
     threshold: number
     granted: boolean
