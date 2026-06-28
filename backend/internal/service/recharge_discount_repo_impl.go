@@ -7,6 +7,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 )
 
 // rechargeDiscountRepoImpl implements RechargeDiscountRepo using raw SQL via ent client.
@@ -49,7 +50,9 @@ func (r *rechargeDiscountRepoImpl) QueryBestActiveDiscountForUpdate(ctx context.
 SELECT id, user_id, discount_rate,
        max_discountable_amount::double precision,
        total_discounted::double precision,
-       valid_until
+       valid_until,
+       gift_deduction_mode,
+       gift_ratio_recharge::double precision
 FROM user_recharge_discounts
 WHERE user_id = $1
   AND valid_from <= NOW()
@@ -72,11 +75,16 @@ FOR UPDATE`, userID)
 
 	var d RechargeDiscountRecord
 	var validUntil sql.NullTime
-	if err := rows.Scan(&d.ID, &d.UserID, &d.DiscountRate, &d.MaxDiscountableAmount, &d.TotalDiscounted, &validUntil); err != nil {
+	var ratio sql.NullFloat64
+	if err := rows.Scan(&d.ID, &d.UserID, &d.DiscountRate, &d.MaxDiscountableAmount, &d.TotalDiscounted, &validUntil, &d.GiftDeductionMode, &ratio); err != nil {
 		return nil, err
 	}
 	if validUntil.Valid {
 		d.ValidUntil = &validUntil.Time
+	}
+	if ratio.Valid {
+		v := ratio.Float64
+		d.GiftRatioRecharge = &v
 	}
 	return &d, rows.Close()
 }
@@ -115,21 +123,32 @@ func (r *rechargeDiscountRepoImpl) UpdateApplicationGiftID(ctx context.Context, 
 }
 
 // CreateDiscount inserts a new discount record. Uses ON CONFLICT DO NOTHING for idempotency.
-func (r *rechargeDiscountRepoImpl) CreateDiscount(ctx context.Context, userID int64, source, sourceRef string, originAPIKeyID *int64, rate, maxAmount float64, validFrom time.Time, validUntil *time.Time) (int64, error) {
+// The gift deduction mode/ratio are normalized (empty/unknown → priority, priority forces ratio nil).
+func (r *rechargeDiscountRepoImpl) CreateDiscount(ctx context.Context, in CreateRechargeDiscountInput) (int64, error) {
 	var validUntilArg any
-	if validUntil != nil {
-		validUntilArg = *validUntil
+	if in.ValidUntil != nil {
+		validUntilArg = *in.ValidUntil
 	}
 	var keyIDArg any
-	if originAPIKeyID != nil {
-		keyIDArg = *originAPIKeyID
+	if in.OriginAPIKeyID != nil {
+		keyIDArg = *in.OriginAPIKeyID
+	}
+
+	// 归一化扣除策略（写入边界兜底，与 DB check 双重保障）。
+	mode, ratio, err := domain.NormalizeGiftDeduction(in.GiftDeductionMode, in.GiftRatioRecharge)
+	if err != nil {
+		return 0, fmt.Errorf("invalid gift deduction config: %w", err)
+	}
+	var ratioArg any
+	if ratio != nil {
+		ratioArg = *ratio
 	}
 
 	rows, err := r.execer(ctx).QueryContext(ctx, `
-INSERT INTO user_recharge_discounts (user_id, source, source_ref, origin_api_key_id, discount_rate, max_discountable_amount, valid_from, valid_until)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO user_recharge_discounts (user_id, source, source_ref, origin_api_key_id, discount_rate, max_discountable_amount, valid_from, valid_until, gift_deduction_mode, gift_ratio_recharge)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 ON CONFLICT (user_id, source, source_ref) DO NOTHING
-RETURNING id`, userID, source, sourceRef, keyIDArg, rate, maxAmount, validFrom, validUntilArg)
+RETURNING id`, in.UserID, in.Source, in.SourceRef, keyIDArg, in.Rate, in.MaxAmount, in.ValidFrom, validUntilArg, mode, ratioArg)
 	if err != nil {
 		return 0, fmt.Errorf("insert user_recharge_discounts: %w", err)
 	}
@@ -160,7 +179,8 @@ func (r *rechargeDiscountRepoImpl) QueryActiveDiscountsReadOnly(ctx context.Cont
 SELECT id, source, source_ref, discount_rate,
        max_discountable_amount::double precision,
        total_discounted::double precision,
-       valid_from, valid_until
+       valid_from, valid_until,
+       gift_deduction_mode, gift_ratio_recharge::double precision
 FROM user_recharge_discounts
 WHERE user_id = $1
   AND valid_from <= NOW()
@@ -182,7 +202,8 @@ func (r *rechargeDiscountRepoImpl) QueryDiscountsForInheritance(ctx context.Cont
 SELECT id, source, source_ref, discount_rate,
        max_discountable_amount::double precision,
        total_discounted::double precision,
-       valid_from, valid_until
+       valid_from, valid_until,
+       gift_deduction_mode, gift_ratio_recharge::double precision
 FROM user_recharge_discounts
 WHERE user_id = $1
   AND valid_from <= NOW()
@@ -203,7 +224,8 @@ func (r *rechargeDiscountRepoImpl) QueryDiscountsForInheritanceAtTime(ctx contex
 SELECT id, source, source_ref, discount_rate,
        max_discountable_amount::double precision,
        total_discounted::double precision,
-       valid_from, valid_until
+       valid_from, valid_until,
+       gift_deduction_mode, gift_ratio_recharge::double precision
 FROM user_recharge_discounts
 WHERE user_id = $1
   AND valid_from <= $2
@@ -222,11 +244,16 @@ func scanRechargeDiscountSummaries(rows *sql.Rows) ([]RechargeDiscountSummary, e
 	for rows.Next() {
 		var d RechargeDiscountSummary
 		var validUntil sql.NullTime
-		if err := rows.Scan(&d.ID, &d.Source, &d.SourceRef, &d.DiscountRate, &d.MaxDiscountableAmount, &d.TotalDiscounted, &d.ValidFrom, &validUntil); err != nil {
+		var ratio sql.NullFloat64
+		if err := rows.Scan(&d.ID, &d.Source, &d.SourceRef, &d.DiscountRate, &d.MaxDiscountableAmount, &d.TotalDiscounted, &d.ValidFrom, &validUntil, &d.GiftDeductionMode, &ratio); err != nil {
 			return nil, err
 		}
 		if validUntil.Valid {
 			d.ValidUntil = &validUntil.Time
+		}
+		if ratio.Valid {
+			v := ratio.Float64
+			d.GiftRatioRecharge = &v
 		}
 		results = append(results, d)
 	}
@@ -243,4 +270,7 @@ type RechargeDiscountSummary struct {
 	TotalDiscounted       float64
 	ValidFrom             time.Time
 	ValidUntil            *time.Time
+	// GiftDeductionMode / GiftRatioRecharge 是该折扣发放赠金的扣除策略（随行固化）。
+	GiftDeductionMode string
+	GiftRatioRecharge *float64
 }

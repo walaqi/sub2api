@@ -8,6 +8,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 )
 
 // entDiscountCreator 通过 ent client 直接写 user_recharge_discounts 表。
@@ -24,9 +25,19 @@ func NewEntDiscountCreator(client *dbent.Client) RechargeDiscountCreator {
 	return &entDiscountCreator{client: client}
 }
 
-func (c *entDiscountCreator) CreateBindKeyDiscount(ctx context.Context, userID, apiKeyID int64, rate, maxAmount float64, validDays int) (int64, error) {
+func (c *entDiscountCreator) CreateBindKeyDiscount(ctx context.Context, userID, apiKeyID int64, rate, maxAmount float64, validDays int, giftDeductionMode string, giftRatioRecharge *float64) (int64, error) {
 	if rate <= 0 || rate > 10 || maxAmount <= 0 || validDays < 1 {
 		return 0, fmt.Errorf("invalid discount params: rate=%f max=%f days=%d", rate, maxAmount, validDays)
+	}
+
+	// 归一化扣除策略（写入边界兜底，与 DB check 双重保障）。
+	mode, ratio, err := domain.NormalizeGiftDeduction(giftDeductionMode, giftRatioRecharge)
+	if err != nil {
+		return 0, fmt.Errorf("invalid gift deduction config: %w", err)
+	}
+	var ratioArg any
+	if ratio != nil {
+		ratioArg = *ratio
 	}
 
 	now := time.Now()
@@ -35,10 +46,10 @@ func (c *entDiscountCreator) CreateBindKeyDiscount(ctx context.Context, userID, 
 
 	execer := c.execer(ctx)
 	rows, err := execer.QueryContext(ctx, `
-INSERT INTO user_recharge_discounts (user_id, source, source_ref, origin_api_key_id, discount_rate, max_discountable_amount, valid_from, valid_until)
-VALUES ($1, 'bind_key', $2, $3, $4, $5, $6, $7)
+INSERT INTO user_recharge_discounts (user_id, source, source_ref, origin_api_key_id, discount_rate, max_discountable_amount, valid_from, valid_until, gift_deduction_mode, gift_ratio_recharge)
+VALUES ($1, 'bind_key', $2, $3, $4, $5, $6, $7, $8, $9)
 ON CONFLICT (user_id, source, source_ref) DO NOTHING
-RETURNING id`, userID, sourceRef, apiKeyID, rate, maxAmount, now, validUntil)
+RETURNING id`, userID, sourceRef, apiKeyID, rate, maxAmount, now, validUntil, mode, ratioArg)
 	if err != nil {
 		return 0, fmt.Errorf("insert user_recharge_discounts: %w", err)
 	}

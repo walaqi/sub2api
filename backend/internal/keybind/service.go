@@ -68,9 +68,11 @@ type CommitResult struct {
 
 // GrantedDiscount describes a recharge discount created during bind.
 type GrantedDiscount struct {
-	DiscountRate          float64 `json:"discount_rate"`
-	MaxDiscountableAmount float64 `json:"max_discountable_amount"`
-	ValidDays             int     `json:"valid_days"`
+	DiscountRate          float64  `json:"discount_rate"`
+	MaxDiscountableAmount float64  `json:"max_discountable_amount"`
+	ValidDays             int      `json:"valid_days"`
+	GiftDeductionMode     string   `json:"gift_deduction_mode"`
+	GiftRatioRecharge     *float64 `json:"gift_ratio_recharge,omitempty"`
 }
 
 // EligibilityResult tells the UI whether the caller may participate this
@@ -451,14 +453,16 @@ func (s *Service) Commit(ctx context.Context, userID int64, reservationID string
 	if s.discountCreator != nil && s.giftSettingResolver != nil {
 		if setting, err := s.giftSettingResolver.Resolve(ctx, keyID); err == nil && setting != nil {
 			if cfg := s.resolveRechargeDiscountConfig(setting); cfg != nil {
-				if _, err := s.discountCreator.CreateBindKeyDiscount(ctx, userID, keyID, cfg.DiscountRate, cfg.MaxDiscountableAmount, cfg.ValidDays); err != nil {
+				if _, err := s.discountCreator.CreateBindKeyDiscount(ctx, userID, keyID, cfg.DiscountRate, cfg.MaxDiscountableAmount, cfg.ValidDays, cfg.GiftDeductionMode, cfg.GiftRatioRecharge); err != nil {
 					log.Printf("[keybind] create recharge discount for user %d key %d failed: %v", userID, keyID, err)
 				} else {
-					log.Printf("[keybind] created recharge discount for user %d (key %d, rate=%.2f, max=%.2f, days=%d)", userID, keyID, cfg.DiscountRate, cfg.MaxDiscountableAmount, cfg.ValidDays)
+					log.Printf("[keybind] created recharge discount for user %d (key %d, rate=%.2f, max=%.2f, days=%d, mode=%s)", userID, keyID, cfg.DiscountRate, cfg.MaxDiscountableAmount, cfg.ValidDays, cfg.GiftDeductionMode)
 					grantedDiscount = &GrantedDiscount{
 						DiscountRate:          cfg.DiscountRate,
 						MaxDiscountableAmount: cfg.MaxDiscountableAmount,
 						ValidDays:             cfg.ValidDays,
+						GiftDeductionMode:     cfg.GiftDeductionMode,
+						GiftRatioRecharge:     cfg.GiftRatioRecharge,
 					}
 				}
 			}
@@ -495,6 +499,7 @@ func (s *Service) disabledErr() error {
 
 // resolveRechargeDiscountConfig 从 per-key 配置中提取充值折扣参数。
 // 返回 nil 表示该 key 未配置或未启用充值折扣。
+// 同时归一化 gift 扣除策略：空/未知 mode → priority；非法 ratio 配置 → 视为未配置（nil）。
 func (s *Service) resolveRechargeDiscountConfig(setting *BindKeyGiftSetting) *domain.BindKeyRechargeDiscount {
 	if setting == nil || setting.RechargeDiscount == nil {
 		return nil
@@ -506,7 +511,15 @@ func (s *Service) resolveRechargeDiscountConfig(setting *BindKeyGiftSetting) *do
 	if cfg.DiscountRate <= 0 || cfg.DiscountRate > 10 || cfg.MaxDiscountableAmount <= 0 || cfg.ValidDays < 1 {
 		return nil
 	}
-	return cfg
+	// 归一化扣除策略：非法 ratio 配置直接拒绝该折扣（避免发放时才报错阻塞充值）。
+	mode, ratio, err := domain.NormalizeGiftDeduction(cfg.GiftDeductionMode, cfg.GiftRatioRecharge)
+	if err != nil {
+		return nil
+	}
+	normalized := *cfg
+	normalized.GiftDeductionMode = mode
+	normalized.GiftRatioRecharge = ratio
+	return &normalized
 }
 
 // isKeyUnlimited resolves the per-key config and returns whether the monthly

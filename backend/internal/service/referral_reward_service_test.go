@@ -100,12 +100,14 @@ type discountRepoForReferralStub struct {
 }
 
 type createDiscountCall struct {
-	UserID     int64
-	Source     string
-	SourceRef  string
-	Rate       float64
-	MaxAmount  float64
-	ValidUntil *time.Time
+	UserID            int64
+	Source            string
+	SourceRef         string
+	Rate              float64
+	MaxAmount         float64
+	ValidUntil        *time.Time
+	GiftDeductionMode string
+	GiftRatioRecharge *float64
 }
 
 func (r *discountRepoForReferralStub) CheckApplicationExists(_ context.Context, _ int64) (bool, error) {
@@ -135,14 +137,16 @@ func (r *discountRepoForReferralStub) QueryDiscountsForInheritanceAtTime(_ conte
 	}
 	return r.atTime[atTime.Unix()], nil
 }
-func (r *discountRepoForReferralStub) CreateDiscount(_ context.Context, userID int64, source, sourceRef string, _ *int64, rate, maxAmount float64, _ time.Time, validUntil *time.Time) (int64, error) {
+func (r *discountRepoForReferralStub) CreateDiscount(_ context.Context, in CreateRechargeDiscountInput) (int64, error) {
 	r.createdCalls = append(r.createdCalls, createDiscountCall{
-		UserID:     userID,
-		Source:     source,
-		SourceRef:  sourceRef,
-		Rate:       rate,
-		MaxAmount:  maxAmount,
-		ValidUntil: validUntil,
+		UserID:            in.UserID,
+		Source:            in.Source,
+		SourceRef:         in.SourceRef,
+		Rate:              in.Rate,
+		MaxAmount:         in.MaxAmount,
+		ValidUntil:        in.ValidUntil,
+		GiftDeductionMode: in.GiftDeductionMode,
+		GiftRatioRecharge: in.GiftRatioRecharge,
 	})
 	return int64(len(r.createdCalls)), nil
 }
@@ -188,6 +192,56 @@ func TestInheritDiscountFromInviter_HasDiscount_CreatesInherited(t *testing.T) {
 	assert.NotNil(t, call.ValidUntil)
 	assert.True(t, call.ValidUntil.After(time.Now().Add(29*24*time.Hour)))
 	assert.True(t, call.ValidUntil.Before(time.Now().Add(31*24*time.Hour)))
+}
+
+func TestInheritDiscountFromInviter_CopiesMode_Priority(t *testing.T) {
+	// 邀请人 best discount 为 priority → 被邀请人继承 priority，ratio 为 nil。
+	validUntil := time.Now().Add(15 * 24 * time.Hour)
+	repo := &discountRepoForReferralStub{
+		discounts: []RechargeDiscountSummary{
+			{
+				ID:                    1,
+				DiscountRate:          0.2,
+				MaxDiscountableAmount: 300,
+				ValidUntil:            &validUntil,
+				GiftDeductionMode:     "priority",
+				GiftRatioRecharge:     nil,
+			},
+		},
+	}
+	svc := &ReferralRewardService{discountRepo: repo}
+
+	err := svc.inheritDiscountFromInviter(context.Background(), 10, 20)
+	require.NoError(t, err)
+	require.Len(t, repo.createdCalls, 1)
+	assert.Equal(t, "priority", repo.createdCalls[0].GiftDeductionMode)
+	assert.Nil(t, repo.createdCalls[0].GiftRatioRecharge)
+}
+
+func TestInheritDiscountFromInviter_CopiesMode_Ratio(t *testing.T) {
+	// 邀请人 best discount 为 ratio → 被邀请人继承同样的 mode + ratio 值。
+	validUntil := time.Now().Add(15 * 24 * time.Hour)
+	ratio := 0.5
+	repo := &discountRepoForReferralStub{
+		discounts: []RechargeDiscountSummary{
+			{
+				ID:                    1,
+				DiscountRate:          0.2,
+				MaxDiscountableAmount: 300,
+				ValidUntil:            &validUntil,
+				GiftDeductionMode:     "ratio",
+				GiftRatioRecharge:     &ratio,
+			},
+		},
+	}
+	svc := &ReferralRewardService{discountRepo: repo}
+
+	err := svc.inheritDiscountFromInviter(context.Background(), 10, 20)
+	require.NoError(t, err)
+	require.Len(t, repo.createdCalls, 1)
+	assert.Equal(t, "ratio", repo.createdCalls[0].GiftDeductionMode)
+	require.NotNil(t, repo.createdCalls[0].GiftRatioRecharge)
+	assert.Equal(t, 0.5, *repo.createdCalls[0].GiftRatioRecharge)
 }
 
 func TestInheritDiscountFromInviter_PartiallyUsed_InheritsFullMaxAmount(t *testing.T) {

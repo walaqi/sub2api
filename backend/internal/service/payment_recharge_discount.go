@@ -30,7 +30,25 @@ type RechargeDiscountRepo interface {
 	// QueryDiscountsForInheritanceAtTime returns referral-inheritable discounts at a historical time.
 	QueryDiscountsForInheritanceAtTime(ctx context.Context, userID int64, atTime time.Time) ([]RechargeDiscountSummary, error)
 	// CreateDiscount inserts a new discount record (idempotent via ON CONFLICT DO NOTHING).
-	CreateDiscount(ctx context.Context, userID int64, source, sourceRef string, originAPIKeyID *int64, rate, maxAmount float64, validFrom time.Time, validUntil *time.Time) (int64, error)
+	CreateDiscount(ctx context.Context, in CreateRechargeDiscountInput) (int64, error)
+}
+
+// CreateRechargeDiscountInput 是 CreateDiscount 的入参。
+// 用 struct 替代长参数列表，并承载 gift 扣除策略（mode/ratio）。
+type CreateRechargeDiscountInput struct {
+	UserID         int64
+	Source         string
+	SourceRef      string
+	OriginAPIKeyID *int64
+	Rate           float64
+	MaxAmount      float64
+	ValidFrom      time.Time
+	ValidUntil     *time.Time
+	// GiftDeductionMode 固化在 discount 行上的赠金扣除模式："priority" | "ratio"。
+	// 空值由 repo 层归一化为 "priority"。
+	GiftDeductionMode string
+	// GiftRatioRecharge 仅 ratio 模式非 nil。
+	GiftRatioRecharge *float64
 }
 
 // RechargeDiscountRecord 充值折扣记录（service 层使用）。
@@ -41,6 +59,9 @@ type RechargeDiscountRecord struct {
 	MaxDiscountableAmount float64
 	TotalDiscounted       float64
 	ValidUntil            *time.Time
+	// GiftDeductionMode / GiftRatioRecharge 是发放赠金时的扣除策略（随行固化）。
+	GiftDeductionMode string
+	GiftRatioRecharge *float64
 }
 
 // RechargeDiscountApplicationRecord 折扣发放记录（service 层使用）。
@@ -52,6 +73,23 @@ type RechargeDiscountApplicationRecord struct {
 	BonusAmount          float64
 	DiscountRateSnapshot float64
 	GiftID               *int64
+}
+
+// resolveDiscountGiftGrantMode 把 discount 行上固化的扣除策略归一化为 gift.Grant 入参。
+//
+// 防御性归一化（DB 已有 check，此处兜底，不信任 DB）：
+//   - mode 不是 "ratio" → 一律按 priority（ratio 置 nil）
+//   - mode 是 "ratio" 但 ratio nil/<=0 → 返回 error。数据不合法应暴露，让订单保持可重试，
+//     而非静默降级为 priority（避免发错模式）。
+func resolveDiscountGiftGrantMode(mode string, ratio *float64) (gift.DeductionMode, *float64, error) {
+	if mode != string(gift.DeductionModeRatio) {
+		return gift.DeductionModePriority, nil, nil
+	}
+	if ratio == nil || *ratio <= 0 {
+		return "", nil, fmt.Errorf("ratio mode but invalid gift_ratio_recharge")
+	}
+	r := *ratio
+	return gift.DeductionModeRatio, &r, nil
 }
 
 // applyRechargeDiscountForOrder 在 doBalance 中 markCompleted 前调用。
@@ -186,14 +224,25 @@ func (s *PaymentService) applyRechargeDiscountForOrder(ctx context.Context, o *d
 		t := *discountLocked.ValidUntil
 		expiresAt = &t
 	}
+
+	// 读取随行固化的扣除策略，并做防御性归一化（DB 有 check，此处兜底）：
+	//   - mode 不是 ratio → 一律 priority（ratio 置 nil）
+	//   - mode 是 ratio 但 ratio nil/<=0 → 数据不合法，返回 error 让订单可重试，
+	//     不静默降级为 priority（避免发错模式）
+	grantMode, grantRatio, err := resolveDiscountGiftGrantMode(discountLocked.GiftDeductionMode, discountLocked.GiftRatioRecharge)
+	if err != nil {
+		return fmt.Errorf("recharge discount %d: %w", discountLocked.ID, err)
+	}
+
 	sourceRef := fmt.Sprintf("discount:%d:order:%d", discountLocked.ID, o.ID)
 	grantResult, err := s.giftEngine.Grant(txCtx, gift.GrantInput{
-		UserID:    o.UserID,
-		Amount:    bonusFinal,
-		Mode:      gift.DeductionModePriority,
-		ExpiresAt: expiresAt,
-		Source:    gift.SourceRechargeDiscount,
-		SourceRef: &sourceRef,
+		UserID:        o.UserID,
+		Amount:        bonusFinal,
+		Mode:          grantMode,
+		RatioRecharge: grantRatio,
+		ExpiresAt:     expiresAt,
+		Source:        gift.SourceRechargeDiscount,
+		SourceRef:     &sourceRef,
 	})
 	if err != nil {
 		return fmt.Errorf("grant discount bonus: %w", err)

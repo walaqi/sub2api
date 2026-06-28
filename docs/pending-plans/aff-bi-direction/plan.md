@@ -1455,3 +1455,147 @@ grantResult, err := s.giftEngine.Grant(txCtx, gift.GrantInput{
 - Migration 默认 `TRUE` → 存量 tracker 不受影响，邀请人照常获赠金
 - `QueryDiscountsForInheritance` 宽松化条件 → 之前因额度耗尽"误拒"的继承在下次注册时自动恢复
 - 新索引 `CONCURRENTLY` 创建，不阻塞线上读写
+
+---
+
+## Change Request: 充值折扣赠金可配置扣除模式 (2026-06-27)
+
+### 背景
+
+当前充值折扣产生的赠金（`SourceRechargeDiscount`）在 `payment_recharge_discount.go:193`
+**硬编码** `Mode: gift.DeductionModePriority`，只能优先扣除。运营希望能像邀请人达标赠金
+一样，按 key 配置选择 `priority`（优先扣除）或 `ratio`（按比例与充值余额同步消耗）。
+
+赠金引擎（`gift.Engine`）、`user_gifts` 表（`deduction_mode` + `ratio_recharge`）、扣费逻辑
+都已支持两种模式，缺的只是把扣除策略从「发放时硬编码」改为「随 discount 行固化并透传」。
+
+### 核心设计原则：策略固化在 discount 行，发放时不回查
+
+扣除模式不是发放赠金时刻才决定的全局策略，而是**创建 discount 行时就固化的属性**。
+
+- 充值发放赠金（`payment_recharge_discount.go`）→ 读 discount 行上的 mode/ratio
+- 邀请继承（`inheritDiscountFromInviter`）→ 直接复制邀请人 **best discount** 行的 mode/ratio
+  给被邀请人，被邀请人后续充值时同样读自己行上的值
+
+**绝不在充值发放时反向查询邀请人的当前 key 配置。** 否则邀请人事后改 key 配置、折扣过期、
+或多条折扣并存时，被邀请人的历史权益会变得不稳定。现有代码 `inheritDiscountFromInviter`
+已经是快照复制 rate/maxAmount 的模式，本 CR 只是把 mode/ratio 一起复制，保持一致。
+
+`best discount` 的选择沿用现有排序 `discount_rate DESC, valid_until ASC NULLS LAST`，
+即被邀请人继承的是「最高折扣率那条」的扣除策略——与「同用户多条 discount 行各自独立」一致。
+
+### 全景数据流
+
+```
+BindKeyRechargeDiscount (key 配置, admin 设定 mode/ratio)
+        │
+        ↓ CreateBindKeyDiscount(写入 mode/ratio)
+user_recharge_discounts 行  ← mode/ratio 固化在此行
+        │
+        ├─→ 用户充值 → payment_recharge_discount → Grant(读本行 mode/ratio)
+        │
+        └─→ 邀请继承 → inheritDiscountFromInviter → 复制 best 行(含 mode/ratio)
+                              → 被邀请人 user_recharge_discounts 行 → 被邀请人充值时读本行
+```
+
+### 字段设计（与 user_gifts 对齐，避免精度/语义漂移）
+
+`user_recharge_discounts` 新增两列，约束照搬 `migrations/142_user_gifts.sql`：
+
+```sql
+gift_deduction_mode VARCHAR(16) NOT NULL DEFAULT 'priority',
+gift_ratio_recharge DECIMAL(20,8) NULL,
+CONSTRAINT chk_urd_gift_mode_ratio CHECK (
+    (gift_deduction_mode = 'priority' AND gift_ratio_recharge IS NULL)
+    OR
+    (gift_deduction_mode = 'ratio' AND gift_ratio_recharge IS NOT NULL AND gift_ratio_recharge > 0)
+)
+```
+
+- 类型 `DECIMAL(20,8)` 与 `user_gifts.ratio_recharge` 一致（继承复制时无精度损失）
+- 默认 `priority` + ratio NULL → 存量行行为不变
+- check 约束在 DB 层兜底，与代码层归一化双重保障
+
+### 防御性归一化（reviewer 第 3、8 点）
+
+不信任 JSON / 不信任 DB，在两个写入/读取边界都做归一化：
+
+**写入边界（admin handler + resolveRechargeDiscountConfig）：**
+- `gift_deduction_mode` 空值/未知值 → 归一为 `priority`
+- `priority` → 强制 `gift_ratio_recharge = nil`
+- `ratio` → `gift_ratio_recharge` 必须 `> 0`，且沿用折扣率上限语义限制 `(0, 10]`；非法则拒绝
+
+**发放边界（payment_recharge_discount，即使 DB 有 check 也兜底）：**
+- mode 不是 `ratio` → 一律按 `priority` 发放（`RatioRecharge = nil`）
+- mode 是 `ratio` 但 ratio 为 nil 或 `<= 0` → **返回 error**，订单保持可重试，
+  避免静默发错模式（数据不合法应暴露而非降级）
+
+### CreateDiscount 签名重构（reviewer 第 6 点：还签名债）
+
+当前 `CreateDiscount(ctx, userID, source, sourceRef, originAPIKeyID, rate, maxAmount, validFrom, validUntil)`
+已经很长，再加 mode/ratio 更糟。本 CR 引入入参 struct：
+
+```go
+type CreateRechargeDiscountInput struct {
+    UserID            int64
+    Source            string
+    SourceRef         string
+    OriginAPIKeyID    *int64
+    Rate              float64
+    MaxAmount         float64
+    ValidFrom         time.Time
+    ValidUntil        *time.Time
+    GiftDeductionMode string   // "priority" | "ratio"，空 → priority
+    GiftRatioRecharge *float64 // 仅 ratio 模式非 nil
+}
+CreateDiscount(ctx context.Context, in CreateRechargeDiscountInput) (int64, error)
+```
+
+`CreateBindKeyDiscount`（keybind 包内独立接口）同理加 mode/ratio 参数。
+
+### 改动清单（按数据流顺序）
+
+| # | 文件 | 改动 |
+|---|------|------|
+| 1 | `migrations/170_urd_gift_deduction_mode.sql` | 新建：ALTER TABLE 加两列 + check 约束 |
+| 2 | `internal/domain/bind_key.go` | `BindKeyRechargeDiscount` 加 `GiftDeductionMode string` + `GiftRatioRecharge *float64` |
+| 3 | `internal/handler/admin/gift_ops_handler.go` | `RechargeDiscountPayload` 加两字段；`SetBindKeyRechargeDiscount` 校验+归一化；写入 `domain.BindKeyRechargeDiscount` |
+| 4 | `internal/keybind/service.go` | `resolveRechargeDiscountConfig` 归一化 mode/ratio；调用 `CreateBindKeyDiscount` 透传；`GrantedDiscount` DTO 加两字段（reviewer 第 4 点） |
+| 5 | `internal/keybind/balance.go` | `RechargeDiscountCreator.CreateBindKeyDiscount` 接口签名加 mode/ratio |
+| 6 | `internal/keybind/discount_creator.go` | INSERT 写入 mode/ratio + 入参校验归一化 |
+| 7 | `internal/service/payment_recharge_discount.go` | `RechargeDiscountRecord` + `RechargeDiscountSummary` 加两字段；接口 `CreateDiscount` 改 struct 入参；发放处读 `discountLocked` mode/ratio + 防御性归一化（mode=ratio&&ratio<=0 → error） |
+| 8 | `internal/service/recharge_discount_repo_impl.go` | 所有 SELECT 补两列（`QueryBestActiveDiscountForUpdate`/`QueryActiveDiscountsReadOnly`/`QueryDiscountsForInheritance`/`AtTime`）；scan 补字段；`CreateDiscount` 改 struct 入参 + INSERT 写两列 |
+| 9 | `internal/service/referral_reward_service.go` | `inheritDiscountFromInviter` 复制 `best.GiftDeductionMode/GiftRatioRecharge` 透传 `CreateDiscount` |
+| 10 | `internal/handler/recharge_discount_handler.go` | 用户侧 `/user/recharge-discount` 响应 DTO 补两字段（reviewer 第 5 点，API 层同步） |
+| 11 | 前端 admin 配置表单 | mode 下拉 + ratio 输入（仅 ratio 显示）；i18n |
+| 12 | 前端 `/user/recharge-discount` type | 补两字段（展示与否另说，type 同步） |
+| 13 | 测试 stub 同步 | `discountRepoForReferralStub`、`payment_recharge_discount_test`、`recharge_discount_handler_test`、`discount_creator_integration_test`：接口签名变动牵连，全部更新 |
+
+### 影响接口 / Stub（CLAUDE.md gotcha）
+
+两个接口签名变动，必须同步所有 stub/mock：
+
+- `service.RechargeDiscountRepo.CreateDiscount`（struct 入参）→
+  `discountRepoForReferralStub`、`payment_recharge_discount_test.go` 内的 stub
+- `keybind.RechargeDiscountCreator.CreateBindKeyDiscount`（加 mode/ratio）→
+  `discount_creator_integration_test.go`
+
+### 测试覆盖
+
+| 测试 | 验证点 |
+|------|--------|
+| TestCreateDiscount_Priority_RatioNil | priority 模式 INSERT 时 ratio 落 NULL |
+| TestCreateDiscount_Ratio_PersistsRatio | ratio 模式持久化 ratio 值 |
+| TestResolveRechargeDiscountConfig_NormalizesMode | 空/未知 mode → priority；priority 清空 ratio；ratio 非法 → 拒绝 |
+| TestPaymentGrant_ReadsDiscountMode_Priority | discount=priority → Grant 用 priority |
+| TestPaymentGrant_ReadsDiscountMode_Ratio | discount=ratio → Grant 用 ratio + 正确 ratio 值 |
+| TestPaymentGrant_RatioModeButRatioNil_ReturnsError | mode=ratio 但 ratio<=0 → 返回 error，不发放 |
+| TestInheritDiscount_CopiesMode_Priority | 邀请人 best=priority → 被邀请人继承 priority |
+| TestInheritDiscount_CopiesMode_Ratio | 邀请人 best=ratio → 被邀请人继承 ratio + ratio 值 |
+
+### 向后兼容
+
+- Migration 默认 `priority` + ratio NULL → 存量行为不变
+- `CreateDiscount` 改 struct 入参是编译期强制，无运行时风险
+- 前端旧表单不传 mode → 后端归一化为 priority
+- check 约束允许存量行（mode=priority, ratio=NULL 天然满足）

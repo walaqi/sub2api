@@ -303,6 +303,10 @@ type RechargeDiscountPayload struct {
 	DiscountRate          float64 `json:"discount_rate"`
 	MaxDiscountableAmount float64 `json:"max_discountable_amount"`
 	ValidDays             int     `json:"valid_days"`
+	// GiftDeductionMode 该折扣发放赠金的扣除模式："priority" | "ratio"，空值视为 priority。
+	GiftDeductionMode string `json:"gift_deduction_mode"`
+	// GiftRatioRecharge 仅 ratio 模式必填，> 0 且 <= 10。
+	GiftRatioRecharge *float64 `json:"gift_ratio_recharge"`
 }
 
 // SetBindKeyRechargeDiscount PUT /api/v1/admin/ops/bind-key-gifts/:api_key_id/recharge-discount
@@ -334,12 +338,21 @@ func (h *GiftOpsHandler) SetBindKeyRechargeDiscount(c *gin.Context) {
 		return
 	}
 
+	// 归一化并校验 gift 扣除策略（空/未知 → priority；ratio 必须 > 0 且 <= 10）。
+	giftMode, giftRatio, err := domain.NormalizeGiftDeduction(req.GiftDeductionMode, req.GiftRatioRecharge)
+	if err != nil {
+		response.BadRequest(c, "invalid gift deduction config: "+err.Error())
+		return
+	}
+
 	ctx := c.Request.Context()
 	discount := &domain.BindKeyRechargeDiscount{
 		Enabled:               req.Enabled,
 		DiscountRate:          req.DiscountRate,
 		MaxDiscountableAmount: req.MaxDiscountableAmount,
 		ValidDays:             req.ValidDays,
+		GiftDeductionMode:     giftMode,
+		GiftRatioRecharge:     giftRatio,
 	}
 
 	existing, err := h.entClient.BindKeyGiftSetting.Query().

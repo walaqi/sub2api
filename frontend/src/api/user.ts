@@ -216,6 +216,10 @@ export interface ActiveRechargeDiscount {
   total_discounted: number
   remaining_quota: number
   valid_until_unix_ms: number | null
+  /** 该折扣发放赠金的扣除模式："priority" | "ratio"。 */
+  gift_deduction_mode: string
+  /** 仅 ratio 模式存在的比例值。 */
+  gift_ratio_recharge?: number | null
 }
 
 export async function getMyActiveRechargeDiscount(): Promise<ActiveRechargeDiscount | null> {

@@ -24,7 +24,7 @@ func TestIntegration_CreateBindKeyDiscount_Rate10_Succeeds(t *testing.T) {
 	ctx := context.Background()
 
 	// rate=10.0 should succeed (DB CHECK <= 10)
-	id, err := creator.CreateBindKeyDiscount(ctx, 800100, 999901, 10.0, 100, 3)
+	id, err := creator.CreateBindKeyDiscount(ctx, 800100, 999901, 10.0, 100, 3, "priority", nil)
 	require.NoError(t, err)
 	assert.Greater(t, id, int64(0))
 
@@ -41,7 +41,7 @@ func TestIntegration_CreateBindKeyDiscount_Rate10_5_Rejected(t *testing.T) {
 	ctx := context.Background()
 
 	// rate=10.5 should be rejected by code validation (before hitting DB)
-	id, err := creator.CreateBindKeyDiscount(ctx, 800101, 999902, 10.5, 100, 3)
+	id, err := creator.CreateBindKeyDiscount(ctx, 800101, 999902, 10.5, 100, 3, "priority", nil)
 	assert.Error(t, err)
 	assert.Equal(t, int64(0), id)
 }
@@ -55,7 +55,7 @@ func TestIntegration_CreateBindKeyDiscount_Rate5_Succeeds(t *testing.T) {
 	ctx := context.Background()
 
 	// rate=5.0 — typical high-multiplier use case
-	id, err := creator.CreateBindKeyDiscount(ctx, 800102, 999903, 5.0, 3000, 5)
+	id, err := creator.CreateBindKeyDiscount(ctx, 800102, 999903, 5.0, 3000, 5, "priority", nil)
 	require.NoError(t, err)
 	assert.Greater(t, id, int64(0))
 

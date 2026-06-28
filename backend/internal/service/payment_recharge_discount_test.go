@@ -10,6 +10,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/gift"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -73,7 +74,7 @@ func (s *rechargeDiscountRepoStub) QueryDiscountsForInheritanceAtTime(_ context.
 	return nil, nil
 }
 
-func (s *rechargeDiscountRepoStub) CreateDiscount(_ context.Context, _ int64, _, _ string, _ *int64, _, _ float64, _ time.Time, _ *time.Time) (int64, error) {
+func (s *rechargeDiscountRepoStub) CreateDiscount(_ context.Context, _ CreateRechargeDiscountInput) (int64, error) {
 	return 0, nil
 }
 
@@ -235,7 +236,7 @@ func (s *queryErrorRepoStub) QueryDiscountsForInheritanceAtTime(_ context.Contex
 	return nil, nil
 }
 
-func (s *queryErrorRepoStub) CreateDiscount(_ context.Context, _ int64, _, _ string, _ *int64, _, _ float64, _ time.Time, _ *time.Time) (int64, error) {
+func (s *queryErrorRepoStub) CreateDiscount(_ context.Context, _ CreateRechargeDiscountInput) (int64, error) {
 	return 0, nil
 }
 
@@ -251,4 +252,50 @@ func makeTestOrder(userID, orderID int64, amount float64) *dbent.PaymentOrder {
 
 func discountTimePtr(t time.Time) *time.Time {
 	return &t
+}
+
+// --- resolveDiscountGiftGrantMode ---
+
+func TestResolveDiscountGiftGrantMode_Priority(t *testing.T) {
+	mode, ratio, err := resolveDiscountGiftGrantMode("priority", nil)
+	require.NoError(t, err)
+	assert.Equal(t, gift.DeductionModePriority, mode)
+	assert.Nil(t, ratio)
+}
+
+func TestResolveDiscountGiftGrantMode_EmptyModeFallsBackToPriority(t *testing.T) {
+	mode, ratio, err := resolveDiscountGiftGrantMode("", nil)
+	require.NoError(t, err)
+	assert.Equal(t, gift.DeductionModePriority, mode)
+	assert.Nil(t, ratio)
+}
+
+func TestResolveDiscountGiftGrantMode_UnknownModeFallsBackToPriority(t *testing.T) {
+	// 即使带了 ratio，未知 mode 也归一为 priority 且清空 ratio。
+	r := 0.5
+	mode, ratio, err := resolveDiscountGiftGrantMode("bogus", &r)
+	require.NoError(t, err)
+	assert.Equal(t, gift.DeductionModePriority, mode)
+	assert.Nil(t, ratio)
+}
+
+func TestResolveDiscountGiftGrantMode_Ratio(t *testing.T) {
+	r := 0.5
+	mode, ratio, err := resolveDiscountGiftGrantMode("ratio", &r)
+	require.NoError(t, err)
+	assert.Equal(t, gift.DeductionModeRatio, mode)
+	require.NotNil(t, ratio)
+	assert.Equal(t, 0.5, *ratio)
+}
+
+func TestResolveDiscountGiftGrantMode_RatioModeNilRatio_Errors(t *testing.T) {
+	_, _, err := resolveDiscountGiftGrantMode("ratio", nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "gift_ratio_recharge")
+}
+
+func TestResolveDiscountGiftGrantMode_RatioModeZeroRatio_Errors(t *testing.T) {
+	r := 0.0
+	_, _, err := resolveDiscountGiftGrantMode("ratio", &r)
+	require.Error(t, err)
 }

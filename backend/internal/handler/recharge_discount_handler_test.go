@@ -47,7 +47,7 @@ func (s *discountRepoStub) QueryDiscountsForInheritanceAtTime(_ context.Context,
 	return nil, nil
 }
 
-func (s *discountRepoStub) CreateDiscount(_ context.Context, _ int64, _, _ string, _ *int64, _, _ float64, _ time.Time, _ *time.Time) (int64, error) {
+func (s *discountRepoStub) CreateDiscount(_ context.Context, _ service.CreateRechargeDiscountInput) (int64, error) {
 	return 0, nil
 }
 
