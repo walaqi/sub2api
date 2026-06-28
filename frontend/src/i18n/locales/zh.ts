@@ -7699,6 +7699,7 @@ export default {
     inviterProgressHint: '被邀请人消费达标后，你将获得赠金奖励。',
     statusGranted: '已达标',
     statusPending: '进行中',
+    statusIneligible: '不可获得',
     noInvitees: '还没有邀请记录，分享你的链接开始邀请吧',
     rulesTitle: '奖励规则',
     rule1: '被邀请人注册成功后立即获得赠金',

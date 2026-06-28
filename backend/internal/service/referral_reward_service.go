@@ -410,11 +410,12 @@ type InviteeRewardDTO struct {
 }
 
 type InviteeProgress struct {
-	InviteeName  string  `json:"invitee_name"`
-	InviteeEmail string  `json:"invitee_email"`
-	SpendTracked float64 `json:"spend_tracked"`
-	Threshold    float64 `json:"threshold"`
-	Granted      bool    `json:"granted"`
+	InviteeName    string  `json:"invitee_name"`
+	InviteeEmail   string  `json:"invitee_email"`
+	SpendTracked   float64 `json:"spend_tracked"`
+	Threshold      float64 `json:"threshold"`
+	Granted        bool    `json:"granted"`
+	RewardEligible bool    `json:"reward_eligible"` // 绑定时邀请人是否有资格（false=达标也不发放）
 }
 
 // GetReferralStatus 查询当前用户的邀请奖励状态。
@@ -466,7 +467,7 @@ func (s *ReferralRewardService) GetReferralStatus(ctx context.Context, userID in
 	// 2. 作为邀请人的各被邀请人进度
 	progressRows, err := execer.QueryContext(ctx, `
 SELECT COALESCE(u.username, ''), COALESCE(u.email, ''),
-       t.invitee_spend_tracked::double precision, t.spend_threshold::double precision, t.inviter_reward_granted
+       t.invitee_spend_tracked::double precision, t.spend_threshold::double precision, t.inviter_reward_granted, t.inviter_reward_eligible_at_bind
 FROM referral_reward_tracker t
 LEFT JOIN users u ON u.id = t.invitee_id
 WHERE t.inviter_id = $1
@@ -478,7 +479,7 @@ LIMIT 50`, userID)
 	defer func() { _ = progressRows.Close() }()
 	for progressRows.Next() {
 		var p InviteeProgress
-		if err := progressRows.Scan(&p.InviteeName, &p.InviteeEmail, &p.SpendTracked, &p.Threshold, &p.Granted); err != nil {
+		if err := progressRows.Scan(&p.InviteeName, &p.InviteeEmail, &p.SpendTracked, &p.Threshold, &p.Granted, &p.RewardEligible); err != nil {
 			return nil, fmt.Errorf("scan inviter progress: %w", err)
 		}
 		status.InviterProgress = append(status.InviterProgress, p)

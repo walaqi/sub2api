@@ -95,9 +95,9 @@
                 </div>
                 <span
                   class="rounded-md px-2 py-0.5 text-xs font-medium"
-                  :class="item.granted ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-gray-100 text-gray-600 dark:bg-dark-700 dark:text-dark-300'"
+                  :class="item.granted ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : item.reward_eligible === false ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-gray-100 text-gray-600 dark:bg-dark-700 dark:text-dark-300'"
                 >
-                  {{ item.granted ? t('referral.statusGranted') : t('referral.statusPending') }}
+                  {{ item.granted ? t('referral.statusGranted') : item.reward_eligible === false ? t('referral.statusIneligible') : t('referral.statusPending') }}
                 </span>
               </div>
             </div>
@@ -144,6 +144,7 @@ interface ReferralStatusResponse {
     spend_tracked: number
     threshold: number
     granted: boolean
+    reward_eligible: boolean
   }>
 }
 

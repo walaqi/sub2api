@@ -7522,6 +7522,7 @@ export default {
     inviterProgressHint: 'You receive a gift credit when your invitees reach the spending threshold.',
     statusGranted: 'Completed',
     statusPending: 'In progress',
+    statusIneligible: 'Ineligible',
     noInvitees: 'No invitations yet. Share your link to get started.',
     rulesTitle: 'Reward rules',
     rule1: 'Invitees receive gift credit immediately upon registration',
