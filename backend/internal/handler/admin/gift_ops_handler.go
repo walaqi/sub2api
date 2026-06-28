@@ -307,6 +307,10 @@ type RechargeDiscountPayload struct {
 	GiftDeductionMode string `json:"gift_deduction_mode"`
 	// GiftRatioRecharge 仅 ratio 模式必填，> 0 且 <= 10。
 	GiftRatioRecharge *float64 `json:"gift_ratio_recharge"`
+	// GiftExpiryMode 该折扣发放赠金的有效期模式："discount_valid_until" | "never" | "after_days"。
+	GiftExpiryMode string `json:"gift_expiry_mode"`
+	// GiftExpiresAfterDays 仅 after_days 模式必填，> 0。
+	GiftExpiresAfterDays *int `json:"gift_expires_after_days"`
 }
 
 // SetBindKeyRechargeDiscount PUT /api/v1/admin/ops/bind-key-gifts/:api_key_id/recharge-discount
@@ -344,6 +348,11 @@ func (h *GiftOpsHandler) SetBindKeyRechargeDiscount(c *gin.Context) {
 		response.BadRequest(c, "invalid gift deduction config: "+err.Error())
 		return
 	}
+	giftExpiryMode, giftExpiryDays, err := domain.NormalizeGiftExpiry(req.GiftExpiryMode, req.GiftExpiresAfterDays)
+	if err != nil {
+		response.BadRequest(c, "invalid gift expiry config: "+err.Error())
+		return
+	}
 
 	ctx := c.Request.Context()
 	discount := &domain.BindKeyRechargeDiscount{
@@ -353,6 +362,8 @@ func (h *GiftOpsHandler) SetBindKeyRechargeDiscount(c *gin.Context) {
 		ValidDays:             req.ValidDays,
 		GiftDeductionMode:     giftMode,
 		GiftRatioRecharge:     giftRatio,
+		GiftExpiryMode:        giftExpiryMode,
+		GiftExpiresAfterDays:  giftExpiryDays,
 	}
 
 	existing, err := h.entClient.BindKeyGiftSetting.Query().

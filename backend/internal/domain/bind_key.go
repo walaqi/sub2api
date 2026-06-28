@@ -3,8 +3,9 @@ package domain
 import "errors"
 
 var (
-	errInvalidGiftRatio  = errors.New("gift_ratio_recharge must be > 0 when gift_deduction_mode is ratio")
-	errGiftRatioTooLarge = errors.New("gift_ratio_recharge must be <= 10")
+	errInvalidGiftRatio      = errors.New("gift_ratio_recharge must be > 0 when gift_deduction_mode is ratio")
+	errGiftRatioTooLarge     = errors.New("gift_ratio_recharge must be <= 10")
+	errInvalidGiftExpiryDays = errors.New("gift_expires_after_days must be > 0 when gift_expiry_mode is after_days")
 )
 
 // BindKeyConfig 是表 A bind_key_gift_settings 的可扩展 per-key 配置，
@@ -50,6 +51,7 @@ type BindKeyRegistrationWindow struct {
 //   - ValidDays >= 1
 //   - GiftDeductionMode 为 "priority" 或 "ratio"（空值归一化为 priority）
 //   - GiftRatioRecharge：priority 模式必须为 nil；ratio 模式必须 > 0 且 <= 10
+//   - GiftExpiryMode 为空时归一为 "discount_valid_until"；after_days 模式必须配置正数天数
 type BindKeyRechargeDiscount struct {
 	Enabled               bool    `json:"enabled"`
 	DiscountRate          float64 `json:"discount_rate"`           // 0.1 = 额外 10%
@@ -63,12 +65,24 @@ type BindKeyRechargeDiscount struct {
 	// GiftRatioRecharge 仅在 ratio 模式有效，表示每消费 1 单位充值余额同步消耗的赠金比例。
 	// priority 模式必须为 nil。
 	GiftRatioRecharge *float64 `json:"gift_ratio_recharge,omitempty"`
+	// GiftExpiryMode 控制该折扣发放的赠金有效期："discount_valid_until" | "never" | "after_days"。
+	// 空值视为 "discount_valid_until"（向后兼容存量配置和旧请求）。
+	GiftExpiryMode string `json:"gift_expiry_mode,omitempty"`
+	// GiftExpiresAfterDays 仅在 after_days 模式有效，表示赠金从发放时起 N 天后过期。
+	GiftExpiresAfterDays *int `json:"gift_expires_after_days,omitempty"`
 }
 
 // 赠金扣除模式常量（与 user_gifts.deduction_mode / gift 包保持一致的字面量）。
 const (
 	GiftDeductionModePriority = "priority"
 	GiftDeductionModeRatio    = "ratio"
+)
+
+// 充值折扣赠金有效期策略常量。
+const (
+	GiftExpiryModeDiscountValidUntil = "discount_valid_until"
+	GiftExpiryModeNever              = "never"
+	GiftExpiryModeAfterDays          = "after_days"
 )
 
 // NormalizeGiftDeduction 校验并归一化充值折扣赠金的扣除模式/比例。
@@ -92,4 +106,27 @@ func NormalizeGiftDeduction(mode string, ratio *float64) (string, *float64, erro
 	}
 	r := *ratio
 	return GiftDeductionModeRatio, &r, nil
+}
+
+// NormalizeGiftExpiry 校验并归一化充值折扣赠金的有效期策略。
+//
+// 归一化规则：
+//   - 空值/未知 mode → discount_valid_until
+//   - discount_valid_until / never → days 强制为 nil
+//   - after_days → days 必须 > 0，否则返回 error
+//
+// 返回归一化后的 (mode, days)。非 after_days 模式下 days 恒为 nil。
+func NormalizeGiftExpiry(mode string, days *int) (string, *int, error) {
+	switch mode {
+	case GiftExpiryModeAfterDays:
+		if days == nil || *days <= 0 {
+			return "", nil, errInvalidGiftExpiryDays
+		}
+		d := *days
+		return GiftExpiryModeAfterDays, &d, nil
+	case GiftExpiryModeNever:
+		return GiftExpiryModeNever, nil, nil
+	default:
+		return GiftExpiryModeDiscountValidUntil, nil, nil
+	}
 }

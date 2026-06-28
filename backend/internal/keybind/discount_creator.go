@@ -25,7 +25,7 @@ func NewEntDiscountCreator(client *dbent.Client) RechargeDiscountCreator {
 	return &entDiscountCreator{client: client}
 }
 
-func (c *entDiscountCreator) CreateBindKeyDiscount(ctx context.Context, userID, apiKeyID int64, rate, maxAmount float64, validDays int, giftDeductionMode string, giftRatioRecharge *float64) (int64, error) {
+func (c *entDiscountCreator) CreateBindKeyDiscount(ctx context.Context, userID, apiKeyID int64, rate, maxAmount float64, validDays int, giftDeductionMode string, giftRatioRecharge *float64, giftExpiryMode string, giftExpiresAfterDays *int) (int64, error) {
 	if rate <= 0 || rate > 10 || maxAmount <= 0 || validDays < 1 {
 		return 0, fmt.Errorf("invalid discount params: rate=%f max=%f days=%d", rate, maxAmount, validDays)
 	}
@@ -39,6 +39,14 @@ func (c *entDiscountCreator) CreateBindKeyDiscount(ctx context.Context, userID, 
 	if ratio != nil {
 		ratioArg = *ratio
 	}
+	expiryMode, expiryDays, err := domain.NormalizeGiftExpiry(giftExpiryMode, giftExpiresAfterDays)
+	if err != nil {
+		return 0, fmt.Errorf("invalid gift expiry config: %w", err)
+	}
+	var expiryDaysArg any
+	if expiryDays != nil {
+		expiryDaysArg = *expiryDays
+	}
 
 	now := time.Now()
 	validUntil := now.Add(time.Duration(validDays) * 24 * time.Hour)
@@ -46,10 +54,10 @@ func (c *entDiscountCreator) CreateBindKeyDiscount(ctx context.Context, userID, 
 
 	execer := c.execer(ctx)
 	rows, err := execer.QueryContext(ctx, `
-INSERT INTO user_recharge_discounts (user_id, source, source_ref, origin_api_key_id, discount_rate, max_discountable_amount, valid_from, valid_until, gift_deduction_mode, gift_ratio_recharge)
-VALUES ($1, 'bind_key', $2, $3, $4, $5, $6, $7, $8, $9)
+INSERT INTO user_recharge_discounts (user_id, source, source_ref, origin_api_key_id, discount_rate, max_discountable_amount, valid_from, valid_until, gift_deduction_mode, gift_ratio_recharge, gift_expiry_mode, gift_expires_after_days)
+VALUES ($1, 'bind_key', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 ON CONFLICT (user_id, source, source_ref) DO NOTHING
-RETURNING id`, userID, sourceRef, apiKeyID, rate, maxAmount, now, validUntil, mode, ratioArg)
+RETURNING id`, userID, sourceRef, apiKeyID, rate, maxAmount, now, validUntil, mode, ratioArg, expiryMode, expiryDaysArg)
 	if err != nil {
 		return 0, fmt.Errorf("insert user_recharge_discounts: %w", err)
 	}

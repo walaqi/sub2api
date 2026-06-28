@@ -1599,3 +1599,120 @@ CreateDiscount(ctx context.Context, in CreateRechargeDiscountInput) (int64, erro
 - `CreateDiscount` 改 struct 入参是编译期强制，无运行时风险
 - 前端旧表单不传 mode → 后端归一化为 priority
 - check 约束允许存量行（mode=priority, ratio=NULL 天然满足）
+
+## Change Request: 充值折扣赠金有效期与折扣有效期解耦 (2026-06-29)
+
+### 背景
+
+当前充值折扣产生的赠金（`SourceRechargeDiscount`）在 `payment_recharge_discount.go`
+发放时直接把 `user_recharge_discounts.valid_until` 作为 `user_gifts.expires_at`：
+
+```go
+if discountLocked.ValidUntil != nil {
+    t := *discountLocked.ValidUntil
+    expiresAt = &t
+}
+```
+
+这把三个本应独立的概念绑在了一起：
+
+- 充值优惠可使用时间：`user_recharge_discounts.valid_until`
+- 超级邀请资格时间窗口：同样基于 discount 行的时间窗口判断
+- 充值优惠产生的赠金有效期：当前也被迫等于 `valid_until`
+
+因此无法表达「充值优惠/超级邀请资格有效 15 天，但充值优惠产生的赠金永久有效」这类配置。
+
+### 核心设计原则：赠金有效期策略也固化在 discount 行
+
+沿用上一 CR 的建模：**充值折扣权益本身携带它产生赠金的全部策略**。
+
+发放赠金时只读取被使用的 `user_recharge_discounts` 行，不回查 key 配置或邀请人当前状态。邀请继承时复制邀请人 best discount 的有效期策略，让被邀请人的历史权益保持稳定快照。
+
+```text
+BindKeyRechargeDiscount (key 配置：折扣有效期 + 赠金扣除模式 + 赠金有效期策略)
+        │
+        ↓ CreateBindKeyDiscount(写入 discount 行)
+user_recharge_discounts 行
+        ├─ valid_until                      → 充值优惠/超级邀请资格有效期
+        ├─ gift_deduction_mode/ratio         → 该折扣产生赠金的扣除方式
+        └─ gift_expiry_mode/expires_after    → 该折扣产生赠金的有效期策略
+        │
+        ├─ 用户充值 → payment_recharge_discount → Grant(按本行策略计算 ExpiresAt)
+        └─ 邀请继承 → inheritDiscountFromInviter → 复制 best 行全部赠金策略
+```
+
+### 字段设计
+
+在 `user_recharge_discounts` 新增两列：
+
+```sql
+gift_expiry_mode VARCHAR(24) NOT NULL DEFAULT 'discount_valid_until',
+gift_expires_after_days INT NULL,
+CONSTRAINT chk_urd_gift_expiry CHECK (
+    (gift_expiry_mode = 'discount_valid_until' AND gift_expires_after_days IS NULL)
+    OR
+    (gift_expiry_mode = 'never' AND gift_expires_after_days IS NULL)
+    OR
+    (gift_expiry_mode = 'after_days' AND gift_expires_after_days IS NOT NULL AND gift_expires_after_days > 0)
+)
+```
+
+语义：
+
+- `discount_valid_until`：当前行为，赠金过期时间等于 discount 的 `valid_until`
+- `never`：赠金永久有效，`user_gifts.expires_at = NULL`
+- `after_days`：赠金从发放时起 N 天后过期，读取 `gift_expires_after_days`
+
+默认 `discount_valid_until` 保持存量行为不变。
+
+### 配置源头
+
+`bind_key_gift_settings.config.recharge_discount` 增加：
+
+```json
+{
+  "gift_expiry_mode": "never",
+  "gift_expires_after_days": null
+}
+```
+
+归一化规则：
+
+- 空值/未知 `gift_expiry_mode` → `discount_valid_until`
+- `discount_valid_until` / `never` → `gift_expires_after_days = nil`
+- `after_days` → `gift_expires_after_days > 0`，否则拒绝
+
+### 发放边界
+
+`payment_recharge_discount.go` 不再直接把 `discountLocked.ValidUntil` 作为赠金过期时间，而是统一调用 helper：
+
+```go
+resolveDiscountGiftExpiresAt(mode string, days *int, discountValidUntil *time.Time, now time.Time)
+```
+
+输出：
+
+- `discount_valid_until` → `discountValidUntil`
+- `never` → `nil`
+- `after_days` → `now + days * 24h`
+- `after_days` 但 days nil/<=0 → error，订单保持可重试
+
+### 改动清单
+
+| # | 文件 | 改动 |
+|---|------|------|
+| 1 | `migrations/171_urd_gift_expiry_mode.sql` | 新增 `gift_expiry_mode` + `gift_expires_after_days` + check 约束 |
+| 2 | `internal/domain/bind_key.go` | `BindKeyRechargeDiscount` 加赠金有效期字段；新增 `NormalizeGiftExpiry` |
+| 3 | `internal/handler/admin/gift_ops_handler.go` | `RechargeDiscountPayload` 加两字段；写入前归一化校验 |
+| 4 | `internal/keybind/balance.go` / `discount_creator.go` / `service.go` | `CreateBindKeyDiscount` 透传有效期策略；resolver 归一化；`GrantedDiscount` DTO 补字段 |
+| 5 | `internal/service/payment_recharge_discount.go` | `CreateRechargeDiscountInput` / `RechargeDiscountRecord` 补字段；发放时按策略计算 `ExpiresAt` |
+| 6 | `internal/service/recharge_discount_repo_impl.go` | 所有 SELECT/scan/INSERT 补字段，写入边界归一化 |
+| 7 | `internal/service/referral_reward_service.go` | 继承 best discount 时复制赠金有效期策略 |
+| 8 | `internal/handler/recharge_discount_handler.go` + `frontend/src/api/user.ts` | 用户侧当前折扣 API/type 补字段 |
+| 9 | 测试 | 覆盖 `never`、`discount_valid_until`、`after_days`、非法 `after_days` 以及继承复制 |
+
+### 向后兼容
+
+- 存量 discount 行默认 `gift_expiry_mode='discount_valid_until'`，行为与当前完全一致
+- 旧 admin 调用不传新字段时归一为 `discount_valid_until`
+- 继承/发放都只读 discount 行快照，不会受后续 key 配置变更影响

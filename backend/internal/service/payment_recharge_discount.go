@@ -50,6 +50,11 @@ type CreateRechargeDiscountInput struct {
 	GiftDeductionMode string
 	// GiftRatioRecharge 仅 ratio 模式非 nil。
 	GiftRatioRecharge *float64
+	// GiftExpiryMode 固化在 discount 行上的赠金有效期策略。
+	// 空值由 repo 层归一化为 "discount_valid_until"。
+	GiftExpiryMode string
+	// GiftExpiresAfterDays 仅 after_days 模式非 nil。
+	GiftExpiresAfterDays *int
 }
 
 // RechargeDiscountRecord 充值折扣记录（service 层使用）。
@@ -61,8 +66,10 @@ type RechargeDiscountRecord struct {
 	TotalDiscounted       float64
 	ValidUntil            *time.Time
 	// GiftDeductionMode / GiftRatioRecharge 是发放赠金时的扣除策略（随行固化）。
-	GiftDeductionMode string
-	GiftRatioRecharge *float64
+	GiftDeductionMode    string
+	GiftRatioRecharge    *float64
+	GiftExpiryMode       string
+	GiftExpiresAfterDays *int
 }
 
 // RechargeDiscountApplicationRecord 折扣发放记录（service 层使用）。
@@ -89,6 +96,31 @@ func resolveDiscountGiftGrantMode(mode string, ratio *float64) (gift.DeductionMo
 		return "", nil, err
 	}
 	return gift.DeductionMode(normMode), normRatio, nil
+}
+
+// resolveDiscountGiftExpiresAt computes the gift expiry for a recharge-discount grant.
+// It keeps discount validity separate from gift validity:
+//   - discount_valid_until: preserve legacy behavior, use discount.valid_until
+//   - never: nil expires_at
+//   - after_days: now + N days
+func resolveDiscountGiftExpiresAt(mode string, days *int, discountValidUntil *time.Time, now time.Time) (*time.Time, error) {
+	normMode, normDays, err := domain.NormalizeGiftExpiry(mode, days)
+	if err != nil {
+		return nil, err
+	}
+	switch normMode {
+	case domain.GiftExpiryModeNever:
+		return nil, nil
+	case domain.GiftExpiryModeAfterDays:
+		expiresAt := now.Add(time.Duration(*normDays) * 24 * time.Hour)
+		return &expiresAt, nil
+	default:
+		if discountValidUntil == nil {
+			return nil, nil
+		}
+		t := *discountValidUntil
+		return &t, nil
+	}
 }
 
 // applyRechargeDiscountForOrder 在 doBalance 中 markCompleted 前调用。
@@ -217,13 +249,6 @@ func (s *PaymentService) applyRechargeDiscountForOrder(ctx context.Context, o *d
 		return fmt.Errorf("update total_discounted: %w", err)
 	}
 
-	// 发放赠金
-	var expiresAt *time.Time
-	if discountLocked.ValidUntil != nil {
-		t := *discountLocked.ValidUntil
-		expiresAt = &t
-	}
-
 	// 读取随行固化的扣除策略，并做防御性归一化（DB 有 check，此处兜底）：
 	//   - mode 不是 ratio → 一律 priority（ratio 置 nil）
 	//   - mode 是 ratio 但 ratio nil/<=0 → 数据不合法，返回 error 让订单可重试，
@@ -231,6 +256,10 @@ func (s *PaymentService) applyRechargeDiscountForOrder(ctx context.Context, o *d
 	grantMode, grantRatio, err := resolveDiscountGiftGrantMode(discountLocked.GiftDeductionMode, discountLocked.GiftRatioRecharge)
 	if err != nil {
 		return fmt.Errorf("recharge discount %d: %w", discountLocked.ID, err)
+	}
+	expiresAt, err := resolveDiscountGiftExpiresAt(discountLocked.GiftExpiryMode, discountLocked.GiftExpiresAfterDays, discountLocked.ValidUntil, time.Now())
+	if err != nil {
+		return fmt.Errorf("recharge discount %d gift expiry: %w", discountLocked.ID, err)
 	}
 
 	sourceRef := fmt.Sprintf("discount:%d:order:%d", discountLocked.ID, o.ID)

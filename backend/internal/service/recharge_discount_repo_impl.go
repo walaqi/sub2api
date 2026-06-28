@@ -52,7 +52,9 @@ SELECT id, user_id, discount_rate,
        total_discounted::double precision,
        valid_until,
        gift_deduction_mode,
-       gift_ratio_recharge::double precision
+       gift_ratio_recharge::double precision,
+       gift_expiry_mode,
+       gift_expires_after_days
 FROM user_recharge_discounts
 WHERE user_id = $1
   AND valid_from <= NOW()
@@ -76,7 +78,8 @@ FOR UPDATE`, userID)
 	var d RechargeDiscountRecord
 	var validUntil sql.NullTime
 	var ratio sql.NullFloat64
-	if err := rows.Scan(&d.ID, &d.UserID, &d.DiscountRate, &d.MaxDiscountableAmount, &d.TotalDiscounted, &validUntil, &d.GiftDeductionMode, &ratio); err != nil {
+	var expiryDays sql.NullInt64
+	if err := rows.Scan(&d.ID, &d.UserID, &d.DiscountRate, &d.MaxDiscountableAmount, &d.TotalDiscounted, &validUntil, &d.GiftDeductionMode, &ratio, &d.GiftExpiryMode, &expiryDays); err != nil {
 		return nil, err
 	}
 	if validUntil.Valid {
@@ -85,6 +88,10 @@ FOR UPDATE`, userID)
 	if ratio.Valid {
 		v := ratio.Float64
 		d.GiftRatioRecharge = &v
+	}
+	if expiryDays.Valid {
+		v := int(expiryDays.Int64)
+		d.GiftExpiresAfterDays = &v
 	}
 	return &d, rows.Close()
 }
@@ -134,7 +141,7 @@ func (r *rechargeDiscountRepoImpl) CreateDiscount(ctx context.Context, in Create
 		keyIDArg = *in.OriginAPIKeyID
 	}
 
-	// 归一化扣除策略（写入边界兜底，与 DB check 双重保障）。
+	// 归一化赠金策略（写入边界兜底，与 DB check 双重保障）。
 	mode, ratio, err := domain.NormalizeGiftDeduction(in.GiftDeductionMode, in.GiftRatioRecharge)
 	if err != nil {
 		return 0, fmt.Errorf("invalid gift deduction config: %w", err)
@@ -143,12 +150,20 @@ func (r *rechargeDiscountRepoImpl) CreateDiscount(ctx context.Context, in Create
 	if ratio != nil {
 		ratioArg = *ratio
 	}
+	expiryMode, expiryDays, err := domain.NormalizeGiftExpiry(in.GiftExpiryMode, in.GiftExpiresAfterDays)
+	if err != nil {
+		return 0, fmt.Errorf("invalid gift expiry config: %w", err)
+	}
+	var expiryDaysArg any
+	if expiryDays != nil {
+		expiryDaysArg = *expiryDays
+	}
 
 	rows, err := r.execer(ctx).QueryContext(ctx, `
-INSERT INTO user_recharge_discounts (user_id, source, source_ref, origin_api_key_id, discount_rate, max_discountable_amount, valid_from, valid_until, gift_deduction_mode, gift_ratio_recharge)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+INSERT INTO user_recharge_discounts (user_id, source, source_ref, origin_api_key_id, discount_rate, max_discountable_amount, valid_from, valid_until, gift_deduction_mode, gift_ratio_recharge, gift_expiry_mode, gift_expires_after_days)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 ON CONFLICT (user_id, source, source_ref) DO NOTHING
-RETURNING id`, in.UserID, in.Source, in.SourceRef, keyIDArg, in.Rate, in.MaxAmount, in.ValidFrom, validUntilArg, mode, ratioArg)
+RETURNING id`, in.UserID, in.Source, in.SourceRef, keyIDArg, in.Rate, in.MaxAmount, in.ValidFrom, validUntilArg, mode, ratioArg, expiryMode, expiryDaysArg)
 	if err != nil {
 		return 0, fmt.Errorf("insert user_recharge_discounts: %w", err)
 	}
@@ -180,7 +195,8 @@ SELECT id, source, source_ref, discount_rate,
        max_discountable_amount::double precision,
        total_discounted::double precision,
        valid_from, valid_until,
-       gift_deduction_mode, gift_ratio_recharge::double precision
+       gift_deduction_mode, gift_ratio_recharge::double precision,
+       gift_expiry_mode, gift_expires_after_days
 FROM user_recharge_discounts
 WHERE user_id = $1
   AND valid_from <= NOW()
@@ -203,7 +219,8 @@ SELECT id, source, source_ref, discount_rate,
        max_discountable_amount::double precision,
        total_discounted::double precision,
        valid_from, valid_until,
-       gift_deduction_mode, gift_ratio_recharge::double precision
+       gift_deduction_mode, gift_ratio_recharge::double precision,
+       gift_expiry_mode, gift_expires_after_days
 FROM user_recharge_discounts
 WHERE user_id = $1
   AND valid_from <= NOW()
@@ -225,7 +242,8 @@ SELECT id, source, source_ref, discount_rate,
        max_discountable_amount::double precision,
        total_discounted::double precision,
        valid_from, valid_until,
-       gift_deduction_mode, gift_ratio_recharge::double precision
+       gift_deduction_mode, gift_ratio_recharge::double precision,
+       gift_expiry_mode, gift_expires_after_days
 FROM user_recharge_discounts
 WHERE user_id = $1
   AND valid_from <= $2
@@ -245,7 +263,8 @@ func scanRechargeDiscountSummaries(rows *sql.Rows) ([]RechargeDiscountSummary, e
 		var d RechargeDiscountSummary
 		var validUntil sql.NullTime
 		var ratio sql.NullFloat64
-		if err := rows.Scan(&d.ID, &d.Source, &d.SourceRef, &d.DiscountRate, &d.MaxDiscountableAmount, &d.TotalDiscounted, &d.ValidFrom, &validUntil, &d.GiftDeductionMode, &ratio); err != nil {
+		var expiryDays sql.NullInt64
+		if err := rows.Scan(&d.ID, &d.Source, &d.SourceRef, &d.DiscountRate, &d.MaxDiscountableAmount, &d.TotalDiscounted, &d.ValidFrom, &validUntil, &d.GiftDeductionMode, &ratio, &d.GiftExpiryMode, &expiryDays); err != nil {
 			return nil, err
 		}
 		if validUntil.Valid {
@@ -254,6 +273,10 @@ func scanRechargeDiscountSummaries(rows *sql.Rows) ([]RechargeDiscountSummary, e
 		if ratio.Valid {
 			v := ratio.Float64
 			d.GiftRatioRecharge = &v
+		}
+		if expiryDays.Valid {
+			v := int(expiryDays.Int64)
+			d.GiftExpiresAfterDays = &v
 		}
 		results = append(results, d)
 	}
@@ -270,7 +293,9 @@ type RechargeDiscountSummary struct {
 	TotalDiscounted       float64
 	ValidFrom             time.Time
 	ValidUntil            *time.Time
-	// GiftDeductionMode / GiftRatioRecharge 是该折扣发放赠金的扣除策略（随行固化）。
-	GiftDeductionMode string
-	GiftRatioRecharge *float64
+	// GiftDeductionMode / GiftRatioRecharge / GiftExpiry* 是该折扣发放赠金的策略（随行固化）。
+	GiftDeductionMode    string
+	GiftRatioRecharge    *float64
+	GiftExpiryMode       string
+	GiftExpiresAfterDays *int
 }

@@ -73,6 +73,8 @@ type GrantedDiscount struct {
 	ValidDays             int      `json:"valid_days"`
 	GiftDeductionMode     string   `json:"gift_deduction_mode"`
 	GiftRatioRecharge     *float64 `json:"gift_ratio_recharge,omitempty"`
+	GiftExpiryMode        string   `json:"gift_expiry_mode"`
+	GiftExpiresAfterDays  *int     `json:"gift_expires_after_days,omitempty"`
 }
 
 // EligibilityResult tells the UI whether the caller may participate this
@@ -453,16 +455,18 @@ func (s *Service) Commit(ctx context.Context, userID int64, reservationID string
 	if s.discountCreator != nil && s.giftSettingResolver != nil {
 		if setting, err := s.giftSettingResolver.Resolve(ctx, keyID); err == nil && setting != nil {
 			if cfg := s.resolveRechargeDiscountConfig(setting); cfg != nil {
-				if _, err := s.discountCreator.CreateBindKeyDiscount(ctx, userID, keyID, cfg.DiscountRate, cfg.MaxDiscountableAmount, cfg.ValidDays, cfg.GiftDeductionMode, cfg.GiftRatioRecharge); err != nil {
+				if _, err := s.discountCreator.CreateBindKeyDiscount(ctx, userID, keyID, cfg.DiscountRate, cfg.MaxDiscountableAmount, cfg.ValidDays, cfg.GiftDeductionMode, cfg.GiftRatioRecharge, cfg.GiftExpiryMode, cfg.GiftExpiresAfterDays); err != nil {
 					log.Printf("[keybind] create recharge discount for user %d key %d failed: %v", userID, keyID, err)
 				} else {
-					log.Printf("[keybind] created recharge discount for user %d (key %d, rate=%.2f, max=%.2f, days=%d, mode=%s)", userID, keyID, cfg.DiscountRate, cfg.MaxDiscountableAmount, cfg.ValidDays, cfg.GiftDeductionMode)
+					log.Printf("[keybind] created recharge discount for user %d (key %d, rate=%.2f, max=%.2f, days=%d, mode=%s, gift_expiry=%s)", userID, keyID, cfg.DiscountRate, cfg.MaxDiscountableAmount, cfg.ValidDays, cfg.GiftDeductionMode, cfg.GiftExpiryMode)
 					grantedDiscount = &GrantedDiscount{
 						DiscountRate:          cfg.DiscountRate,
 						MaxDiscountableAmount: cfg.MaxDiscountableAmount,
 						ValidDays:             cfg.ValidDays,
 						GiftDeductionMode:     cfg.GiftDeductionMode,
 						GiftRatioRecharge:     cfg.GiftRatioRecharge,
+						GiftExpiryMode:        cfg.GiftExpiryMode,
+						GiftExpiresAfterDays:  cfg.GiftExpiresAfterDays,
 					}
 				}
 			}
@@ -511,14 +515,20 @@ func (s *Service) resolveRechargeDiscountConfig(setting *BindKeyGiftSetting) *do
 	if cfg.DiscountRate <= 0 || cfg.DiscountRate > 10 || cfg.MaxDiscountableAmount <= 0 || cfg.ValidDays < 1 {
 		return nil
 	}
-	// 归一化扣除策略：非法 ratio 配置直接拒绝该折扣（避免发放时才报错阻塞充值）。
+	// 归一化赠金策略：非法配置直接拒绝该折扣（避免发放时才报错阻塞充值）。
 	mode, ratio, err := domain.NormalizeGiftDeduction(cfg.GiftDeductionMode, cfg.GiftRatioRecharge)
+	if err != nil {
+		return nil
+	}
+	expiryMode, expiryDays, err := domain.NormalizeGiftExpiry(cfg.GiftExpiryMode, cfg.GiftExpiresAfterDays)
 	if err != nil {
 		return nil
 	}
 	normalized := *cfg
 	normalized.GiftDeductionMode = mode
 	normalized.GiftRatioRecharge = ratio
+	normalized.GiftExpiryMode = expiryMode
+	normalized.GiftExpiresAfterDays = expiryDays
 	return &normalized
 }
 

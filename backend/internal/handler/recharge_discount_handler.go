@@ -56,6 +56,8 @@ func (h *RechargeDiscountHandler) GetMyActiveDiscount(c *gin.Context) {
 		ValidUntilUnixMs      *int64   `json:"valid_until_unix_ms"`
 		GiftDeductionMode     string   `json:"gift_deduction_mode"`
 		GiftRatioRecharge     *float64 `json:"gift_ratio_recharge,omitempty"`
+		GiftExpiryMode        string   `json:"gift_expiry_mode"`
+		GiftExpiresAfterDays  *int     `json:"gift_expires_after_days,omitempty"`
 	}
 
 	dto := discountDTO{
@@ -67,6 +69,8 @@ func (h *RechargeDiscountHandler) GetMyActiveDiscount(c *gin.Context) {
 		RemainingQuota:        remaining,
 		GiftDeductionMode:     best.GiftDeductionMode,
 		GiftRatioRecharge:     best.GiftRatioRecharge,
+		GiftExpiryMode:        best.GiftExpiryMode,
+		GiftExpiresAfterDays:  best.GiftExpiresAfterDays,
 	}
 	if best.ValidUntil != nil {
 		ms := best.ValidUntil.UnixMilli()

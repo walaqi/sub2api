@@ -58,10 +58,10 @@ RETURNING id`, userID, sourceRef, rate, max, now, validUntil).Scan(&id)
 	return id
 }
 
-// insertTestDiscountWithMode is like insertTestDiscount but also fixes the gift
-// deduction mode/ratio on the row, so end-to-end tests can verify the策略 is
-// carried through SELECT/scan/Grant onto user_gifts.
-func insertTestDiscountWithMode(t *testing.T, db *sql.DB, userID int64, rate, max float64, validDays int, mode string, ratio *float64) int64 {
+// insertTestDiscountWithPolicy is like insertTestDiscount but also fixes the gift
+// deduction and expiry policies on the row, so end-to-end tests can verify the
+// policy is carried through SELECT/scan/Grant onto user_gifts.
+func insertTestDiscountWithPolicy(t *testing.T, db *sql.DB, userID int64, rate, max float64, validDays int, mode string, ratio *float64, expiryMode string, expiryDays *int) int64 {
 	t.Helper()
 	now := time.Now()
 	validUntil := now.Add(time.Duration(validDays) * 24 * time.Hour)
@@ -70,11 +70,15 @@ func insertTestDiscountWithMode(t *testing.T, db *sql.DB, userID int64, rate, ma
 	if ratio != nil {
 		ratioArg = *ratio
 	}
+	var expiryDaysArg any
+	if expiryDays != nil {
+		expiryDaysArg = *expiryDays
+	}
 	var id int64
 	err := db.QueryRow(`
-INSERT INTO user_recharge_discounts (user_id, source, source_ref, discount_rate, max_discountable_amount, valid_from, valid_until, gift_deduction_mode, gift_ratio_recharge)
-VALUES ($1, 'bind_key', $2, $3, $4, $5, $6, $7, $8)
-RETURNING id`, userID, sourceRef, rate, max, now, validUntil, mode, ratioArg).Scan(&id)
+INSERT INTO user_recharge_discounts (user_id, source, source_ref, discount_rate, max_discountable_amount, valid_from, valid_until, gift_deduction_mode, gift_ratio_recharge, gift_expiry_mode, gift_expires_after_days)
+VALUES ($1, 'bind_key', $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING id`, userID, sourceRef, rate, max, now, validUntil, mode, ratioArg, expiryMode, expiryDaysArg).Scan(&id)
 	require.NoError(t, err)
 	return id
 }
@@ -374,7 +378,7 @@ func TestIntegration_FullFlow_GrantsRatioMode(t *testing.T) {
 
 	userID := int64(900005)
 	ratio := 0.5
-	insertTestDiscountWithMode(t, db, userID, 0.15, 200, 30, "ratio", &ratio)
+	insertTestDiscountWithPolicy(t, db, userID, 0.15, 200, 30, "ratio", &ratio, "discount_valid_until", nil)
 
 	var userExists bool
 	_ = db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)", userID).Scan(&userExists)
@@ -420,7 +424,7 @@ func TestIntegration_FullFlow_GrantsPriorityMode(t *testing.T) {
 	ctx := context.Background()
 
 	userID := int64(900006)
-	insertTestDiscountWithMode(t, db, userID, 0.15, 200, 30, "priority", nil)
+	insertTestDiscountWithPolicy(t, db, userID, 0.15, 200, 30, "priority", nil, "discount_valid_until", nil)
 
 	var userExists bool
 	_ = db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)", userID).Scan(&userExists)
@@ -455,4 +459,89 @@ WHERE user_id = $1 AND source = 'recharge_discount' ORDER BY id DESC LIMIT 1`, u
 	require.NoError(t, err)
 	assert.Equal(t, "priority", giftMode)
 	assert.False(t, giftRatio.Valid, "ratio_recharge should be NULL for priority mode")
+}
+
+// TestIntegration_FullFlow_GiftExpiryNever verifies gift_expiry_mode='never'
+// creates a recharge-discount gift with NULL expires_at even though the discount
+// itself has a finite valid_until.
+func TestIntegration_FullFlow_GiftExpiryNever(t *testing.T) {
+	client, db := setupIntegrationDB(t)
+	ctx := context.Background()
+
+	userID := int64(900007)
+	insertTestDiscountWithPolicy(t, db, userID, 0.15, 200, 15, "priority", nil, "never", nil)
+
+	var userExists bool
+	_ = db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)", userID).Scan(&userExists)
+	if !userExists {
+		_, err := db.Exec(`INSERT INTO users (id, email, password_hash, role, balance, status, username, concurrency, total_recharged) VALUES ($1, $2, '', 'user', 100, 'active', 'test_never_user', 5, 0)`,
+			userID, fmt.Sprintf("test_never_%d@test.local", userID))
+		require.NoError(t, err)
+		t.Cleanup(func() { _, _ = db.Exec("DELETE FROM users WHERE id = $1", userID) })
+	}
+
+	sqlDB, err := sql.Open("postgres", testDSN)
+	require.NoError(t, err)
+	defer func() { _ = sqlDB.Close() }()
+	giftEngine := gift.NewEngine(client, sqlDB)
+
+	svc := &PaymentService{
+		entClient:            client,
+		giftEngine:           giftEngine,
+		rechargeDiscountRepo: NewRechargeDiscountRepoAdapter(client),
+	}
+
+	order := &dbent.PaymentOrder{ID: int64(990203), UserID: userID, Amount: 80}
+	err = svc.applyRechargeDiscountForOrder(ctx, order)
+	require.NoError(t, err)
+
+	var expiresAt sql.NullTime
+	err = db.QueryRow(`SELECT expires_at FROM user_gifts
+WHERE user_id = $1 AND source = 'recharge_discount' ORDER BY id DESC LIMIT 1`, userID).Scan(&expiresAt)
+	require.NoError(t, err)
+	assert.False(t, expiresAt.Valid, "expires_at should be NULL for never mode")
+}
+
+// TestIntegration_FullFlow_GiftExpiryAfterDays verifies after_days computes
+// gift expiry from grant time instead of reusing discount.valid_until.
+func TestIntegration_FullFlow_GiftExpiryAfterDays(t *testing.T) {
+	client, db := setupIntegrationDB(t)
+	ctx := context.Background()
+
+	userID := int64(900008)
+	expiryDays := 3
+	insertTestDiscountWithPolicy(t, db, userID, 0.15, 200, 15, "priority", nil, "after_days", &expiryDays)
+
+	var userExists bool
+	_ = db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)", userID).Scan(&userExists)
+	if !userExists {
+		_, err := db.Exec(`INSERT INTO users (id, email, password_hash, role, balance, status, username, concurrency, total_recharged) VALUES ($1, $2, '', 'user', 100, 'active', 'test_after_days_user', 5, 0)`,
+			userID, fmt.Sprintf("test_after_days_%d@test.local", userID))
+		require.NoError(t, err)
+		t.Cleanup(func() { _, _ = db.Exec("DELETE FROM users WHERE id = $1", userID) })
+	}
+
+	sqlDB, err := sql.Open("postgres", testDSN)
+	require.NoError(t, err)
+	defer func() { _ = sqlDB.Close() }()
+	giftEngine := gift.NewEngine(client, sqlDB)
+
+	svc := &PaymentService{
+		entClient:            client,
+		giftEngine:           giftEngine,
+		rechargeDiscountRepo: NewRechargeDiscountRepoAdapter(client),
+	}
+
+	before := time.Now().Add(time.Duration(expiryDays) * 24 * time.Hour)
+	order := &dbent.PaymentOrder{ID: int64(990204), UserID: userID, Amount: 80}
+	err = svc.applyRechargeDiscountForOrder(ctx, order)
+	require.NoError(t, err)
+	after := time.Now().Add(time.Duration(expiryDays) * 24 * time.Hour)
+
+	var expiresAt sql.NullTime
+	err = db.QueryRow(`SELECT expires_at FROM user_gifts
+WHERE user_id = $1 AND source = 'recharge_discount' ORDER BY id DESC LIMIT 1`, userID).Scan(&expiresAt)
+	require.NoError(t, err)
+	require.True(t, expiresAt.Valid)
+	assert.True(t, !expiresAt.Time.Before(before) && !expiresAt.Time.After(after), "expires_at=%s should be within [%s, %s]", expiresAt.Time, before, after)
 }

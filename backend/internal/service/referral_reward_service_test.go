@@ -100,14 +100,16 @@ type discountRepoForReferralStub struct {
 }
 
 type createDiscountCall struct {
-	UserID            int64
-	Source            string
-	SourceRef         string
-	Rate              float64
-	MaxAmount         float64
-	ValidUntil        *time.Time
-	GiftDeductionMode string
-	GiftRatioRecharge *float64
+	UserID               int64
+	Source               string
+	SourceRef            string
+	Rate                 float64
+	MaxAmount            float64
+	ValidUntil           *time.Time
+	GiftDeductionMode    string
+	GiftRatioRecharge    *float64
+	GiftExpiryMode       string
+	GiftExpiresAfterDays *int
 }
 
 func (r *discountRepoForReferralStub) CheckApplicationExists(_ context.Context, _ int64) (bool, error) {
@@ -139,14 +141,16 @@ func (r *discountRepoForReferralStub) QueryDiscountsForInheritanceAtTime(_ conte
 }
 func (r *discountRepoForReferralStub) CreateDiscount(_ context.Context, in CreateRechargeDiscountInput) (int64, error) {
 	r.createdCalls = append(r.createdCalls, createDiscountCall{
-		UserID:            in.UserID,
-		Source:            in.Source,
-		SourceRef:         in.SourceRef,
-		Rate:              in.Rate,
-		MaxAmount:         in.MaxAmount,
-		ValidUntil:        in.ValidUntil,
-		GiftDeductionMode: in.GiftDeductionMode,
-		GiftRatioRecharge: in.GiftRatioRecharge,
+		UserID:               in.UserID,
+		Source:               in.Source,
+		SourceRef:            in.SourceRef,
+		Rate:                 in.Rate,
+		MaxAmount:            in.MaxAmount,
+		ValidUntil:           in.ValidUntil,
+		GiftDeductionMode:    in.GiftDeductionMode,
+		GiftRatioRecharge:    in.GiftRatioRecharge,
+		GiftExpiryMode:       in.GiftExpiryMode,
+		GiftExpiresAfterDays: in.GiftExpiresAfterDays,
 	})
 	return int64(len(r.createdCalls)), nil
 }
@@ -242,6 +246,31 @@ func TestInheritDiscountFromInviter_CopiesMode_Ratio(t *testing.T) {
 	assert.Equal(t, "ratio", repo.createdCalls[0].GiftDeductionMode)
 	require.NotNil(t, repo.createdCalls[0].GiftRatioRecharge)
 	assert.Equal(t, 0.5, *repo.createdCalls[0].GiftRatioRecharge)
+}
+
+func TestInheritDiscountFromInviter_CopiesGiftExpiry_AfterDays(t *testing.T) {
+	validUntil := time.Now().Add(15 * 24 * time.Hour)
+	expiryDays := 7
+	repo := &discountRepoForReferralStub{
+		discounts: []RechargeDiscountSummary{
+			{
+				ID:                    1,
+				DiscountRate:          0.2,
+				MaxDiscountableAmount: 300,
+				ValidUntil:            &validUntil,
+				GiftExpiryMode:        "after_days",
+				GiftExpiresAfterDays:  &expiryDays,
+			},
+		},
+	}
+	svc := &ReferralRewardService{discountRepo: repo}
+
+	err := svc.inheritDiscountFromInviter(context.Background(), 10, 20)
+	require.NoError(t, err)
+	require.Len(t, repo.createdCalls, 1)
+	assert.Equal(t, "after_days", repo.createdCalls[0].GiftExpiryMode)
+	require.NotNil(t, repo.createdCalls[0].GiftExpiresAfterDays)
+	assert.Equal(t, 7, *repo.createdCalls[0].GiftExpiresAfterDays)
 }
 
 func TestInheritDiscountFromInviter_PartiallyUsed_InheritsFullMaxAmount(t *testing.T) {

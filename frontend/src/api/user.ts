@@ -220,6 +220,10 @@ export interface ActiveRechargeDiscount {
   gift_deduction_mode: string
   /** 仅 ratio 模式存在的比例值。 */
   gift_ratio_recharge?: number | null
+  /** 该折扣发放赠金的有效期模式。 */
+  gift_expiry_mode: string
+  /** 仅 after_days 模式存在的天数。 */
+  gift_expires_after_days?: number | null
 }
 
 export async function getMyActiveRechargeDiscount(): Promise<ActiveRechargeDiscount | null> {

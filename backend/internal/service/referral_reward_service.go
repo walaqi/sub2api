@@ -360,15 +360,17 @@ func (s *ReferralRewardService) inheritDiscountFromInviter(ctx context.Context, 
 
 	sourceRef := fmt.Sprintf("inviter:%d", inviterID)
 	_, err = s.discountRepo.CreateDiscount(ctx, CreateRechargeDiscountInput{
-		UserID:            inviteeID,
-		Source:            "referral_inherit",
-		SourceRef:         sourceRef,
-		Rate:              best.DiscountRate,
-		MaxAmount:         best.MaxDiscountableAmount,
-		ValidFrom:         time.Now(),
-		ValidUntil:        &validUntil,
-		GiftDeductionMode: best.GiftDeductionMode,
-		GiftRatioRecharge: best.GiftRatioRecharge,
+		UserID:               inviteeID,
+		Source:               "referral_inherit",
+		SourceRef:            sourceRef,
+		Rate:                 best.DiscountRate,
+		MaxAmount:            best.MaxDiscountableAmount,
+		ValidFrom:            time.Now(),
+		ValidUntil:           &validUntil,
+		GiftDeductionMode:    best.GiftDeductionMode,
+		GiftRatioRecharge:    best.GiftRatioRecharge,
+		GiftExpiryMode:       best.GiftExpiryMode,
+		GiftExpiresAfterDays: best.GiftExpiresAfterDays,
 	})
 	if err != nil {
 		return fmt.Errorf("create inherited discount: %w", err)

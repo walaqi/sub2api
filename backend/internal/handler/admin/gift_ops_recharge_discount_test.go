@@ -75,6 +75,13 @@ func TestSetBindKeyRechargeDiscount_Validation(t *testing.T) {
 			wantSubstr: "valid_days",
 		},
 		{
+			name:       "after_days without days",
+			apiKeyID:   "42",
+			body:       `{"enabled":true,"discount_rate":0.1,"max_discountable_amount":100,"valid_days":30,"gift_expiry_mode":"after_days"}`,
+			wantStatus: http.StatusBadRequest,
+			wantSubstr: "gift expiry",
+		},
+		{
 			name:       "discount_rate exactly 10 is valid (passes validation, fails on nil DB)",
 			apiKeyID:   "42",
 			body:       `{"enabled":true,"discount_rate":10.0,"max_discountable_amount":100,"valid_days":1}`,

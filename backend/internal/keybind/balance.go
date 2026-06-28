@@ -64,10 +64,10 @@ func WithBalanceGift(updater UserBalanceUpdater, authCache APIKeyAuthCacheInvali
 type RechargeDiscountCreator interface {
 	// CreateBindKeyDiscount 为用户创建 bind_key 来源的充值折扣记录。
 	// 由调用方从 BindKeyGiftSetting 的 RechargeDiscount 配置中提取参数。
-	// giftDeductionMode/giftRatioRecharge 固化该折扣发放赠金的扣除策略
-	// （空 mode 由实现层归一化为 priority）。
+	// giftDeductionMode/giftRatioRecharge/giftExpiryMode/giftExpiresAfterDays
+	// 固化该折扣发放赠金的策略（空 mode 由实现层归一化为默认值）。
 	// 返回值：created discount ID（0 表示未创建，如幂等冲突或无需创建）。
-	CreateBindKeyDiscount(ctx context.Context, userID, apiKeyID int64, rate, maxAmount float64, validDays int, giftDeductionMode string, giftRatioRecharge *float64) (int64, error)
+	CreateBindKeyDiscount(ctx context.Context, userID, apiKeyID int64, rate, maxAmount float64, validDays int, giftDeductionMode string, giftRatioRecharge *float64, giftExpiryMode string, giftExpiresAfterDays *int) (int64, error)
 }
 
 // WithRechargeDiscountCreator 注入"绑定成功后创建充值折扣记录"的能力。

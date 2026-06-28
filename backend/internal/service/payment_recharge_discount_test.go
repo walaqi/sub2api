@@ -254,6 +254,10 @@ func discountTimePtr(t time.Time) *time.Time {
 	return &t
 }
 
+func rechargeDiscountIntPtr(v int) *int {
+	return &v
+}
+
 // --- resolveDiscountGiftGrantMode ---
 
 func TestResolveDiscountGiftGrantMode_Priority(t *testing.T) {
@@ -304,5 +308,54 @@ func TestResolveDiscountGiftGrantMode_RatioAbove10_Errors(t *testing.T) {
 	// 发放边界也复用 NormalizeGiftDeduction，不信任 DB：ratio>10 即使被手工写入也拒绝发放。
 	r := 100.0
 	_, _, err := resolveDiscountGiftGrantMode("ratio", &r)
+	require.Error(t, err)
+}
+
+func TestResolveDiscountGiftExpiresAt_DiscountValidUntil(t *testing.T) {
+	now := time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC)
+	validUntil := now.Add(15 * 24 * time.Hour)
+
+	expiresAt, err := resolveDiscountGiftExpiresAt("discount_valid_until", nil, &validUntil, now)
+	require.NoError(t, err)
+	require.NotNil(t, expiresAt)
+	assert.Equal(t, validUntil, *expiresAt)
+}
+
+func TestResolveDiscountGiftExpiresAt_EmptyModeFallsBackToDiscountValidUntil(t *testing.T) {
+	now := time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC)
+	validUntil := now.Add(15 * 24 * time.Hour)
+
+	expiresAt, err := resolveDiscountGiftExpiresAt("", rechargeDiscountIntPtr(7), &validUntil, now)
+	require.NoError(t, err)
+	require.NotNil(t, expiresAt)
+	assert.Equal(t, validUntil, *expiresAt)
+}
+
+func TestResolveDiscountGiftExpiresAt_Never(t *testing.T) {
+	now := time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC)
+	validUntil := now.Add(15 * 24 * time.Hour)
+
+	expiresAt, err := resolveDiscountGiftExpiresAt("never", rechargeDiscountIntPtr(7), &validUntil, now)
+	require.NoError(t, err)
+	assert.Nil(t, expiresAt)
+}
+
+func TestResolveDiscountGiftExpiresAt_AfterDays(t *testing.T) {
+	now := time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC)
+	validUntil := now.Add(15 * 24 * time.Hour)
+
+	expiresAt, err := resolveDiscountGiftExpiresAt("after_days", rechargeDiscountIntPtr(3), &validUntil, now)
+	require.NoError(t, err)
+	require.NotNil(t, expiresAt)
+	assert.Equal(t, now.Add(3*24*time.Hour), *expiresAt)
+}
+
+func TestResolveDiscountGiftExpiresAt_AfterDaysInvalid_Errors(t *testing.T) {
+	now := time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC)
+
+	_, err := resolveDiscountGiftExpiresAt("after_days", nil, nil, now)
+	require.Error(t, err)
+
+	_, err = resolveDiscountGiftExpiresAt("after_days", rechargeDiscountIntPtr(0), nil, now)
 	require.Error(t, err)
 }

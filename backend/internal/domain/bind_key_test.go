@@ -84,3 +84,61 @@ func TestNormalizeGiftDeduction(t *testing.T) {
 		}
 	})
 }
+
+func TestNormalizeGiftExpiry(t *testing.T) {
+	t.Parallel()
+
+	days := func(v int) *int { return &v }
+
+	t.Run("empty mode normalizes to discount_valid_until and clears days", func(t *testing.T) {
+		mode, d, err := NormalizeGiftExpiry("", days(7))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if mode != GiftExpiryModeDiscountValidUntil || d != nil {
+			t.Errorf("mode=%q days=%v, want discount_valid_until/nil", mode, d)
+		}
+	})
+
+	t.Run("unknown mode normalizes to discount_valid_until", func(t *testing.T) {
+		mode, d, err := NormalizeGiftExpiry("bogus", days(7))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if mode != GiftExpiryModeDiscountValidUntil || d != nil {
+			t.Errorf("mode=%q days=%v, want discount_valid_until/nil", mode, d)
+		}
+	})
+
+	t.Run("never clears days", func(t *testing.T) {
+		mode, d, err := NormalizeGiftExpiry(GiftExpiryModeNever, days(7))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if mode != GiftExpiryModeNever || d != nil {
+			t.Errorf("mode=%q days=%v, want never/nil", mode, d)
+		}
+	})
+
+	t.Run("after_days requires positive days", func(t *testing.T) {
+		if _, _, err := NormalizeGiftExpiry(GiftExpiryModeAfterDays, nil); err == nil {
+			t.Error("expected error for after_days with nil days")
+		}
+		if _, _, err := NormalizeGiftExpiry(GiftExpiryModeAfterDays, days(0)); err == nil {
+			t.Error("expected error for after_days with zero days")
+		}
+		if _, _, err := NormalizeGiftExpiry(GiftExpiryModeAfterDays, days(-1)); err == nil {
+			t.Error("expected error for after_days with negative days")
+		}
+	})
+
+	t.Run("after_days returns copied days", func(t *testing.T) {
+		mode, d, err := NormalizeGiftExpiry(GiftExpiryModeAfterDays, days(15))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if mode != GiftExpiryModeAfterDays || d == nil || *d != 15 {
+			t.Errorf("mode=%q days=%v, want after_days/15", mode, d)
+		}
+	})
+}
