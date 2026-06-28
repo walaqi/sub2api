@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"time"
 
@@ -140,12 +141,26 @@ type giftListItem struct {
 	DeductionMode string   `json:"deduction_mode"`
 	RatioRecharge *float64 `json:"ratio_recharge,omitempty"`
 	// ExpiresAtUnixMs 为 nil 表示永不过期。用毫秒时间戳与前端 BindKey 赠金展示保持一致。
-	ExpiresAtUnixMs *int64 `json:"expires_at_unix_ms,omitempty"`
-	ExpiringSoon    bool   `json:"expiring_soon"`
+	ExpiresAtUnixMs *int64  `json:"expires_at_unix_ms,omitempty"`
+	ExpiringSoon    bool    `json:"expiring_soon"`
+	Source          string  `json:"source,omitempty"`
+	SourceRef       string  `json:"source_ref,omitempty"`
+	Amount          float64 `json:"amount,omitempty"`
+	Status          string  `json:"status,omitempty"`
+	CreatedAtUnixMs *int64  `json:"created_at_unix_ms,omitempty"`
 }
 
-// ListGifts handles listing the current user's active gift credits for profile display.
+// giftListResponse 是分页模式的响应。
+type giftListResponse struct {
+	Items []giftListItem `json:"items"`
+	Total int64          `json:"total"`
+	Page  int            `json:"page"`
+}
+
+// ListGifts handles listing the current user's gift credits.
 // GET /api/v1/user/gifts
+// 无参数：返回 active 赠金列表（兼容旧行为，供 Profile 页简要展示）。
+// 有 status 参数：分页返回赠金列表（含 source），供"我的赠金"页面。
 func (h *UserHandler) ListGifts(c *gin.Context) {
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
@@ -153,10 +168,80 @@ func (h *UserHandler) ListGifts(c *gin.Context) {
 		return
 	}
 	if h.giftEngine == nil {
-		response.Success(c, []giftListItem{})
+		if c.Query("status") != "" {
+			response.Success(c, giftListResponse{Items: []giftListItem{}, Total: 0, Page: 1})
+		} else {
+			response.Success(c, []giftListItem{})
+		}
 		return
 	}
 
+	statusParam := c.Query("status")
+
+	// 分页模式：有 status 参数时使用 ListGiftsByUser
+	if statusParam != "" {
+		page := 1
+		pageSize := 20
+		if v := c.Query("page"); v != "" {
+			if p, err := strconv.Atoi(v); err == nil && p > 0 {
+				page = p
+			}
+		}
+		if v := c.Query("page_size"); v != "" {
+			if ps, err := strconv.Atoi(v); err == nil && ps > 0 && ps <= 100 {
+				pageSize = ps
+			}
+		}
+
+		var giftStatus gift.Status
+		switch statusParam {
+		case "active":
+			giftStatus = gift.StatusActive
+		case "expired":
+			giftStatus = gift.StatusExpired
+		case "exhausted":
+			giftStatus = gift.StatusExhausted
+		default:
+			giftStatus = gift.Status(statusParam)
+		}
+
+		gifts, total, err := h.giftEngine.ListGiftsByUserExpiryAsc(c.Request.Context(), subject.UserID, giftStatus, page, pageSize)
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+
+		items := make([]giftListItem, 0, len(gifts))
+		now := time.Now()
+		for i := range gifts {
+			g := gifts[i]
+			// 语义修正：status='active' 但已自然过期（expirer 尚未 sweep）→ 对外展示为 expired
+			displayStatus := string(g.Status)
+			if g.Status == gift.StatusActive && g.ExpiresAt != nil && !g.ExpiresAt.After(now) {
+				displayStatus = string(gift.StatusExpired)
+			}
+			item := giftListItem{
+				Remaining:     g.Remaining,
+				DeductionMode: string(g.Mode),
+				RatioRecharge: g.RatioRecharge,
+				Source:        string(g.Source),
+				SourceRef:     derefStr(g.SourceRef),
+				Amount:        g.Amount,
+				Status:        displayStatus,
+			}
+			if g.ExpiresAt != nil {
+				ms := g.ExpiresAt.UnixMilli()
+				item.ExpiresAtUnixMs = &ms
+			}
+			createdMs := g.CreatedAt.UnixMilli()
+			item.CreatedAtUnixMs = &createdMs
+			items = append(items, item)
+		}
+		response.Success(c, giftListResponse{Items: items, Total: total, Page: page})
+		return
+	}
+
+	// 兼容旧行为：无参数时返回 active 赠金列表（Profile 展示用）
 	gifts, err := h.giftEngine.ListActiveGiftsForDisplay(c.Request.Context(), subject.UserID)
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -706,4 +791,11 @@ func buildUserProfileSourceContext(provider string) *userProfileSourceContext {
 		Provider: provider,
 		Source:   provider,
 	}
+}
+
+func derefStr(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }

@@ -339,6 +339,17 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/gifts',
+    name: 'UserGifts',
+    component: () => import('@/views/user/UserGiftsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'My Gifts',
+      titleKey: 'nav.myGifts',
+    }
+  },
+  {
     path: '/payment/qrcode',
     name: 'PaymentQRCode',
     component: () => import('@/views/user/PaymentQRCodeView.vue'),

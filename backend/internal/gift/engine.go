@@ -246,6 +246,21 @@ func (e *Engine) ListGiftsByUser(ctx context.Context, userID int64, status Statu
 	return e.repo.listGiftsByUser(ctx, userID, status, page, pageSize)
 }
 
+// ListGiftsByUserExpiryAsc 同 ListGiftsByUser，但按过期时间从早到晚排序。
+// 用于用户端"我的赠金"页面。
+func (e *Engine) ListGiftsByUserExpiryAsc(ctx context.Context, userID int64, status Status, page, pageSize int) ([]UserGift, int64, error) {
+	if userID <= 0 {
+		return nil, 0, errors.New("ListGiftsByUserExpiryAsc: userID must be positive")
+	}
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 || pageSize > 200 {
+		pageSize = 50
+	}
+	return e.repo.listGiftsByUserExpiryAsc(ctx, userID, status, page, pageSize)
+}
+
 // GetGiftByID 返回单笔赠金详情（运维侧查询用）。
 func (e *Engine) GetGiftByID(ctx context.Context, giftID int64) (*UserGift, error) {
 	if giftID <= 0 {
