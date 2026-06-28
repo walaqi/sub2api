@@ -32,10 +32,12 @@ func setupIntegrationDB(t *testing.T) (*dbent.Client, *sql.DB) {
 	// Clean test data before each test
 	_, _ = sqlDB.Exec("DELETE FROM recharge_discount_applications WHERE user_id >= 900000")
 	_, _ = sqlDB.Exec("DELETE FROM user_recharge_discounts WHERE user_id >= 900000")
+	_, _ = sqlDB.Exec("DELETE FROM user_gifts WHERE user_id >= 900000")
 
 	t.Cleanup(func() {
 		_, _ = sqlDB.Exec("DELETE FROM recharge_discount_applications WHERE user_id >= 900000")
 		_, _ = sqlDB.Exec("DELETE FROM user_recharge_discounts WHERE user_id >= 900000")
+		_, _ = sqlDB.Exec("DELETE FROM user_gifts WHERE user_id >= 900000")
 		_ = client.Close()
 		_ = sqlDB.Close()
 	})
