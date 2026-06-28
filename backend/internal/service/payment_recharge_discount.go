@@ -8,6 +8,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/Wei-Shaw/sub2api/internal/gift"
 	"github.com/shopspring/decimal"
 )
@@ -77,19 +78,17 @@ type RechargeDiscountApplicationRecord struct {
 
 // resolveDiscountGiftGrantMode 把 discount 行上固化的扣除策略归一化为 gift.Grant 入参。
 //
-// 防御性归一化（DB 已有 check，此处兜底，不信任 DB）：
+// 防御性归一化（DB 已有 check，此处兜底，不信任 DB）：复用 domain.NormalizeGiftDeduction
+// 作为单一校验源，与写入边界保持一致：
 //   - mode 不是 "ratio" → 一律按 priority（ratio 置 nil）
-//   - mode 是 "ratio" 但 ratio nil/<=0 → 返回 error。数据不合法应暴露，让订单保持可重试，
-//     而非静默降级为 priority（避免发错模式）。
+//   - mode 是 "ratio" 但 ratio nil/<=0/>10 → 返回 error。数据不合法应暴露，让订单保持
+//     可重试，而非静默降级为 priority（避免发错模式）。
 func resolveDiscountGiftGrantMode(mode string, ratio *float64) (gift.DeductionMode, *float64, error) {
-	if mode != string(gift.DeductionModeRatio) {
-		return gift.DeductionModePriority, nil, nil
+	normMode, normRatio, err := domain.NormalizeGiftDeduction(mode, ratio)
+	if err != nil {
+		return "", nil, err
 	}
-	if ratio == nil || *ratio <= 0 {
-		return "", nil, fmt.Errorf("ratio mode but invalid gift_ratio_recharge")
-	}
-	r := *ratio
-	return gift.DeductionModeRatio, &r, nil
+	return gift.DeductionMode(normMode), normRatio, nil
 }
 
 // applyRechargeDiscountForOrder 在 doBalance 中 markCompleted 前调用。

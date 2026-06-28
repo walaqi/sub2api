@@ -1567,7 +1567,7 @@ CreateDiscount(ctx context.Context, in CreateRechargeDiscountInput) (int64, erro
 | 8 | `internal/service/recharge_discount_repo_impl.go` | 所有 SELECT 补两列（`QueryBestActiveDiscountForUpdate`/`QueryActiveDiscountsReadOnly`/`QueryDiscountsForInheritance`/`AtTime`）；scan 补字段；`CreateDiscount` 改 struct 入参 + INSERT 写两列 |
 | 9 | `internal/service/referral_reward_service.go` | `inheritDiscountFromInviter` 复制 `best.GiftDeductionMode/GiftRatioRecharge` 透传 `CreateDiscount` |
 | 10 | `internal/handler/recharge_discount_handler.go` | 用户侧 `/user/recharge-discount` 响应 DTO 补两字段（reviewer 第 5 点，API 层同步） |
-| 11 | 前端 admin 配置表单 | mode 下拉 + ratio 输入（仅 ratio 显示）；i18n |
+| 11 | 前端 admin 配置表单 | **UI deferred**：现有代码无 per-key 充值折扣配置的前端调用方（`/admin/ops/bind-key-gifts/:id/recharge-discount` 是纯后端 endpoint）。后端已支持 mode/ratio 并做了归一化校验，将来加 UI 时直接传两字段即可。本次不实现表单 |
 | 12 | 前端 `/user/recharge-discount` type | 补两字段（展示与否另说，type 同步） |
 | 13 | 测试 stub 同步 | `discountRepoForReferralStub`、`payment_recharge_discount_test`、`recharge_discount_handler_test`、`discount_creator_integration_test`：接口签名变动牵连，全部更新 |
 

@@ -56,6 +56,27 @@ RETURNING id`, userID, sourceRef, rate, max, now, validUntil).Scan(&id)
 	return id
 }
 
+// insertTestDiscountWithMode is like insertTestDiscount but also fixes the gift
+// deduction mode/ratio on the row, so end-to-end tests can verify the策略 is
+// carried through SELECT/scan/Grant onto user_gifts.
+func insertTestDiscountWithMode(t *testing.T, db *sql.DB, userID int64, rate, max float64, validDays int, mode string, ratio *float64) int64 {
+	t.Helper()
+	now := time.Now()
+	validUntil := now.Add(time.Duration(validDays) * 24 * time.Hour)
+	sourceRef := fmt.Sprintf("test:%d:%d", userID, now.UnixNano())
+	var ratioArg any
+	if ratio != nil {
+		ratioArg = *ratio
+	}
+	var id int64
+	err := db.QueryRow(`
+INSERT INTO user_recharge_discounts (user_id, source, source_ref, discount_rate, max_discountable_amount, valid_from, valid_until, gift_deduction_mode, gift_ratio_recharge)
+VALUES ($1, 'bind_key', $2, $3, $4, $5, $6, $7, $8)
+RETURNING id`, userID, sourceRef, rate, max, now, validUntil, mode, ratioArg).Scan(&id)
+	require.NoError(t, err)
+	return id
+}
+
 // TestIntegration_ClaimConflict_OnlyOneWins verifies that concurrent claims for the
 // same payment_order_id result in exactly one claimed=true.
 func TestIntegration_ClaimConflict_OnlyOneWins(t *testing.T) {
@@ -340,4 +361,96 @@ func TestIntegration_FullFlow_BindKeyThenApplyDiscount(t *testing.T) {
 	err = db.QueryRow("SELECT COUNT(*) FROM user_gifts WHERE user_id = $1 AND source = 'recharge_discount'", userID).Scan(&giftCount)
 	require.NoError(t, err)
 	assert.Equal(t, 1, giftCount)
+}
+
+// TestIntegration_FullFlow_GrantsRatioMode verifies the full SELECT/scan/Grant chain
+// carries the discount row's gift_deduction_mode/gift_ratio_recharge through onto the
+// created user_gifts row. Guards against dropping the new columns anywhere in the chain.
+func TestIntegration_FullFlow_GrantsRatioMode(t *testing.T) {
+	client, db := setupIntegrationDB(t)
+	ctx := context.Background()
+
+	userID := int64(900005)
+	ratio := 0.5
+	insertTestDiscountWithMode(t, db, userID, 0.15, 200, 30, "ratio", &ratio)
+
+	var userExists bool
+	_ = db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)", userID).Scan(&userExists)
+	if !userExists {
+		_, err := db.Exec(`INSERT INTO users (id, email, password_hash, role, balance, status, username, concurrency, total_recharged) VALUES ($1, $2, '', 'user', 100, 'active', 'test_ratio_user', 5, 0)`,
+			userID, fmt.Sprintf("test_ratio_%d@test.local", userID))
+		require.NoError(t, err)
+		t.Cleanup(func() { _, _ = db.Exec("DELETE FROM user_gifts WHERE user_id = $1", userID) })
+		t.Cleanup(func() { _, _ = db.Exec("DELETE FROM users WHERE id = $1", userID) })
+	}
+
+	sqlDB, err := sql.Open("postgres", testDSN)
+	require.NoError(t, err)
+	defer func() { _ = sqlDB.Close() }()
+	giftEngine := gift.NewEngine(client, sqlDB)
+
+	repo := NewRechargeDiscountRepoAdapter(client)
+	svc := &PaymentService{
+		entClient:            client,
+		giftEngine:           giftEngine,
+		rechargeDiscountRepo: repo,
+	}
+
+	order := &dbent.PaymentOrder{ID: int64(990201), UserID: userID, Amount: 80}
+	err = svc.applyRechargeDiscountForOrder(ctx, order)
+	require.NoError(t, err)
+
+	// The created gift must carry deduction_mode='ratio' and ratio_recharge=0.5.
+	var giftMode string
+	var giftRatio sql.NullFloat64
+	err = db.QueryRow(`SELECT deduction_mode, ratio_recharge::double precision FROM user_gifts
+WHERE user_id = $1 AND source = 'recharge_discount' ORDER BY id DESC LIMIT 1`, userID).Scan(&giftMode, &giftRatio)
+	require.NoError(t, err)
+	assert.Equal(t, "ratio", giftMode)
+	require.True(t, giftRatio.Valid, "ratio_recharge should be set for ratio mode")
+	assert.InDelta(t, 0.5, giftRatio.Float64, 0.0001)
+}
+
+// TestIntegration_FullFlow_GrantsPriorityMode verifies a priority-mode discount grants
+// a priority gift with NULL ratio_recharge (default path, no columns leaked).
+func TestIntegration_FullFlow_GrantsPriorityMode(t *testing.T) {
+	client, db := setupIntegrationDB(t)
+	ctx := context.Background()
+
+	userID := int64(900006)
+	insertTestDiscountWithMode(t, db, userID, 0.15, 200, 30, "priority", nil)
+
+	var userExists bool
+	_ = db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)", userID).Scan(&userExists)
+	if !userExists {
+		_, err := db.Exec(`INSERT INTO users (id, email, password_hash, role, balance, status, username, concurrency, total_recharged) VALUES ($1, $2, '', 'user', 100, 'active', 'test_prio_user', 5, 0)`,
+			userID, fmt.Sprintf("test_prio_%d@test.local", userID))
+		require.NoError(t, err)
+		t.Cleanup(func() { _, _ = db.Exec("DELETE FROM user_gifts WHERE user_id = $1", userID) })
+		t.Cleanup(func() { _, _ = db.Exec("DELETE FROM users WHERE id = $1", userID) })
+	}
+
+	sqlDB, err := sql.Open("postgres", testDSN)
+	require.NoError(t, err)
+	defer func() { _ = sqlDB.Close() }()
+	giftEngine := gift.NewEngine(client, sqlDB)
+
+	repo := NewRechargeDiscountRepoAdapter(client)
+	svc := &PaymentService{
+		entClient:            client,
+		giftEngine:           giftEngine,
+		rechargeDiscountRepo: repo,
+	}
+
+	order := &dbent.PaymentOrder{ID: int64(990202), UserID: userID, Amount: 80}
+	err = svc.applyRechargeDiscountForOrder(ctx, order)
+	require.NoError(t, err)
+
+	var giftMode string
+	var giftRatio sql.NullFloat64
+	err = db.QueryRow(`SELECT deduction_mode, ratio_recharge::double precision FROM user_gifts
+WHERE user_id = $1 AND source = 'recharge_discount' ORDER BY id DESC LIMIT 1`, userID).Scan(&giftMode, &giftRatio)
+	require.NoError(t, err)
+	assert.Equal(t, "priority", giftMode)
+	assert.False(t, giftRatio.Valid, "ratio_recharge should be NULL for priority mode")
 }

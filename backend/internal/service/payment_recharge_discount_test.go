@@ -299,3 +299,10 @@ func TestResolveDiscountGiftGrantMode_RatioModeZeroRatio_Errors(t *testing.T) {
 	_, _, err := resolveDiscountGiftGrantMode("ratio", &r)
 	require.Error(t, err)
 }
+
+func TestResolveDiscountGiftGrantMode_RatioAbove10_Errors(t *testing.T) {
+	// 发放边界也复用 NormalizeGiftDeduction，不信任 DB：ratio>10 即使被手工写入也拒绝发放。
+	r := 100.0
+	_, _, err := resolveDiscountGiftGrantMode("ratio", &r)
+	require.Error(t, err)
+}
