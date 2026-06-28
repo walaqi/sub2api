@@ -135,6 +135,7 @@ const { t } = useI18n()
 
 interface ReferralStatusResponse {
   enabled: boolean
+  eligible: boolean
   aff_code: string
   invitee_reward: { granted: boolean; amount: number } | null
   inviter_progress: Array<{

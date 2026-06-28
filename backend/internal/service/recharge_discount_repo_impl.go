@@ -172,6 +172,52 @@ ORDER BY discount_rate DESC, valid_until ASC NULLS LAST`, userID)
 	}
 	defer func() { _ = rows.Close() }()
 
+	return scanRechargeDiscountSummaries(rows)
+}
+
+// QueryDiscountsForInheritance returns discounts eligible for referral inheritance.
+// Unlike active discounts for recharge application, quota exhaustion does not matter here.
+func (r *rechargeDiscountRepoImpl) QueryDiscountsForInheritance(ctx context.Context, userID int64) ([]RechargeDiscountSummary, error) {
+	rows, err := r.execer(ctx).QueryContext(ctx, `
+SELECT id, source, source_ref, discount_rate,
+       max_discountable_amount::double precision,
+       total_discounted::double precision,
+       valid_from, valid_until
+FROM user_recharge_discounts
+WHERE user_id = $1
+  AND valid_from <= NOW()
+  AND (valid_until IS NULL OR valid_until >= NOW())
+ORDER BY discount_rate DESC, valid_until ASC NULLS LAST`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("query inheritance discounts: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	return scanRechargeDiscountSummaries(rows)
+}
+
+// QueryDiscountsForInheritanceAtTime returns discounts eligible for referral inheritance
+// at a specific historical bind time.
+func (r *rechargeDiscountRepoImpl) QueryDiscountsForInheritanceAtTime(ctx context.Context, userID int64, atTime time.Time) ([]RechargeDiscountSummary, error) {
+	rows, err := r.execer(ctx).QueryContext(ctx, `
+SELECT id, source, source_ref, discount_rate,
+       max_discountable_amount::double precision,
+       total_discounted::double precision,
+       valid_from, valid_until
+FROM user_recharge_discounts
+WHERE user_id = $1
+  AND valid_from <= $2
+  AND (valid_until IS NULL OR valid_until >= $2)
+ORDER BY discount_rate DESC, valid_until ASC NULLS LAST`, userID, atTime)
+	if err != nil {
+		return nil, fmt.Errorf("query inheritance discounts at time: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	return scanRechargeDiscountSummaries(rows)
+}
+
+func scanRechargeDiscountSummaries(rows *sql.Rows) ([]RechargeDiscountSummary, error) {
 	var results []RechargeDiscountSummary
 	for rows.Next() {
 		var d RechargeDiscountSummary

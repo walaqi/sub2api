@@ -24,6 +24,11 @@ type RechargeDiscountRepo interface {
 	UpdateApplicationGiftID(ctx context.Context, paymentOrderID int64, giftID int64) error
 	// QueryActiveDiscountsReadOnly returns active discounts for display (no FOR UPDATE).
 	QueryActiveDiscountsReadOnly(ctx context.Context, userID int64) ([]RechargeDiscountSummary, error)
+	// QueryDiscountsForInheritance returns discounts eligible for referral inheritance.
+	// It only checks the time window and intentionally ignores quota exhaustion.
+	QueryDiscountsForInheritance(ctx context.Context, userID int64) ([]RechargeDiscountSummary, error)
+	// QueryDiscountsForInheritanceAtTime returns referral-inheritable discounts at a historical time.
+	QueryDiscountsForInheritanceAtTime(ctx context.Context, userID int64, atTime time.Time) ([]RechargeDiscountSummary, error)
 	// CreateDiscount inserts a new discount record (idempotent via ON CONFLICT DO NOTHING).
 	CreateDiscount(ctx context.Context, userID int64, source, sourceRef string, originAPIKeyID *int64, rate, maxAmount float64, validFrom time.Time, validUntil *time.Time) (int64, error)
 }
@@ -54,8 +59,9 @@ type RechargeDiscountApplicationRecord struct {
 // 幂等：recharge_discount_applications(payment_order_id) 唯一索引。
 //
 // 两阶段设计：
-//   Phase 1（事务外）：快速判断是否需要处理（幂等已处理/无折扣/无bonus）→ 无需 entClient
-//   Phase 2（事务内）：claim order + FOR UPDATE 锁 + 更新 + 发放 + commit → 需要 entClient
+//
+//	Phase 1（事务外）：快速判断是否需要处理（幂等已处理/无折扣/无bonus）→ 无需 entClient
+//	Phase 2（事务内）：claim order + FOR UPDATE 锁 + 更新 + 发放 + commit → 需要 entClient
 //
 // 并发安全：Phase 1 是乐观读（可能读到旧值），Phase 2 的 FOR UPDATE 锁 + InsertApplication
 // 唯一索引是真正的安全保障。

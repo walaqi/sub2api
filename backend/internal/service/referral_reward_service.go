@@ -49,9 +49,10 @@ func (s *ReferralRewardService) OnInviterBound(ctx context.Context, inviterID, i
 
 	// 获取配置
 	cfg := s.settingService.GetReferralRewardConfig(ctx)
+	rewardEligible := s.hasInviterRewardEligibility(ctx, inviterID)
 
 	// 创建 tracker 行（幂等，ON CONFLICT DO NOTHING）
-	if err := s.ensureTracker(ctx, inviterID, inviteeID, cfg.SpendThreshold); err != nil {
+	if err := s.ensureTracker(ctx, inviterID, inviteeID, cfg.SpendThreshold, rewardEligible); err != nil {
 		log.Printf("[referral] create tracker for inviter=%d invitee=%d failed: %v", inviterID, inviteeID, err)
 		return
 	}
@@ -97,7 +98,7 @@ func (s *ReferralRewardService) TrackSpendAndMaybeGrantInviterReward(ctx context
 
 	// 1. FOR UPDATE 锁 tracker 行
 	rows, err := execer.QueryContext(txCtx, `
-SELECT id, inviter_id, invitee_spend_tracked, spend_threshold, inviter_reward_granted
+SELECT id, inviter_id, invitee_spend_tracked, spend_threshold, inviter_reward_granted, inviter_reward_eligible_at_bind
 FROM referral_reward_tracker
 WHERE invitee_id = $1
 FOR UPDATE`, inviteeID)
@@ -111,11 +112,12 @@ FOR UPDATE`, inviteeID)
 		spendTracked   float64
 		threshold      float64
 		inviterGranted bool
+		rewardEligible bool
 	}
 	var tracker *trackerRow
 	if rows.Next() {
 		t := &trackerRow{}
-		if err := rows.Scan(&t.id, &t.inviterID, &t.spendTracked, &t.threshold, &t.inviterGranted); err != nil {
+		if err := rows.Scan(&t.id, &t.inviterID, &t.spendTracked, &t.threshold, &t.inviterGranted, &t.rewardEligible); err != nil {
 			_ = rows.Close()
 			return err
 		}
@@ -125,25 +127,29 @@ FOR UPDATE`, inviteeID)
 
 	// 无 tracker：尝试从 user_affiliates 查 inviter 并补建
 	if tracker == nil {
-		inviterID, err := s.lookupInviterID(txCtx, execer, inviteeID)
-		if err != nil || inviterID == 0 {
+		affiliate, err := s.lookupInviteeAffiliate(txCtx, execer, inviteeID)
+		if err != nil {
+			return fmt.Errorf("lookup invitee affiliate: %w", err)
+		}
+		if affiliate == nil || affiliate.inviterID == 0 {
 			// 该用户不是被邀请人，无需追踪
 			return nil // defer rollback (无副作用)
 		}
 		cfg := s.settingService.GetReferralRewardConfig(ctx)
+		rewardEligible := s.hasInviterRewardEligibilityAtTime(txCtx, affiliate.inviterID, affiliate.boundAt)
 		// 在事务内直接插入 tracker（幂等）
 		insertRows, err := execer.QueryContext(txCtx, `
-INSERT INTO referral_reward_tracker (inviter_id, invitee_id, spend_threshold)
-VALUES ($1, $2, $3)
+INSERT INTO referral_reward_tracker (inviter_id, invitee_id, spend_threshold, inviter_reward_eligible_at_bind)
+VALUES ($1, $2, $3, $4)
 ON CONFLICT (inviter_id, invitee_id) DO UPDATE SET updated_at = NOW()
-RETURNING id, inviter_id, invitee_spend_tracked, spend_threshold, inviter_reward_granted`,
-			inviterID, inviteeID, cfg.SpendThreshold)
+RETURNING id, inviter_id, invitee_spend_tracked, spend_threshold, inviter_reward_granted, inviter_reward_eligible_at_bind`,
+			affiliate.inviterID, inviteeID, cfg.SpendThreshold, rewardEligible)
 		if err != nil {
 			return fmt.Errorf("ensure tracker in tx: %w", err)
 		}
 		if insertRows.Next() {
 			t := &trackerRow{}
-			if err := insertRows.Scan(&t.id, &t.inviterID, &t.spendTracked, &t.threshold, &t.inviterGranted); err != nil {
+			if err := insertRows.Scan(&t.id, &t.inviterID, &t.spendTracked, &t.threshold, &t.inviterGranted, &t.rewardEligible); err != nil {
 				_ = insertRows.Close()
 				return err
 			}
@@ -179,16 +185,27 @@ RETURNING id, inviter_id, invitee_spend_tracked, spend_threshold, inviter_reward
 
 	// 4. 判断是否达标 + 发放
 	if !tracker.inviterGranted && newTracked >= tracker.threshold {
+		if !tracker.rewardEligible {
+			return tx.Commit()
+		}
 		cfg := s.settingService.GetReferralRewardConfig(ctx)
 		if s.settingService.IsReferralRewardEnabled(ctx) {
 			expiresAt := time.Now().Add(time.Duration(cfg.InviterExpiryDays) * 24 * time.Hour)
+			mode := gift.DeductionModePriority
+			var ratioRecharge *float64
+			if cfg.InviterGiftMode == "ratio" {
+				mode = gift.DeductionModeRatio
+				ratio := cfg.InviterGiftRatio
+				ratioRecharge = &ratio
+			}
 			grantResult, err := s.giftEngine.Grant(txCtx, gift.GrantInput{
-				UserID:    tracker.inviterID,
-				Amount:    cfg.InviterAmount,
-				Mode:      gift.DeductionModePriority,
-				ExpiresAt: &expiresAt,
-				Source:    gift.SourceReferralInviter,
-				SourceRef: referralPtrStr(fmt.Sprintf("invitee:%d", inviteeID)),
+				UserID:        tracker.inviterID,
+				Amount:        cfg.InviterAmount,
+				Mode:          mode,
+				RatioRecharge: ratioRecharge,
+				ExpiresAt:     &expiresAt,
+				Source:        gift.SourceReferralInviter,
+				SourceRef:     referralPtrStr(fmt.Sprintf("invitee:%d", inviteeID)),
 			})
 			if err != nil {
 				return fmt.Errorf("grant inviter reward: %w", err)
@@ -205,34 +222,42 @@ RETURNING id, inviter_id, invitee_spend_tracked, spend_threshold, inviter_reward
 	return tx.Commit()
 }
 
-// lookupInviterID 从 user_affiliates 表查询 invitee 的 inviter。
-// 返回 0 表示该用户不是被邀请人。
-func (s *ReferralRewardService) lookupInviterID(ctx context.Context, execer interface {
+type inviteeAffiliateSnapshot struct {
+	inviterID int64
+	boundAt   time.Time
+}
+
+// lookupInviteeAffiliate 从 user_affiliates 表查询 invitee 的 inviter 和绑定更新时间。
+// 返回 nil 表示该用户不是被邀请人。updated_at 由 BindInviter 写入，用作 lazy 补建时的绑定时间近似。
+func (s *ReferralRewardService) lookupInviteeAffiliate(ctx context.Context, execer interface {
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-}, inviteeID int64) (int64, error) {
+}, inviteeID int64) (*inviteeAffiliateSnapshot, error) {
 	rows, err := execer.QueryContext(ctx,
-		`SELECT inviter_id FROM user_affiliates WHERE user_id = $1 AND inviter_id IS NOT NULL LIMIT 1`,
+		`SELECT inviter_id, updated_at FROM user_affiliates WHERE user_id = $1 AND inviter_id IS NOT NULL LIMIT 1`,
 		inviteeID)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
-		return 0, nil
+		return nil, nil
 	}
-	var inviterID int64
-	if err := rows.Scan(&inviterID); err != nil {
-		return 0, err
+	var snapshot inviteeAffiliateSnapshot
+	if err := rows.Scan(&snapshot.inviterID, &snapshot.boundAt); err != nil {
+		return nil, err
 	}
-	return inviterID, rows.Close()
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	return &snapshot, nil
 }
 
 // ensureTracker 创建 tracker 行（幂等）。
-func (s *ReferralRewardService) ensureTracker(ctx context.Context, inviterID, inviteeID int64, threshold float64) error {
+func (s *ReferralRewardService) ensureTracker(ctx context.Context, inviterID, inviteeID int64, threshold float64, rewardEligible bool) error {
 	execer := s.execer(ctx)
 	_, err := execer.ExecContext(ctx,
-		`INSERT INTO referral_reward_tracker (inviter_id, invitee_id, spend_threshold) VALUES ($1, $2, $3) ON CONFLICT (inviter_id, invitee_id) DO NOTHING`,
-		inviterID, inviteeID, threshold)
+		`INSERT INTO referral_reward_tracker (inviter_id, invitee_id, spend_threshold, inviter_reward_eligible_at_bind) VALUES ($1, $2, $3, $4) ON CONFLICT (inviter_id, invitee_id) DO NOTHING`,
+		inviterID, inviteeID, threshold, rewardEligible)
 	if err != nil {
 		return fmt.Errorf("ensure tracker: %w", err)
 	}
@@ -315,8 +340,8 @@ func (s *ReferralRewardService) inheritDiscountFromInviter(ctx context.Context, 
 		return nil
 	}
 
-	// 读取邀请人的活跃折扣
-	discounts, err := s.discountRepo.QueryActiveDiscountsReadOnly(ctx, inviterID)
+	// 读取邀请人的可继承折扣：只看时间窗口，不看额度是否耗尽。
+	discounts, err := s.discountRepo.QueryDiscountsForInheritance(ctx, inviterID)
 	if err != nil || len(discounts) == 0 {
 		return err
 	}
@@ -342,6 +367,24 @@ func (s *ReferralRewardService) inheritDiscountFromInviter(ctx context.Context, 
 	return nil
 }
 
+// hasInviterRewardEligibility 判断邀请人是否有超级邀请达标赠金资格（仅看折扣时间窗口，不看额度）。
+func (s *ReferralRewardService) hasInviterRewardEligibility(ctx context.Context, inviterID int64) bool {
+	if s == nil || s.discountRepo == nil {
+		return false
+	}
+	discounts, err := s.discountRepo.QueryDiscountsForInheritance(ctx, inviterID)
+	return err == nil && len(discounts) > 0
+}
+
+// hasInviterRewardEligibilityAtTime 判断邀请人在指定绑定时间点是否有超级邀请达标赠金资格。
+func (s *ReferralRewardService) hasInviterRewardEligibilityAtTime(ctx context.Context, inviterID int64, atTime time.Time) bool {
+	if s == nil || s.discountRepo == nil {
+		return false
+	}
+	discounts, err := s.discountRepo.QueryDiscountsForInheritanceAtTime(ctx, inviterID, atTime)
+	return err == nil && len(discounts) > 0
+}
+
 func (s *ReferralRewardService) execer(ctx context.Context) interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
@@ -355,9 +398,10 @@ func (s *ReferralRewardService) execer(ctx context.Context) interface {
 // ReferralStatus 是用户可见的邀请奖励状态。
 type ReferralStatus struct {
 	Enabled         bool              `json:"enabled"`
-	AffCode         string            `json:"aff_code"`          // 用户的邀请码（用于生成邀请链接）
-	InviteeReward   *InviteeRewardDTO `json:"invitee_reward"`    // 当前用户作为被邀请人的奖励状态（nil=非被邀请人）
-	InviterProgress []InviteeProgress `json:"inviter_progress"`  // 当前用户作为邀请人，各被邀请人的消费进度
+	Eligible        bool              `json:"eligible"`         // 当前用户是否处于超级邀请资格时间窗口
+	AffCode         string            `json:"aff_code"`         // 用户的邀请码（用于生成邀请链接）
+	InviteeReward   *InviteeRewardDTO `json:"invitee_reward"`   // 当前用户作为被邀请人的奖励状态（nil=非被邀请人）
+	InviterProgress []InviteeProgress `json:"inviter_progress"` // 当前用户作为邀请人，各被邀请人的消费进度
 }
 
 type InviteeRewardDTO struct {
@@ -386,6 +430,7 @@ func (s *ReferralRewardService) GetReferralStatus(ctx context.Context, userID in
 	}
 
 	status := &ReferralStatus{Enabled: enabled}
+	status.Eligible = s.hasInviterRewardEligibility(ctx, userID)
 
 	// 0. 获取用户的邀请码（lazy-create：无 user_affiliates 行时自动创建并生成 aff_code）
 	if s.affiliateService != nil {

@@ -29,10 +29,14 @@ func setupReferralIntegrationDB(t *testing.T) (*dbent.Client, *sql.DB) {
 	// Clean test data
 	_, _ = sqlDB.Exec("DELETE FROM referral_spend_events WHERE invitee_id >= 800000")
 	_, _ = sqlDB.Exec("DELETE FROM referral_reward_tracker WHERE invitee_id >= 800000")
+	_, _ = sqlDB.Exec("DELETE FROM recharge_discount_applications WHERE user_id >= 800000 AND user_id < 900000")
+	_, _ = sqlDB.Exec("DELETE FROM user_recharge_discounts WHERE user_id >= 800000 AND user_id < 900000")
 
 	t.Cleanup(func() {
 		_, _ = sqlDB.Exec("DELETE FROM referral_spend_events WHERE invitee_id >= 800000")
 		_, _ = sqlDB.Exec("DELETE FROM referral_reward_tracker WHERE invitee_id >= 800000")
+		_, _ = sqlDB.Exec("DELETE FROM recharge_discount_applications WHERE user_id >= 800000 AND user_id < 900000")
+		_, _ = sqlDB.Exec("DELETE FROM user_recharge_discounts WHERE user_id >= 800000 AND user_id < 900000")
 		_, _ = sqlDB.Exec("DELETE FROM user_gifts WHERE user_id >= 800000")
 		_, _ = sqlDB.Exec("DELETE FROM users WHERE id >= 800000 AND id < 900000")
 		_ = client.Close()
@@ -54,8 +58,11 @@ func ensureTestUser(t *testing.T, db *sql.DB, userID int64) {
 
 func ensureAffiliateRelation(t *testing.T, db *sql.DB, inviteeID, inviterID int64) {
 	t.Helper()
-	_, _ = db.Exec(`INSERT INTO user_affiliates (user_id, inviter_id, aff_code, aff_count, aff_quota, aff_frozen_quota, aff_history_quota)
-		VALUES ($1, $2, '', 0, 0, 0, 0) ON CONFLICT (user_id) DO UPDATE SET inviter_id = $2`, inviteeID, inviterID)
+	_, err := db.Exec(`INSERT INTO user_affiliates (user_id, inviter_id, aff_code, aff_count, aff_quota, aff_history_quota)
+		VALUES ($1, $2, $3, 0, 0, 0)
+		ON CONFLICT (user_id) DO UPDATE SET inviter_id = $2, updated_at = NOW()`,
+		inviteeID, inviterID, fmt.Sprintf("referral_test_%d", inviteeID))
+	require.NoError(t, err)
 }
 
 func insertTracker(t *testing.T, db *sql.DB, inviterID, inviteeID int64, threshold float64) int64 {
@@ -65,6 +72,20 @@ func insertTracker(t *testing.T, db *sql.DB, inviterID, inviteeID int64, thresho
 		inviterID, inviteeID, threshold).Scan(&id)
 	require.NoError(t, err)
 	return id
+}
+
+func insertRechargeDiscount(t *testing.T, db *sql.DB, userID int64, sourceRef string, totalDiscounted, maxAmount float64, validFrom, validUntil string) {
+	t.Helper()
+	_, err := db.Exec(`
+INSERT INTO user_recharge_discounts (user_id, source, source_ref, discount_rate, max_discountable_amount, total_discounted, valid_from, valid_until)
+VALUES ($1, 'bind_key', $2, 0.1, $3, $4, $5::timestamptz, $6::timestamptz)
+ON CONFLICT (user_id, source, source_ref) DO UPDATE SET
+    max_discountable_amount = EXCLUDED.max_discountable_amount,
+    total_discounted = EXCLUDED.total_discounted,
+    valid_from = EXCLUDED.valid_from,
+    valid_until = EXCLUDED.valid_until`,
+		userID, sourceRef, maxAmount, totalDiscounted, validFrom, validUntil)
+	require.NoError(t, err)
 }
 
 func buildReferralService(t *testing.T, client *dbent.Client, db *sql.DB, enabled bool) *ReferralRewardService {
@@ -83,7 +104,9 @@ func buildReferralService(t *testing.T, client *dbent.Client, db *sql.DB, enable
 
 // integrationSettingRepoStub implements the minimal SettingRepository for integration tests
 type integrationSettingRepoStub struct {
-	enabled bool
+	enabled          bool
+	inviterGiftMode  string
+	inviterGiftRatio string
 }
 
 func (s *integrationSettingRepoStub) Get(_ context.Context, key string) (*Setting, error) {
@@ -109,6 +132,16 @@ func (s *integrationSettingRepoStub) GetValue(_ context.Context, key string) (st
 		return "10", nil
 	case SettingKeyReferralInviterExpiryDays:
 		return "30", nil
+	case SettingKeyReferralInviterGiftMode:
+		if s.inviterGiftMode != "" {
+			return s.inviterGiftMode, nil
+		}
+		return "priority", nil
+	case SettingKeyReferralInviterGiftRatioRecharge:
+		if s.inviterGiftRatio != "" {
+			return s.inviterGiftRatio, nil
+		}
+		return "0.5", nil
 	case SettingKeyReferralSpendThreshold:
 		return "10", nil
 	case SettingKeyReferralDiscountValidDays:
@@ -248,6 +281,41 @@ func TestIntegration_Referral_TrackSpend_ThresholdGrant(t *testing.T) {
 	assert.Equal(t, "referral_inviter", giftSource)
 }
 
+func TestIntegration_Referral_TrackSpend_ThresholdGrant_RatioMode(t *testing.T) {
+	client, db := setupReferralIntegrationDB(t)
+	giftEngine := gift.NewEngine(client, db)
+	discountRepo := NewRechargeDiscountRepoAdapter(client)
+	settingSvc := &SettingService{settingRepo: &integrationSettingRepoStub{
+		enabled:          true,
+		inviterGiftMode:  "ratio",
+		inviterGiftRatio: "0.75",
+	}}
+	svc := NewReferralRewardService(client, giftEngine, settingSvc, discountRepo, nil)
+	ctx := context.Background()
+
+	inviterID := int64(800016)
+	inviteeID := int64(800017)
+	ensureTestUser(t, db, inviterID)
+	ensureTestUser(t, db, inviteeID)
+	insertTracker(t, db, inviterID, inviteeID, 10)
+
+	err := svc.TrackSpendAndMaybeGrantInviterReward(ctx, inviteeID, "billing:ratio_mode:key1", 12.0)
+	require.NoError(t, err)
+
+	var giftID sql.NullInt64
+	err = db.QueryRow("SELECT inviter_reward_gift_id FROM referral_reward_tracker WHERE invitee_id = $1", inviteeID).Scan(&giftID)
+	require.NoError(t, err)
+	require.True(t, giftID.Valid)
+
+	var mode string
+	var ratio sql.NullFloat64
+	err = db.QueryRow("SELECT deduction_mode, ratio_recharge::double precision FROM user_gifts WHERE id = $1", giftID.Int64).Scan(&mode, &ratio)
+	require.NoError(t, err)
+	assert.Equal(t, "ratio", mode)
+	require.True(t, ratio.Valid)
+	assert.InDelta(t, 0.75, ratio.Float64, 0.0001)
+}
+
 // ==========================================================================
 // Test 4: 并发只发一次 — 多个 goroutine 同时达标，邀请人只得一次奖励
 // ==========================================================================
@@ -381,4 +449,66 @@ func TestIntegration_Referral_TrackSpend_NotInvitee_NoOp(t *testing.T) {
 	err = db.QueryRow("SELECT COUNT(*) FROM referral_spend_events WHERE invitee_id = $1", loneUserID).Scan(&eventCount)
 	require.NoError(t, err)
 	assert.Equal(t, 0, eventCount)
+}
+
+// ==========================================================================
+// Test 7: tracker 快照为 false 时，达标只累计消费，不发邀请人赠金
+// ==========================================================================
+
+func TestIntegration_Referral_TrackSpend_RewardIneligibleAtBind_DoesNotGrantInviter(t *testing.T) {
+	client, db := setupReferralIntegrationDB(t)
+	svc := buildReferralService(t, client, db, true)
+	ctx := context.Background()
+
+	inviterID := int64(800012)
+	inviteeID := int64(800013)
+	ensureTestUser(t, db, inviterID)
+	ensureTestUser(t, db, inviteeID)
+
+	trackerID := insertTracker(t, db, inviterID, inviteeID, 10)
+	_, err := db.Exec("UPDATE referral_reward_tracker SET inviter_reward_eligible_at_bind = FALSE WHERE id = $1", trackerID)
+	require.NoError(t, err)
+
+	err = svc.TrackSpendAndMaybeGrantInviterReward(ctx, inviteeID, "billing:ineligible:key1", 12.0)
+	require.NoError(t, err)
+
+	var tracked float64
+	var granted bool
+	err = db.QueryRow("SELECT invitee_spend_tracked::double precision, inviter_reward_granted FROM referral_reward_tracker WHERE id = $1", trackerID).Scan(&tracked, &granted)
+	require.NoError(t, err)
+	assert.Equal(t, 12.0, tracked)
+	assert.False(t, granted)
+
+	var giftCount int
+	err = db.QueryRow("SELECT COUNT(*) FROM user_gifts WHERE user_id = $1 AND source = 'referral_inviter'", inviterID).Scan(&giftCount)
+	require.NoError(t, err)
+	assert.Equal(t, 0, giftCount)
+}
+
+// ==========================================================================
+// Test 8: lazy 补建 tracker 使用 user_affiliates.updated_at 还原绑定时资格
+// ==========================================================================
+
+func TestIntegration_Referral_TrackSpend_NoTracker_UsesBindTimeEligibility(t *testing.T) {
+	client, db := setupReferralIntegrationDB(t)
+	svc := buildReferralService(t, client, db, true)
+	ctx := context.Background()
+
+	inviterID := int64(800014)
+	inviteeID := int64(800015)
+	ensureTestUser(t, db, inviterID)
+	ensureTestUser(t, db, inviteeID)
+	ensureAffiliateRelation(t, db, inviteeID, inviterID)
+
+	_, err := db.Exec("UPDATE user_affiliates SET updated_at = '2026-01-10T00:00:00Z'::timestamptz WHERE user_id = $1", inviteeID)
+	require.NoError(t, err)
+	insertRechargeDiscount(t, db, inviterID, "api_key:lazy_bind_window", 100, 100, "2026-01-01T00:00:00Z", "2026-01-20T00:00:00Z")
+
+	err = svc.TrackSpendAndMaybeGrantInviterReward(ctx, inviteeID, "billing:lazy_bind:key1", 5.0)
+	require.NoError(t, err)
+
+	var rewardEligible bool
+	err = db.QueryRow("SELECT inviter_reward_eligible_at_bind FROM referral_reward_tracker WHERE invitee_id = $1", inviteeID).Scan(&rewardEligible)
+	require.NoError(t, err)
+	assert.True(t, rewardEligible)
 }

@@ -2042,6 +2042,14 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 		settings.ReferralInviterExpiryDays = 30
 	}
 	updates[SettingKeyReferralInviterExpiryDays] = strconv.Itoa(settings.ReferralInviterExpiryDays)
+	if settings.ReferralInviterGiftMode != "ratio" {
+		settings.ReferralInviterGiftMode = "priority"
+	}
+	updates[SettingKeyReferralInviterGiftMode] = settings.ReferralInviterGiftMode
+	if settings.ReferralInviterGiftRatio <= 0 || settings.ReferralInviterGiftRatio > 10 {
+		settings.ReferralInviterGiftRatio = 0.5
+	}
+	updates[SettingKeyReferralInviterGiftRatioRecharge] = strconv.FormatFloat(settings.ReferralInviterGiftRatio, 'f', 4, 64)
 	if settings.ReferralSpendThreshold <= 0 {
 		settings.ReferralSpendThreshold = 10
 	}
@@ -2617,6 +2625,8 @@ type ReferralRewardConfig struct {
 	InviteeExpiryDays int
 	InviterAmount     float64
 	InviterExpiryDays int
+	InviterGiftMode   string
+	InviterGiftRatio  float64
 	SpendThreshold    float64
 	DiscountValidDays int // 裂变继承折扣有效天数
 }
@@ -2628,6 +2638,8 @@ func (s *SettingService) GetReferralRewardConfig(ctx context.Context) ReferralRe
 		InviteeExpiryDays: 2,
 		InviterAmount:     10,
 		InviterExpiryDays: 30,
+		InviterGiftMode:   "priority",
+		InviterGiftRatio:  0.5,
 		SpendThreshold:    10,
 		DiscountValidDays: 30,
 	}
@@ -2649,6 +2661,16 @@ func (s *SettingService) GetReferralRewardConfig(ctx context.Context) ReferralRe
 	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralInviterExpiryDays); err == nil {
 		if d, e := strconv.Atoi(v); e == nil && d >= 1 {
 			cfg.InviterExpiryDays = d
+		}
+	}
+	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralInviterGiftMode); err == nil {
+		if strings.TrimSpace(v) == "ratio" {
+			cfg.InviterGiftMode = "ratio"
+		}
+	}
+	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralInviterGiftRatioRecharge); err == nil {
+		if f, e := strconv.ParseFloat(strings.TrimSpace(v), 64); e == nil && f > 0 && f <= 10 {
+			cfg.InviterGiftRatio = f
 		}
 	}
 	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralSpendThreshold); err == nil {
@@ -3623,6 +3645,14 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	result.ReferralInviterExpiryDays = 30
 	if v, err := strconv.Atoi(strings.TrimSpace(settings[SettingKeyReferralInviterExpiryDays])); err == nil && v >= 1 {
 		result.ReferralInviterExpiryDays = v
+	}
+	result.ReferralInviterGiftMode = "priority"
+	if strings.TrimSpace(settings[SettingKeyReferralInviterGiftMode]) == "ratio" {
+		result.ReferralInviterGiftMode = "ratio"
+	}
+	result.ReferralInviterGiftRatio = 0.5
+	if v, err := strconv.ParseFloat(strings.TrimSpace(settings[SettingKeyReferralInviterGiftRatioRecharge]), 64); err == nil && v > 0 && v <= 10 {
+		result.ReferralInviterGiftRatio = v
 	}
 	result.ReferralSpendThreshold = 10
 	if v, err := strconv.ParseFloat(strings.TrimSpace(settings[SettingKeyReferralSpendThreshold]), 64); err == nil && v > 0 {

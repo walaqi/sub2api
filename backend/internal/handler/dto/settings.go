@@ -264,6 +264,8 @@ type SystemSettings struct {
 	ReferralInviteeExpiryDays int     `json:"referral_invitee_expiry_days"`
 	ReferralInviterAmount     float64 `json:"referral_inviter_amount"`
 	ReferralInviterExpiryDays int     `json:"referral_inviter_expiry_days"`
+	ReferralInviterGiftMode   string  `json:"referral_inviter_gift_mode"`
+	ReferralInviterGiftRatio  float64 `json:"referral_inviter_gift_ratio_recharge"`
 	ReferralSpendThreshold    float64 `json:"referral_spend_threshold"`
 	ReferralDiscountValidDays int     `json:"referral_discount_valid_days"`
 

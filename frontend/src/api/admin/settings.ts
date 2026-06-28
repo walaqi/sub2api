@@ -627,6 +627,8 @@ export interface SystemSettings {
   referral_invitee_expiry_days: number;
   referral_inviter_amount: number;
   referral_inviter_expiry_days: number;
+  referral_inviter_gift_mode: 'priority' | 'ratio';
+  referral_inviter_gift_ratio_recharge: number;
   referral_spend_threshold: number;
   referral_discount_valid_days: number;
 
@@ -880,6 +882,8 @@ export interface UpdateSettingsRequest {
   referral_invitee_expiry_days?: number;
   referral_inviter_amount?: number;
   referral_inviter_expiry_days?: number;
+  referral_inviter_gift_mode?: 'priority' | 'ratio';
+  referral_inviter_gift_ratio_recharge?: number;
   referral_spend_threshold?: number;
   referral_discount_valid_days?: number;
 

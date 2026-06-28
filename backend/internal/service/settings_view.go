@@ -157,6 +157,8 @@ type SystemSettings struct {
 	ReferralInviteeExpiryDays    int
 	ReferralInviterAmount        float64
 	ReferralInviterExpiryDays    int
+	ReferralInviterGiftMode      string
+	ReferralInviterGiftRatio     float64
 	ReferralSpendThreshold       float64
 	ReferralDiscountValidDays    int
 	DefaultUserRPMLimit          int

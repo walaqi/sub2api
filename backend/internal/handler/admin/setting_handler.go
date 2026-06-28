@@ -305,11 +305,13 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 
 		AffiliateEnabled: settings.AffiliateEnabled,
 
-		ReferralRewardEnabled: settings.ReferralRewardEnabled,
+		ReferralRewardEnabled:     settings.ReferralRewardEnabled,
 		ReferralInviteeAmount:     settings.ReferralInviteeAmount,
 		ReferralInviteeExpiryDays: settings.ReferralInviteeExpiryDays,
 		ReferralInviterAmount:     settings.ReferralInviterAmount,
 		ReferralInviterExpiryDays: settings.ReferralInviterExpiryDays,
+		ReferralInviterGiftMode:   settings.ReferralInviterGiftMode,
+		ReferralInviterGiftRatio:  settings.ReferralInviterGiftRatio,
 		ReferralSpendThreshold:    settings.ReferralSpendThreshold,
 		ReferralDiscountValidDays: settings.ReferralDiscountValidDays,
 
@@ -670,6 +672,8 @@ type UpdateSettingsRequest struct {
 	ReferralInviteeExpiryDays *int     `json:"referral_invitee_expiry_days"`
 	ReferralInviterAmount     *float64 `json:"referral_inviter_amount"`
 	ReferralInviterExpiryDays *int     `json:"referral_inviter_expiry_days"`
+	ReferralInviterGiftMode   *string  `json:"referral_inviter_gift_mode"`
+	ReferralInviterGiftRatio  *float64 `json:"referral_inviter_gift_ratio_recharge"`
 	ReferralSpendThreshold    *float64 `json:"referral_spend_threshold"`
 	ReferralDiscountValidDays *int     `json:"referral_discount_valid_days"`
 
@@ -1857,6 +1861,18 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.ReferralInviterExpiryDays
 		}(),
+		ReferralInviterGiftMode: func() string {
+			if req.ReferralInviterGiftMode != nil {
+				return *req.ReferralInviterGiftMode
+			}
+			return previousSettings.ReferralInviterGiftMode
+		}(),
+		ReferralInviterGiftRatio: func() float64 {
+			if req.ReferralInviterGiftRatio != nil {
+				return *req.ReferralInviterGiftRatio
+			}
+			return previousSettings.ReferralInviterGiftRatio
+		}(),
 		ReferralSpendThreshold: func() float64 {
 			if req.ReferralSpendThreshold != nil {
 				return *req.ReferralSpendThreshold
@@ -2218,6 +2234,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ReferralInviteeExpiryDays: updatedSettings.ReferralInviteeExpiryDays,
 		ReferralInviterAmount:     updatedSettings.ReferralInviterAmount,
 		ReferralInviterExpiryDays: updatedSettings.ReferralInviterExpiryDays,
+		ReferralInviterGiftMode:   updatedSettings.ReferralInviterGiftMode,
+		ReferralInviterGiftRatio:  updatedSettings.ReferralInviterGiftRatio,
 		ReferralSpendThreshold:    updatedSettings.ReferralSpendThreshold,
 		ReferralDiscountValidDays: updatedSettings.ReferralDiscountValidDays,
 
@@ -2728,6 +2746,12 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.ReferralInviterExpiryDays != after.ReferralInviterExpiryDays {
 		changed = append(changed, "referral_inviter_expiry_days")
+	}
+	if before.ReferralInviterGiftMode != after.ReferralInviterGiftMode {
+		changed = append(changed, "referral_inviter_gift_mode")
+	}
+	if before.ReferralInviterGiftRatio != after.ReferralInviterGiftRatio {
+		changed = append(changed, "referral_inviter_gift_ratio_recharge")
 	}
 	if before.ReferralSpendThreshold != after.ReferralSpendThreshold {
 		changed = append(changed, "referral_spend_threshold")

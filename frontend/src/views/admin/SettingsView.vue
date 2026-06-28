@@ -5761,6 +5761,35 @@
               </div>
               <div>
                 <label class="input-label">
+                  {{ t('admin.settings.features.affiliate.referralInviterGiftMode') }}
+                </label>
+                <Select
+                  :modelValue="form.referral_inviter_gift_mode"
+                  :options="referralInviterGiftModeOptions"
+                  @update:modelValue="form.referral_inviter_gift_mode = $event as 'priority' | 'ratio'"
+                />
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.affiliate.referralInviterGiftModeHint') }}
+                </p>
+              </div>
+              <div v-if="form.referral_inviter_gift_mode === 'ratio'">
+                <label class="input-label">
+                  {{ t('admin.settings.features.affiliate.referralInviterGiftRatio') }}
+                </label>
+                <input
+                  v-model.number="form.referral_inviter_gift_ratio_recharge"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max="10"
+                  class="input"
+                />
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.affiliate.referralInviterGiftRatioHint') }}
+                </p>
+              </div>
+              <div>
+                <label class="input-label">
                   {{ t('admin.settings.features.affiliate.referralInviterExpiryDays') }}
                 </label>
                 <input
@@ -8086,6 +8115,8 @@ const form = reactive<SettingsForm>({
   referral_invitee_expiry_days: 2,
   referral_inviter_amount: 10,
   referral_inviter_expiry_days: 30,
+  referral_inviter_gift_mode: 'priority' as 'priority' | 'ratio',
+  referral_inviter_gift_ratio_recharge: 0.5,
   referral_spend_threshold: 10,
   referral_discount_valid_days: 30,
   // Allow user view error requests
@@ -8095,6 +8126,11 @@ const form = reactive<SettingsForm>({
 const authSourceDefaults = reactive<AuthSourceDefaultsState>(
   buildAuthSourceDefaultsState({}),
 );
+
+const referralInviterGiftModeOptions = computed(() => [
+  { value: 'priority', label: t('admin.settings.features.affiliate.referralInviterGiftModePriority') },
+  { value: 'ratio', label: t('admin.settings.features.affiliate.referralInviterGiftModeRatio') },
+]);
 
 const authSourceDefaultsMeta = computed(() => [
   {
@@ -9330,6 +9366,8 @@ async function saveSettings() {
       referral_invitee_expiry_days: form.referral_invitee_expiry_days,
       referral_inviter_amount: form.referral_inviter_amount,
       referral_inviter_expiry_days: form.referral_inviter_expiry_days,
+      referral_inviter_gift_mode: form.referral_inviter_gift_mode,
+      referral_inviter_gift_ratio_recharge: form.referral_inviter_gift_ratio_recharge,
       referral_spend_threshold: form.referral_spend_threshold,
       referral_discount_valid_days: form.referral_discount_valid_days,
       allow_user_view_error_requests: form.allow_user_view_error_requests,

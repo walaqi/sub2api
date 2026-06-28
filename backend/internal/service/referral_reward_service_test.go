@@ -26,6 +26,58 @@ func (s *settingServiceStub) GetReferralRewardConfig(_ context.Context) Referral
 	return s.config
 }
 
+type referralConfigSettingRepoStub struct {
+	values map[string]string
+}
+
+func (s *referralConfigSettingRepoStub) Get(_ context.Context, key string) (*Setting, error) {
+	v, err := s.GetValue(context.Background(), key)
+	if err != nil {
+		return nil, err
+	}
+	return &Setting{Key: key, Value: v}, nil
+}
+
+func (s *referralConfigSettingRepoStub) GetValue(_ context.Context, key string) (string, error) {
+	if v, ok := s.values[key]; ok {
+		return v, nil
+	}
+	return "", ErrSettingNotFound
+}
+
+func (s *referralConfigSettingRepoStub) Set(_ context.Context, _ string, _ string) error {
+	return nil
+}
+
+func (s *referralConfigSettingRepoStub) GetMultiple(_ context.Context, keys []string) (map[string]string, error) {
+	result := make(map[string]string, len(keys))
+	for _, key := range keys {
+		if v, ok := s.values[key]; ok {
+			result[key] = v
+		}
+	}
+	return result, nil
+}
+
+func (s *referralConfigSettingRepoStub) SetMultiple(_ context.Context, settings map[string]string) error {
+	if s.values == nil {
+		s.values = map[string]string{}
+	}
+	for k, v := range settings {
+		s.values[k] = v
+	}
+	return nil
+}
+
+func (s *referralConfigSettingRepoStub) GetAll(_ context.Context) (map[string]string, error) {
+	return s.values, nil
+}
+
+func (s *referralConfigSettingRepoStub) Delete(_ context.Context, key string) error {
+	delete(s.values, key)
+	return nil
+}
+
 type giftEngineStub struct {
 	grants []gift.GrantInput
 	nextID int64
@@ -43,6 +95,7 @@ func (g *giftEngineStub) Grant(_ context.Context, input gift.GrantInput) (*gift.
 
 type discountRepoForReferralStub struct {
 	discounts    []RechargeDiscountSummary
+	atTime       map[int64][]RechargeDiscountSummary
 	createdCalls []createDiscountCall
 }
 
@@ -72,6 +125,15 @@ func (r *discountRepoForReferralStub) UpdateApplicationGiftID(_ context.Context,
 }
 func (r *discountRepoForReferralStub) QueryActiveDiscountsReadOnly(_ context.Context, _ int64) ([]RechargeDiscountSummary, error) {
 	return r.discounts, nil
+}
+func (r *discountRepoForReferralStub) QueryDiscountsForInheritance(_ context.Context, _ int64) ([]RechargeDiscountSummary, error) {
+	return r.discounts, nil
+}
+func (r *discountRepoForReferralStub) QueryDiscountsForInheritanceAtTime(_ context.Context, _ int64, atTime time.Time) ([]RechargeDiscountSummary, error) {
+	if r.atTime == nil {
+		return r.discounts, nil
+	}
+	return r.atTime[atTime.Unix()], nil
 }
 func (r *discountRepoForReferralStub) CreateDiscount(_ context.Context, userID int64, source, sourceRef string, _ *int64, rate, maxAmount float64, _ time.Time, validUntil *time.Time) (int64, error) {
 	r.createdCalls = append(r.createdCalls, createDiscountCall{
@@ -130,8 +192,7 @@ func TestInheritDiscountFromInviter_HasDiscount_CreatesInherited(t *testing.T) {
 
 func TestInheritDiscountFromInviter_PartiallyUsed_InheritsFullMaxAmount(t *testing.T) {
 	// 邀请人折扣已部分使用，但被邀请人继承的是完整 max_discountable_amount（非 remaining）。
-	// 注意：生产环境中 QueryActiveDiscountsReadOnly 会过滤掉 total_discounted >= max 的行，
-	// 所以完全耗尽的折扣不会出现在此处。本测试验证部分使用场景。
+	// 继承查询不看 total_discounted；本测试验证部分使用场景仍继承完整 max。
 	validUntil := time.Now().Add(20 * 24 * time.Hour)
 	repo := &discountRepoForReferralStub{
 		discounts: []RechargeDiscountSummary{
@@ -152,15 +213,24 @@ func TestInheritDiscountFromInviter_PartiallyUsed_InheritsFullMaxAmount(t *testi
 	assert.Equal(t, 100.0, repo.createdCalls[0].MaxAmount)
 }
 
-func TestInheritDiscountFromInviter_ExhaustedNotReturned_NoOp(t *testing.T) {
-	// 生产中 QueryActiveDiscountsReadOnly 过滤 total_discounted < max_discountable_amount，
-	// 完全耗尽的折扣不会被返回 → 空列表 → 不继承。此测试模拟该行为。
-	repo := &discountRepoForReferralStub{discounts: nil} // 耗尽后查询返回空
+func TestInheritDiscountFromInviter_ExhaustedButInTimeWindow_Inherits(t *testing.T) {
+	validUntil := time.Now().Add(20 * 24 * time.Hour)
+	repo := &discountRepoForReferralStub{
+		discounts: []RechargeDiscountSummary{
+			{
+				DiscountRate:          0.1,
+				MaxDiscountableAmount: 100,
+				TotalDiscounted:       100,
+				ValidUntil:            &validUntil,
+			},
+		},
+	}
 	svc := &ReferralRewardService{discountRepo: repo}
 
 	err := svc.inheritDiscountFromInviter(context.Background(), 1, 2)
 	assert.NoError(t, err)
-	assert.Empty(t, repo.createdCalls)
+	require.Len(t, repo.createdCalls, 1)
+	assert.Equal(t, 100.0, repo.createdCalls[0].MaxAmount)
 }
 
 func TestInheritDiscountFromInviter_NilRepo_NoOp(t *testing.T) {
@@ -185,4 +255,45 @@ func TestTrackSpend_NilService_NoOp(t *testing.T) {
 	var svc *ReferralRewardService
 	err := svc.TrackSpendAndMaybeGrantInviterReward(context.Background(), 1, "event1", 10)
 	assert.NoError(t, err)
+}
+
+func TestHasInviterRewardEligibility_UsesInheritanceQuery(t *testing.T) {
+	repo := &discountRepoForReferralStub{discounts: []RechargeDiscountSummary{{ID: 1}}}
+	svc := &ReferralRewardService{discountRepo: repo}
+
+	assert.True(t, svc.hasInviterRewardEligibility(context.Background(), 1))
+}
+
+func TestHasInviterRewardEligibilityAtTime_UsesHistoricalQuery(t *testing.T) {
+	atTime := time.Unix(1000, 0)
+	repo := &discountRepoForReferralStub{
+		atTime: map[int64][]RechargeDiscountSummary{
+			atTime.Unix(): {{ID: 1}},
+		},
+	}
+	svc := &ReferralRewardService{discountRepo: repo}
+
+	assert.True(t, svc.hasInviterRewardEligibilityAtTime(context.Background(), 1, atTime))
+	assert.False(t, svc.hasInviterRewardEligibilityAtTime(context.Background(), 1, time.Unix(2000, 0)))
+}
+
+func TestGetReferralRewardConfig_InviterGiftModeDefaultsPriority(t *testing.T) {
+	svc := &SettingService{settingRepo: &referralConfigSettingRepoStub{values: map[string]string{}}}
+
+	cfg := svc.GetReferralRewardConfig(context.Background())
+
+	assert.Equal(t, "priority", cfg.InviterGiftMode)
+	assert.Equal(t, 0.5, cfg.InviterGiftRatio)
+}
+
+func TestGetReferralRewardConfig_InviterGiftModeRatio(t *testing.T) {
+	svc := &SettingService{settingRepo: &referralConfigSettingRepoStub{values: map[string]string{
+		SettingKeyReferralInviterGiftMode:          "ratio",
+		SettingKeyReferralInviterGiftRatioRecharge: "0.75",
+	}}}
+
+	cfg := svc.GetReferralRewardConfig(context.Background())
+
+	assert.Equal(t, "ratio", cfg.InviterGiftMode)
+	assert.Equal(t, 0.75, cfg.InviterGiftRatio)
 }
