@@ -71,7 +71,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	apiKeyCache := repository.NewAPIKeyCache(redisClient)
 	apiKeyService := service.ProvideAPIKeyService(apiKeyRepository, userRepository, groupRepository, userSubscriptionRepository, userGroupRateRepository, apiKeyCache, configConfig, billingCacheService)
 	apiKeyAuthCacheInvalidator := service.ProvideAPIKeyAuthCacheInvalidator(apiKeyService)
-	engine := server.ProvideGiftEngine(client, db)
+	engine := server.ProvideGiftEngine(client, db, billingCacheService)
 	promoService := service.NewPromoService(promoCodeRepository, userRepository, billingCacheService, client, apiKeyAuthCacheInvalidator, engine)
 	subscriptionService := service.NewSubscriptionService(groupRepository, userSubscriptionRepository, billingCacheService, client, configConfig)
 	affiliateRepository := repository.NewAffiliateRepository(client, db)
