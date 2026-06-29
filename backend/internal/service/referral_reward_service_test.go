@@ -97,6 +97,8 @@ type discountRepoForReferralStub struct {
 	discounts    []RechargeDiscountSummary
 	atTime       map[int64][]RechargeDiscountSummary
 	createdCalls []createDiscountCall
+	rechargeMin  float64
+	rechargeAt   *time.Time
 }
 
 type createDiscountCall struct {
@@ -139,6 +141,18 @@ func (r *discountRepoForReferralStub) QueryDiscountsForInheritanceAtTime(_ conte
 	}
 	return r.atTime[atTime.Unix()], nil
 }
+func (r *discountRepoForReferralStub) QueryDiscountsForEligibilityAfterRecharge(_ context.Context, _ int64, minAmount float64) ([]RechargeDiscountSummary, error) {
+	r.rechargeMin = minAmount
+	return r.discounts, nil
+}
+func (r *discountRepoForReferralStub) QueryDiscountsForEligibilityAfterRechargeAtTime(_ context.Context, _ int64, atTime time.Time, minAmount float64) ([]RechargeDiscountSummary, error) {
+	r.rechargeMin = minAmount
+	r.rechargeAt = &atTime
+	if r.atTime == nil {
+		return r.discounts, nil
+	}
+	return r.atTime[atTime.Unix()], nil
+}
 func (r *discountRepoForReferralStub) CreateDiscount(_ context.Context, in CreateRechargeDiscountInput) (int64, error) {
 	r.createdCalls = append(r.createdCalls, createDiscountCall{
 		UserID:               in.UserID,
@@ -161,7 +175,7 @@ func TestInheritDiscountFromInviter_NoDiscount_NoOp(t *testing.T) {
 	repo := &discountRepoForReferralStub{discounts: nil}
 	svc := &ReferralRewardService{discountRepo: repo}
 
-	err := svc.inheritDiscountFromInviter(context.Background(), 1, 2)
+	err := svc.inheritDiscountFromInviter(context.Background(), 1, 2, time.Now())
 	assert.NoError(t, err)
 	assert.Empty(t, repo.createdCalls)
 }
@@ -182,7 +196,7 @@ func TestInheritDiscountFromInviter_HasDiscount_CreatesInherited(t *testing.T) {
 	}
 	svc := &ReferralRewardService{discountRepo: repo}
 
-	err := svc.inheritDiscountFromInviter(context.Background(), 10, 20)
+	err := svc.inheritDiscountFromInviter(context.Background(), 10, 20, time.Now())
 	require.NoError(t, err)
 	require.Len(t, repo.createdCalls, 1)
 
@@ -215,7 +229,7 @@ func TestInheritDiscountFromInviter_CopiesMode_Priority(t *testing.T) {
 	}
 	svc := &ReferralRewardService{discountRepo: repo}
 
-	err := svc.inheritDiscountFromInviter(context.Background(), 10, 20)
+	err := svc.inheritDiscountFromInviter(context.Background(), 10, 20, time.Now())
 	require.NoError(t, err)
 	require.Len(t, repo.createdCalls, 1)
 	assert.Equal(t, "priority", repo.createdCalls[0].GiftDeductionMode)
@@ -240,7 +254,7 @@ func TestInheritDiscountFromInviter_CopiesMode_Ratio(t *testing.T) {
 	}
 	svc := &ReferralRewardService{discountRepo: repo}
 
-	err := svc.inheritDiscountFromInviter(context.Background(), 10, 20)
+	err := svc.inheritDiscountFromInviter(context.Background(), 10, 20, time.Now())
 	require.NoError(t, err)
 	require.Len(t, repo.createdCalls, 1)
 	assert.Equal(t, "ratio", repo.createdCalls[0].GiftDeductionMode)
@@ -265,7 +279,7 @@ func TestInheritDiscountFromInviter_CopiesGiftExpiry_AfterDays(t *testing.T) {
 	}
 	svc := &ReferralRewardService{discountRepo: repo}
 
-	err := svc.inheritDiscountFromInviter(context.Background(), 10, 20)
+	err := svc.inheritDiscountFromInviter(context.Background(), 10, 20, time.Now())
 	require.NoError(t, err)
 	require.Len(t, repo.createdCalls, 1)
 	assert.Equal(t, "after_days", repo.createdCalls[0].GiftExpiryMode)
@@ -289,7 +303,7 @@ func TestInheritDiscountFromInviter_PartiallyUsed_InheritsFullMaxAmount(t *testi
 	}
 	svc := &ReferralRewardService{discountRepo: repo}
 
-	err := svc.inheritDiscountFromInviter(context.Background(), 1, 2)
+	err := svc.inheritDiscountFromInviter(context.Background(), 1, 2, time.Now())
 	assert.NoError(t, err)
 	// 被邀请人获得完整 max_discountable_amount，不受邀请人已消费额度影响
 	require.Len(t, repo.createdCalls, 1)
@@ -310,7 +324,7 @@ func TestInheritDiscountFromInviter_ExhaustedButInTimeWindow_Inherits(t *testing
 	}
 	svc := &ReferralRewardService{discountRepo: repo}
 
-	err := svc.inheritDiscountFromInviter(context.Background(), 1, 2)
+	err := svc.inheritDiscountFromInviter(context.Background(), 1, 2, time.Now())
 	assert.NoError(t, err)
 	require.Len(t, repo.createdCalls, 1)
 	assert.Equal(t, 100.0, repo.createdCalls[0].MaxAmount)
@@ -318,7 +332,7 @@ func TestInheritDiscountFromInviter_ExhaustedButInTimeWindow_Inherits(t *testing
 
 func TestInheritDiscountFromInviter_NilRepo_NoOp(t *testing.T) {
 	svc := &ReferralRewardService{discountRepo: nil}
-	err := svc.inheritDiscountFromInviter(context.Background(), 1, 2)
+	err := svc.inheritDiscountFromInviter(context.Background(), 1, 2, time.Now())
 	assert.NoError(t, err)
 }
 
@@ -360,6 +374,59 @@ func TestHasInviterRewardEligibilityAtTime_UsesHistoricalQuery(t *testing.T) {
 	assert.False(t, svc.hasInviterRewardEligibilityAtTime(context.Background(), 1, time.Unix(2000, 0)))
 }
 
+func TestReferralEligibility_RechargeMode_UsesRechargeQuery(t *testing.T) {
+	repo := &discountRepoForReferralStub{discounts: []RechargeDiscountSummary{{ID: 1}}}
+	svc := &ReferralRewardService{
+		discountRepo: repo,
+		settingService: &SettingService{settingRepo: &referralConfigSettingRepoStub{values: map[string]string{
+			SettingKeyReferralEligibilityGrantMode:   ReferralEligibilityGrantModeRecharge,
+			SettingKeyReferralEligibilityRechargeMin: "25.50",
+		}}},
+	}
+
+	assert.True(t, svc.hasInviterRewardEligibility(context.Background(), 1))
+	assert.Equal(t, 25.5, repo.rechargeMin)
+}
+
+func TestReferralEligibility_RechargeModeAtTime_UsesBoundAt(t *testing.T) {
+	boundAt := time.Unix(5000, 0)
+	repo := &discountRepoForReferralStub{
+		atTime: map[int64][]RechargeDiscountSummary{
+			boundAt.Unix(): {{ID: 1}},
+		},
+	}
+	svc := &ReferralRewardService{
+		discountRepo: repo,
+		settingService: &SettingService{settingRepo: &referralConfigSettingRepoStub{values: map[string]string{
+			SettingKeyReferralEligibilityGrantMode:   ReferralEligibilityGrantModeRecharge,
+			SettingKeyReferralEligibilityRechargeMin: "10",
+		}}},
+	}
+
+	assert.True(t, svc.hasInviterRewardEligibilityAtTime(context.Background(), 1, boundAt))
+	require.NotNil(t, repo.rechargeAt)
+	assert.Equal(t, boundAt.Unix(), repo.rechargeAt.Unix())
+	assert.Equal(t, 10.0, repo.rechargeMin)
+}
+
+func TestInheritDiscountFromInviter_RechargeModeRequiresEligibility(t *testing.T) {
+	boundAt := time.Unix(8000, 0)
+	repo := &discountRepoForReferralStub{
+		discounts: []RechargeDiscountSummary{{ID: 1, DiscountRate: 0.2, MaxDiscountableAmount: 100}},
+		atTime:    map[int64][]RechargeDiscountSummary{},
+	}
+	svc := &ReferralRewardService{
+		discountRepo: repo,
+		settingService: &SettingService{settingRepo: &referralConfigSettingRepoStub{values: map[string]string{
+			SettingKeyReferralEligibilityGrantMode: ReferralEligibilityGrantModeRecharge,
+		}}},
+	}
+
+	err := svc.inheritDiscountFromInviter(context.Background(), 1, 2, boundAt)
+	assert.NoError(t, err)
+	assert.Empty(t, repo.createdCalls)
+}
+
 func TestGetReferralRewardConfig_InviterGiftModeDefaultsPriority(t *testing.T) {
 	svc := &SettingService{settingRepo: &referralConfigSettingRepoStub{values: map[string]string{}}}
 
@@ -379,4 +446,37 @@ func TestGetReferralRewardConfig_InviterGiftModeRatio(t *testing.T) {
 
 	assert.Equal(t, "ratio", cfg.InviterGiftMode)
 	assert.Equal(t, 0.75, cfg.InviterGiftRatio)
+}
+
+func TestGetReferralRewardConfig_EligibilityDefaults(t *testing.T) {
+	svc := &SettingService{settingRepo: &referralConfigSettingRepoStub{values: map[string]string{}}}
+
+	cfg := svc.GetReferralRewardConfig(context.Background())
+
+	assert.Equal(t, ReferralEligibilityGrantModeBindKeyClaim, cfg.EligibilityGrantMode)
+	assert.Equal(t, 0.0, cfg.EligibilityRechargeMinAmount)
+}
+
+func TestGetReferralRewardConfig_EligibilityRechargeMode(t *testing.T) {
+	svc := &SettingService{settingRepo: &referralConfigSettingRepoStub{values: map[string]string{
+		SettingKeyReferralEligibilityGrantMode:   ReferralEligibilityGrantModeRecharge,
+		SettingKeyReferralEligibilityRechargeMin: "30.25",
+	}}}
+
+	cfg := svc.GetReferralRewardConfig(context.Background())
+
+	assert.Equal(t, ReferralEligibilityGrantModeRecharge, cfg.EligibilityGrantMode)
+	assert.Equal(t, 30.25, cfg.EligibilityRechargeMinAmount)
+}
+
+func TestGetReferralRewardConfig_EligibilityInvalidFallback(t *testing.T) {
+	svc := &SettingService{settingRepo: &referralConfigSettingRepoStub{values: map[string]string{
+		SettingKeyReferralEligibilityGrantMode:   "unknown",
+		SettingKeyReferralEligibilityRechargeMin: "-1",
+	}}}
+
+	cfg := svc.GetReferralRewardConfig(context.Background())
+
+	assert.Equal(t, ReferralEligibilityGrantModeBindKeyClaim, cfg.EligibilityGrantMode)
+	assert.Equal(t, 0.0, cfg.EligibilityRechargeMinAmount)
 }

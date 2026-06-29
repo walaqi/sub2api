@@ -259,15 +259,17 @@ type SystemSettings struct {
 	AffiliateEnabled bool `json:"affiliate_enabled"`
 
 	// Referral Reward (双向邀请赠金) feature switch + params
-	ReferralRewardEnabled     bool    `json:"referral_reward_enabled"`
-	ReferralInviteeAmount     float64 `json:"referral_invitee_amount"`
-	ReferralInviteeExpiryDays int     `json:"referral_invitee_expiry_days"`
-	ReferralInviterAmount     float64 `json:"referral_inviter_amount"`
-	ReferralInviterExpiryDays int     `json:"referral_inviter_expiry_days"`
-	ReferralInviterGiftMode   string  `json:"referral_inviter_gift_mode"`
-	ReferralInviterGiftRatio  float64 `json:"referral_inviter_gift_ratio_recharge"`
-	ReferralSpendThreshold    float64 `json:"referral_spend_threshold"`
-	ReferralDiscountValidDays int     `json:"referral_discount_valid_days"`
+	ReferralRewardEnabled                bool    `json:"referral_reward_enabled"`
+	ReferralInviteeAmount                float64 `json:"referral_invitee_amount"`
+	ReferralInviteeExpiryDays            int     `json:"referral_invitee_expiry_days"`
+	ReferralInviterAmount                float64 `json:"referral_inviter_amount"`
+	ReferralInviterExpiryDays            int     `json:"referral_inviter_expiry_days"`
+	ReferralInviterGiftMode              string  `json:"referral_inviter_gift_mode"`
+	ReferralInviterGiftRatio             float64 `json:"referral_inviter_gift_ratio_recharge"`
+	ReferralSpendThreshold               float64 `json:"referral_spend_threshold"`
+	ReferralDiscountValidDays            int     `json:"referral_discount_valid_days"`
+	ReferralEligibilityGrantMode         string  `json:"referral_eligibility_grant_mode"`
+	ReferralEligibilityRechargeMinAmount float64 `json:"referral_eligibility_recharge_min_amount"`
 
 	// OpenAI fast/flex policy
 	OpenAIFastPolicySettings *OpenAIFastPolicySettings `json:"openai_fast_policy_settings,omitempty"`

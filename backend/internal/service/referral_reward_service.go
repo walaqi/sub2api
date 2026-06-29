@@ -42,14 +42,14 @@ func NewReferralRewardService(
 // 被邀请人注册后绑定邀请关系时由 AffiliateService 异步调用。
 // 无论功能开关状态如何，都创建 tracker 行（确保后续开启时能追踪）。
 // 仅当 referral_reward_enabled=true 时发放被邀请人赠金和继承折扣。
-func (s *ReferralRewardService) OnInviterBound(ctx context.Context, inviterID, inviteeID int64) {
+func (s *ReferralRewardService) OnInviterBound(ctx context.Context, inviterID, inviteeID int64, boundAt time.Time) {
 	if s == nil || s.entClient == nil {
 		return
 	}
 
 	// 获取配置
 	cfg := s.settingService.GetReferralRewardConfig(ctx)
-	rewardEligible := s.hasInviterRewardEligibility(ctx, inviterID)
+	rewardEligible := s.hasInviterRewardEligibilityAtTime(ctx, inviterID, boundAt)
 
 	// 创建 tracker 行（幂等，ON CONFLICT DO NOTHING）
 	if err := s.ensureTracker(ctx, inviterID, inviteeID, cfg.SpendThreshold, rewardEligible); err != nil {
@@ -68,7 +68,7 @@ func (s *ReferralRewardService) OnInviterBound(ctx context.Context, inviterID, i
 	}
 
 	// 继承邀请人的充值折扣
-	if err := s.inheritDiscountFromInviter(ctx, inviterID, inviteeID); err != nil {
+	if err := s.inheritDiscountFromInviter(ctx, inviterID, inviteeID, boundAt); err != nil {
 		log.Printf("[referral] inherit discount for invitee=%d from inviter=%d failed: %v", inviteeID, inviterID, err)
 	}
 }
@@ -233,7 +233,7 @@ func (s *ReferralRewardService) lookupInviteeAffiliate(ctx context.Context, exec
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 }, inviteeID int64) (*inviteeAffiliateSnapshot, error) {
 	rows, err := execer.QueryContext(ctx,
-		`SELECT inviter_id, updated_at FROM user_affiliates WHERE user_id = $1 AND inviter_id IS NOT NULL LIMIT 1`,
+		`SELECT inviter_id, COALESCE(inviter_bound_at, updated_at) FROM user_affiliates WHERE user_id = $1 AND inviter_id IS NOT NULL LIMIT 1`,
 		inviteeID)
 	if err != nil {
 		return nil, err
@@ -335,13 +335,12 @@ FOR UPDATE`, inviterID, inviteeID)
 
 // inheritDiscountFromInviter 继承邀请人的最佳活跃充值折扣。
 // 使用邀请人的 max_discountable_amount（非 remaining）和可配置的 valid_days。
-func (s *ReferralRewardService) inheritDiscountFromInviter(ctx context.Context, inviterID, inviteeID int64) error {
+func (s *ReferralRewardService) inheritDiscountFromInviter(ctx context.Context, inviterID, inviteeID int64, boundAt time.Time) error {
 	if s.discountRepo == nil {
 		return nil
 	}
 
-	// 读取邀请人的可继承折扣：只看时间窗口，不看额度是否耗尽。
-	discounts, err := s.discountRepo.QueryDiscountsForInheritance(ctx, inviterID)
+	discounts, err := s.queryInviterDiscountsForReferralGrant(ctx, inviterID, &boundAt)
 	if err != nil || len(discounts) == 0 {
 		return err
 	}
@@ -378,22 +377,37 @@ func (s *ReferralRewardService) inheritDiscountFromInviter(ctx context.Context, 
 	return nil
 }
 
-// hasInviterRewardEligibility 判断邀请人是否有超级邀请达标赠金资格（仅看折扣时间窗口，不看额度）。
+// hasInviterRewardEligibility 判断邀请人当前是否有超级邀请达标赠金资格。
 func (s *ReferralRewardService) hasInviterRewardEligibility(ctx context.Context, inviterID int64) bool {
-	if s == nil || s.discountRepo == nil {
-		return false
-	}
-	discounts, err := s.discountRepo.QueryDiscountsForInheritance(ctx, inviterID)
+	discounts, err := s.queryInviterDiscountsForReferralGrant(ctx, inviterID, nil)
 	return err == nil && len(discounts) > 0
 }
 
 // hasInviterRewardEligibilityAtTime 判断邀请人在指定绑定时间点是否有超级邀请达标赠金资格。
 func (s *ReferralRewardService) hasInviterRewardEligibilityAtTime(ctx context.Context, inviterID int64, atTime time.Time) bool {
-	if s == nil || s.discountRepo == nil {
-		return false
-	}
-	discounts, err := s.discountRepo.QueryDiscountsForInheritanceAtTime(ctx, inviterID, atTime)
+	discounts, err := s.queryInviterDiscountsForReferralGrant(ctx, inviterID, &atTime)
 	return err == nil && len(discounts) > 0
+}
+
+func (s *ReferralRewardService) queryInviterDiscountsForReferralGrant(ctx context.Context, inviterID int64, atTime *time.Time) ([]RechargeDiscountSummary, error) {
+	if s == nil || s.discountRepo == nil {
+		return nil, nil
+	}
+	cfg := ReferralRewardConfig{EligibilityGrantMode: ReferralEligibilityGrantModeBindKeyClaim}
+	if s.settingService != nil {
+		cfg = s.settingService.GetReferralRewardConfig(ctx)
+	}
+	if cfg.EligibilityGrantMode == ReferralEligibilityGrantModeRecharge {
+		minAmount := normalizeReferralEligibilityRechargeMinAmount(cfg.EligibilityRechargeMinAmount)
+		if atTime != nil {
+			return s.discountRepo.QueryDiscountsForEligibilityAfterRechargeAtTime(ctx, inviterID, *atTime, minAmount)
+		}
+		return s.discountRepo.QueryDiscountsForEligibilityAfterRecharge(ctx, inviterID, minAmount)
+	}
+	if atTime != nil {
+		return s.discountRepo.QueryDiscountsForInheritanceAtTime(ctx, inviterID, *atTime)
+	}
+	return s.discountRepo.QueryDiscountsForInheritance(ctx, inviterID)
 }
 
 func (s *ReferralRewardService) execer(ctx context.Context) interface {
@@ -408,11 +422,13 @@ func (s *ReferralRewardService) execer(ctx context.Context) interface {
 
 // ReferralStatus 是用户可见的邀请奖励状态。
 type ReferralStatus struct {
-	Enabled         bool              `json:"enabled"`
-	Eligible        bool              `json:"eligible"`         // 当前用户是否处于超级邀请资格时间窗口
-	AffCode         string            `json:"aff_code"`         // 用户的邀请码（用于生成邀请链接）
-	InviteeReward   *InviteeRewardDTO `json:"invitee_reward"`   // 当前用户作为被邀请人的奖励状态（nil=非被邀请人）
-	InviterProgress []InviteeProgress `json:"inviter_progress"` // 当前用户作为邀请人，各被邀请人的消费进度
+	Enabled                      bool              `json:"enabled"`
+	Eligible                     bool              `json:"eligible"` // 当前用户是否有超级邀请资格
+	EligibilityGrantMode         string            `json:"eligibility_grant_mode"`
+	EligibilityRechargeMinAmount float64           `json:"eligibility_recharge_min_amount"`
+	AffCode                      string            `json:"aff_code"`         // 用户的邀请码（用于生成邀请链接）
+	InviteeReward                *InviteeRewardDTO `json:"invitee_reward"`   // 当前用户作为被邀请人的奖励状态（nil=非被邀请人）
+	InviterProgress              []InviteeProgress `json:"inviter_progress"` // 当前用户作为邀请人，各被邀请人的消费进度
 }
 
 type InviteeRewardDTO struct {
@@ -441,7 +457,20 @@ func (s *ReferralRewardService) GetReferralStatus(ctx context.Context, userID in
 		enabled = s.settingService.IsReferralRewardEnabled(ctx)
 	}
 
-	status := &ReferralStatus{Enabled: enabled}
+	cfg := ReferralRewardConfig{
+		InviteeAmount:                10,
+		EligibilityGrantMode:         ReferralEligibilityGrantModeBindKeyClaim,
+		EligibilityRechargeMinAmount: 0,
+	}
+	if s.settingService != nil {
+		cfg = s.settingService.GetReferralRewardConfig(ctx)
+	}
+
+	status := &ReferralStatus{
+		Enabled:                      enabled,
+		EligibilityGrantMode:         cfg.EligibilityGrantMode,
+		EligibilityRechargeMinAmount: cfg.EligibilityRechargeMinAmount,
+	}
 	status.Eligible = s.hasInviterRewardEligibility(ctx, userID)
 
 	// 0. 获取用户的邀请码（lazy-create：无 user_affiliates 行时自动创建并生成 aff_code）
@@ -466,10 +495,6 @@ func (s *ReferralRewardService) GetReferralStatus(ctx context.Context, userID in
 		if err := inviteeRows.Scan(&granted); err != nil {
 			_ = inviteeRows.Close()
 			return nil, fmt.Errorf("scan invitee reward: %w", err)
-		}
-		cfg := ReferralRewardConfig{InviteeAmount: 10}
-		if s.settingService != nil {
-			cfg = s.settingService.GetReferralRewardConfig(ctx)
 		}
 		status.InviteeReward = &InviteeRewardDTO{Granted: granted, Amount: cfg.InviteeAmount}
 	}

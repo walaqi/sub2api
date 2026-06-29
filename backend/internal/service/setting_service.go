@@ -2058,6 +2058,10 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 		settings.ReferralDiscountValidDays = 30
 	}
 	updates[SettingKeyReferralDiscountValidDays] = strconv.Itoa(settings.ReferralDiscountValidDays)
+	settings.ReferralEligibilityGrantMode = normalizeReferralEligibilityGrantMode(settings.ReferralEligibilityGrantMode)
+	updates[SettingKeyReferralEligibilityGrantMode] = settings.ReferralEligibilityGrantMode
+	settings.ReferralEligibilityRechargeMinAmount = normalizeReferralEligibilityRechargeMinAmount(settings.ReferralEligibilityRechargeMinAmount)
+	updates[SettingKeyReferralEligibilityRechargeMin] = strconv.FormatFloat(settings.ReferralEligibilityRechargeMinAmount, 'f', 2, 64)
 
 	// 风控中心功能开关
 	updates[SettingKeyRiskControlEnabled] = strconv.FormatBool(settings.RiskControlEnabled)
@@ -2621,27 +2625,50 @@ func (s *SettingService) IsReferralRewardEnabled(ctx context.Context) bool {
 
 // ReferralRewardConfig 返回双向邀请赠金的可配置参数。
 type ReferralRewardConfig struct {
-	InviteeAmount     float64
-	InviteeExpiryDays int
-	InviterAmount     float64
-	InviterExpiryDays int
-	InviterGiftMode   string
-	InviterGiftRatio  float64
-	SpendThreshold    float64
-	DiscountValidDays int // 裂变继承折扣有效天数
+	InviteeAmount                float64
+	InviteeExpiryDays            int
+	InviterAmount                float64
+	InviterExpiryDays            int
+	InviterGiftMode              string
+	InviterGiftRatio             float64
+	SpendThreshold               float64
+	DiscountValidDays            int // 裂变继承折扣有效天数
+	EligibilityGrantMode         string
+	EligibilityRechargeMinAmount float64
+}
+
+const (
+	ReferralEligibilityGrantModeBindKeyClaim = "bind_key_claim"
+	ReferralEligibilityGrantModeRecharge     = "recharge"
+)
+
+func normalizeReferralEligibilityGrantMode(mode string) string {
+	if strings.TrimSpace(mode) == ReferralEligibilityGrantModeRecharge {
+		return ReferralEligibilityGrantModeRecharge
+	}
+	return ReferralEligibilityGrantModeBindKeyClaim
+}
+
+func normalizeReferralEligibilityRechargeMinAmount(v float64) float64 {
+	if v < 0 {
+		return 0
+	}
+	return v
 }
 
 // GetReferralRewardConfig 读取双向邀请赠金配置，缺失时使用默认值。
 func (s *SettingService) GetReferralRewardConfig(ctx context.Context) ReferralRewardConfig {
 	cfg := ReferralRewardConfig{
-		InviteeAmount:     10,
-		InviteeExpiryDays: 2,
-		InviterAmount:     10,
-		InviterExpiryDays: 30,
-		InviterGiftMode:   "priority",
-		InviterGiftRatio:  0.5,
-		SpendThreshold:    10,
-		DiscountValidDays: 30,
+		InviteeAmount:                10,
+		InviteeExpiryDays:            2,
+		InviterAmount:                10,
+		InviterExpiryDays:            30,
+		InviterGiftMode:              "priority",
+		InviterGiftRatio:             0.5,
+		SpendThreshold:               10,
+		DiscountValidDays:            30,
+		EligibilityGrantMode:         ReferralEligibilityGrantModeBindKeyClaim,
+		EligibilityRechargeMinAmount: 0,
 	}
 	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralInviteeAmount); err == nil {
 		if f, e := strconv.ParseFloat(v, 64); e == nil && f > 0 {
@@ -2681,6 +2708,14 @@ func (s *SettingService) GetReferralRewardConfig(ctx context.Context) ReferralRe
 	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralDiscountValidDays); err == nil {
 		if d, e := strconv.Atoi(v); e == nil && d >= 1 {
 			cfg.DiscountValidDays = d
+		}
+	}
+	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralEligibilityGrantMode); err == nil {
+		cfg.EligibilityGrantMode = normalizeReferralEligibilityGrantMode(v)
+	}
+	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralEligibilityRechargeMin); err == nil {
+		if f, e := strconv.ParseFloat(strings.TrimSpace(v), 64); e == nil {
+			cfg.EligibilityRechargeMinAmount = normalizeReferralEligibilityRechargeMinAmount(f)
 		}
 	}
 	return cfg
@@ -3109,7 +3144,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyAffiliateEnabled: "false",
 
 		// Referral Reward (双向邀请赠金) feature (default disabled; opt-in)
-		SettingKeyReferralRewardEnabled: "false",
+		SettingKeyReferralRewardEnabled:          "false",
+		SettingKeyReferralEligibilityGrantMode:   ReferralEligibilityGrantModeBindKeyClaim,
+		SettingKeyReferralEligibilityRechargeMin: "0",
 
 		// 风控中心功能（默认关闭，显式启用）
 		SettingKeyRiskControlEnabled: "false",
@@ -3661,6 +3698,11 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	result.ReferralDiscountValidDays = 30
 	if v, err := strconv.Atoi(strings.TrimSpace(settings[SettingKeyReferralDiscountValidDays])); err == nil && v >= 1 {
 		result.ReferralDiscountValidDays = v
+	}
+	result.ReferralEligibilityGrantMode = normalizeReferralEligibilityGrantMode(settings[SettingKeyReferralEligibilityGrantMode])
+	result.ReferralEligibilityRechargeMinAmount = 0
+	if v, err := strconv.ParseFloat(strings.TrimSpace(settings[SettingKeyReferralEligibilityRechargeMin]), 64); err == nil {
+		result.ReferralEligibilityRechargeMinAmount = normalizeReferralEligibilityRechargeMinAmount(v)
 	}
 
 	// 风控中心功能（默认关闭，严格 true 才启用）

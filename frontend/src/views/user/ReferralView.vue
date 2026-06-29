@@ -47,6 +47,18 @@
             </div>
           </div>
 
+          <div v-if="status && !status.eligible" class="card border-amber-200 bg-amber-50 p-6 dark:border-amber-800/50 dark:bg-amber-900/20">
+            <div class="flex items-start gap-3">
+              <Icon name="exclamationCircle" size="md" class="mt-0.5 text-amber-600 dark:text-amber-400" />
+              <div>
+                <h3 class="text-sm font-semibold text-amber-800 dark:text-amber-200">{{ t('referral.eligibilityPendingTitle') }}</h3>
+                <p class="mt-1 text-sm text-amber-700 dark:text-amber-300">
+                  {{ eligibilityHint }}
+                </p>
+              </div>
+            </div>
+          </div>
+
           <!-- Invitee reward card (if current user is an invitee) -->
           <div v-if="status?.invitee_reward" class="card border-emerald-200 bg-emerald-50 p-6 dark:border-emerald-800/50 dark:bg-emerald-900/20">
             <div class="flex items-start gap-3">
@@ -136,6 +148,8 @@ const { t } = useI18n()
 interface ReferralStatusResponse {
   enabled: boolean
   eligible: boolean
+  eligibility_grant_mode: 'bind_key_claim' | 'recharge'
+  eligibility_recharge_min_amount: number
   aff_code: string
   invitee_reward: { granted: boolean; amount: number } | null
   inviter_progress: Array<{
@@ -156,6 +170,18 @@ const inviteLink = computed(() => {
   const base = window.location.origin
   const affCode = status.value?.aff_code || ''
   return affCode ? `${base}/register?aff=${affCode}` : `${base}/register`
+})
+
+const eligibilityHint = computed(() => {
+  if (!status.value) return ''
+  if (status.value.eligibility_grant_mode === 'recharge') {
+    const minAmount = status.value.eligibility_recharge_min_amount || 0
+    if (minAmount > 0) {
+      return t('referral.eligibilityRechargeMinHint', { amount: minAmount })
+    }
+    return t('referral.eligibilityRechargeHint')
+  }
+  return t('referral.eligibilityBindKeyHint')
 })
 
 async function copyLink() {

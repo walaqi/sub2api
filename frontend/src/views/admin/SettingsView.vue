@@ -5743,6 +5743,37 @@
               </div>
               <div>
                 <label class="input-label">
+                  {{ t('admin.settings.features.affiliate.referralEligibilityGrantMode') }}
+                </label>
+                <Select
+                  :modelValue="form.referral_eligibility_grant_mode"
+                  :options="referralEligibilityGrantModeOptions"
+                  @update:modelValue="form.referral_eligibility_grant_mode = $event as 'bind_key_claim' | 'recharge'"
+                />
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.affiliate.referralEligibilityGrantModeHint') }}
+                </p>
+              </div>
+              <div v-if="form.referral_eligibility_grant_mode === 'recharge'">
+                <label class="input-label">
+                  {{ t('admin.settings.features.affiliate.referralEligibilityRechargeMinAmount') }}
+                </label>
+                <div class="relative">
+                  <input
+                    v-model.number="form.referral_eligibility_recharge_min_amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="input pr-12"
+                  />
+                  <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-gray-400">USD</span>
+                </div>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.affiliate.referralEligibilityRechargeMinAmountHint') }}
+                </p>
+              </div>
+              <div>
+                <label class="input-label">
                   {{ t('admin.settings.features.affiliate.referralInviterAmount') }}
                 </label>
                 <div class="relative">
@@ -8119,6 +8150,8 @@ const form = reactive<SettingsForm>({
   referral_inviter_gift_ratio_recharge: 0.5,
   referral_spend_threshold: 10,
   referral_discount_valid_days: 30,
+  referral_eligibility_grant_mode: 'bind_key_claim' as 'bind_key_claim' | 'recharge',
+  referral_eligibility_recharge_min_amount: 0,
   // Allow user view error requests
   allow_user_view_error_requests: false,
 });
@@ -8130,6 +8163,11 @@ const authSourceDefaults = reactive<AuthSourceDefaultsState>(
 const referralInviterGiftModeOptions = computed(() => [
   { value: 'priority', label: t('admin.settings.features.affiliate.referralInviterGiftModePriority') },
   { value: 'ratio', label: t('admin.settings.features.affiliate.referralInviterGiftModeRatio') },
+]);
+
+const referralEligibilityGrantModeOptions = computed(() => [
+  { value: 'bind_key_claim', label: t('admin.settings.features.affiliate.referralEligibilityGrantModeBindKeyClaim') },
+  { value: 'recharge', label: t('admin.settings.features.affiliate.referralEligibilityGrantModeRecharge') },
 ]);
 
 const authSourceDefaultsMeta = computed(() => [
@@ -9370,6 +9408,8 @@ async function saveSettings() {
       referral_inviter_gift_ratio_recharge: form.referral_inviter_gift_ratio_recharge,
       referral_spend_threshold: form.referral_spend_threshold,
       referral_discount_valid_days: form.referral_discount_valid_days,
+      referral_eligibility_grant_mode: form.referral_eligibility_grant_mode,
+      referral_eligibility_recharge_min_amount: form.referral_eligibility_recharge_min_amount,
       allow_user_view_error_requests: form.allow_user_view_error_requests,
     };
 

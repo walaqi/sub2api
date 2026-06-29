@@ -142,27 +142,29 @@ type SystemSettings struct {
 	CustomMenuItems             string // JSON array of custom menu items
 	CustomEndpoints             string // JSON array of custom endpoints
 
-	DefaultConcurrency           int
-	DefaultBalance               float64
-	RiskControlEnabled           bool
-	CyberSessionBlockEnabled     bool
-	CyberSessionBlockTTLSeconds  int
-	AffiliateEnabled             bool
-	AffiliateRebateRate          float64
-	AffiliateRebateFreezeHours   int
-	AffiliateRebateDurationDays  int
-	AffiliateRebatePerInviteeCap float64
-	ReferralRewardEnabled        bool
-	ReferralInviteeAmount        float64
-	ReferralInviteeExpiryDays    int
-	ReferralInviterAmount        float64
-	ReferralInviterExpiryDays    int
-	ReferralInviterGiftMode      string
-	ReferralInviterGiftRatio     float64
-	ReferralSpendThreshold       float64
-	ReferralDiscountValidDays    int
-	DefaultUserRPMLimit          int
-	DefaultSubscriptions         []DefaultSubscriptionSetting
+	DefaultConcurrency                   int
+	DefaultBalance                       float64
+	RiskControlEnabled                   bool
+	CyberSessionBlockEnabled             bool
+	CyberSessionBlockTTLSeconds          int
+	AffiliateEnabled                     bool
+	AffiliateRebateRate                  float64
+	AffiliateRebateFreezeHours           int
+	AffiliateRebateDurationDays          int
+	AffiliateRebatePerInviteeCap         float64
+	ReferralRewardEnabled                bool
+	ReferralInviteeAmount                float64
+	ReferralInviteeExpiryDays            int
+	ReferralInviterAmount                float64
+	ReferralInviterExpiryDays            int
+	ReferralInviterGiftMode              string
+	ReferralInviterGiftRatio             float64
+	ReferralSpendThreshold               float64
+	ReferralDiscountValidDays            int
+	ReferralEligibilityGrantMode         string
+	ReferralEligibilityRechargeMinAmount float64
+	DefaultUserRPMLimit                  int
+	DefaultSubscriptions                 []DefaultSubscriptionSetting
 
 	// Model fallback configuration
 	EnableModelFallback      bool   `json:"enable_model_fallback"`

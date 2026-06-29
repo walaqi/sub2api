@@ -631,6 +631,8 @@ export interface SystemSettings {
   referral_inviter_gift_ratio_recharge: number;
   referral_spend_threshold: number;
   referral_discount_valid_days: number;
+  referral_eligibility_grant_mode: 'bind_key_claim' | 'recharge';
+  referral_eligibility_recharge_min_amount: number;
 
   // OpenAI fast/flex policy
   openai_fast_policy_settings?: OpenAIFastPolicySettings;
@@ -886,6 +888,8 @@ export interface UpdateSettingsRequest {
   referral_inviter_gift_ratio_recharge?: number;
   referral_spend_threshold?: number;
   referral_discount_valid_days?: number;
+  referral_eligibility_grant_mode?: 'bind_key_claim' | 'recharge';
+  referral_eligibility_recharge_min_amount?: number;
 
   // OpenAI fast/flex policy
   openai_fast_policy_settings?: OpenAIFastPolicySettings;

@@ -97,7 +97,7 @@ type AffiliateDetail struct {
 type AffiliateRepository interface {
 	EnsureUserAffiliate(ctx context.Context, userID int64) (*AffiliateSummary, error)
 	GetAffiliateByCode(ctx context.Context, code string) (*AffiliateSummary, error)
-	BindInviter(ctx context.Context, userID, inviterID int64) (bool, error)
+	BindInviter(ctx context.Context, userID, inviterID int64) (bool, time.Time, error)
 	AccrueQuota(ctx context.Context, inviterID, inviteeUserID int64, amount float64, freezeHours int, sourceOrderID *int64) (bool, error)
 	GetAccruedRebateFromInvitee(ctx context.Context, inviterID, inviteeUserID int64) (float64, error)
 	ThawFrozenQuota(ctx context.Context, userID int64) (float64, error)
@@ -307,7 +307,7 @@ func (s *AffiliateService) BindInviterByCode(ctx context.Context, userID int64, 
 		return ErrAffiliateCodeInvalid
 	}
 
-	bound, err := s.repo.BindInviter(ctx, userID, inviterSummary.UserID)
+	bound, boundAt, err := s.repo.BindInviter(ctx, userID, inviterSummary.UserID)
 	if err != nil {
 		return err
 	}
@@ -321,7 +321,7 @@ func (s *AffiliateService) BindInviterByCode(ctx context.Context, userID int64, 
 		hookCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		go func() {
 			defer cancel()
-			s.inviterBoundHook.OnInviterBound(hookCtx, inviterID, userID)
+			s.inviterBoundHook.OnInviterBound(hookCtx, inviterID, userID, boundAt)
 		}()
 	}
 

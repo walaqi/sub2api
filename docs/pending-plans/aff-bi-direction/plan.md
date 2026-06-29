@@ -1716,3 +1716,325 @@ resolveDiscountGiftExpiresAt(mode string, days *int, discountValidUntil *time.Ti
 - 存量 discount 行默认 `gift_expiry_mode='discount_valid_until'`，行为与当前完全一致
 - 旧 admin 调用不传新字段时归一为 `discount_valid_until`
 - 继承/发放都只读 discount 行快照，不会受后续 key 配置变更影响
+
+## Change Request: 超级邀请资格获得方式全局开关 (2026-06-29)
+
+### 背景
+
+当前超级邀请资格由 `ReferralRewardService.hasInviterRewardEligibility*` 判定，本质是：
+
+```text
+邀请人存在处于有效时间窗口内的 user_recharge_discounts 行
+```
+
+而 bind-key 领取成功时会立即创建 `user_recharge_discounts`，所以现有行为等价于「领取带充值折扣的 key 后立即获得超级邀请资格」。运营需要可配置为另一种模式：「领取 key 后还不获得资格，必须完成充值后才开启」。
+
+同时，充值后开启资格需要一个可选充值金额门槛：当门槛为 `0` 时不限制金额，只要发生过符合条件的充值即可；当门槛大于 `0` 时，累计符合条件的充值本金达到该金额后才开启资格。
+
+### 产品语义
+
+新增两个全局配置：
+
+```text
+referral_eligibility_grant_mode:
+  bind_key_claim  领取带充值折扣 key 后立即获得超级邀请资格
+  recharge        领取带充值折扣 key 后，完成符合门槛的充值后获得超级邀请资格
+
+referral_eligibility_recharge_min_amount:
+  0      不限制充值金额；只要有一次折扣实际应用记录即可
+  > 0    需要累计符合条件的折扣应用本金 >= 该金额
+```
+
+默认值：
+
+```text
+referral_eligibility_grant_mode = bind_key_claim
+referral_eligibility_recharge_min_amount = 0
+```
+
+这样保持存量行为不变。
+
+本开关控制同一套「超级邀请资格」闸门：
+
+- `/api/v1/user/referral/status` 的 `eligible`
+- `referral_reward_tracker.inviter_reward_eligible_at_bind`
+- 邀请人赠金是否可发放
+- 被邀请人是否可继承邀请人的充值折扣
+
+本开关不控制：
+
+- 被邀请人绑定成功时自己的注册赠金
+- 普通 affiliate 邀请码是否可绑定
+- 普通 affiliate 返利是否可累计
+
+### 与「超级邀请资格语义收敛」CR 对齐
+
+前序「超级邀请资格语义收敛」CR 定义：
+
+```text
+eligible = 用户有处于有效时间窗口内的折扣
+```
+
+且额度耗尽不影响资格。该定义在 `bind_key_claim` 模式下继续成立。
+
+本 CR 在 `recharge` 模式下显式 supersede 上述定义：`eligible = 用户有处于有效时间窗口内的折扣 + 该折扣已有符合门槛的 application 累计本金`。额度耗尽仍不影响资格，但充值门槛成为新增维度。
+
+为了避免资格闸门只拦住赠金、不拦住折扣继承，`recharge` 模式下折扣继承也必须走同一资格查询；未达门槛的邀请人既不会获得邀请人赠金资格快照，也不会让 invitee 继承自己的充值折扣。
+
+### 关键口径
+
+`recharge` 模式下的「充值金额」指 `recharge_discount_applications.applied_amount` 的累计值，也就是实际参与该超级邀请/充值折扣权益的充值本金，不是：
+
+- 订单支付金额的 bonus 后余额
+- 折扣赠金金额 `bonus_amount`
+- 普通无折扣充值金额
+- 普通 affiliate 返利金额
+
+资格只与超级邀请/充值折扣权益链路绑定，避免用户通过任意普通充值绕过领取 key 流程。
+
+金额门槛按单个 `user_recharge_discounts` 行累计，不跨多个折扣行拼凑。这样可以避免多个过期/继承折扣分别不足额但合计达标而误开资格。
+
+### 行为矩阵
+
+| 模式 | 用户状态 | `eligible` | invitee 是否继承折扣 | 后续 invitee 达标是否给邀请人赠金 |
+|------|----------|------------|----------------------|----------------------------------|
+| `bind_key_claim` | 有有效 discount 行 | true | 是 | 绑定时快照 true |
+| `bind_key_claim` | 无有效 discount 行或已过期 | false | 否 | 绑定时快照 false |
+| `recharge`, min=0 | 有有效 discount 行，但没有 application | false | 否 | 绑定时快照 false |
+| `recharge`, min=0 | 有有效 discount 行，至少 1 条 application | true | 是 | 绑定时快照 true |
+| `recharge`, min>0 | 有效 discount 的 application 累计 `applied_amount < min` | false | 否 | 绑定时快照 false |
+| `recharge`, min>0 | 有效 discount 的 application 累计 `applied_amount >= min` | true | 是 | 绑定时快照 true |
+
+### 时间点语义
+
+`referral_reward_tracker.inviter_reward_eligible_at_bind` 仍然是绑定时快照。`recharge` 模式下资格依赖 application 截止时间，因此所有创建 tracker 的路径必须使用同一个绑定时间基准，不能一条路径用 `NOW()`、另一条路径用历史时间。
+
+新增稳定绑定时间字段：
+
+```sql
+ALTER TABLE user_affiliates
+  ADD COLUMN IF NOT EXISTS inviter_bound_at TIMESTAMPTZ NULL;
+
+UPDATE user_affiliates
+SET inviter_bound_at = updated_at
+WHERE inviter_id IS NOT NULL AND inviter_bound_at IS NULL;
+```
+
+后续 `BindInviter` 首次写入 `inviter_id` 时同时写入 `inviter_bound_at = NOW()`。`updated_at` 不再作为新数据的绑定时间语义来源；历史数据仅用迁移回填的 `updated_at` 作为 best-effort 近似。
+
+实现要求：
+
+- `AffiliateRepository.BindInviter` 返回绑定时间，或新增等价方法让 `AffiliateService.BindInviterByCode` 在 hook 前拿到同一事务写入的 `inviter_bound_at`。
+- `InviterBoundHook.OnInviterBound` 签名改为接收 `boundAt time.Time`。
+- `OnInviterBound` 创建 tracker 时调用 at-time 资格查询，时间点为 `boundAt`，不能使用当前时间。
+- lazy 补建 tracker 时从 `user_affiliates.inviter_bound_at` 读取绑定时间；兼容旧数据可使用 `COALESCE(inviter_bound_at, updated_at)`。
+- `recharge` 模式下，历史时间判断要求：在 `boundAt`，邀请人已有有效 discount，且截至该时间点 `recharge_discount_applications.created_at <= boundAt` 的累计 `applied_amount` 达到门槛。
+
+### 后端设计
+
+#### 1. Setting key 与配置读取
+
+`internal/service/domain_constants.go` 新增：
+
+```go
+SettingKeyReferralEligibilityGrantMode = "referral_eligibility_grant_mode"
+SettingKeyReferralEligibilityRechargeMinAmount = "referral_eligibility_recharge_min_amount"
+```
+
+`ReferralRewardConfig` 新增：
+
+```go
+EligibilityGrantMode         string  // "bind_key_claim" | "recharge"
+EligibilityRechargeMinAmount float64 // >= 0
+```
+
+归一化：
+
+- 空值/未知 mode -> `bind_key_claim`
+- min amount 解析失败或 `< 0` -> `0`
+- 保存入口拒绝 `< 0`
+
+#### 2. 绑定时间迁移与 affiliate 绑定链路
+
+新增迁移 `backend/migrations/172_user_affiliates_inviter_bound_at.sql`：
+
+- `user_affiliates.inviter_bound_at TIMESTAMPTZ NULL`
+- 实际 SQL 使用 `ADD COLUMN IF NOT EXISTS`，保持迁移重放/手动应用时幂等
+- 对已有 `inviter_id IS NOT NULL` 的行回填 `updated_at`
+- 可加普通索引或不加；当前查询按 invitee `user_id` 定位，不需要新索引
+
+`internal/repository/affiliate_repo.go`：
+
+- `BindInviter` 更新 `inviter_id` 时同时写入 `inviter_bound_at = NOW()`
+- 返回 `boundAt`，或提供 bind 后读取同一行绑定时间的接口
+- 测试覆盖二次绑定不会覆盖 `inviter_bound_at`
+
+`internal/service/affiliate_hooks.go` / `internal/service/affiliate_service.go`：
+
+- `InviterBoundHook.OnInviterBound(ctx, inviterID, inviteeID, boundAt)` 接收绑定时间
+- `BindInviterByCode` 将 repo 返回的 `boundAt` 传给异步 hook
+
+#### 3. RechargeDiscountRepo 扩展
+
+`payment_recharge_discount.go` 的 `RechargeDiscountRepo` 新增查询方法：
+
+```go
+QueryDiscountsForEligibilityAfterRecharge(ctx context.Context, userID int64, minAppliedAmount float64) ([]RechargeDiscountSummary, error)
+QueryDiscountsForEligibilityAfterRechargeAtTime(ctx context.Context, userID int64, atTime time.Time, minAppliedAmount float64) ([]RechargeDiscountSummary, error)
+```
+
+查询语义：
+
+- 只看 `user_recharge_discounts` 时间窗口有效的行。
+- `minAppliedAmount == 0`：该 discount 至少存在一条 `recharge_discount_applications`。
+- `minAppliedAmount > 0`：该 discount 的 applications 累计 `SUM(applied_amount) >= minAppliedAmount`。
+- AtTime 版本额外要求 `recharge_discount_applications.created_at <= atTime`，用于绑定时快照。
+
+`minAppliedAmount == 0` 建议用 `EXISTS`，避免 `HAVING SUM >= 0` 与 `COUNT > 0` 的冗余表达：
+
+```sql
+SELECT d.*
+FROM user_recharge_discounts d
+WHERE d.user_id = $1
+  AND d.valid_from <= $time
+  AND (d.valid_until IS NULL OR d.valid_until >= $time)
+  AND EXISTS (
+    SELECT 1
+    FROM recharge_discount_applications a
+    WHERE a.discount_id = d.id
+      AND a.created_at <= $time
+  )
+ORDER BY d.discount_rate DESC, d.valid_until ASC NULLS LAST
+```
+
+`minAppliedAmount > 0` 使用单个 discount 粒度聚合：
+
+```sql
+SELECT d.*
+FROM user_recharge_discounts d
+JOIN recharge_discount_applications a ON a.discount_id = d.id
+WHERE d.user_id = $1
+  AND d.valid_from <= $time
+  AND (d.valid_until IS NULL OR d.valid_until >= $time)
+  AND a.created_at <= $time
+GROUP BY d.id
+HAVING SUM(a.applied_amount) >= $min
+ORDER BY d.discount_rate DESC, d.valid_until ASC NULLS LAST
+```
+
+当前时间版本可以复用同一实现并传 `time.Now()`，或保留无 at-time SQL，但语义必须一致。
+
+#### 4. 资格判断与折扣继承分支
+
+`ReferralRewardService` 内部新增统一 helper：
+
+```go
+queryInviterDiscountsForReferralGrant(ctx, inviterID int64, atTime *time.Time) ([]RechargeDiscountSummary, error)
+hasInviterRewardEligibilityByConfig(ctx, inviterID int64, atTime *time.Time) bool
+```
+
+分支：
+
+- `bind_key_claim`：沿用 `QueryDiscountsForInheritance*`。
+- `recharge`：调用新增 `QueryDiscountsForEligibilityAfterRecharge*`。
+
+调用点：
+
+- `OnInviterBound` 创建 tracker 时的 `rewardEligible`，传入 `boundAt`
+- `TrackSpendAndMaybeGrantInviterReward` lazy 补建 tracker 时的 `rewardEligible`，传入 `inviter_bound_at`
+- `GetReferralStatus` 的 `status.Eligible`，使用当前时间
+- `inheritDiscountFromInviter`，使用同一 helper 的返回结果选择可继承折扣
+
+这样 #3 `discount_inheritance_eligible` 与 #4 `inviter_reward_eligible_at_bind` 在 `recharge` 模式下不会分裂。
+
+#### 5. API / DTO / 前端设置
+
+管理端 settings DTO 新增：
+
+```json
+{
+  "referral_eligibility_grant_mode": "bind_key_claim",
+  "referral_eligibility_recharge_min_amount": 0
+}
+```
+
+用户侧 `ReferralStatus` 与 `backend/internal/handler/referral_handler.go` 序列化结果新增：
+
+```json
+{
+  "eligibility_grant_mode": "recharge",
+  "eligibility_recharge_min_amount": 10
+}
+```
+
+前端设置页在超级邀请配置区增加：
+
+- 单选/分段控件：资格获得方式
+  - 领取 Key 后立即获得
+  - 充值后获得
+- 当选择「充值后获得」时显示数值输入：
+  - 标签：最低充值本金
+  - 提示：`0` 表示不限制金额
+  - 校验：`>= 0`
+
+前端 `/referral` 页面据此展示更准确的未开启原因：
+
+- `bind_key_claim`：提示领取带超级邀请返利的 Key。
+- `recharge` 且 min=0：提示完成一次充值后开启。
+- `recharge` 且 min>0：提示累计充值本金达到指定金额后开启。
+
+### 改动清单
+
+| # | 文件 | 改动 |
+|---|------|------|
+| 1 | `backend/migrations/172_user_affiliates_inviter_bound_at.sql` | 新增稳定绑定时间列并回填历史绑定 |
+| 2 | `internal/service/domain_constants.go` | 新增两个 setting key |
+| 3 | `internal/service/setting_service.go` | `ReferralRewardConfig` 新增字段；读取/保存/默认值/校验 |
+| 4 | `internal/service/settings_view.go` | settings 聚合响应补字段 |
+| 5 | `internal/handler/dto/settings.go` | admin settings 请求/响应 DTO 补字段 |
+| 6 | `internal/handler/admin/setting_handler.go` | 读写与 audit changed list 补字段 |
+| 7 | `internal/repository/affiliate_repo.go` | `BindInviter` 写入并返回/暴露 `inviter_bound_at` |
+| 8 | `internal/service/affiliate_hooks.go` | hook 签名新增 `boundAt time.Time` |
+| 9 | `internal/service/affiliate_service.go` | 绑定成功后把 `boundAt` 传给 `OnInviterBound` |
+| 10 | `internal/service/payment_recharge_discount.go` | `RechargeDiscountRepo` 接口新增两个 eligibility 查询 |
+| 11 | `internal/service/recharge_discount_repo_impl.go` | 实现充值后资格查询与 at-time 查询 |
+| 12 | `internal/service/referral_reward_service.go` | 资格判断按配置分支；`OnInviterBound`/lazy 使用同一绑定时间；折扣继承也走闸门；status 返回 mode/min |
+| 13 | `internal/handler/referral_handler.go` | 用户侧 referral status 响应包含 mode/min |
+| 14 | `frontend/src/api/admin/settings.ts` | type 与 payload 补字段 |
+| 15 | `frontend/src/views/admin/SettingsView.vue` | 超级邀请配置区新增控件与校验 |
+| 16 | `frontend/src/views/user/ReferralView.vue` / `frontend/src/types/index.ts` | status 类型补 `eligibility_grant_mode` 与 min amount；未开启提示按模式显示 |
+| 17 | 测试 stub/调用点同步 | `discountRepoForReferralStub`、`rechargeDiscountRepoStub`、`queryErrorRepoStub`、`discountRepoStub` 全部补新接口方法；`oauthEmailAffiliateRepoStub` 与 `affiliate_repo_integration_test.go:144` 同步 `BindInviter` 签名 |
+| 18 | 测试 | 覆盖配置、资格判断、继承 gate、status、tracker 快照与绑定时间 |
+
+### 测试覆盖
+
+| 测试 | 验证点 |
+|------|--------|
+| `TestGetReferralRewardConfig_EligibilityDefaults` | 缺省 mode=`bind_key_claim`，min=0 |
+| `TestGetReferralRewardConfig_EligibilityRechargeMode` | 合法 mode/min 正确读取 |
+| `TestGetReferralRewardConfig_EligibilityInvalidFallback` | 非法 mode 回退，负数 min 回退/保存拒绝 |
+| `TestReferralEligibility_BindKeyClaimMode` | 有有效 discount 即 eligible |
+| `TestReferralEligibility_RechargeMode_MinZero_NoApplicationFalse` | min=0 但未充值 false |
+| `TestReferralEligibility_RechargeMode_MinZero_WithApplicationTrue` | min=0 且有 application true |
+| `TestReferralEligibility_RechargeMode_MinAmountBelowFalse` | 累计 applied_amount 不足 false |
+| `TestReferralEligibility_RechargeMode_MinAmountReachedTrue` | 累计 applied_amount 达标 true |
+| `TestOnInviterBound_UsesBoundAtNotNow_RechargeMode` | 绑定后才发生的充值不会让绑定时快照变 true |
+| `TestLazyTrackerEligibility_UsesInviterBoundAt` | lazy 补建按稳定绑定时间点统计 applications |
+| `TestRechargeMode_DiscountInheritanceRequiresEligibility` | recharge 模式下未达充值门槛不继承折扣 |
+| `TestBindInviter_WritesInviterBoundAtOnce` | 首次绑定写入 `inviter_bound_at`，重复绑定不覆盖 |
+| `TestReferralStatus_ReturnsEligibilityModeAndMinAmount` | status 响应包含 mode/min |
+
+### 向后兼容
+
+- 默认 `bind_key_claim`，现有实例行为不变。
+- 新增 `user_affiliates.inviter_bound_at`，历史绑定用 `updated_at` 回填作为 best-effort；未来绑定使用稳定字段。
+- 普通 affiliate 邀请码仍可用；该开关只影响超级邀请资格、折扣继承和邀请人达标赠金资格快照。
+- 已存在的 `referral_reward_tracker.inviter_reward_eligible_at_bind` 不回填；新开关只影响后续绑定/懒补建。
+
+### Open Questions
+
+无。已决策：
+
+- 金额门槛按单个 discount 行累计。
+- 切换开关前已经创建的 tracker 不重算。
+- `recharge` 模式下折扣继承与邀请人赠金资格共用同一闸门。
