@@ -30,23 +30,7 @@
         </div>
 
         <template v-else>
-          <!-- Invite link card -->
-          <div class="card p-6">
-            <h2 class="text-sm font-semibold text-gray-700 dark:text-dark-200">{{ t('referral.inviteLinkTitle') }}</h2>
-            <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">{{ t('referral.inviteLinkHint') }}</p>
-            <div class="mt-3 flex items-center gap-2">
-              <input
-                readonly
-                :value="inviteLink"
-                class="input flex-1 font-mono text-sm"
-                @click="($event.target as HTMLInputElement)?.select()"
-              />
-              <button class="btn btn-primary shrink-0" @click="copyLink">
-                {{ copied ? t('referral.copied') : t('referral.copyLink') }}
-              </button>
-            </div>
-          </div>
-
+          <!-- Eligibility pending notice: shown when the user has no super-referral eligibility yet -->
           <div v-if="status && !status.eligible" class="card border-amber-200 bg-amber-50 p-6 dark:border-amber-800/50 dark:bg-amber-900/20">
             <div class="flex items-start gap-3">
               <Icon name="exclamationCircle" size="md" class="mt-0.5 text-amber-600 dark:text-amber-400" />
@@ -69,6 +53,25 @@
                   {{ status.invitee_reward.granted ? t('referral.inviteeRewardGranted', { amount: status.invitee_reward.amount }) : t('referral.inviteeRewardPending', { amount: status.invitee_reward.amount }) }}
                 </p>
               </div>
+            </div>
+          </div>
+
+          <!-- Invite link + inviter progress: only when eligibility is active -->
+          <template v-if="status?.eligible">
+          <!-- Invite link card -->
+          <div class="card p-6">
+            <h2 class="text-sm font-semibold text-gray-700 dark:text-dark-200">{{ t('referral.inviteLinkTitle') }}</h2>
+            <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">{{ t('referral.inviteLinkHint') }}</p>
+            <div class="mt-3 flex items-center gap-2">
+              <input
+                readonly
+                :value="inviteLink"
+                class="input flex-1 font-mono text-sm"
+                @click="($event.target as HTMLInputElement)?.select()"
+              />
+              <button class="btn btn-primary shrink-0" @click="copyLink">
+                {{ copied ? t('referral.copied') : t('referral.copyLink') }}
+              </button>
             </div>
           </div>
 
@@ -119,6 +122,7 @@
               <p class="mt-2 text-sm text-gray-500 dark:text-dark-400">{{ t('referral.noInvitees') }}</p>
             </div>
           </div>
+          </template>
 
           <!-- Rules -->
           <div class="card border-indigo-200 bg-indigo-50 p-6 dark:border-indigo-800/50 dark:bg-indigo-900/20">
