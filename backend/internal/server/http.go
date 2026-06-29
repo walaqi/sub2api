@@ -31,10 +31,20 @@ var ProviderSet = wire.NewSet(
 	ProvideHTTPServer,
 )
 
-// ProvideGiftEngine 构造赠金引擎实例。
+// ProvideGiftEngine 构造赠金引擎实例并把它接入计费 preflight。
 // entClient 与 sqlDB 由 repository.ProviderSet 提供，二者共享同一 PG 连接池。
-func ProvideGiftEngine(entClient *dbent.Client, sqlDB *sql.DB) *gift.Engine {
-	return gift.NewEngine(entClient, sqlDB)
+//
+// 这里在 provider 内部调用 SetPriorityGiftChecker（而非手改 wire_gen.go），
+// 与姊妹模式 ProvideSuspectThrottleService 一致——手改生成文件的配线会在下次
+// `go generate ./cmd/server` 时被静默冲掉（参见 286ad5a1 把 795878fd 的配线冲掉，
+// 导致 ratio 赠金透支 preflight 长期失效），写进手写 provider 才能扛住重新生成。
+//
+// 依赖序安全：billingCache 在 wire 图中先于 engine 构造，checker 走 post-construction
+// setter 注入，billingCache 构造期不依赖 engine，无循环依赖。
+func ProvideGiftEngine(entClient *dbent.Client, sqlDB *sql.DB, billingCache *service.BillingCacheService) *gift.Engine {
+	engine := gift.NewEngine(entClient, sqlDB)
+	billingCache.SetPriorityGiftChecker(engine)
+	return engine
 }
 
 // ProvideGiftExpirerService 构造并启动赠金过期清理服务。

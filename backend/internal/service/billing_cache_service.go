@@ -202,6 +202,19 @@ func (s *BillingCacheService) SetPriorityGiftChecker(checker priorityGiftChecker
 	s.priorityGiftChecker = checker
 }
 
+// HasPriorityGiftChecker reports whether a priority gift checker has been wired.
+// Exposed for DI regression tests: a previous regression (286ad5a1 regenerating
+// wire_gen.go) silently dropped the SetPriorityGiftChecker call, degrading
+// billing preflight to the legacy balance-only check and letting users overdraft
+// against frozen ratio gifts. Tests assert this returns true after wiring so the
+// missing call cannot regress unnoticed again.
+func (s *BillingCacheService) HasPriorityGiftChecker() bool {
+	if s == nil {
+		return false
+	}
+	return s.priorityGiftChecker != nil
+}
+
 // Stop 关闭缓存写入工作池
 func (s *BillingCacheService) Stop() {
 	s.cacheWriteStopOnce.Do(func() {
