@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import ProfileInfoCard from '@/components/user/profile/ProfileInfoCard.vue'
-import type { User, UserGiftItem } from '@/types'
+import type { User } from '@/types'
 
 vi.mock('vue-router', () => ({
   useRoute: () => ({
@@ -33,6 +33,7 @@ vi.mock('vue-i18n', async (importOriginal) => {
         if (key === 'profile.memberSince') return 'Member Since'
         if (key === 'profile.administrator') return 'Administrator'
         if (key === 'profile.user') return 'User'
+        if (key === 'profile.rechargeBalance') return 'Recharge Balance'
         if (key === 'profile.authBindings.providers.email') return 'Email'
         if (key === 'profile.authBindings.providers.linuxdo') return 'LinuxDo'
         if (key === 'profile.authBindings.providers.wechat') return 'WeChat'
@@ -44,10 +45,7 @@ vi.mock('vue-i18n', async (importOriginal) => {
           return `Username synced from ${params?.providerName || 'provider'}`
         }
         if (key === 'profile.giftBalance') return 'Gift'
-        if (key === 'profile.giftExpiringSoonShort') return 'expiring soon'
-        if (key === 'profile.giftExpiringAt') return `expiring at ${params?.date || ''}`
-        if (key === 'profile.giftModePriority') return 'priority'
-        if (key === 'profile.giftModeRatio') return 'ratio'
+        if (key === 'profile.giftExpiringSoonHint') return `(${params?.amount || ''} expiring soon)`
         return key
       }
     })
@@ -94,27 +92,10 @@ describe('ProfileInfoCard', () => {
     expect(wrapper.get('[data-testid="profile-auth-bindings-panel"]').exists()).toBe(true)
   })
 
-  it('renders each held gift as its own line with mode, amount and expiry', () => {
-    const gifts: UserGiftItem[] = [
-      // priority, expiring soon
-      { remaining: 49.4, deduction_mode: 'priority', expiring_soon: true },
-      // ratio 1:1, expiring soon
-      { remaining: 49.4, deduction_mode: 'ratio', ratio_recharge: 1, expiring_soon: true },
-      // ratio 1:1, fixed expiry date (2026-07-01 local)
-      {
-        remaining: 49.4,
-        deduction_mode: 'ratio',
-        ratio_recharge: 1,
-        expires_at_unix_ms: new Date(2026, 6, 1, 12, 0, 0).getTime(),
-        expiring_soon: false
-      },
-      // priority, no expiry
-      { remaining: 49.4, deduction_mode: 'priority', expiring_soon: false }
-    ]
+  it('renders gift balance summary without detail list when user has gifts', () => {
     const wrapper = mount(ProfileInfoCard, {
       props: {
-        user: createUser({ gift_balance: 197.6 }),
-        gifts
+        user: createUser({ gift_balance: 197.6, gift_expiring_soon: 49.4 })
       },
       global: {
         stubs: {
@@ -123,20 +104,18 @@ describe('ProfileInfoCard', () => {
       }
     })
 
-    const list = wrapper.get('[data-testid="profile-overview-gift-list"]')
-    const lines = list.findAll('li').map((li) => li.text())
-    expect(lines).toHaveLength(4)
-    expect(lines[0]).toBe('Gift $49.40 ($49.40 expiring soon) - priority')
-    expect(lines[1]).toBe('Gift $49.40 ($49.40 expiring soon) - ratio 1:1')
-    expect(lines[2]).toBe('Gift $49.40 ($49.40 expiring at 07/01/2026) - ratio 1:1')
-    expect(lines[3]).toBe('Gift $49.40 - priority')
+    const giftLine = wrapper.get('[data-testid="profile-overview-metric-gift-balance"]')
+    expect(giftLine.text()).toContain('Gift')
+    expect(giftLine.text()).toContain('$197.60')
+    expect(giftLine.text()).toContain('$49.40 expiring soon')
+    // Gift detail list should no longer be rendered
+    expect(wrapper.find('[data-testid="profile-overview-gift-list"]').exists()).toBe(false)
   })
 
-  it('does not render the gift list when the user holds no gifts', () => {
+  it('does not render gift balance line when user has no gifts', () => {
     const wrapper = mount(ProfileInfoCard, {
       props: {
-        user: createUser(),
-        gifts: []
+        user: createUser()
       },
       global: {
         stubs: {
@@ -145,6 +124,7 @@ describe('ProfileInfoCard', () => {
       }
     })
 
+    expect(wrapper.find('[data-testid="profile-overview-metric-gift-balance"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="profile-overview-gift-list"]').exists()).toBe(false)
   })
 

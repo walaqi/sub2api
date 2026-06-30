@@ -280,6 +280,9 @@ func (s *PaymentService) doBalance(ctx context.Context, o *dbent.PaymentOrder) e
 		if err := s.applyAffiliateRebateForOrder(ctx, o); err != nil {
 			return err
 		}
+		if err := s.applyRechargeDiscountForOrder(ctx, o); err != nil {
+			return err
+		}
 		// Code already created and redeemed — just mark completed
 		return s.markCompleted(ctx, o, "RECHARGE_SUCCESS")
 	case redeemActionCreate:
@@ -294,6 +297,9 @@ func (s *PaymentService) doBalance(ctx context.Context, o *dbent.PaymentOrder) e
 		return fmt.Errorf("redeem balance: %w", err)
 	}
 	if err := s.applyAffiliateRebateForOrder(ctx, o); err != nil {
+		return err
+	}
+	if err := s.applyRechargeDiscountForOrder(ctx, o); err != nil {
 		return err
 	}
 	return s.markCompleted(ctx, o, "RECHARGE_SUCCESS")

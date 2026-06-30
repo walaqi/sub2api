@@ -81,6 +81,23 @@
                       <span class="text-right text-emerald-700 dark:text-emerald-300">{{ giftDeductionText }}</span>
                     </div>
                   </div>
+                  <div
+                    v-if="grantedDiscount"
+                    class="mt-4 space-y-2 rounded-lg border border-violet-200 bg-violet-50/60 p-4 text-sm dark:border-violet-900/40 dark:bg-violet-900/20"
+                  >
+                    <div class="flex items-baseline justify-between gap-3">
+                      <span class="text-gray-600 dark:text-dark-300">{{ tr.discountRateLabel }}</span>
+                      <span class="font-mono font-semibold text-violet-700 dark:text-violet-300">+{{ (grantedDiscount.discount_rate * 100).toFixed(0) }}%</span>
+                    </div>
+                    <div class="flex items-baseline justify-between gap-3">
+                      <span class="text-gray-600 dark:text-dark-300">{{ tr.discountQuotaLabel }}</span>
+                      <span class="text-right text-violet-700 dark:text-violet-300">${{ grantedDiscount.max_discountable_amount.toFixed(2) }}</span>
+                    </div>
+                    <div class="flex items-baseline justify-between gap-3">
+                      <span class="text-gray-600 dark:text-dark-300">{{ tr.discountValidLabel }}</span>
+                      <span class="text-right text-violet-700 dark:text-violet-300">{{ grantedDiscount.valid_days }} {{ tr.discountDays }}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -157,6 +174,12 @@
                     <Icon name="exclamationCircle" size="md" class="text-purple-600 dark:text-purple-400" />
                   </div>
                   <div class="flex-1">
+                    <p
+                      v-if="limitedKeyAttempted"
+                      class="mb-2 text-sm font-medium text-red-600 dark:text-red-400"
+                    >
+                      {{ tr.limitedKeyWarning }}
+                    </p>
                     <h3 class="text-sm font-semibold text-purple-800 dark:text-purple-300">
                       {{ tr.monthlyLimitTitle }}
                     </h3>
@@ -511,6 +534,7 @@ const en: Copy = {
   monthlyLimitTitle: 'You have already bound a key this month',
   monthlyLimitBody: 'Each account can claim one key per natural month. Eligibility resets on the 1st of next month.',
   monthlyLimitHint: 'You have already claimed a monthly-limited key this month. You can still bind keys that have no monthly limit.',
+  limitedKeyWarning: 'The key you just tried has a monthly bind limit!',
   nextResetLabel: 'Next reset in',
   daysShort: 'd',
   hoursShort: 'h',
@@ -536,6 +560,11 @@ const en: Copy = {
   giftDeductionLabel: 'Deduction rule',
   giftDeductionPriority: 'Priority — gift balance is consumed before your top-up balance.',
   giftDeductionRatio: 'Ratio — each $1 of usage deducts ${recharge} from top-up + ${gift} from gift balance.',
+  discountRateLabel: 'Recharge bonus',
+  discountQuotaLabel: 'Eligible top-up amount',
+  discountValidLabel: 'Valid for',
+  discountDays: 'days',
+  discountCardTitle: 'Recharge discount unlocked',
   regWindowTitle: "Your account isn't eligible for this key",
   regWindowBody:
     'This key is limited to accounts registered for at least {min} day(s) and no more than {max} day(s). Your registration date is outside that range.',
@@ -585,6 +614,7 @@ const zh: Copy = {
   monthlyLimitTitle: '本月已参与绑定',
   monthlyLimitBody: '每个账号每个自然月只能领取一次。下月 1 日 0 点自动恢复资格。',
   monthlyLimitHint: '你本月已领取过限次 Key，但仍可绑定不限次数的 Key。',
+  limitedKeyWarning: '这是一个限制绑定次数的 Key!',
   nextResetLabel: '下次重置',
   daysShort: '天',
   hoursShort: '小时',
@@ -610,6 +640,11 @@ const zh: Copy = {
   giftDeductionLabel: '扣费规则',
   giftDeductionPriority: '优先扣除：赠金会先于充值余额被消耗',
   giftDeductionRatio: '按比例扣除：每消耗 1 美元 = 充值余额 ${recharge} + 赠金 ${gift}',
+  discountRateLabel: '充值加赠比例',
+  discountQuotaLabel: '可参与充值上限',
+  discountValidLabel: '有效期',
+  discountDays: '天',
+  discountCardTitle: '充值折扣已解锁',
   regWindowTitle: '你的账号不符合该 Key 的领取条件',
   regWindowBody:
     '该 Key 仅限注册满 {min} 天且不超过 {max} 天的账号领取，你的注册时间不在此范围内。',
@@ -704,6 +739,13 @@ interface GrantedGiftPayload {
 }
 const grantedGift = ref<GrantedGiftPayload | null>(null)
 
+interface GrantedDiscountPayload {
+  discount_rate: number
+  max_discountable_amount: number
+  valid_days: number
+}
+const grantedDiscount = ref<GrantedDiscountPayload | null>(null)
+
 // Public settings (loaded on mount): drives whether registration requires
 // email verification and/or Turnstile. Defaults are conservative (off) so
 // the existing single-step flow keeps working when settings fail to load.
@@ -735,6 +777,7 @@ const loadingEligibility = ref(false)
 // it's driven purely by the commit error BIND_KEY_REGISTRATION_WINDOW.
 const registrationBlocked = ref(false)
 const registrationWindow = ref<{ min_days: number | null; max_days: number | null } | null>(null)
+const limitedKeyAttempted = ref(false)
 
 const featureDisabled = computed(
   () => eligibility.value?.eligible === false && eligibility.value?.reason === 'feature_disabled'
@@ -906,6 +949,7 @@ async function commitReservation(): Promise<void> {
       masked_key: string
       api_key_id: number
       gift?: GrantedGiftPayload | null
+      discount?: GrantedDiscountPayload | null
     }>>(
       '/bind-key/commit',
       { reservation_id: pending.value.reservation_id }
@@ -916,6 +960,7 @@ async function commitReservation(): Promise<void> {
       result?.masked_key || pending.value.masked_key
     )
     grantedGift.value = result?.gift ?? null
+    grantedDiscount.value = result?.discount ?? null
     clearPending()
     pending.value = null
     rawInput.value = ''
@@ -938,6 +983,7 @@ async function commitReservation(): Promise<void> {
     } else if (code === 'BIND_KEY_ALREADY_PARTICIPATED') {
       // Server-side gate fired (e.g. user opened two tabs). Flip the UI
       // into the monthly-limit state so it's consistent with refresh.
+      limitedKeyAttempted.value = true
       eligibility.value = {
         eligible: false,
         already_participated: true,

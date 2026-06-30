@@ -34,6 +34,13 @@ func RegisterUserRoutes(
 			user.POST("/auth-identities/bind/start", h.User.StartIdentityBinding)
 			user.GET("/api-keys/:id/usage/daily", h.Usage.GetMyAPIKeyDailyUsage)
 			user.GET("/platform-quotas", h.User.GetMyPlatformQuotas)
+			user.GET("/recharge-discount", h.RechargeDiscount.GetMyActiveDiscount)
+
+			// 邀请奖励
+			referral := user.Group("/referral")
+			{
+				referral.GET("/status", h.Referral.GetStatus)
+			}
 
 			// 通知邮箱管理
 			notifyEmail := user.Group("/notify-email")

@@ -21,6 +21,7 @@ export { totpAPI } from './totp'
 export { default as announcementsAPI } from './announcements'
 export { channelMonitorUserAPI } from './channelMonitor'
 export { imageStudioAPI, type ImageStudioTicket } from './imageStudio'
+export { activityAPI, type ActivityEvent, type ActivitySignup } from './activity'
 
 // Admin APIs
 export { adminAPI } from './admin'

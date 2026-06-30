@@ -97,7 +97,7 @@ type AffiliateDetail struct {
 type AffiliateRepository interface {
 	EnsureUserAffiliate(ctx context.Context, userID int64) (*AffiliateSummary, error)
 	GetAffiliateByCode(ctx context.Context, code string) (*AffiliateSummary, error)
-	BindInviter(ctx context.Context, userID, inviterID int64) (bool, error)
+	BindInviter(ctx context.Context, userID, inviterID int64) (bool, time.Time, error)
 	AccrueQuota(ctx context.Context, inviterID, inviteeUserID int64, amount float64, freezeHours int, sourceOrderID *int64) (bool, error)
 	GetAccruedRebateFromInvitee(ctx context.Context, inviterID, inviteeUserID int64) (float64, error)
 	ThawFrozenQuota(ctx context.Context, userID int64) (float64, error)
@@ -209,6 +209,7 @@ type AffiliateService struct {
 	settingService       *SettingService
 	authCacheInvalidator APIKeyAuthCacheInvalidator
 	billingCacheService  *BillingCacheService
+	inviterBoundHook     InviterBoundHook // 可选，nil 时不触发
 }
 
 func NewAffiliateService(repo AffiliateRepository, settingService *SettingService, authCacheInvalidator APIKeyAuthCacheInvalidator, billingCacheService *BillingCacheService) *AffiliateService {
@@ -218,6 +219,11 @@ func NewAffiliateService(repo AffiliateRepository, settingService *SettingServic
 		authCacheInvalidator: authCacheInvalidator,
 		billingCacheService:  billingCacheService,
 	}
+}
+
+// SetInviterBoundHook 注入邀请绑定成功后的 hook（Wire 阶段调用）。
+func (s *AffiliateService) SetInviterBoundHook(hook InviterBoundHook) {
+	s.inviterBoundHook = hook
 }
 
 // IsEnabled reports whether the affiliate (邀请返利) feature is turned on.
@@ -301,13 +307,24 @@ func (s *AffiliateService) BindInviterByCode(ctx context.Context, userID int64, 
 		return ErrAffiliateCodeInvalid
 	}
 
-	bound, err := s.repo.BindInviter(ctx, userID, inviterSummary.UserID)
+	bound, boundAt, err := s.repo.BindInviter(ctx, userID, inviterSummary.UserID)
 	if err != nil {
 		return err
 	}
 	if !bound {
 		return ErrAffiliateAlreadyBound
 	}
+
+	// 邀请关系绑定成功 → 触发 hook（异步，不阻塞注册流程）
+	if s.inviterBoundHook != nil {
+		inviterID := inviterSummary.UserID
+		hookCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		go func() {
+			defer cancel()
+			s.inviterBoundHook.OnInviterBound(hookCtx, inviterID, userID, boundAt)
+		}()
+	}
+
 	return nil
 }
 

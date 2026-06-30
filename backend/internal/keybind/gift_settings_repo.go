@@ -23,6 +23,9 @@ type BindKeyGiftSetting struct {
 	// RegistrationWindow 来自表 A 的 config JSONB（config.registration_window）。
 	// nil 表示未配置窗口；由调用方按"不限制注册时间"处理。
 	RegistrationWindow *domain.BindKeyRegistrationWindow
+	// RechargeDiscount 来自表 A 的 config JSONB（config.recharge_discount）。
+	// nil 表示未配置充值折扣。
+	RechargeDiscount *domain.BindKeyRechargeDiscount
 }
 
 // BindKeyGiftSettingResolver 抽象出"按 api_key_id 查表 A"的最小动作。
@@ -82,6 +85,10 @@ func (r *entBindKeyGiftSettingResolver) Resolve(ctx context.Context, apiKeyID in
 	if row.Config != nil && row.Config.Unlimit != nil {
 		v := *row.Config.Unlimit
 		out.Unlimit = &v
+	}
+	if row.Config != nil && row.Config.RechargeDiscount != nil {
+		rd := *row.Config.RechargeDiscount
+		out.RechargeDiscount = &rd
 	}
 	return out, nil
 }

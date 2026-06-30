@@ -60,9 +60,21 @@ type ReservationResult struct {
 
 // CommitResult is returned after a successful Commit.
 type CommitResult struct {
-	APIKeyID  int64        `json:"api_key_id"`
-	MaskedKey string       `json:"masked_key"`
-	Gift      *GrantedGift `json:"gift,omitempty"`
+	APIKeyID  int64            `json:"api_key_id"`
+	MaskedKey string           `json:"masked_key"`
+	Gift      *GrantedGift     `json:"gift,omitempty"`
+	Discount  *GrantedDiscount `json:"discount,omitempty"`
+}
+
+// GrantedDiscount describes a recharge discount created during bind.
+type GrantedDiscount struct {
+	DiscountRate          float64  `json:"discount_rate"`
+	MaxDiscountableAmount float64  `json:"max_discountable_amount"`
+	ValidDays             int      `json:"valid_days"`
+	GiftDeductionMode     string   `json:"gift_deduction_mode"`
+	GiftRatioRecharge     *float64 `json:"gift_ratio_recharge,omitempty"`
+	GiftExpiryMode        string   `json:"gift_expiry_mode"`
+	GiftExpiresAfterDays  *int     `json:"gift_expires_after_days,omitempty"`
 }
 
 // EligibilityResult tells the UI whether the caller may participate this
@@ -92,6 +104,9 @@ type Service struct {
 	userBalanceUpdater UserBalanceUpdater
 	authCacheInval     APIKeyAuthCacheInvalidator
 	billingCacheInval  BillingBalanceInvalidator
+
+	// 可选依赖：绑定成功后创建充值折扣记录。nil 时不创建。
+	discountCreator RechargeDiscountCreator
 }
 
 // NewService constructs a Service. It resolves the pool user once at
@@ -434,6 +449,30 @@ func (s *Service) Commit(ctx context.Context, userID int64, reservationID string
 		}
 	}
 
+	// 创建充值折扣记录（如果 key 配置了 RechargeDiscount）。
+	// 与赠金分开处理：折扣创建失败仅记日志，不影响 key 转移和赠金。
+	var grantedDiscount *GrantedDiscount
+	if s.discountCreator != nil && s.giftSettingResolver != nil {
+		if setting, err := s.giftSettingResolver.Resolve(ctx, keyID); err == nil && setting != nil {
+			if cfg := s.resolveRechargeDiscountConfig(setting); cfg != nil {
+				if _, err := s.discountCreator.CreateBindKeyDiscount(ctx, userID, keyID, cfg.DiscountRate, cfg.MaxDiscountableAmount, cfg.ValidDays, cfg.GiftDeductionMode, cfg.GiftRatioRecharge, cfg.GiftExpiryMode, cfg.GiftExpiresAfterDays); err != nil {
+					log.Printf("[keybind] create recharge discount for user %d key %d failed: %v", userID, keyID, err)
+				} else {
+					log.Printf("[keybind] created recharge discount for user %d (key %d, rate=%.2f, max=%.2f, days=%d, mode=%s, gift_expiry=%s)", userID, keyID, cfg.DiscountRate, cfg.MaxDiscountableAmount, cfg.ValidDays, cfg.GiftDeductionMode, cfg.GiftExpiryMode)
+					grantedDiscount = &GrantedDiscount{
+						DiscountRate:          cfg.DiscountRate,
+						MaxDiscountableAmount: cfg.MaxDiscountableAmount,
+						ValidDays:             cfg.ValidDays,
+						GiftDeductionMode:     cfg.GiftDeductionMode,
+						GiftRatioRecharge:     cfg.GiftRatioRecharge,
+						GiftExpiryMode:        cfg.GiftExpiryMode,
+						GiftExpiresAfterDays:  cfg.GiftExpiresAfterDays,
+					}
+				}
+			}
+		}
+	}
+
 	// Record participation (only when monthly limit is enforced).
 	if !unlimited {
 		if err := s.participation.MarkParticipated(ctx, userID); err != nil {
@@ -446,13 +485,13 @@ func (s *Service) Commit(ctx context.Context, userID int64, reservationID string
 	if err != nil {
 		// The transfer succeeded; degrade gracefully.
 		_ = s.redis.Del(ctx, resKey, redisLockedKeyPrefix+intToStr(keyID)).Err()
-		return &CommitResult{APIKeyID: keyID, MaskedKey: "", Gift: grantedGift}, nil
+		return &CommitResult{APIKeyID: keyID, MaskedKey: "", Gift: grantedGift, Discount: grantedDiscount}, nil
 	}
 
 	// Consume reservation atomically (best-effort; TTL also cleans them up).
 	_ = s.redis.Del(ctx, resKey, redisLockedKeyPrefix+intToStr(keyID)).Err()
 
-	return &CommitResult{APIKeyID: row.ID, MaskedKey: maskKey(row.Key), Gift: grantedGift}, nil
+	return &CommitResult{APIKeyID: row.ID, MaskedKey: maskKey(row.Key), Gift: grantedGift, Discount: grantedDiscount}, nil
 }
 
 func (s *Service) disabledErr() error {
@@ -460,6 +499,37 @@ func (s *Service) disabledErr() error {
 		return ErrPoolUserNotConfigured.WithMetadata(map[string]string{"reason": s.configErrMsg})
 	}
 	return ErrPoolUserNotConfigured
+}
+
+// resolveRechargeDiscountConfig 从 per-key 配置中提取充值折扣参数。
+// 返回 nil 表示该 key 未配置或未启用充值折扣。
+// 同时归一化 gift 扣除策略：空/未知 mode → priority；非法 ratio 配置 → 视为未配置（nil）。
+func (s *Service) resolveRechargeDiscountConfig(setting *BindKeyGiftSetting) *domain.BindKeyRechargeDiscount {
+	if setting == nil || setting.RechargeDiscount == nil {
+		return nil
+	}
+	cfg := setting.RechargeDiscount
+	if !cfg.Enabled {
+		return nil
+	}
+	if cfg.DiscountRate <= 0 || cfg.DiscountRate > 10 || cfg.MaxDiscountableAmount <= 0 || cfg.ValidDays < 1 {
+		return nil
+	}
+	// 归一化赠金策略：非法配置直接拒绝该折扣（避免发放时才报错阻塞充值）。
+	mode, ratio, err := domain.NormalizeGiftDeduction(cfg.GiftDeductionMode, cfg.GiftRatioRecharge)
+	if err != nil {
+		return nil
+	}
+	expiryMode, expiryDays, err := domain.NormalizeGiftExpiry(cfg.GiftExpiryMode, cfg.GiftExpiresAfterDays)
+	if err != nil {
+		return nil
+	}
+	normalized := *cfg
+	normalized.GiftDeductionMode = mode
+	normalized.GiftRatioRecharge = ratio
+	normalized.GiftExpiryMode = expiryMode
+	normalized.GiftExpiresAfterDays = expiryDays
+	return &normalized
 }
 
 // isKeyUnlimited resolves the per-key config and returns whether the monthly

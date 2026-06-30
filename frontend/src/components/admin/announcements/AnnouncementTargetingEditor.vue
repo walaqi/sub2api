@@ -109,6 +109,15 @@
                 />
               </div>
 
+              <div v-else-if="cond.type === 'referral'" class="flex-1">
+                <label class="input-label">{{ t('admin.announcements.form.referralValue') }}</label>
+                <Select
+                  :model-value="cond.referral_value || 'has_inviter'"
+                  :options="referralValueOptions"
+                  @update:model-value="(v) => setReferralValue(groupIndex, condIndex, v as AnnouncementReferralValue)"
+                />
+              </div>
+
               <div v-else class="flex flex-1 flex-col gap-3 sm:flex-row">
                 <div class="w-full sm:w-44">
                   <label class="input-label">{{ t('admin.announcements.form.operator') }}</label>
@@ -173,7 +182,8 @@ import type {
   AnnouncementCondition,
   AnnouncementConditionGroup,
   AnnouncementConditionType,
-  AnnouncementOperator
+  AnnouncementOperator,
+  AnnouncementReferralValue
 } from '@/types'
 
 import Select from '@/components/common/Select.vue'
@@ -198,7 +208,8 @@ const mode = computed<Mode>(() => (anyOf.value.length === 0 ? 'all' : 'custom'))
 
 const conditionTypeOptions = computed(() => [
   { value: 'subscription', label: t('admin.announcements.form.conditionSubscription') },
-  { value: 'balance', label: t('admin.announcements.form.conditionBalance') }
+  { value: 'balance', label: t('admin.announcements.form.conditionBalance') },
+  { value: 'referral', label: t('admin.announcements.form.conditionReferral') }
 ])
 
 const balanceOperatorOptions = computed(() => [
@@ -207,6 +218,12 @@ const balanceOperatorOptions = computed(() => [
   { value: 'lt', label: t('admin.announcements.operators.lt') },
   { value: 'lte', label: t('admin.announcements.operators.lte') },
   { value: 'eq', label: t('admin.announcements.operators.eq') }
+])
+
+const referralValueOptions = computed(() => [
+  { value: 'has_inviter', label: t('admin.announcements.form.referralHasInviter') },
+  { value: 'is_inviter', label: t('admin.announcements.form.referralIsInviter') },
+  { value: 'no_inviter', label: t('admin.announcements.form.referralNoInviter') }
 ])
 
 function setMode(next: Mode) {
@@ -232,6 +249,14 @@ function defaultBalanceCondition(): AnnouncementCondition {
     type: 'balance' as AnnouncementConditionType,
     operator: 'gte' as AnnouncementOperator,
     value: 0
+  }
+}
+
+function defaultReferralCondition(): AnnouncementCondition {
+  return {
+    type: 'referral' as AnnouncementConditionType,
+    operator: 'eq' as AnnouncementOperator,
+    referral_value: 'has_inviter'
   }
 }
 
@@ -283,6 +308,8 @@ function setConditionType(groupIndex: number, condIndex: number, nextType: Annou
 
     if (nextType === 'subscription') {
       group.all_of[condIndex] = defaultSubscriptionCondition()
+    } else if (nextType === 'referral') {
+      group.all_of[condIndex] = defaultReferralCondition()
     } else {
       group.all_of[condIndex] = defaultBalanceCondition()
     }
@@ -311,6 +338,18 @@ function setBalanceValue(groupIndex: number, condIndex: number, raw: string) {
     if (!cond) return
 
     cond.value = Number.isFinite(n) ? n : 0
+  })
+}
+
+function setReferralValue(groupIndex: number, condIndex: number, val: AnnouncementReferralValue) {
+  updateTargeting((draft) => {
+    const group = draft.any_of[groupIndex]
+    if (!group?.all_of) return
+
+    const cond = group.all_of[condIndex]
+    if (!cond) return
+
+    cond.referral_value = val
   })
 }
 

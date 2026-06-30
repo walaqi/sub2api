@@ -76,8 +76,9 @@ func (r *affiliateRepository) GetAffiliateByCode(ctx context.Context, code strin
 	return queryAffiliateByCode(ctx, client, code)
 }
 
-func (r *affiliateRepository) BindInviter(ctx context.Context, userID, inviterID int64) (bool, error) {
+func (r *affiliateRepository) BindInviter(ctx context.Context, userID, inviterID int64) (bool, time.Time, error) {
 	var bound bool
+	var boundAt time.Time
 	err := r.withTx(ctx, func(txCtx context.Context, txClient *dbent.Client) error {
 		if _, err := ensureUserAffiliateWithClient(txCtx, txClient, userID); err != nil {
 			return err
@@ -86,17 +87,26 @@ func (r *affiliateRepository) BindInviter(ctx context.Context, userID, inviterID
 			return err
 		}
 
-		res, err := txClient.ExecContext(txCtx,
-			"UPDATE user_affiliates SET inviter_id = $1, updated_at = NOW() WHERE user_id = $2 AND inviter_id IS NULL",
+		rows, err := txClient.QueryContext(txCtx,
+			"UPDATE user_affiliates SET inviter_id = $1, inviter_bound_at = NOW(), updated_at = NOW() WHERE user_id = $2 AND inviter_id IS NULL RETURNING inviter_bound_at",
 			inviterID, userID,
 		)
 		if err != nil {
 			return fmt.Errorf("bind inviter: %w", err)
 		}
-		affected, _ := res.RowsAffected()
-		if affected == 0 {
+		defer func() { _ = rows.Close() }()
+		if !rows.Next() {
+			if err := rows.Err(); err != nil {
+				return fmt.Errorf("bind inviter: %w", err)
+			}
 			bound = false
 			return nil
+		}
+		if err := rows.Scan(&boundAt); err != nil {
+			return fmt.Errorf("scan inviter bound at: %w", err)
+		}
+		if err := rows.Close(); err != nil {
+			return fmt.Errorf("close bind inviter rows: %w", err)
 		}
 
 		if _, err = txClient.ExecContext(txCtx,
@@ -109,9 +119,9 @@ func (r *affiliateRepository) BindInviter(ctx context.Context, userID, inviterID
 		return nil
 	})
 	if err != nil {
-		return false, err
+		return false, time.Time{}, err
 	}
-	return bound, nil
+	return bound, boundAt, nil
 }
 
 func (r *affiliateRepository) AccrueQuota(ctx context.Context, inviterID, inviteeUserID int64, amount float64, freezeHours int, sourceOrderID *int64) (bool, error) {

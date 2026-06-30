@@ -141,9 +141,10 @@ func TestAffiliateRepository_AccrueQuota_ReusesOuterTransaction(t *testing.T) {
 	_, err = repo.EnsureUserAffiliate(txCtx, invitee.ID)
 	require.NoError(t, err)
 
-	bound, err := repo.BindInviter(txCtx, invitee.ID, inviter.ID)
+	bound, boundAt, err := repo.BindInviter(txCtx, invitee.ID, inviter.ID)
 	require.NoError(t, err)
 	require.True(t, bound, "invitee must bind to inviter")
+	require.False(t, boundAt.IsZero(), "bind must return inviter_bound_at")
 
 	applied, err := repo.AccrueQuota(txCtx, inviter.ID, invitee.ID, 3.5, 0, nil)
 	require.NoError(t, err)

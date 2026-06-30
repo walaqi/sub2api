@@ -7,6 +7,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/activity"
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/gift"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
@@ -131,4 +132,7 @@ func registerRoutes(
 
 	// 自定义功能：API Key 池绑定（独立包，主干仅一行注册）
 	keybind.RegisterRoutes(v1, entClient, redisClient, jwtAuth, cfg.Pricing.DataDir, apiKeyService, giftEngine)
+
+	// 自定义功能：活动报名（独立包，主干仅一行注册）
+	activity.RegisterRoutes(v1, entClient, jwtAuth, adminAuth)
 }

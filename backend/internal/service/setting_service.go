@@ -854,6 +854,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyAvailableChannelsEnabled,
 		SettingKeyModelsPlazaEnabled,
 		SettingKeyAffiliateEnabled,
+		SettingKeyReferralRewardEnabled,
 		SettingKeyRiskControlEnabled,
 		SettingKeyAllowUserViewErrorRequests,
 	}
@@ -970,6 +971,8 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ImageStudioEnabled: s.cfg != nil && s.cfg.ImageStudio.Enabled,
 
 		AffiliateEnabled: settings[SettingKeyAffiliateEnabled] == "true",
+
+		ReferralRewardEnabled: settings[SettingKeyReferralRewardEnabled] == "true",
 
 		RiskControlEnabled: settings[SettingKeyRiskControlEnabled] == "true",
 
@@ -1307,6 +1310,7 @@ type PublicSettingsInjectionPayload struct {
 	ModelsPlazaEnabled                   bool `json:"models_plaza_enabled"`
 	ImageStudioEnabled                   bool `json:"image_studio_enabled"`
 	AffiliateEnabled                     bool `json:"affiliate_enabled"`
+	ReferralRewardEnabled                bool `json:"referral_reward_enabled"`
 	RiskControlEnabled                   bool `json:"risk_control_enabled"`
 	AllowUserViewErrorRequests           bool `json:"allow_user_view_error_requests"`
 }
@@ -1372,6 +1376,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ModelsPlazaEnabled:                   settings.ModelsPlazaEnabled,
 		ImageStudioEnabled:                   settings.ImageStudioEnabled,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
+		ReferralRewardEnabled:                settings.ReferralRewardEnabled,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
 		AllowUserViewErrorRequests:           settings.AllowUserViewErrorRequests,
 	}, nil
@@ -2019,6 +2024,45 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	// Affiliate (邀请返利) feature switch
 	updates[SettingKeyAffiliateEnabled] = strconv.FormatBool(settings.AffiliateEnabled)
 
+	// Referral Reward (双向邀请赠金) feature switch + params
+	updates[SettingKeyReferralRewardEnabled] = strconv.FormatBool(settings.ReferralRewardEnabled)
+	if settings.ReferralInviteeAmount <= 0 {
+		settings.ReferralInviteeAmount = 10
+	}
+	updates[SettingKeyReferralInviteeAmount] = strconv.FormatFloat(settings.ReferralInviteeAmount, 'f', 2, 64)
+	if settings.ReferralInviteeExpiryDays < 1 {
+		settings.ReferralInviteeExpiryDays = 2
+	}
+	updates[SettingKeyReferralInviteeExpiryDays] = strconv.Itoa(settings.ReferralInviteeExpiryDays)
+	if settings.ReferralInviterAmount <= 0 {
+		settings.ReferralInviterAmount = 10
+	}
+	updates[SettingKeyReferralInviterAmount] = strconv.FormatFloat(settings.ReferralInviterAmount, 'f', 2, 64)
+	if settings.ReferralInviterExpiryDays < 1 {
+		settings.ReferralInviterExpiryDays = 30
+	}
+	updates[SettingKeyReferralInviterExpiryDays] = strconv.Itoa(settings.ReferralInviterExpiryDays)
+	if settings.ReferralInviterGiftMode != "ratio" {
+		settings.ReferralInviterGiftMode = "priority"
+	}
+	updates[SettingKeyReferralInviterGiftMode] = settings.ReferralInviterGiftMode
+	if settings.ReferralInviterGiftRatio <= 0 || settings.ReferralInviterGiftRatio > 10 {
+		settings.ReferralInviterGiftRatio = 0.5
+	}
+	updates[SettingKeyReferralInviterGiftRatioRecharge] = strconv.FormatFloat(settings.ReferralInviterGiftRatio, 'f', 4, 64)
+	if settings.ReferralSpendThreshold <= 0 {
+		settings.ReferralSpendThreshold = 10
+	}
+	updates[SettingKeyReferralSpendThreshold] = strconv.FormatFloat(settings.ReferralSpendThreshold, 'f', 2, 64)
+	if settings.ReferralDiscountValidDays < 1 {
+		settings.ReferralDiscountValidDays = 30
+	}
+	updates[SettingKeyReferralDiscountValidDays] = strconv.Itoa(settings.ReferralDiscountValidDays)
+	settings.ReferralEligibilityGrantMode = normalizeReferralEligibilityGrantMode(settings.ReferralEligibilityGrantMode)
+	updates[SettingKeyReferralEligibilityGrantMode] = settings.ReferralEligibilityGrantMode
+	settings.ReferralEligibilityRechargeMinAmount = normalizeReferralEligibilityRechargeMinAmount(settings.ReferralEligibilityRechargeMinAmount)
+	updates[SettingKeyReferralEligibilityRechargeMin] = strconv.FormatFloat(settings.ReferralEligibilityRechargeMinAmount, 'f', 2, 64)
+
 	// 风控中心功能开关
 	updates[SettingKeyRiskControlEnabled] = strconv.FormatBool(settings.RiskControlEnabled)
 
@@ -2570,6 +2614,113 @@ func (s *SettingService) IsAffiliateEnabled(ctx context.Context) bool {
 	return value == "true"
 }
 
+// IsReferralRewardEnabled 检查双向邀请赠金是否启用（独立于 affiliate_enabled）
+func (s *SettingService) IsReferralRewardEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyReferralRewardEnabled)
+	if err != nil {
+		return false
+	}
+	return value == "true"
+}
+
+// ReferralRewardConfig 返回双向邀请赠金的可配置参数。
+type ReferralRewardConfig struct {
+	InviteeAmount                float64
+	InviteeExpiryDays            int
+	InviterAmount                float64
+	InviterExpiryDays            int
+	InviterGiftMode              string
+	InviterGiftRatio             float64
+	SpendThreshold               float64
+	DiscountValidDays            int // 裂变继承折扣有效天数
+	EligibilityGrantMode         string
+	EligibilityRechargeMinAmount float64
+}
+
+const (
+	ReferralEligibilityGrantModeBindKeyClaim = "bind_key_claim"
+	ReferralEligibilityGrantModeRecharge     = "recharge"
+)
+
+func normalizeReferralEligibilityGrantMode(mode string) string {
+	if strings.TrimSpace(mode) == ReferralEligibilityGrantModeRecharge {
+		return ReferralEligibilityGrantModeRecharge
+	}
+	return ReferralEligibilityGrantModeBindKeyClaim
+}
+
+func normalizeReferralEligibilityRechargeMinAmount(v float64) float64 {
+	if v < 0 {
+		return 0
+	}
+	return v
+}
+
+// GetReferralRewardConfig 读取双向邀请赠金配置，缺失时使用默认值。
+func (s *SettingService) GetReferralRewardConfig(ctx context.Context) ReferralRewardConfig {
+	cfg := ReferralRewardConfig{
+		InviteeAmount:                10,
+		InviteeExpiryDays:            2,
+		InviterAmount:                10,
+		InviterExpiryDays:            30,
+		InviterGiftMode:              "priority",
+		InviterGiftRatio:             0.5,
+		SpendThreshold:               10,
+		DiscountValidDays:            30,
+		EligibilityGrantMode:         ReferralEligibilityGrantModeBindKeyClaim,
+		EligibilityRechargeMinAmount: 0,
+	}
+	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralInviteeAmount); err == nil {
+		if f, e := strconv.ParseFloat(v, 64); e == nil && f > 0 {
+			cfg.InviteeAmount = f
+		}
+	}
+	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralInviteeExpiryDays); err == nil {
+		if d, e := strconv.Atoi(v); e == nil && d >= 1 {
+			cfg.InviteeExpiryDays = d
+		}
+	}
+	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralInviterAmount); err == nil {
+		if f, e := strconv.ParseFloat(v, 64); e == nil && f > 0 {
+			cfg.InviterAmount = f
+		}
+	}
+	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralInviterExpiryDays); err == nil {
+		if d, e := strconv.Atoi(v); e == nil && d >= 1 {
+			cfg.InviterExpiryDays = d
+		}
+	}
+	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralInviterGiftMode); err == nil {
+		if strings.TrimSpace(v) == "ratio" {
+			cfg.InviterGiftMode = "ratio"
+		}
+	}
+	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralInviterGiftRatioRecharge); err == nil {
+		if f, e := strconv.ParseFloat(strings.TrimSpace(v), 64); e == nil && f > 0 && f <= 10 {
+			cfg.InviterGiftRatio = f
+		}
+	}
+	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralSpendThreshold); err == nil {
+		if f, e := strconv.ParseFloat(v, 64); e == nil && f > 0 {
+			cfg.SpendThreshold = f
+		}
+	}
+	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralDiscountValidDays); err == nil {
+		if d, e := strconv.Atoi(v); e == nil && d >= 1 {
+			cfg.DiscountValidDays = d
+		}
+	}
+	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralEligibilityGrantMode); err == nil {
+		cfg.EligibilityGrantMode = normalizeReferralEligibilityGrantMode(v)
+	}
+	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralEligibilityRechargeMin); err == nil {
+		if f, e := strconv.ParseFloat(strings.TrimSpace(v), 64); e == nil {
+			cfg.EligibilityRechargeMinAmount = normalizeReferralEligibilityRechargeMinAmount(f)
+		}
+	}
+	return cfg
+}
+
 // GetAffiliateRebateRatePercent 读取并 clamp 全局返利比例。
 // 解析失败、缺失或越界都回退到 AffiliateRebateRateDefault — 该比例从不抛错，
 // 调用方只关心一个可用的数值。
@@ -2991,6 +3142,11 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 
 		// Affiliate (邀请返利) feature (default disabled; opt-in)
 		SettingKeyAffiliateEnabled: "false",
+
+		// Referral Reward (双向邀请赠金) feature (default disabled; opt-in)
+		SettingKeyReferralRewardEnabled:          "false",
+		SettingKeyReferralEligibilityGrantMode:   ReferralEligibilityGrantModeBindKeyClaim,
+		SettingKeyReferralEligibilityRechargeMin: "0",
 
 		// 风控中心功能（默认关闭，显式启用）
 		SettingKeyRiskControlEnabled: "false",
@@ -3507,6 +3663,47 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 
 	// Affiliate (邀请返利) feature (default: disabled; strict true)
 	result.AffiliateEnabled = settings[SettingKeyAffiliateEnabled] == "true"
+
+	// Referral Reward (双向邀请赠金) feature (default: disabled; strict true)
+	result.ReferralRewardEnabled = settings[SettingKeyReferralRewardEnabled] == "true"
+	// Referral reward parameters (defaults match GetReferralRewardConfig)
+	result.ReferralInviteeAmount = 10
+	if v, err := strconv.ParseFloat(strings.TrimSpace(settings[SettingKeyReferralInviteeAmount]), 64); err == nil && v > 0 {
+		result.ReferralInviteeAmount = v
+	}
+	result.ReferralInviteeExpiryDays = 2
+	if v, err := strconv.Atoi(strings.TrimSpace(settings[SettingKeyReferralInviteeExpiryDays])); err == nil && v >= 1 {
+		result.ReferralInviteeExpiryDays = v
+	}
+	result.ReferralInviterAmount = 10
+	if v, err := strconv.ParseFloat(strings.TrimSpace(settings[SettingKeyReferralInviterAmount]), 64); err == nil && v > 0 {
+		result.ReferralInviterAmount = v
+	}
+	result.ReferralInviterExpiryDays = 30
+	if v, err := strconv.Atoi(strings.TrimSpace(settings[SettingKeyReferralInviterExpiryDays])); err == nil && v >= 1 {
+		result.ReferralInviterExpiryDays = v
+	}
+	result.ReferralInviterGiftMode = "priority"
+	if strings.TrimSpace(settings[SettingKeyReferralInviterGiftMode]) == "ratio" {
+		result.ReferralInviterGiftMode = "ratio"
+	}
+	result.ReferralInviterGiftRatio = 0.5
+	if v, err := strconv.ParseFloat(strings.TrimSpace(settings[SettingKeyReferralInviterGiftRatioRecharge]), 64); err == nil && v > 0 && v <= 10 {
+		result.ReferralInviterGiftRatio = v
+	}
+	result.ReferralSpendThreshold = 10
+	if v, err := strconv.ParseFloat(strings.TrimSpace(settings[SettingKeyReferralSpendThreshold]), 64); err == nil && v > 0 {
+		result.ReferralSpendThreshold = v
+	}
+	result.ReferralDiscountValidDays = 30
+	if v, err := strconv.Atoi(strings.TrimSpace(settings[SettingKeyReferralDiscountValidDays])); err == nil && v >= 1 {
+		result.ReferralDiscountValidDays = v
+	}
+	result.ReferralEligibilityGrantMode = normalizeReferralEligibilityGrantMode(settings[SettingKeyReferralEligibilityGrantMode])
+	result.ReferralEligibilityRechargeMinAmount = 0
+	if v, err := strconv.ParseFloat(strings.TrimSpace(settings[SettingKeyReferralEligibilityRechargeMin]), 64); err == nil {
+		result.ReferralEligibilityRechargeMinAmount = normalizeReferralEligibilityRechargeMinAmount(v)
+	}
 
 	// 风控中心功能（默认关闭，严格 true 才启用）
 	result.RiskControlEnabled = settings[SettingKeyRiskControlEnabled] == "true"

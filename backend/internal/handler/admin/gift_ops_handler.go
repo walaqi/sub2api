@@ -297,6 +297,147 @@ func (h *GiftOpsHandler) DeleteBindKeyRegistrationWindow(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"deleted": 1})
 }
 
+// RechargeDiscountPayload 是设置 per-key 充值折扣的请求体。
+type RechargeDiscountPayload struct {
+	Enabled               bool    `json:"enabled"`
+	DiscountRate          float64 `json:"discount_rate"`
+	MaxDiscountableAmount float64 `json:"max_discountable_amount"`
+	ValidDays             int     `json:"valid_days"`
+	// GiftDeductionMode 该折扣发放赠金的扣除模式："priority" | "ratio"，空值视为 priority。
+	GiftDeductionMode string `json:"gift_deduction_mode"`
+	// GiftRatioRecharge 仅 ratio 模式必填，> 0 且 <= 10。
+	GiftRatioRecharge *float64 `json:"gift_ratio_recharge"`
+	// GiftExpiryMode 该折扣发放赠金的有效期模式："discount_valid_until" | "never" | "after_days"。
+	GiftExpiryMode string `json:"gift_expiry_mode"`
+	// GiftExpiresAfterDays 仅 after_days 模式必填，> 0。
+	GiftExpiresAfterDays *int `json:"gift_expires_after_days"`
+}
+
+// SetBindKeyRechargeDiscount PUT /api/v1/admin/ops/bind-key-gifts/:api_key_id/recharge-discount
+//
+// 设置某条池 key 的充值折扣配置（存表 A 的 config.recharge_discount）。
+// 与赠金字段独立：只写 config，不动 deduction_mode/ratio_recharge/expires_after_days。
+// 行不存在时创建一条仅含折扣配置的占位行（deduction_mode=priority）。
+func (h *GiftOpsHandler) SetBindKeyRechargeDiscount(c *gin.Context) {
+	apiKeyID, err := strconv.ParseInt(c.Param("api_key_id"), 10, 64)
+	if err != nil || apiKeyID <= 0 {
+		response.BadRequest(c, "invalid api_key_id")
+		return
+	}
+	var req RechargeDiscountPayload
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "invalid request: "+err.Error())
+		return
+	}
+	if req.DiscountRate <= 0 || req.DiscountRate > 10.0 {
+		response.BadRequest(c, "discount_rate must be in (0, 10.0]")
+		return
+	}
+	if req.MaxDiscountableAmount <= 0 {
+		response.BadRequest(c, "max_discountable_amount must be > 0")
+		return
+	}
+	if req.ValidDays < 1 {
+		response.BadRequest(c, "valid_days must be >= 1")
+		return
+	}
+
+	// 归一化并校验 gift 扣除策略（空/未知 → priority；ratio 必须 > 0 且 <= 10）。
+	giftMode, giftRatio, err := domain.NormalizeGiftDeduction(req.GiftDeductionMode, req.GiftRatioRecharge)
+	if err != nil {
+		response.BadRequest(c, "invalid gift deduction config: "+err.Error())
+		return
+	}
+	giftExpiryMode, giftExpiryDays, err := domain.NormalizeGiftExpiry(req.GiftExpiryMode, req.GiftExpiresAfterDays)
+	if err != nil {
+		response.BadRequest(c, "invalid gift expiry config: "+err.Error())
+		return
+	}
+
+	ctx := c.Request.Context()
+	discount := &domain.BindKeyRechargeDiscount{
+		Enabled:               req.Enabled,
+		DiscountRate:          req.DiscountRate,
+		MaxDiscountableAmount: req.MaxDiscountableAmount,
+		ValidDays:             req.ValidDays,
+		GiftDeductionMode:     giftMode,
+		GiftRatioRecharge:     giftRatio,
+		GiftExpiryMode:        giftExpiryMode,
+		GiftExpiresAfterDays:  giftExpiryDays,
+	}
+
+	existing, err := h.entClient.BindKeyGiftSetting.Query().
+		Where(bindkeygiftsetting.APIKeyIDEQ(apiKeyID)).
+		Only(ctx)
+	if err != nil && !dbent.IsNotFound(err) {
+		response.InternalError(c, "query setting failed: "+err.Error())
+		return
+	}
+
+	var saved *dbent.BindKeyGiftSetting
+	if dbent.IsNotFound(err) {
+		cfg := &domain.BindKeyConfig{RechargeDiscount: discount}
+		saved, err = h.entClient.BindKeyGiftSetting.Create().
+			SetAPIKeyID(apiKeyID).
+			SetDeductionMode(string(gift.DeductionModePriority)).
+			SetConfig(cfg).
+			Save(ctx)
+	} else {
+		cfg := mergeRechargeDiscount(existing.Config, discount)
+		saved, err = existing.Update().SetConfig(cfg).Save(ctx)
+	}
+	if err != nil {
+		response.InternalError(c, "save recharge discount failed: "+err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": bindKeyGiftSettingDTO(saved)})
+}
+
+// DeleteBindKeyRechargeDiscount DELETE /api/v1/admin/ops/bind-key-gifts/:api_key_id/recharge-discount
+//
+// 清除某条池 key 的充值折扣配置，保留其他配置。行不存在时为 no-op。
+func (h *GiftOpsHandler) DeleteBindKeyRechargeDiscount(c *gin.Context) {
+	apiKeyID, err := strconv.ParseInt(c.Param("api_key_id"), 10, 64)
+	if err != nil || apiKeyID <= 0 {
+		response.BadRequest(c, "invalid api_key_id")
+		return
+	}
+	ctx := c.Request.Context()
+	existing, err := h.entClient.BindKeyGiftSetting.Query().
+		Where(bindkeygiftsetting.APIKeyIDEQ(apiKeyID)).
+		Only(ctx)
+	if err != nil {
+		if dbent.IsNotFound(err) {
+			c.JSON(http.StatusOK, gin.H{"deleted": 0})
+			return
+		}
+		response.InternalError(c, "query setting failed: "+err.Error())
+		return
+	}
+	if existing.Config == nil || existing.Config.RechargeDiscount == nil {
+		c.JSON(http.StatusOK, gin.H{"deleted": 0})
+		return
+	}
+	cfg := mergeRechargeDiscount(existing.Config, nil)
+	if _, err := existing.Update().SetConfig(cfg).Save(ctx); err != nil {
+		response.InternalError(c, "clear recharge discount failed: "+err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"deleted": 1})
+}
+
+// mergeRechargeDiscount 返回一份新的 config，把 discount 写入/清除（nil=清除），
+// 保留其它扩展配置字段不变。
+func mergeRechargeDiscount(cur *domain.BindKeyConfig, discount *domain.BindKeyRechargeDiscount) *domain.BindKeyConfig {
+	out := &domain.BindKeyConfig{}
+	if cur != nil {
+		*out = *cur
+	}
+	out.RechargeDiscount = discount
+	return out
+}
+
 // mergeRegistrationWindow 返回一份新的 config，把 window 写入/清除（nil=清除），
 // 保留其它扩展配置字段不变。
 func mergeRegistrationWindow(cur *domain.BindKeyConfig, window *domain.BindKeyRegistrationWindow) *domain.BindKeyConfig {

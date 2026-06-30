@@ -349,11 +349,11 @@ ORDER BY rc.used_at ASC`, userID)
 	var slots []PoolSlot
 	for rows.Next() {
 		var (
-			id           int64
-			value        float64
-			usedAt       time.Time
-			code         string
-			realPayAmt   float64
+			id         int64
+			value      float64
+			usedAt     time.Time
+			code       string
+			realPayAmt float64
 		)
 		if err := rows.Scan(&id, &value, &usedAt, &code, &realPayAmt); err != nil {
 			return nil, err

@@ -21,6 +21,7 @@ const (
 const (
 	AnnouncementConditionTypeSubscription = "subscription"
 	AnnouncementConditionTypeBalance      = "balance"
+	AnnouncementConditionTypeReferral     = "referral"
 )
 
 const (
@@ -48,12 +49,13 @@ type AnnouncementConditionGroup struct {
 }
 
 type AnnouncementCondition struct {
-	// Type: subscription | balance
+	// Type: subscription | balance | referral
 	Type string `json:"type"`
 
 	// Operator:
 	// - subscription: in
 	// - balance: gt/gte/lt/lte/eq
+	// - referral: eq
 	Operator string `json:"operator"`
 
 	// subscription 条件：匹配的订阅套餐（group_id）
@@ -61,9 +63,21 @@ type AnnouncementCondition struct {
 
 	// balance 条件：比较阈值
 	Value float64 `json:"value,omitempty"`
+
+	// referral 条件：has_inviter | is_inviter | no_inviter
+	ReferralValue string `json:"referral_value,omitempty"`
 }
 
-func (t AnnouncementTargeting) Matches(balance float64, activeSubscriptionGroupIDs map[int64]struct{}) bool {
+// UserTargetingContext 聚合用户所有可用于 targeting 的属性。
+type UserTargetingContext struct {
+	Balance                    float64
+	ActiveSubscriptionGroupIDs map[int64]struct{}
+	ReferralKnown              bool // true 表示 HasInviter/IsInviter 已成功查询；false 时 referral 条件一律不命中（fail-closed）
+	HasInviter                 bool // user_affiliates.inviter_id IS NOT NULL
+	IsInviter                  bool // user_affiliates.aff_count > 0
+}
+
+func (t AnnouncementTargeting) Matches(ctx UserTargetingContext) bool {
 	// 空规则：展示给所有用户
 	if len(t.AnyOf) == 0 {
 		return true
@@ -76,7 +90,7 @@ func (t AnnouncementTargeting) Matches(balance float64, activeSubscriptionGroupI
 		}
 		allMatched := true
 		for _, cond := range group.AllOf {
-			if !cond.Matches(balance, activeSubscriptionGroupIDs) {
+			if !cond.Matches(ctx) {
 				allMatched = false
 				break
 			}
@@ -89,7 +103,7 @@ func (t AnnouncementTargeting) Matches(balance float64, activeSubscriptionGroupI
 	return false
 }
 
-func (c AnnouncementCondition) Matches(balance float64, activeSubscriptionGroupIDs map[int64]struct{}) bool {
+func (c AnnouncementCondition) Matches(ctx UserTargetingContext) bool {
 	switch c.Type {
 	case AnnouncementConditionTypeSubscription:
 		if c.Operator != AnnouncementOperatorIn {
@@ -98,11 +112,11 @@ func (c AnnouncementCondition) Matches(balance float64, activeSubscriptionGroupI
 		if len(c.GroupIDs) == 0 {
 			return false
 		}
-		if len(activeSubscriptionGroupIDs) == 0 {
+		if len(ctx.ActiveSubscriptionGroupIDs) == 0 {
 			return false
 		}
 		for _, gid := range c.GroupIDs {
-			if _, ok := activeSubscriptionGroupIDs[gid]; ok {
+			if _, ok := ctx.ActiveSubscriptionGroupIDs[gid]; ok {
 				return true
 			}
 		}
@@ -111,15 +125,33 @@ func (c AnnouncementCondition) Matches(balance float64, activeSubscriptionGroupI
 	case AnnouncementConditionTypeBalance:
 		switch c.Operator {
 		case AnnouncementOperatorGT:
-			return balance > c.Value
+			return ctx.Balance > c.Value
 		case AnnouncementOperatorGTE:
-			return balance >= c.Value
+			return ctx.Balance >= c.Value
 		case AnnouncementOperatorLT:
-			return balance < c.Value
+			return ctx.Balance < c.Value
 		case AnnouncementOperatorLTE:
-			return balance <= c.Value
+			return ctx.Balance <= c.Value
 		case AnnouncementOperatorEQ:
-			return balance == c.Value
+			return ctx.Balance == c.Value
+		default:
+			return false
+		}
+
+	case AnnouncementConditionTypeReferral:
+		if !ctx.ReferralKnown {
+			return false // fail-closed: DB 查询失败时 referral 条件一律不命中
+		}
+		if c.Operator != AnnouncementOperatorEQ {
+			return false
+		}
+		switch c.ReferralValue {
+		case "has_inviter":
+			return ctx.HasInviter
+		case "is_inviter":
+			return ctx.IsInviter
+		case "no_inviter":
+			return !ctx.HasInviter
 		default:
 			return false
 		}
@@ -152,9 +184,10 @@ func (t AnnouncementTargeting) NormalizeAndValidate() (AnnouncementTargeting, er
 		group := AnnouncementConditionGroup{AllOf: make([]AnnouncementCondition, 0, len(g.AllOf))}
 		for _, c := range g.AllOf {
 			cond := AnnouncementCondition{
-				Type:     strings.TrimSpace(c.Type),
-				Operator: strings.TrimSpace(c.Operator),
-				Value:    c.Value,
+				Type:          strings.TrimSpace(c.Type),
+				Operator:      strings.TrimSpace(c.Operator),
+				Value:         c.Value,
+				ReferralValue: strings.TrimSpace(c.ReferralValue),
 			}
 			for _, gid := range c.GroupIDs {
 				if gid <= 0 {
@@ -189,6 +222,17 @@ func (c AnnouncementCondition) validate() error {
 	case AnnouncementConditionTypeBalance:
 		switch c.Operator {
 		case AnnouncementOperatorGT, AnnouncementOperatorGTE, AnnouncementOperatorLT, AnnouncementOperatorLTE, AnnouncementOperatorEQ:
+			return nil
+		default:
+			return ErrAnnouncementInvalidTarget
+		}
+
+	case AnnouncementConditionTypeReferral:
+		if c.Operator != AnnouncementOperatorEQ {
+			return ErrAnnouncementInvalidTarget
+		}
+		switch c.ReferralValue {
+		case "has_inviter", "is_inviter", "no_inviter":
 			return nil
 		default:
 			return ErrAnnouncementInvalidTarget

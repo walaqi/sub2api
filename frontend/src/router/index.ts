@@ -230,6 +230,17 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/activities',
+    name: 'ActivitySignup',
+    component: () => import('@/views/user/ActivitySignupView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Activities',
+      titleKey: 'nav.activities'
+    }
+  },
+  {
     path: '/affiliate',
     name: 'Affiliate',
     component: () => import('@/views/user/AffiliateView.vue'),
@@ -339,6 +350,17 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/gifts',
+    name: 'UserGifts',
+    component: () => import('@/views/user/UserGiftsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'My Gifts',
+      titleKey: 'nav.myGifts',
+    }
+  },
+  {
     path: '/payment/qrcode',
     name: 'PaymentQRCode',
     component: () => import('@/views/user/PaymentQRCodeView.vue'),
@@ -416,6 +438,18 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: false,
       title: 'Bind API Key',
+    }
+  },
+
+  // 超级邀请：邀请奖励状态页面（需登录）
+  {
+    path: '/referral',
+    name: 'Referral',
+    component: () => import('@/views/user/ReferralView.vue'),
+    meta: {
+      requiresAuth: true,
+      title: 'Super Referral',
+      titleKey: 'referral.title',
     }
   },
 

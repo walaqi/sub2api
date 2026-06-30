@@ -204,6 +204,33 @@ export async function getMyPlatformQuotas(): Promise<PlatformQuotasResponse> {
   return data
 }
 
+/**
+ * 获取当前用户的最佳活跃充值折扣（用于充值页提示）。
+ * 返回 null 表示无折扣。
+ */
+export interface ActiveRechargeDiscount {
+  id: number
+  source: string
+  discount_rate: number
+  max_discountable_amount: number
+  total_discounted: number
+  remaining_quota: number
+  valid_until_unix_ms: number | null
+  /** 该折扣发放赠金的扣除模式："priority" | "ratio"。 */
+  gift_deduction_mode: string
+  /** 仅 ratio 模式存在的比例值。 */
+  gift_ratio_recharge?: number | null
+  /** 该折扣发放赠金的有效期模式。 */
+  gift_expiry_mode: string
+  /** 仅 after_days 模式存在的天数。 */
+  gift_expires_after_days?: number | null
+}
+
+export async function getMyActiveRechargeDiscount(): Promise<ActiveRechargeDiscount | null> {
+  const { data } = await apiClient.get<ActiveRechargeDiscount | null>('/user/recharge-discount')
+  return data ?? null
+}
+
 export const userAPI = {
   getProfile,
   listGifts,
@@ -221,6 +248,7 @@ export const userAPI = {
   getAffiliateDetail,
   transferAffiliateQuota,
   getMyPlatformQuotas,
+  getMyActiveRechargeDiscount,
 }
 
 export default userAPI

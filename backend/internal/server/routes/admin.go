@@ -701,6 +701,9 @@ func registerGiftOpsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 			// per-key 注册时间窗口（独立于赠金字段，互不覆盖）
 			bindKeyGifts.PUT("/:api_key_id/registration-window", h.Admin.GiftOps.SetBindKeyRegistrationWindow)
 			bindKeyGifts.DELETE("/:api_key_id/registration-window", h.Admin.GiftOps.DeleteBindKeyRegistrationWindow)
+			// per-key 充值折扣配置（独立于赠金字段，互不覆盖）
+			bindKeyGifts.PUT("/:api_key_id/recharge-discount", h.Admin.GiftOps.SetBindKeyRechargeDiscount)
+			bindKeyGifts.DELETE("/:api_key_id/recharge-discount", h.Admin.GiftOps.DeleteBindKeyRechargeDiscount)
 		}
 
 		// B. 赠金账本

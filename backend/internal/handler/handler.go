@@ -62,6 +62,8 @@ type Handlers struct {
 	AvailableChannel *AvailableChannelHandler
 	ModelsPlaza      *ModelsPlazaHandler
 	ImageStudio      *ImageStudioHandler
+	RechargeDiscount *RechargeDiscountHandler
+	Referral         *ReferralHandler
 }
 
 // BuildInfo contains build-time information

@@ -88,19 +88,6 @@
                     {{ t('profile.giftExpiringSoonHint', { amount: formatCurrency(user?.gift_expiring_soon || 0) }) }}
                   </span>
                 </p>
-                <ul
-                  v-if="giftItems.length"
-                  data-testid="profile-overview-gift-list"
-                  class="mt-1.5 space-y-0.5"
-                >
-                  <li
-                    v-for="(gift, index) in giftItems"
-                    :key="index"
-                    class="text-[11px] leading-snug text-amber-700 dark:text-amber-300"
-                  >
-                    {{ formatGiftLine(gift) }}
-                  </li>
-                </ul>
               </div>
               <div
                 data-testid="profile-overview-metric-concurrency"
@@ -218,11 +205,10 @@ import Icon from '@/components/icons/Icon.vue'
 import ProfileAvatarCard from '@/components/user/profile/ProfileAvatarCard.vue'
 import ProfileEditForm from '@/components/user/profile/ProfileEditForm.vue'
 import ProfileIdentityBindingsSection from '@/components/user/profile/ProfileIdentityBindingsSection.vue'
-import type { User, UserAuthBindingStatus, UserAuthProvider, UserGiftItem, UserProfileSourceContext } from '@/types'
+import type { User, UserAuthBindingStatus, UserAuthProvider, UserProfileSourceContext } from '@/types'
 
 const props = withDefaults(defineProps<{
   user: User | null
-  gifts?: UserGiftItem[]
   linuxdoEnabled?: boolean
   dingtalkEnabled?: boolean
   oidcEnabled?: boolean
@@ -231,7 +217,6 @@ const props = withDefaults(defineProps<{
   wechatOpenEnabled?: boolean
   wechatMpEnabled?: boolean
 }>(), {
-  gifts: () => [],
   linuxdoEnabled: false,
   dingtalkEnabled: false,
   oidcEnabled: false,
@@ -308,49 +293,6 @@ const providerLabels = computed<Record<UserAuthProvider, string>>(() => ({
 
 function formatCurrency(value: number): string {
   return `$${value.toFixed(2)}`
-}
-
-const giftItems = computed(() => props.gifts ?? [])
-
-// 把 ratio_recharge 渲染成 "充值:赠金" 比例标签，如 1:1 / 1:2。
-// 后端语义：每消耗 1 单位充值池，同步扣 ratio_recharge 单位赠金。
-function formatGiftRatio(ratioRecharge: number | null | undefined): string {
-  const r = Number(ratioRecharge ?? 0)
-  if (!Number.isFinite(r) || r <= 0) {
-    return '1:1'
-  }
-  // 去掉末尾多余的 0（1 → "1"，0.5 → "0.5"）。
-  const giftPart = Number(r.toFixed(4)).toString()
-  return `1:${giftPart}`
-}
-
-// 渲染单笔赠金展示行，例如：
-//   Gift $49.40 ($49.40 expiring soon) - priority
-//   Gift $49.40 ($49.40 expiring at 07/01/2026) - ratio 1:1
-function formatGiftLine(gift: UserGiftItem): string {
-  const amount = formatCurrency(gift.remaining)
-  let qualifier = ''
-  if (gift.expiring_soon) {
-    qualifier = ` (${amount} ${t('profile.giftExpiringSoonShort')})`
-  } else if (gift.expires_at_unix_ms != null) {
-    qualifier = ` (${amount} ${t('profile.giftExpiringAt', { date: formatGiftExpiry(gift.expires_at_unix_ms) })})`
-  }
-  const mode = gift.deduction_mode === 'ratio'
-    ? `${t('profile.giftModeRatio')} ${formatGiftRatio(gift.ratio_recharge)}`
-    : t('profile.giftModePriority')
-  return `${t('profile.giftBalance')} ${amount}${qualifier} - ${mode}`
-}
-
-// 毫秒时间戳 → MM/DD/YYYY。
-function formatGiftExpiry(unixMs: number): string {
-  const d = new Date(unixMs)
-  if (Number.isNaN(d.getTime())) {
-    return ''
-  }
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  const yyyy = d.getFullYear()
-  return `${mm}/${dd}/${yyyy}`
 }
 
 function normalizeProvider(value: string): UserAuthProvider | null {

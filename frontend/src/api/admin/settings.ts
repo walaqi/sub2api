@@ -621,6 +621,19 @@ export interface SystemSettings {
   // Affiliate (邀请返利) feature switch
   affiliate_enabled: boolean;
 
+  // Referral Reward (双向邀请赠金) feature switch + params
+  referral_reward_enabled: boolean;
+  referral_invitee_amount: number;
+  referral_invitee_expiry_days: number;
+  referral_inviter_amount: number;
+  referral_inviter_expiry_days: number;
+  referral_inviter_gift_mode: 'priority' | 'ratio';
+  referral_inviter_gift_ratio_recharge: number;
+  referral_spend_threshold: number;
+  referral_discount_valid_days: number;
+  referral_eligibility_grant_mode: 'bind_key_claim' | 'recharge';
+  referral_eligibility_recharge_min_amount: number;
+
   // OpenAI fast/flex policy
   openai_fast_policy_settings?: OpenAIFastPolicySettings;
 
@@ -864,6 +877,19 @@ export interface UpdateSettingsRequest {
 
   // Affiliate (邀请返利) feature switch
   affiliate_enabled?: boolean;
+
+  // Referral Reward (双向邀请赠金) feature switch + params
+  referral_reward_enabled?: boolean;
+  referral_invitee_amount?: number;
+  referral_invitee_expiry_days?: number;
+  referral_inviter_amount?: number;
+  referral_inviter_expiry_days?: number;
+  referral_inviter_gift_mode?: 'priority' | 'ratio';
+  referral_inviter_gift_ratio_recharge?: number;
+  referral_spend_threshold?: number;
+  referral_discount_valid_days?: number;
+  referral_eligibility_grant_mode?: 'bind_key_claim' | 'recharge';
+  referral_eligibility_recharge_min_amount?: number;
 
   // OpenAI fast/flex policy
   openai_fast_policy_settings?: OpenAIFastPolicySettings;

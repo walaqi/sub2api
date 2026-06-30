@@ -123,26 +123,37 @@ const DingTalkConnectSyntheticEmailDomain = "@dingtalk-connect.invalid"
 // Setting keys
 const (
 	// 注册设置
-	SettingKeyRegistrationEnabled              = "registration_enabled"                // 是否开放注册
-	SettingKeyEmailVerifyEnabled               = "email_verify_enabled"                // 是否开启邮件验证
-	SettingKeyRegistrationEmailSuffixWhitelist = "registration_email_suffix_whitelist" // 注册邮箱后缀白名单（JSON 数组）
-	SettingKeyPromoCodeEnabled                 = "promo_code_enabled"                  // 是否启用优惠码功能
-	SettingKeyPasswordResetEnabled             = "password_reset_enabled"              // 是否启用忘记密码功能（需要先开启邮件验证）
-	SettingKeyFrontendURL                      = "frontend_url"                        // 前端基础URL，用于生成邮件中的重置密码链接
-	SettingKeyInvitationCodeEnabled            = "invitation_code_enabled"             // 是否启用邀请码注册
-	SettingKeyAffiliateEnabled                 = "affiliate_enabled"                   // 邀请返利功能总开关
-	SettingKeyAffiliateRebateRate              = "affiliate_rebate_rate"               // 邀请返利比例（百分比，0-100）
-	SettingKeyAffiliateRebateFreezeHours       = "affiliate_rebate_freeze_hours"       // 返利冻结期（小时，0=不冻结）
-	SettingKeyAffiliateRebateDurationDays      = "affiliate_rebate_duration_days"      // 返利有效期（天，0=永久）
-	SettingKeyAffiliateRebatePerInviteeCap     = "affiliate_rebate_per_invitee_cap"    // 单人返利上限（0=无上限）
-	SettingKeyRiskControlEnabled               = "risk_control_enabled"                // 是否启用风控中心入口与审计链路
-	SettingKeyContentModerationConfig          = "content_moderation_config"           // 内容审计配置（JSON）
-	SettingKeyCyberSessionBlockEnabled         = "cyber_session_block_enabled"         // cyber 命中后会话级自动屏蔽总开关(默认关)
-	SettingKeyCyberSessionBlockTTLSeconds      = "cyber_session_block_ttl_seconds"     // 会话屏蔽 TTL 秒数(默认 3600)
-	SettingKeyLoginAgreementEnabled            = "login_agreement_enabled"             // 登录前是否要求同意条款
-	SettingKeyLoginAgreementMode               = "login_agreement_mode"                // 条款确认展示模式：modal / checkbox
-	SettingKeyLoginAgreementUpdatedAt          = "login_agreement_updated_at"          // 条款更新日期（展示用）
-	SettingKeyLoginAgreementDocuments          = "login_agreement_documents"           // 条款文档列表（JSON，Markdown 内容）
+	SettingKeyRegistrationEnabled              = "registration_enabled"                 // 是否开放注册
+	SettingKeyEmailVerifyEnabled               = "email_verify_enabled"                 // 是否开启邮件验证
+	SettingKeyRegistrationEmailSuffixWhitelist = "registration_email_suffix_whitelist"  // 注册邮箱后缀白名单（JSON 数组）
+	SettingKeyPromoCodeEnabled                 = "promo_code_enabled"                   // 是否启用优惠码功能
+	SettingKeyPasswordResetEnabled             = "password_reset_enabled"               // 是否启用忘记密码功能（需要先开启邮件验证）
+	SettingKeyFrontendURL                      = "frontend_url"                         // 前端基础URL，用于生成邮件中的重置密码链接
+	SettingKeyInvitationCodeEnabled            = "invitation_code_enabled"              // 是否启用邀请码注册
+	SettingKeyAffiliateEnabled                 = "affiliate_enabled"                    // 邀请返利功能总开关
+	SettingKeyAffiliateRebateRate              = "affiliate_rebate_rate"                // 邀请返利比例（百分比，0-100）
+	SettingKeyAffiliateRebateFreezeHours       = "affiliate_rebate_freeze_hours"        // 返利冻结期（小时，0=不冻结）
+	SettingKeyAffiliateRebateDurationDays      = "affiliate_rebate_duration_days"       // 返利有效期（天，0=永久）
+	SettingKeyAffiliateRebatePerInviteeCap     = "affiliate_rebate_per_invitee_cap"     // 单人返利上限（0=无上限）
+	SettingKeyReferralRewardEnabled            = "referral_reward_enabled"              // 双向邀请赠金总开关（独立于 affiliate_enabled）
+	SettingKeyReferralInviteeAmount            = "referral_invitee_amount"              // 被邀请人注册赠金金额 (USD, 默认 10)
+	SettingKeyReferralInviteeExpiryDays        = "referral_invitee_expiry_days"         // 被邀请人赠金过期天数 (默认 2)
+	SettingKeyReferralInviterAmount            = "referral_inviter_amount"              // 邀请人达标赠金金额 (USD, 默认 10)
+	SettingKeyReferralInviterExpiryDays        = "referral_inviter_expiry_days"         // 邀请人赠金过期天数 (默认 30)
+	SettingKeyReferralInviterGiftMode          = "referral_inviter_gift_mode"           // 邀请人达标赠金扣除模式：priority | ratio
+	SettingKeyReferralInviterGiftRatioRecharge = "referral_inviter_gift_ratio_recharge" // 邀请人达标赠金比例扣除参数
+	SettingKeyReferralSpendThreshold           = "referral_spend_threshold"             // 被邀请人消费达标阈值 (USD, 默认 10)
+	SettingKeyReferralDiscountValidDays        = "referral_discount_valid_days"         // 裂变继承折扣有效天数 (默认 30)
+	SettingKeyReferralEligibilityGrantMode     = "referral_eligibility_grant_mode"      // 超级邀请资格获得方式：bind_key_claim | recharge
+	SettingKeyReferralEligibilityRechargeMin   = "referral_eligibility_recharge_min_amount"
+	SettingKeyRiskControlEnabled               = "risk_control_enabled"            // 是否启用风控中心入口与审计链路
+	SettingKeyContentModerationConfig          = "content_moderation_config"       // 内容审计配置（JSON）
+	SettingKeyCyberSessionBlockEnabled         = "cyber_session_block_enabled"     // cyber 命中后会话级自动屏蔽总开关(默认关)
+	SettingKeyCyberSessionBlockTTLSeconds      = "cyber_session_block_ttl_seconds" // 会话屏蔽 TTL 秒数(默认 3600)
+	SettingKeyLoginAgreementEnabled            = "login_agreement_enabled"         // 登录前是否要求同意条款
+	SettingKeyLoginAgreementMode               = "login_agreement_mode"            // 条款确认展示模式：modal / checkbox
+	SettingKeyLoginAgreementUpdatedAt          = "login_agreement_updated_at"      // 条款更新日期（展示用）
+	SettingKeyLoginAgreementDocuments          = "login_agreement_documents"       // 条款文档列表（JSON，Markdown 内容）
 
 	// 邮件服务设置
 	SettingKeySMTPHost     = "smtp_host"      // SMTP服务器地址

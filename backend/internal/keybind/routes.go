@@ -54,6 +54,7 @@ func RegisterRoutes(
 		poolEmail = DefaultPoolUserEmail
 	}
 	updater := NewGiftEngineUpdater(giftEngine, NewBindKeyGiftSettingResolver(client))
+	discountCreator := NewEntDiscountCreator(client)
 	svc := NewService(
 		context.Background(),
 		client,
@@ -61,6 +62,7 @@ func RegisterRoutes(
 		poolEmail,
 		dataDir,
 		WithBalanceGift(updater, authCache, nil),
+		WithRechargeDiscountCreator(discountCreator),
 	)
 	if !svc.Enabled() {
 		log.Printf("[keybind] feature is disabled (pool user %q not found; create the user or override via %s)", poolEmail, PoolUserEmailEnv)

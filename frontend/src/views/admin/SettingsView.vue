@@ -5677,6 +5677,178 @@
             </p>
           </div>
           <div class="space-y-5 p-6">
+            <!-- Referral Reward (双向邀请赠金) toggle -->
+            <div class="flex items-center justify-between">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.features.affiliate.referralRewardEnabled') }}
+                </label>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.affiliate.referralRewardEnabledHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.referral_reward_enabled" />
+            </div>
+
+            <div v-if="form.referral_reward_enabled" class="space-y-6">
+              <div>
+                <label class="input-label">
+                  {{ t('admin.settings.features.affiliate.referralInviteeAmount') }}
+                </label>
+                <div class="relative">
+                  <input
+                    v-model.number="form.referral_invitee_amount"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    class="input pr-12"
+                  />
+                  <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-gray-400">USD</span>
+                </div>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.affiliate.referralInviteeAmountHint') }}
+                </p>
+              </div>
+              <div>
+                <label class="input-label">
+                  {{ t('admin.settings.features.affiliate.referralInviteeExpiryDays') }}
+                </label>
+                <input
+                  v-model.number="form.referral_invitee_expiry_days"
+                  type="number"
+                  min="1"
+                  class="input"
+                />
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.affiliate.referralInviteeExpiryDaysHint') }}
+                </p>
+              </div>
+              <div>
+                <label class="input-label">
+                  {{ t('admin.settings.features.affiliate.referralSpendThreshold') }}
+                </label>
+                <div class="relative">
+                  <input
+                    v-model.number="form.referral_spend_threshold"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    class="input pr-12"
+                  />
+                  <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-gray-400">USD</span>
+                </div>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.affiliate.referralSpendThresholdHint') }}
+                </p>
+              </div>
+              <div>
+                <label class="input-label">
+                  {{ t('admin.settings.features.affiliate.referralEligibilityGrantMode') }}
+                </label>
+                <Select
+                  :modelValue="form.referral_eligibility_grant_mode"
+                  :options="referralEligibilityGrantModeOptions"
+                  @update:modelValue="form.referral_eligibility_grant_mode = $event as 'bind_key_claim' | 'recharge'"
+                />
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.affiliate.referralEligibilityGrantModeHint') }}
+                </p>
+              </div>
+              <div v-if="form.referral_eligibility_grant_mode === 'recharge'">
+                <label class="input-label">
+                  {{ t('admin.settings.features.affiliate.referralEligibilityRechargeMinAmount') }}
+                </label>
+                <div class="relative">
+                  <input
+                    v-model.number="form.referral_eligibility_recharge_min_amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="input pr-12"
+                  />
+                  <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-gray-400">USD</span>
+                </div>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.affiliate.referralEligibilityRechargeMinAmountHint') }}
+                </p>
+              </div>
+              <div>
+                <label class="input-label">
+                  {{ t('admin.settings.features.affiliate.referralInviterAmount') }}
+                </label>
+                <div class="relative">
+                  <input
+                    v-model.number="form.referral_inviter_amount"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    class="input pr-12"
+                  />
+                  <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-gray-400">USD</span>
+                </div>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.affiliate.referralInviterAmountHint') }}
+                </p>
+              </div>
+              <div>
+                <label class="input-label">
+                  {{ t('admin.settings.features.affiliate.referralInviterGiftMode') }}
+                </label>
+                <Select
+                  :modelValue="form.referral_inviter_gift_mode"
+                  :options="referralInviterGiftModeOptions"
+                  @update:modelValue="form.referral_inviter_gift_mode = $event as 'priority' | 'ratio'"
+                />
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.affiliate.referralInviterGiftModeHint') }}
+                </p>
+              </div>
+              <div v-if="form.referral_inviter_gift_mode === 'ratio'">
+                <label class="input-label">
+                  {{ t('admin.settings.features.affiliate.referralInviterGiftRatio') }}
+                </label>
+                <input
+                  v-model.number="form.referral_inviter_gift_ratio_recharge"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max="10"
+                  class="input"
+                />
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.affiliate.referralInviterGiftRatioHint') }}
+                </p>
+              </div>
+              <div>
+                <label class="input-label">
+                  {{ t('admin.settings.features.affiliate.referralInviterExpiryDays') }}
+                </label>
+                <input
+                  v-model.number="form.referral_inviter_expiry_days"
+                  type="number"
+                  min="1"
+                  class="input"
+                />
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.affiliate.referralInviterExpiryDaysHint') }}
+                </p>
+              </div>
+              <div>
+                <label class="input-label">
+                  {{ t('admin.settings.features.affiliate.referralDiscountValidDays') }}
+                </label>
+                <input
+                  v-model.number="form.referral_discount_valid_days"
+                  type="number"
+                  min="1"
+                  class="input"
+                />
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.affiliate.referralDiscountValidDaysHint') }}
+                </p>
+              </div>
+            </div>
+
             <div class="flex items-center justify-between">
               <div>
                 <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -7968,6 +8140,18 @@ const form = reactive<SettingsForm>({
   models_plaza_enabled: false,
   // Affiliate (邀请返利) feature switch
   affiliate_enabled: false,
+  // Referral Reward (双向邀请赠金) feature switch + params
+  referral_reward_enabled: false,
+  referral_invitee_amount: 10,
+  referral_invitee_expiry_days: 2,
+  referral_inviter_amount: 10,
+  referral_inviter_expiry_days: 30,
+  referral_inviter_gift_mode: 'priority' as 'priority' | 'ratio',
+  referral_inviter_gift_ratio_recharge: 0.5,
+  referral_spend_threshold: 10,
+  referral_discount_valid_days: 30,
+  referral_eligibility_grant_mode: 'bind_key_claim' as 'bind_key_claim' | 'recharge',
+  referral_eligibility_recharge_min_amount: 0,
   // Allow user view error requests
   allow_user_view_error_requests: false,
 });
@@ -7975,6 +8159,16 @@ const form = reactive<SettingsForm>({
 const authSourceDefaults = reactive<AuthSourceDefaultsState>(
   buildAuthSourceDefaultsState({}),
 );
+
+const referralInviterGiftModeOptions = computed(() => [
+  { value: 'priority', label: t('admin.settings.features.affiliate.referralInviterGiftModePriority') },
+  { value: 'ratio', label: t('admin.settings.features.affiliate.referralInviterGiftModeRatio') },
+]);
+
+const referralEligibilityGrantModeOptions = computed(() => [
+  { value: 'bind_key_claim', label: t('admin.settings.features.affiliate.referralEligibilityGrantModeBindKeyClaim') },
+  { value: 'recharge', label: t('admin.settings.features.affiliate.referralEligibilityGrantModeRecharge') },
+]);
 
 const authSourceDefaultsMeta = computed(() => [
   {
@@ -9205,6 +9399,17 @@ async function saveSettings() {
       models_plaza_enabled: form.models_plaza_enabled,
       // Affiliate (邀请返利) feature switch
       affiliate_enabled: form.affiliate_enabled,
+      referral_reward_enabled: form.referral_reward_enabled,
+      referral_invitee_amount: form.referral_invitee_amount,
+      referral_invitee_expiry_days: form.referral_invitee_expiry_days,
+      referral_inviter_amount: form.referral_inviter_amount,
+      referral_inviter_expiry_days: form.referral_inviter_expiry_days,
+      referral_inviter_gift_mode: form.referral_inviter_gift_mode,
+      referral_inviter_gift_ratio_recharge: form.referral_inviter_gift_ratio_recharge,
+      referral_spend_threshold: form.referral_spend_threshold,
+      referral_discount_valid_days: form.referral_discount_valid_days,
+      referral_eligibility_grant_mode: form.referral_eligibility_grant_mode,
+      referral_eligibility_recharge_min_amount: form.referral_eligibility_recharge_min_amount,
       allow_user_view_error_requests: form.allow_user_view_error_requests,
     };
 

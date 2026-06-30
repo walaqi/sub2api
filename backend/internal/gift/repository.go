@@ -404,11 +404,29 @@ func (r *repository) revokeOneGift(ctx context.Context, giftID int64, reason str
 
 // listGiftsByUser 列出某用户的赠金，可按 status 过滤。返回总数便于分页。
 func (r *repository) listGiftsByUser(ctx context.Context, userID int64, status Status, page, pageSize int) ([]UserGift, int64, error) {
+	return r.listGiftsByUserWithSort(ctx, userID, status, page, pageSize, "id DESC")
+}
+
+// listGiftsByUserExpiryAsc 同 listGiftsByUser，但按过期时间从早到晚排序。
+func (r *repository) listGiftsByUserExpiryAsc(ctx context.Context, userID int64, status Status, page, pageSize int) ([]UserGift, int64, error) {
+	return r.listGiftsByUserWithSort(ctx, userID, status, page, pageSize, "expires_at ASC NULLS LAST, id ASC")
+}
+
+func (r *repository) listGiftsByUserWithSort(ctx context.Context, userID int64, status Status, page, pageSize int, orderBy string) ([]UserGift, int64, error) {
 	args := []any{userID}
 	where := "user_id = $1"
 	if status != "" {
-		args = append(args, string(status))
-		where += " AND status = $2"
+		switch status {
+		case StatusActive:
+			// 语义过滤：status='active' 且未自然过期（expirer 有延迟，可能还没 sweep）
+			where += " AND status = 'active' AND (expires_at IS NULL OR expires_at > NOW())"
+		case StatusExpired:
+			// 语义过滤：status='expired' 或 status='active' 但已自然过期（expirer 尚未 sweep）
+			where += " AND (status = 'expired' OR (status = 'active' AND expires_at IS NOT NULL AND expires_at <= NOW()))"
+		default:
+			args = append(args, string(status))
+			where += " AND status = $2"
+		}
 	}
 
 	var total int64
@@ -430,9 +448,9 @@ func (r *repository) listGiftsByUser(ctx context.Context, userID int64, status S
 		       source, COALESCE(source_ref, ''), status, created_at, updated_at
 		FROM user_gifts
 		WHERE %s
-		ORDER BY id DESC
+		ORDER BY %s
 		LIMIT $%d OFFSET $%d
-	`, where, limitIdx, offsetIdx), args...)
+	`, where, orderBy, limitIdx, offsetIdx), args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list gifts: %w", err)
 	}

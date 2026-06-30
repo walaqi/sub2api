@@ -305,6 +305,18 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 
 		AffiliateEnabled: settings.AffiliateEnabled,
 
+		ReferralRewardEnabled:                settings.ReferralRewardEnabled,
+		ReferralInviteeAmount:                settings.ReferralInviteeAmount,
+		ReferralInviteeExpiryDays:            settings.ReferralInviteeExpiryDays,
+		ReferralInviterAmount:                settings.ReferralInviterAmount,
+		ReferralInviterExpiryDays:            settings.ReferralInviterExpiryDays,
+		ReferralInviterGiftMode:              settings.ReferralInviterGiftMode,
+		ReferralInviterGiftRatio:             settings.ReferralInviterGiftRatio,
+		ReferralSpendThreshold:               settings.ReferralSpendThreshold,
+		ReferralDiscountValidDays:            settings.ReferralDiscountValidDays,
+		ReferralEligibilityGrantMode:         settings.ReferralEligibilityGrantMode,
+		ReferralEligibilityRechargeMinAmount: settings.ReferralEligibilityRechargeMinAmount,
+
 		AllowUserViewErrorRequests: settings.AllowUserViewErrorRequests,
 	}
 
@@ -655,6 +667,19 @@ type UpdateSettingsRequest struct {
 
 	// Affiliate (邀请返利) feature switch
 	AffiliateEnabled *bool `json:"affiliate_enabled"`
+
+	// Referral Reward (双向邀请赠金) feature switch + params
+	ReferralRewardEnabled                *bool    `json:"referral_reward_enabled"`
+	ReferralInviteeAmount                *float64 `json:"referral_invitee_amount"`
+	ReferralInviteeExpiryDays            *int     `json:"referral_invitee_expiry_days"`
+	ReferralInviterAmount                *float64 `json:"referral_inviter_amount"`
+	ReferralInviterExpiryDays            *int     `json:"referral_inviter_expiry_days"`
+	ReferralInviterGiftMode              *string  `json:"referral_inviter_gift_mode"`
+	ReferralInviterGiftRatio             *float64 `json:"referral_inviter_gift_ratio_recharge"`
+	ReferralSpendThreshold               *float64 `json:"referral_spend_threshold"`
+	ReferralDiscountValidDays            *int     `json:"referral_discount_valid_days"`
+	ReferralEligibilityGrantMode         *string  `json:"referral_eligibility_grant_mode"`
+	ReferralEligibilityRechargeMinAmount *float64 `json:"referral_eligibility_recharge_min_amount"`
 
 	// 风控中心功能开关
 	RiskControlEnabled *bool `json:"risk_control_enabled"`
@@ -1484,6 +1509,10 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		response.BadRequest(c, "cyber_session_block_ttl_seconds must be > 0")
 		return
 	}
+	if req.ReferralEligibilityRechargeMinAmount != nil && *req.ReferralEligibilityRechargeMinAmount < 0 {
+		response.BadRequest(c, "referral_eligibility_recharge_min_amount must be >= 0")
+		return
+	}
 
 	settings := &service.SystemSettings{
 		// 系统全局 platform quota 默认值（整体替换语义）
@@ -1809,6 +1838,72 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 				return *req.AffiliateEnabled
 			}
 			return previousSettings.AffiliateEnabled
+		}(),
+		ReferralRewardEnabled: func() bool {
+			if req.ReferralRewardEnabled != nil {
+				return *req.ReferralRewardEnabled
+			}
+			return previousSettings.ReferralRewardEnabled
+		}(),
+		ReferralInviteeAmount: func() float64 {
+			if req.ReferralInviteeAmount != nil {
+				return *req.ReferralInviteeAmount
+			}
+			return previousSettings.ReferralInviteeAmount
+		}(),
+		ReferralInviteeExpiryDays: func() int {
+			if req.ReferralInviteeExpiryDays != nil {
+				return *req.ReferralInviteeExpiryDays
+			}
+			return previousSettings.ReferralInviteeExpiryDays
+		}(),
+		ReferralInviterAmount: func() float64 {
+			if req.ReferralInviterAmount != nil {
+				return *req.ReferralInviterAmount
+			}
+			return previousSettings.ReferralInviterAmount
+		}(),
+		ReferralInviterExpiryDays: func() int {
+			if req.ReferralInviterExpiryDays != nil {
+				return *req.ReferralInviterExpiryDays
+			}
+			return previousSettings.ReferralInviterExpiryDays
+		}(),
+		ReferralInviterGiftMode: func() string {
+			if req.ReferralInviterGiftMode != nil {
+				return *req.ReferralInviterGiftMode
+			}
+			return previousSettings.ReferralInviterGiftMode
+		}(),
+		ReferralInviterGiftRatio: func() float64 {
+			if req.ReferralInviterGiftRatio != nil {
+				return *req.ReferralInviterGiftRatio
+			}
+			return previousSettings.ReferralInviterGiftRatio
+		}(),
+		ReferralSpendThreshold: func() float64 {
+			if req.ReferralSpendThreshold != nil {
+				return *req.ReferralSpendThreshold
+			}
+			return previousSettings.ReferralSpendThreshold
+		}(),
+		ReferralDiscountValidDays: func() int {
+			if req.ReferralDiscountValidDays != nil {
+				return *req.ReferralDiscountValidDays
+			}
+			return previousSettings.ReferralDiscountValidDays
+		}(),
+		ReferralEligibilityGrantMode: func() string {
+			if req.ReferralEligibilityGrantMode != nil {
+				return *req.ReferralEligibilityGrantMode
+			}
+			return previousSettings.ReferralEligibilityGrantMode
+		}(),
+		ReferralEligibilityRechargeMinAmount: func() float64 {
+			if req.ReferralEligibilityRechargeMinAmount != nil {
+				return *req.ReferralEligibilityRechargeMinAmount
+			}
+			return previousSettings.ReferralEligibilityRechargeMinAmount
 		}(),
 		RiskControlEnabled: func() bool {
 			if req.RiskControlEnabled != nil {
@@ -2153,6 +2248,18 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ModelsPlazaEnabled: updatedSettings.ModelsPlazaEnabled,
 
 		AffiliateEnabled: updatedSettings.AffiliateEnabled,
+
+		ReferralRewardEnabled:                updatedSettings.ReferralRewardEnabled,
+		ReferralInviteeAmount:                updatedSettings.ReferralInviteeAmount,
+		ReferralInviteeExpiryDays:            updatedSettings.ReferralInviteeExpiryDays,
+		ReferralInviterAmount:                updatedSettings.ReferralInviterAmount,
+		ReferralInviterExpiryDays:            updatedSettings.ReferralInviterExpiryDays,
+		ReferralInviterGiftMode:              updatedSettings.ReferralInviterGiftMode,
+		ReferralInviterGiftRatio:             updatedSettings.ReferralInviterGiftRatio,
+		ReferralSpendThreshold:               updatedSettings.ReferralSpendThreshold,
+		ReferralDiscountValidDays:            updatedSettings.ReferralDiscountValidDays,
+		ReferralEligibilityGrantMode:         updatedSettings.ReferralEligibilityGrantMode,
+		ReferralEligibilityRechargeMinAmount: updatedSettings.ReferralEligibilityRechargeMinAmount,
 
 		RiskControlEnabled:          updatedSettings.RiskControlEnabled,
 		CyberSessionBlockEnabled:    updatedSettings.CyberSessionBlockEnabled,
@@ -2646,6 +2753,39 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.AffiliateEnabled != after.AffiliateEnabled {
 		changed = append(changed, "affiliate_enabled")
+	}
+	if before.ReferralRewardEnabled != after.ReferralRewardEnabled {
+		changed = append(changed, "referral_reward_enabled")
+	}
+	if before.ReferralInviteeAmount != after.ReferralInviteeAmount {
+		changed = append(changed, "referral_invitee_amount")
+	}
+	if before.ReferralInviteeExpiryDays != after.ReferralInviteeExpiryDays {
+		changed = append(changed, "referral_invitee_expiry_days")
+	}
+	if before.ReferralInviterAmount != after.ReferralInviterAmount {
+		changed = append(changed, "referral_inviter_amount")
+	}
+	if before.ReferralInviterExpiryDays != after.ReferralInviterExpiryDays {
+		changed = append(changed, "referral_inviter_expiry_days")
+	}
+	if before.ReferralInviterGiftMode != after.ReferralInviterGiftMode {
+		changed = append(changed, "referral_inviter_gift_mode")
+	}
+	if before.ReferralInviterGiftRatio != after.ReferralInviterGiftRatio {
+		changed = append(changed, "referral_inviter_gift_ratio_recharge")
+	}
+	if before.ReferralSpendThreshold != after.ReferralSpendThreshold {
+		changed = append(changed, "referral_spend_threshold")
+	}
+	if before.ReferralDiscountValidDays != after.ReferralDiscountValidDays {
+		changed = append(changed, "referral_discount_valid_days")
+	}
+	if before.ReferralEligibilityGrantMode != after.ReferralEligibilityGrantMode {
+		changed = append(changed, "referral_eligibility_grant_mode")
+	}
+	if before.ReferralEligibilityRechargeMinAmount != after.ReferralEligibilityRechargeMinAmount {
+		changed = append(changed, "referral_eligibility_recharge_min_amount")
 	}
 	if before.RiskControlEnabled != after.RiskControlEnabled {
 		changed = append(changed, "risk_control_enabled")

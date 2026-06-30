@@ -235,6 +235,12 @@ func (s *AnnouncementService) ListForUser(ctx context.Context, userID int64, unr
 		activeGroupIDs[activeSubs[i].GroupID] = struct{}{}
 	}
 
+	targetCtx := domain.UserTargetingContext{
+		Balance:                    user.Balance,
+		ActiveSubscriptionGroupIDs: activeGroupIDs,
+	}
+	s.fillReferralTargeting(ctx, userID, &targetCtx)
+
 	now := time.Now()
 	anns, err := s.announcementRepo.ListActive(ctx, now)
 	if err != nil {
@@ -248,7 +254,7 @@ func (s *AnnouncementService) ListForUser(ctx context.Context, userID int64, unr
 		if !a.IsActiveAt(now) {
 			continue
 		}
-		if !a.Targeting.Matches(user.Balance, activeGroupIDs) {
+		if !a.Targeting.Matches(targetCtx) {
 			continue
 		}
 		visible = append(visible, a)
@@ -320,7 +326,13 @@ func (s *AnnouncementService) MarkRead(ctx context.Context, userID, announcement
 		activeGroupIDs[activeSubs[i].GroupID] = struct{}{}
 	}
 
-	if !a.Targeting.Matches(user.Balance, activeGroupIDs) {
+	targetCtx := domain.UserTargetingContext{
+		Balance:                    user.Balance,
+		ActiveSubscriptionGroupIDs: activeGroupIDs,
+	}
+	s.fillReferralTargeting(ctx, userID, &targetCtx)
+
+	if !a.Targeting.Matches(targetCtx) {
 		return ErrAnnouncementNotFound
 	}
 
@@ -401,8 +413,12 @@ func (s *AnnouncementService) buildReadStatusResult(
 			Email:    u.Email,
 			Username: u.Username,
 			Balance:  u.Balance,
-			Eligible: domain.AnnouncementTargeting(ann.Targeting).Matches(u.Balance, activeGroupIDs),
-			ReadAt:   ptr,
+			Eligible: func() bool {
+				tc := domain.UserTargetingContext{Balance: u.Balance, ActiveSubscriptionGroupIDs: activeGroupIDs}
+				s.fillReferralTargeting(ctx, u.ID, &tc)
+				return domain.AnnouncementTargeting(ann.Targeting).Matches(tc)
+			}(),
+			ReadAt: ptr,
 		})
 	}
 
@@ -534,8 +550,12 @@ func (s *AnnouncementService) listUserReadStatusByReadAt(
 			Email:    u.Email,
 			Username: u.Username,
 			Balance:  u.Balance,
-			Eligible: domain.AnnouncementTargeting(ann.Targeting).Matches(u.Balance, activeGroupIDs),
-			ReadAt:   ptr,
+			Eligible: func() bool {
+				tc := domain.UserTargetingContext{Balance: u.Balance, ActiveSubscriptionGroupIDs: activeGroupIDs}
+				s.fillReferralTargeting(ctx, u.ID, &tc)
+				return domain.AnnouncementTargeting(ann.Targeting).Matches(tc)
+			}(),
+			ReadAt: ptr,
 		})
 	}
 
@@ -567,5 +587,33 @@ func isValidAnnouncementNotifyMode(mode string) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+// fillReferralTargeting 查询用户的 affiliate 状态并填充到 UserTargetingContext。
+// 查询失败时 ReferralKnown 保持 false → referral 条件 fail-closed（一律不命中），
+// 避免 DB 异常时 no_inviter 误投放给非目标用户。
+func (s *AnnouncementService) fillReferralTargeting(ctx context.Context, userID int64, tc *domain.UserTargetingContext) {
+	if s.entClient == nil {
+		return
+	}
+	rows, err := s.entClient.QueryContext(ctx,
+		`SELECT inviter_id, aff_count FROM user_affiliates WHERE user_id = $1 LIMIT 1`, userID)
+	if err != nil {
+		return
+	}
+	defer func() { _ = rows.Close() }()
+	if rows.Next() {
+		var inviterID sql.NullInt64
+		var affCount int
+		if err := rows.Scan(&inviterID, &affCount); err != nil {
+			return
+		}
+		tc.ReferralKnown = true
+		tc.HasInviter = inviterID.Valid && inviterID.Int64 > 0
+		tc.IsInviter = affCount > 0
+	} else {
+		// 无 user_affiliates 行 = 确认该用户非被邀请人也非邀请人
+		tc.ReferralKnown = true
 	}
 }
