@@ -21,7 +21,7 @@ func NewRepository(db sqlClient) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) ListActiveEvents(ctx context.Context, userID int64) ([]Event, error) {
+func (r *Repository) ListActiveEvents(ctx context.Context, userID int64) (_ []Event, err error) {
 	rows, err := r.db.QueryContext(ctx, `
 SELECT e.id, e.name, e.description, e.status, e.starts_at, e.ends_at,
        s.receive_email IS NOT NULL AS signed_up, s.receive_email
@@ -34,7 +34,11 @@ ORDER BY e.starts_at DESC, e.id DESC`, userID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	var events []Event
 	for rows.Next() {
@@ -55,7 +59,7 @@ ORDER BY e.starts_at DESC, e.id DESC`, userID)
 	return events, nil
 }
 
-func (r *Repository) UpsertSignup(ctx context.Context, activityID, userID int64, receiveEmail string) (*Signup, error) {
+func (r *Repository) UpsertSignup(ctx context.Context, activityID, userID int64, receiveEmail string) (_ *Signup, err error) {
 	rows, err := r.db.QueryContext(ctx, `
 WITH active_event AS (
     SELECT id
@@ -79,7 +83,11 @@ JOIN users u ON u.id = s.user_id`, activityID, userID, receiveEmail)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
@@ -95,7 +103,7 @@ JOIN users u ON u.id = s.user_id`, activityID, userID, receiveEmail)
 	return &signup, nil
 }
 
-func (r *Repository) CreateEvent(ctx context.Context, input CreateEventInput) (int64, error) {
+func (r *Repository) CreateEvent(ctx context.Context, input CreateEventInput) (_ int64, err error) {
 	rows, err := r.db.QueryContext(ctx, `
 INSERT INTO activity_events (name, description, status, starts_at, ends_at, created_at, updated_at)
 VALUES ($1, $2, 'active', COALESCE($3, NOW()), $4, NOW(), NOW())
@@ -103,7 +111,11 @@ RETURNING id`, input.Name, input.Description, input.StartsAt, input.EndsAt)
 	if err != nil {
 		return 0, err
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
@@ -119,7 +131,7 @@ RETURNING id`, input.Name, input.Description, input.StartsAt, input.EndsAt)
 	return id, nil
 }
 
-func (r *Repository) UpdateEvent(ctx context.Context, input UpdateEventInput) (*Event, error) {
+func (r *Repository) UpdateEvent(ctx context.Context, input UpdateEventInput) (_ *Event, err error) {
 	rows, err := r.db.QueryContext(ctx, `
 UPDATE activity_events
 SET name = $2,
@@ -133,7 +145,11 @@ RETURNING id, name, description, status, starts_at, ends_at`, input.ID, input.Na
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
@@ -149,7 +165,7 @@ RETURNING id, name, description, status, starts_at, ends_at`, input.ID, input.Na
 	return &event, nil
 }
 
-func (r *Repository) ListSignups(ctx context.Context, activityID int64) ([]Signup, error) {
+func (r *Repository) ListSignups(ctx context.Context, activityID int64) (_ []Signup, err error) {
 	rows, err := r.db.QueryContext(ctx, `
 SELECT s.id, s.activity_id, s.user_id, COALESCE(NULLIF(u.username, ''), u.email) AS username,
        s.receive_email, s.created_at, s.updated_at
@@ -160,7 +176,11 @@ ORDER BY s.created_at ASC, s.id ASC`, activityID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	var signups []Signup
 	for rows.Next() {

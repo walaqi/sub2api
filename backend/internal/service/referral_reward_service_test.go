@@ -7,24 +7,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/Wei-Shaw/sub2api/internal/gift"
 )
 
 // --- Stubs for ReferralRewardService tests ---
-
-type settingServiceStub struct {
-	enabled bool
-	config  ReferralRewardConfig
-}
-
-func (s *settingServiceStub) IsReferralRewardEnabled(_ context.Context) bool {
-	return s.enabled
-}
-
-func (s *settingServiceStub) GetReferralRewardConfig(_ context.Context) ReferralRewardConfig {
-	return s.config
-}
 
 type referralConfigSettingRepoStub struct {
 	values map[string]string
@@ -76,21 +61,6 @@ func (s *referralConfigSettingRepoStub) GetAll(_ context.Context) (map[string]st
 func (s *referralConfigSettingRepoStub) Delete(_ context.Context, key string) error {
 	delete(s.values, key)
 	return nil
-}
-
-type giftEngineStub struct {
-	grants []gift.GrantInput
-	nextID int64
-	err    error
-}
-
-func (g *giftEngineStub) Grant(_ context.Context, input gift.GrantInput) (*gift.UserGift, error) {
-	if g.err != nil {
-		return nil, g.err
-	}
-	g.grants = append(g.grants, input)
-	g.nextID++
-	return &gift.UserGift{ID: g.nextID, UserID: input.UserID, Amount: input.Amount}, nil
 }
 
 type discountRepoForReferralStub struct {

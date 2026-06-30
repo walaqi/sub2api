@@ -418,7 +418,7 @@ func (s *AnnouncementService) buildReadStatusResult(
 				s.fillReferralTargeting(ctx, u.ID, &tc)
 				return domain.AnnouncementTargeting(ann.Targeting).Matches(tc)
 			}(),
-			ReadAt:   ptr,
+			ReadAt: ptr,
 		})
 	}
 
@@ -555,7 +555,7 @@ func (s *AnnouncementService) listUserReadStatusByReadAt(
 				s.fillReferralTargeting(ctx, u.ID, &tc)
 				return domain.AnnouncementTargeting(ann.Targeting).Matches(tc)
 			}(),
-			ReadAt:   ptr,
+			ReadAt: ptr,
 		})
 	}
 

@@ -96,12 +96,7 @@ func (h *Handler) CreateEvent(c *gin.Context) {
 		return
 	}
 
-	id, err := h.svc.CreateEvent(c.Request.Context(), CreateEventInput{
-		Name:        req.Name,
-		Description: req.Description,
-		StartsAt:    req.StartsAt,
-		EndsAt:      req.EndsAt,
-	})
+	id, err := h.svc.CreateEvent(c.Request.Context(), CreateEventInput(req))
 	if errors.Is(err, ErrInvalidInput) {
 		response.BadRequest(c, "invalid activity event")
 		return
