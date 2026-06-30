@@ -43,7 +43,7 @@
                   ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
                   : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'"
               >
-                {{ gift.deduction_mode === 'ratio' ? t('gifts.modeRatio') : t('gifts.modePriority') }}
+                {{ gift.deduction_mode === 'ratio' ? ratioLabel(gift) : t('gifts.modePriority') }}
               </span>
               <span
                 v-if="gift.status === 'expired'"
@@ -174,6 +174,20 @@ function formatSource(source: string): string {
     promo_code: t('gifts.sourcePromoCode'),
   }
   return map[source] || source
+}
+
+// ratio 模式标签：拼上具体比例（每消耗 1 充值余额同步消耗 N 赠金）。
+// 无 ratio_recharge 时退回纯文案，避免显示 "比例扣除 1:"。
+function ratioLabel(gift: GiftItem): string {
+  const base = t('gifts.modeRatio')
+  const r = gift.ratio_recharge
+  if (r == null || r <= 0) return base
+  return `${base} 1:${formatRatio(r)}`
+}
+
+function formatRatio(r: number): string {
+  // 去除尾部多余的 0（1.5000 → 1.5，2.0000 → 2）
+  return Number(r.toFixed(4)).toString()
 }
 
 function formatDate(unixMs: number): string {
