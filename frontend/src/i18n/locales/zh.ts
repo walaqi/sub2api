@@ -2094,6 +2094,8 @@ export default {
       adjustmentAmount: '调整金额',
       adjustmentAmountHint: '正数增加，负数减少',
       currentBalance: '当前余额',
+      rechargeBalance: '充值余额',
+      giftBalance: '赠金余额',
       currentConcurrency: '当前并发数',
       saving: '保存中...',
       noUsers: '暂无用户',

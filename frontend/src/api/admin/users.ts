@@ -275,6 +275,28 @@ export async function getUserBalanceHistory(
 }
 
 /**
+ * User balance breakdown (total / gift / recharge / expiring-soon).
+ * 复用赠金运维接口 GET /admin/ops/users/:id/balance，按需逐用户计算。
+ */
+export interface UserBalanceBreakdown {
+  user_id: number
+  total_balance: number
+  gift_balance: number
+  recharge_balance: number
+  gift_expiring_soon: number
+  total_recharged: number
+}
+
+/**
+ * Get a single user's balance breakdown (recharge vs gift).
+ * @param id - User ID
+ */
+export async function getUserBalanceBreakdown(id: number): Promise<UserBalanceBreakdown> {
+  const { data } = await apiClient.get<UserBalanceBreakdown>(`/admin/ops/users/${id}/balance`)
+  return data
+}
+
+/**
  * Replace user's exclusive group
  * @param userId - User ID
  * @param oldGroupId - Current group ID to replace
@@ -388,6 +410,7 @@ export const usersAPI = {
   getUserApiKeys,
   getUserUsageStats,
   getUserBalanceHistory,
+  getUserBalanceBreakdown,
   replaceGroup,
   bindUserAuthIdentity,
   getPlatformQuotas,

@@ -33,6 +33,18 @@
             <p class="text-xl font-bold text-gray-900 dark:text-white">
               ${{ user.balance?.toFixed(2) || '0.00' }}
             </p>
+            <p
+              v-if="breakdown"
+              class="mt-0.5 text-xs text-gray-500 dark:text-dark-400"
+            >
+              {{ t('admin.users.rechargeBalance') }}: <span class="font-semibold text-emerald-600 dark:text-emerald-400">${{ breakdown.recharge_balance.toFixed(2) }}</span>
+            </p>
+            <p
+              v-if="breakdown && breakdown.gift_balance > 0"
+              class="mt-0.5 text-xs text-gray-500 dark:text-dark-400"
+            >
+              {{ t('admin.users.giftBalance') }}: <span class="font-semibold text-amber-600 dark:text-amber-400">${{ breakdown.gift_balance.toFixed(2) }}</span>
+            </p>
           </div>
         </div>
         <!-- Row 2: notes + total recharged -->
@@ -188,6 +200,7 @@
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI, type BalanceHistoryItem } from '@/api/admin'
+import type { UserBalanceBreakdown } from '@/api/admin/users'
 import { formatDateTime } from '@/utils/format'
 import type { AdminUser } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -199,6 +212,7 @@ const emit = defineEmits(['close', 'deposit', 'withdraw'])
 const { t } = useI18n()
 
 const history = ref<BalanceHistoryItem[]>([])
+const breakdown = ref<UserBalanceBreakdown | null>(null)
 const loading = ref(false)
 const currentPage = ref(1)
 const total = ref(0)
@@ -224,9 +238,22 @@ const typeOptions = computed(() => [
 watch(() => props.show, (v) => {
   if (v && props.user) {
     typeFilter.value = ''
+    breakdown.value = null
     loadHistory(1)
+    loadBreakdown()
   }
 })
+
+// 拉取该用户的充值/赠金余额拆分（复用赠金运维接口，单用户按需计算）
+const loadBreakdown = async () => {
+  if (!props.user) return
+  try {
+    breakdown.value = await adminAPI.users.getUserBalanceBreakdown(props.user.id)
+  } catch (error) {
+    console.error('Failed to load balance breakdown:', error)
+    breakdown.value = null
+  }
+}
 
 const loadHistory = async (page: number) => {
   if (!props.user) return

@@ -2083,6 +2083,8 @@ export default {
       withdrawAmount: 'Withdraw Amount',
       withdrawAll: 'All',
       currentBalance: 'Current Balance',
+      rechargeBalance: 'Recharge Balance',
+      giftBalance: 'Gift Credit',
       depositNotesPlaceholder:
         'e.g., New user registration bonus, promotional credit, compensation, etc.',
       withdrawNotesPlaceholder:
