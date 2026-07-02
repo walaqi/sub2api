@@ -3947,6 +3947,10 @@ export default {
         injectOriginModelId: '注入 X-Origin-Model-Id 头',
         injectOriginModelIdDesc:
           '仅对 Anthropic API Key 生效。开启后，转发给上游的请求会带上 X-Origin-Model-Id 头，值为客户端最初发来的模型 ID（早于任何映射）。无论是否配置模型映射都会注入，供上游获知客户端原始模型。',
+        apiKeyAuthScheme: '上游认证方式',
+        apiKeyAuthSchemeDesc: '选择转发到 Anthropic-compatible 上游时使用的 API Key 认证头。Ollama Cloud 使用 Authorization: Bearer。',
+        apiKeyAuthSchemeXApiKey: 'x-api-key',
+        apiKeyAuthSchemeBearer: 'Authorization: Bearer',
         webSearchEmulation: 'Web Search 模拟',
         webSearchEmulationDesc:
           '为该 API Key 账号启用 web search 模拟。客户端发送纯 web_search 请求时，由网关调用第三方搜索 API 并构造响应返回。默认跟随渠道配置。',

@@ -3779,6 +3779,10 @@ export default {
         injectOriginModelId: 'Inject X-Origin-Model-Id header',
         injectOriginModelIdDesc:
           'Only applies to Anthropic API Key accounts. When enabled, requests forwarded upstream carry an X-Origin-Model-Id header set to the model the client originally sent (before any mapping). Injected regardless of whether model mapping is configured, so the upstream can learn the client original model.',
+        apiKeyAuthScheme: 'Upstream auth scheme',
+        apiKeyAuthSchemeDesc: 'Choose the API key auth header used when forwarding to an Anthropic-compatible upstream. Ollama Cloud uses Authorization: Bearer.',
+        apiKeyAuthSchemeXApiKey: 'x-api-key',
+        apiKeyAuthSchemeBearer: 'Authorization: Bearer',
         webSearchEmulation: 'Web Search Emulation',
         webSearchEmulationDesc:
           'Enable web search emulation for this API Key account. When a pure web_search request is detected, the gateway calls a third-party search API and constructs the response locally. Default follows channel config.',
