@@ -80,7 +80,11 @@ func (r *groupRepository) Create(ctx context.Context, groupIn *service.Group) er
 		SetDefaultMappedModel(groupIn.DefaultMappedModel).
 		SetMessagesDispatchModelConfig(groupIn.MessagesDispatchModelConfig).
 		SetModelsListConfig(groupIn.ModelsListConfig).
-		SetRpmLimit(groupIn.RPMLimit)
+		SetRpmLimit(groupIn.RPMLimit).
+		SetPeakRateEnabled(groupIn.PeakRateEnabled).
+		SetPeakStart(groupIn.PeakStart).
+		SetPeakEnd(groupIn.PeakEnd).
+		SetPeakRateMultiplier(groupIn.PeakRateMultiplier)
 
 	// 5h 模型限额（始终设置，nil/空 map 表示不限）
 	builder = builder.SetModel5hLimits(normalizeModel5hLimits(groupIn.Model5hLimits))
@@ -159,7 +163,11 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		SetDefaultMappedModel(groupIn.DefaultMappedModel).
 		SetMessagesDispatchModelConfig(groupIn.MessagesDispatchModelConfig).
 		SetModelsListConfig(groupIn.ModelsListConfig).
-		SetRpmLimit(groupIn.RPMLimit)
+		SetRpmLimit(groupIn.RPMLimit).
+		SetPeakRateEnabled(groupIn.PeakRateEnabled).
+		SetPeakStart(groupIn.PeakStart).
+		SetPeakEnd(groupIn.PeakEnd).
+		SetPeakRateMultiplier(groupIn.PeakRateMultiplier)
 
 	// 显式处理可空字段：nil 需要 clear，非 nil 需要 set。
 	if groupIn.DailyLimitUSD != nil {
