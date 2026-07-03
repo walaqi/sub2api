@@ -133,6 +133,7 @@ vite.config.js
 !docs/ADMIN_PAYMENT_INTEGRATION_API.md
 !docs/legal/
 !docs/legal/*.md
+docs/error-checks
 .serena/
 .codex/
 frontend/coverage/
