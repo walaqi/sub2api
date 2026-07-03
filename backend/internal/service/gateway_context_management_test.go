@@ -365,7 +365,7 @@ func TestBuildUpstreamRequestAnthropicAPIKeyPassthrough_StripsContextManagementW
 	body := []byte(`{"model":"claude-haiku-4-5","context_management":{"edits":[{"type":"clear_thinking_20251015"}]},"messages":[]}`)
 	svc := &GatewayService{cfg: &config.Config{}}
 	req, _, err := svc.buildUpstreamRequestAnthropicAPIKeyPassthrough(
-		context.Background(), c, newAnthropicAPIKeyPassthroughAccountForBetaTest(), body, "token",
+		context.Background(), c, newAnthropicAPIKeyPassthroughAccountForBetaTest(), body, "token", "",
 	)
 	require.NoError(t, err)
 	require.False(t, gjson.GetBytes(readUpstreamBodyForTest(t, req), "context_management").Exists(),
@@ -382,7 +382,7 @@ func TestBuildUpstreamRequestAnthropicAPIKeyPassthrough_PreservesContextManageme
 	body := []byte(`{"model":"claude-haiku-4-5","context_management":{"edits":[{"type":"clear_thinking_20251015"}]},"messages":[]}`)
 	svc := &GatewayService{cfg: &config.Config{}}
 	req, _, err := svc.buildUpstreamRequestAnthropicAPIKeyPassthrough(
-		context.Background(), c, newAnthropicAPIKeyPassthroughAccountForBetaTest(), body, "token",
+		context.Background(), c, newAnthropicAPIKeyPassthroughAccountForBetaTest(), body, "token", "",
 	)
 	require.NoError(t, err)
 	require.True(t, gjson.GetBytes(readUpstreamBodyForTest(t, req), "context_management").Exists(),
@@ -429,7 +429,7 @@ func TestBuildUpstreamRequest_OAuthMimicHaiku_StripsContextManagementEndToEnd(t 
 	svc := &GatewayService{cfg: &config.Config{}}
 	req, _, err := svc.buildUpstreamRequest(
 		context.Background(), c, account, body,
-		"oauth-tok", "oauth", "claude-haiku-4-5", false, true, // mimicClaudeCode=true
+		"oauth-tok", "oauth", "claude-haiku-4-5", "", false, true, // mimicClaudeCode=true
 	)
 	require.NoError(t, err)
 
@@ -459,7 +459,7 @@ func TestBuildUpstreamRequest_OAuthMimicNonHaiku_PreservesContextManagementEndTo
 	svc := &GatewayService{cfg: &config.Config{}}
 	req, _, err := svc.buildUpstreamRequest(
 		context.Background(), c, account, body,
-		"oauth-tok", "oauth", "claude-sonnet-4-6", false, true,
+		"oauth-tok", "oauth", "claude-sonnet-4-6", "", false, true,
 	)
 	require.NoError(t, err)
 
@@ -490,7 +490,7 @@ func TestBuildUpstreamRequest_OAuthTransparentHaikuWithRealCCBeta_PreservesField
 	svc := &GatewayService{cfg: &config.Config{}}
 	req, _, err := svc.buildUpstreamRequest(
 		context.Background(), c, account, body,
-		"oauth-tok", "oauth", "claude-haiku-4-5", false, false, // mimicClaudeCode=false（真 CC）
+		"oauth-tok", "oauth", "claude-haiku-4-5", "", false, false, // mimicClaudeCode=false（真 CC）
 	)
 	require.NoError(t, err)
 
@@ -657,7 +657,7 @@ func TestBuildUpstreamRequest_APIKeyHaikuWithContextManagement_StripsField(t *te
 	svc := &GatewayService{cfg: &config.Config{}}
 	req, _, err := svc.buildUpstreamRequest(
 		context.Background(), c, account, body,
-		"sk-ant-xxx", "apikey", "claude-haiku-4-5", false, false,
+		"sk-ant-xxx", "apikey", "claude-haiku-4-5", "", false, false,
 	)
 	require.NoError(t, err)
 

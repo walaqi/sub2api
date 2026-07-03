@@ -76,6 +76,18 @@ func (s *GatewayService) ForwardAsResponses(
 	reasoningEffort = ApplyThinkingEnabledFallback(reasoningEffort, body, mappedModel)
 	anthropicReq.Model = mappedModel
 
+	// X-Origin-Model-Id 注入值：仅 API Key 账号 + 账号映射实际改变了模型时非空。
+	// 注意 handler 会先对 body 做渠道映射，这里的 originalModel 已是渠道映射后的值，
+	// 因此注入值优先取 parsed.ClientOriginalModel（客户端最初 model，早于任何映射），
+	// 仅在其为空时才 fallback 到 originalModel。
+	originModelToInject := ""
+	if account.Type == AccountTypeAPIKey && mappedModel != originalModel {
+		originModelToInject = originalModel
+		if parsed != nil && parsed.ClientOriginalModel != "" {
+			originModelToInject = parsed.ClientOriginalModel
+		}
+	}
+
 	logger.L().Debug("gateway forward_as_responses: model mapping applied",
 		zap.Int64("account_id", account.ID),
 		zap.String("original_model", originalModel),
@@ -118,7 +130,7 @@ func (s *GatewayService) ForwardAsResponses(
 
 	// 10. Build upstream request
 	upstreamCtx, releaseUpstreamCtx := detachStreamUpstreamContext(ctx, reqStream)
-	upstreamReq, _, err := s.buildUpstreamRequest(upstreamCtx, c, account, anthropicBody, token, tokenType, mappedModel, reqStream, shouldMimicClaudeCode)
+	upstreamReq, _, err := s.buildUpstreamRequest(upstreamCtx, c, account, anthropicBody, token, tokenType, mappedModel, originModelToInject, reqStream, shouldMimicClaudeCode)
 	releaseUpstreamCtx()
 	if err != nil {
 		return nil, fmt.Errorf("build upstream request: %w", err)

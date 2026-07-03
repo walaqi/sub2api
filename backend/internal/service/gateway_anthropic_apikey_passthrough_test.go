@@ -713,7 +713,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_BuildRequestRejectsInvalidBas
 		},
 	}
 
-	_, _, err := svc.buildUpstreamRequestAnthropicAPIKeyPassthrough(context.Background(), c, account, []byte(`{}`), "k")
+	_, _, err := svc.buildUpstreamRequestAnthropicAPIKeyPassthrough(context.Background(), c, account, []byte(`{}`), "k", "")
 	require.Error(t, err)
 }
 
@@ -738,7 +738,7 @@ func TestGatewayService_AnthropicOAuth_NotAffectedByAPIKeyPassthroughToggle(t *t
 
 	require.False(t, account.IsAnthropicAPIKeyPassthroughEnabled())
 
-	req, _, err := svc.buildUpstreamRequest(context.Background(), c, account, []byte(`{"model":"claude-3-7-sonnet-20250219"}`), "oauth-token", "oauth", "claude-3-7-sonnet-20250219", true, false)
+	req, _, err := svc.buildUpstreamRequest(context.Background(), c, account, []byte(`{"model":"claude-3-7-sonnet-20250219"}`), "oauth-token", "oauth", "claude-3-7-sonnet-20250219", "", true, false)
 	require.NoError(t, err)
 	require.Equal(t, "Bearer oauth-token", getHeaderRaw(req.Header, "authorization"))
 	require.Contains(t, getHeaderRaw(req.Header, "anthropic-beta"), claude.BetaOAuth, "OAuth 链路仍应按原逻辑补齐 oauth beta")
@@ -1481,4 +1481,210 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_StreamingUpstreamReadErrorAft
 	require.NotNil(t, result)
 	require.True(t, result.clientDisconnect)
 	require.Equal(t, 8, result.usage.InputTokens)
+}
+
+// ============================================================================
+// X-Origin-Model-Id header 注入
+// 账号级模型映射生效后，向可控上游透传映射前的原始入站 model-id。
+// ============================================================================
+
+func newOriginModelAPIKeyAccountForTest() *Account {
+	return &Account{
+		ID:       501,
+		Name:     "origin-model-apikey-test",
+		Platform: PlatformAnthropic,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"api_key":  "sk-ant-upstream",
+			"base_url": "https://relay.example.com",
+		},
+		Status:      StatusActive,
+		Schedulable: true,
+	}
+}
+
+// 注入决策（仅 API Key + 账号映射改变模型 + 取客户端最初 model）由 Forward 层完成，
+// buildUpstreamRequest / passthrough builder 只负责"注入值非空即写 header"。
+// 以下 build 层测试锁定这个契约：值非空 → 写入；值空 → 不写。
+
+func TestBuildUpstreamRequest_InjectsOriginModelHeaderWhenValueNonEmpty(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+
+	svc := &GatewayService{cfg: &config.Config{}}
+	req, _, err := svc.buildUpstreamRequest(
+		context.Background(), c, newOriginModelAPIKeyAccountForTest(),
+		[]byte(`{"model":"claude-sonnet-4-spark","messages":[]}`),
+		"sk-ant-upstream", "apikey",
+		"claude-sonnet-4-spark", "claude-sonnet-4", // 注入值非空
+		false, false,
+	)
+	require.NoError(t, err)
+	require.Equal(t, "claude-sonnet-4", getHeaderRaw(req.Header, originModelIDHeader),
+		"注入值非空 → 写入 X-Origin-Model-Id")
+}
+
+func TestBuildUpstreamRequest_NoOriginModelHeaderWhenValueEmpty(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+
+	svc := &GatewayService{cfg: &config.Config{}}
+	req, _, err := svc.buildUpstreamRequest(
+		context.Background(), c, newOriginModelAPIKeyAccountForTest(),
+		[]byte(`{"model":"claude-sonnet-4","messages":[]}`),
+		"sk-ant-upstream", "apikey",
+		"claude-sonnet-4", "", // 注入值空
+		false, false,
+	)
+	require.NoError(t, err)
+	require.Empty(t, getHeaderRaw(req.Header, originModelIDHeader),
+		"注入值空 → 不写 header")
+}
+
+func TestBuildUpstreamRequestAnthropicAPIKeyPassthrough_InjectsOriginModelHeaderWhenValueNonEmpty(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+
+	svc := &GatewayService{cfg: &config.Config{}}
+	req, _, err := svc.buildUpstreamRequestAnthropicAPIKeyPassthrough(
+		context.Background(), c, newOriginModelAPIKeyAccountForTest(),
+		[]byte(`{"model":"claude-sonnet-4-spark","messages":[]}`), "sk-ant-upstream",
+		"claude-sonnet-4", // 注入值非空
+	)
+	require.NoError(t, err)
+	require.Equal(t, "claude-sonnet-4", getHeaderRaw(req.Header, originModelIDHeader),
+		"透传分支 + 注入值非空 → 写入 X-Origin-Model-Id")
+}
+
+func TestBuildUpstreamRequestAnthropicAPIKeyPassthrough_NoOriginModelHeaderWhenValueEmpty(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+
+	svc := &GatewayService{cfg: &config.Config{}}
+	req, _, err := svc.buildUpstreamRequestAnthropicAPIKeyPassthrough(
+		context.Background(), c, newOriginModelAPIKeyAccountForTest(),
+		[]byte(`{"model":"claude-sonnet-4","messages":[]}`), "sk-ant-upstream",
+		"", // 注入值空
+	)
+	require.NoError(t, err)
+	require.Empty(t, getHeaderRaw(req.Header, originModelIDHeader),
+		"透传分支 + 注入值空 → 不写 header")
+}
+
+// TestParseGatewayRequest_ClientOriginalModelSurvivesMappingAndBodyReplace 锁定核心修复：
+// ClientOriginalModel 在任何映射之前快照，且不随 body 替换 / model 改写而丢失。
+// 这是"header 值取客户端最初 model 而非渠道映射后中间值"的根据。
+func TestParseGatewayRequest_ClientOriginalModelSurvivesMappingAndBodyReplace(t *testing.T) {
+	bodyRef := NewRequestBodyRef([]byte(`{"model":"claude-client-original","messages":[]}`))
+	parsed, err := ParseGatewayRequest(bodyRef, "anthropic")
+	require.NoError(t, err)
+	require.Equal(t, "claude-client-original", parsed.ClientOriginalModel)
+	require.Equal(t, "claude-client-original", parsed.Model)
+
+	// 模拟渠道映射改写 body + Model（handler 层 ReplaceBody + 赋值）
+	require.NoError(t, parsed.ReplaceBody([]byte(`{"model":"claude-channel-mapped","messages":[]}`)))
+	parsed.Model = "claude-channel-mapped"
+	require.Equal(t, "claude-channel-mapped", parsed.Model)
+	require.Equal(t, "claude-client-original", parsed.ClientOriginalModel,
+		"body 替换 / Model 改写后，ClientOriginalModel 仍是客户端最初值")
+
+	// CloneForBody 也必须保留
+	clone, err := parsed.CloneForBody([]byte(`{"model":"claude-account-mapped","messages":[]}`))
+	require.NoError(t, err)
+	require.Equal(t, "claude-client-original", clone.ClientOriginalModel,
+		"CloneForBody 浅拷贝保留 ClientOriginalModel")
+}
+
+// newOriginModelForwardAsAccount 返回一个开了账号映射的 API Key Anthropic 账号，
+// 把 channel-model 映射为 account-model，用于验证 ForwardAs* 路径的 header 注入取值。
+func newOriginModelForwardAsAccount() *Account {
+	return &Account{
+		ID:          601,
+		Name:        "origin-model-forwardas",
+		Platform:    PlatformAnthropic,
+		Type:        AccountTypeAPIKey,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"api_key":       "sk-ant-upstream",
+			"base_url":      "https://relay.example.com",
+			"model_mapping": map[string]any{"channel-model": "account-model"},
+		},
+		Status:      StatusActive,
+		Schedulable: true,
+	}
+}
+
+// TestForwardAsChatCompletions_OriginModelHeaderUsesClientOriginalModel 回归 codex 指出的缺口：
+// handler 先做渠道映射（client-model → channel-model）后才调 ForwardAsChatCompletions，
+// 传入的 body/originalModel 已是 channel-model；账号映射再把 channel-model → account-model。
+// X-Origin-Model-Id 必须是客户端最初的 client-model（取 parsed.ClientOriginalModel），
+// 而不是渠道映射后的 channel-model。
+func TestForwardAsChatCompletions_OriginModelHeaderUsesClientOriginalModel(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+
+	// forwardBody 已是渠道映射后的 channel-model（模拟 handler 的 ReplaceModelInBody）
+	forwardBody := []byte(`{"model":"channel-model","messages":[{"role":"user","content":"hi"}],"stream":false}`)
+	// parsed 保留客户端最初 model（早于任何映射）
+	parsed := &ParsedRequest{
+		Body:                NewRequestBodyRef(forwardBody),
+		Model:               "channel-model",
+		ClientOriginalModel: "client-model",
+	}
+
+	// mock 上游：捕获请求后返回 error，在响应处理之前拿到已注入的 header
+	upstream := &anthropicHTTPUpstreamRecorder{err: errors.New("boom")}
+	svc := &GatewayService{
+		cfg:                 &config.Config{},
+		httpUpstream:        upstream,
+		tlsFPProfileService: &TLSFingerprintProfileService{},
+	}
+
+	_, err := svc.ForwardAsChatCompletions(context.Background(), c, newOriginModelForwardAsAccount(), forwardBody, parsed)
+	require.Error(t, err) // 上游 mock 故意报错
+	require.NotNil(t, upstream.lastReq)
+	require.Equal(t, "account-model", gjson.GetBytes(upstream.lastBody, "model").String(),
+		"账号映射应把 channel-model 改写为 account-model")
+	require.Equal(t, "client-model", getHeaderRaw(upstream.lastReq.Header, originModelIDHeader),
+		"X-Origin-Model-Id 必须是客户端最初 model，而非渠道映射后的 channel-model")
+}
+
+// TestForwardAsResponses_OriginModelHeaderUsesClientOriginalModel 同上，覆盖 Responses 协议路径。
+func TestForwardAsResponses_OriginModelHeaderUsesClientOriginalModel(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+
+	forwardBody := []byte(`{"model":"channel-model","input":"hi","stream":false}`)
+	parsed := &ParsedRequest{
+		Body:                NewRequestBodyRef(forwardBody),
+		Model:               "channel-model",
+		ClientOriginalModel: "client-model",
+	}
+
+	upstream := &anthropicHTTPUpstreamRecorder{err: errors.New("boom")}
+	svc := &GatewayService{
+		cfg:                 &config.Config{},
+		httpUpstream:        upstream,
+		tlsFPProfileService: &TLSFingerprintProfileService{},
+	}
+
+	_, err := svc.ForwardAsResponses(context.Background(), c, newOriginModelForwardAsAccount(), forwardBody, parsed)
+	require.Error(t, err)
+	require.NotNil(t, upstream.lastReq)
+	require.Equal(t, "account-model", gjson.GetBytes(upstream.lastBody, "model").String(),
+		"账号映射应把 channel-model 改写为 account-model")
+	require.Equal(t, "client-model", getHeaderRaw(upstream.lastReq.Header, originModelIDHeader),
+		"X-Origin-Model-Id 必须是客户端最初 model，而非渠道映射后的 channel-model")
 }

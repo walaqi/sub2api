@@ -229,15 +229,16 @@ func refreshGatewayRequestRanges(parsed *ParsedRequest, protocol string) error {
 // 2. 将解析结果 ParsedRequest 传递给 Service 层
 // 3. 避免重复 json.Unmarshal，减少 CPU 和内存开销
 type ParsedRequest struct {
-	Body            *RequestBodyRef // 原始请求体引用（保留用于转发）；替换内容请走 ReplaceBody
-	Model           string          // 请求的模型名称
-	Stream          bool            // 是否为流式请求
-	MetadataUserID  string          // metadata.user_id（用于会话亲和）
-	HasSystem       bool            // 是否包含 system 字段（包含 null 也视为显式传入）
-	ThinkingEnabled bool            // 是否开启 thinking（部分平台会影响最终模型名）
-	OutputEffort    string          // output_config.effort（Claude API 的推理强度控制）
-	MaxTokens       int             // max_tokens 值（用于探测请求拦截）
-	SessionContext  *SessionContext // 可选：请求上下文区分因子（nil 时行为不变）
+	Body                *RequestBodyRef // 原始请求体引用（保留用于转发）；替换内容请走 ReplaceBody
+	Model               string          // 请求的模型名称（经渠道/账号映射后会被改写）
+	ClientOriginalModel string          // 客户端最初发来的 model，在任何映射之前于 ParseGatewayRequest 快照，此后不随 body 刷新/映射改写
+	Stream              bool            // 是否为流式请求
+	MetadataUserID      string          // metadata.user_id（用于会话亲和）
+	HasSystem           bool            // 是否包含 system 字段（包含 null 也视为显式传入）
+	ThinkingEnabled     bool            // 是否开启 thinking（部分平台会影响最终模型名）
+	OutputEffort        string          // output_config.effort（Claude API 的推理强度控制）
+	MaxTokens           int             // max_tokens 值（用于探测请求拦截）
+	SessionContext      *SessionContext // 可选：请求上下文区分因子（nil 时行为不变）
 
 	protocol      string    // 当前 Body 的协议格式，用于 Body 替换后刷新 raw range
 	systemRange   jsonRange // system/systemInstruction.parts 的 raw JSON 范围，绑定 Body 当前内容
@@ -303,6 +304,10 @@ func ParseGatewayRequest(body *RequestBodyRef, protocol string) (*ParsedRequest,
 	if err := parseGatewayRequestCurrentBody(parsed, protocol); err != nil {
 		return nil, err
 	}
+	// 快照客户端最初发来的 model：此刻尚未经过任何渠道/账号映射。
+	// clearGatewayRequestDerivedState 不清此字段，CloneForBody 浅拷贝保留，
+	// 因此后续 body 刷新与映射改写都不会覆盖它。
+	parsed.ClientOriginalModel = parsed.Model
 	return parsed, nil
 }
 
