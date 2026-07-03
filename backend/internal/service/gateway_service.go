@@ -4775,17 +4775,20 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 	if account != nil && account.IsAnthropicAPIKeyPassthroughEnabled() {
 		passthroughBody := parsed.Body.Bytes()
 		passthroughModel := parsed.Model
-		originModelToInject := ""
 		if passthroughModel != "" {
 			if mappedModel := account.GetMappedModel(passthroughModel); mappedModel != passthroughModel {
 				passthroughBody = s.replaceModelInBody(passthroughBody, mappedModel)
 				logger.LegacyPrintf("service.gateway", "Passthrough model mapping: %s -> %s (account: %s)", parsed.Model, mappedModel, account.Name)
 				passthroughModel = mappedModel
-				// 账号映射改变了模型：注入客户端最初发来的 model（早于任何渠道/账号映射）。
-				originModelToInject = parsed.ClientOriginalModel
-				if originModelToInject == "" {
-					originModelToInject = parsed.Model
-				}
+			}
+		}
+		// X-Origin-Model-Id 注入值由账号开关控制（开关打开即无条件注入），
+		// 值取客户端最初发来的 model（早于任何渠道/账号映射）。
+		originModelToInject := ""
+		if account.IsOriginModelIDHeaderEnabled() {
+			originModelToInject = parsed.ClientOriginalModel
+			if originModelToInject == "" {
+				originModelToInject = parsed.Model
 			}
 		}
 		return s.forwardAnthropicAPIKeyPassthroughWithInput(ctx, c, account, anthropicPassthroughForwardInput{
@@ -4954,12 +4957,13 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 		logger.LegacyPrintf("service.gateway", "Model mapping applied: %s -> %s (account: %s, source=%s)", originalModel, mappedModel, account.Name, mappingSource)
 	}
 
-	// 计算 X-Origin-Model-Id 的注入值：仅当"账号级"映射实际改变了模型时注入，
+	// 计算 X-Origin-Model-Id 的注入值：由账号开关控制（仅 API Key 账号，
+	// IsOriginModelIDHeaderEnabled 已内置类型守卫）。开关打开即无条件注入，
+	// 不再依赖是否存在映射或映射前后是否相同。
 	// 值取客户端最初发来的 model（ClientOriginalModel，早于任何渠道/账号映射），
 	// 而非 Forward 入口的 originalModel（可能已被渠道映射改写）。
-	// 渠道映射单独发生、账号未映射时不注入（mappingSource != "account"）。
 	originModelToInject := ""
-	if account.Type == AccountTypeAPIKey && mappingSource == "account" {
+	if account.IsOriginModelIDHeaderEnabled() {
 		originModelToInject = parsed.ClientOriginalModel
 		if originModelToInject == "" {
 			originModelToInject = originalModel
@@ -5852,8 +5856,8 @@ func (s *GatewayService) buildUpstreamRequestAnthropicAPIKeyPassthrough(
 		setHeaderRaw(req.Header, "anthropic-version", "2023-06-01")
 	}
 
-	// 注入客户端最初发来的 model-id：注入值由调用方预计算（账号级映射改变模型时为非空，
-	// 值取客户端最初 model，早于任何渠道/账号映射）。与 buildUpstreamRequest 保持一致。
+	// 注入客户端最初发来的 model-id：注入值由调用方按账号开关预计算，非空即注入
+	// （值取客户端最初 model，早于任何渠道/账号映射）。与 buildUpstreamRequest 保持一致。
 	if originModelHeaderValue != "" {
 		setHeaderRaw(req.Header, originModelIDHeader, originModelHeaderValue)
 	}
@@ -6849,9 +6853,9 @@ func (s *GatewayService) buildUpstreamRequest(ctx context.Context, c *gin.Contex
 		}
 	}
 
-	// 注入客户端最初发来的 model-id：注入值由 Forward 预计算（仅 API Key 账号 + 账号级
-	// 映射实际改变了模型时为非空）。OAuth/ServiceAccount 走真实 Anthropic，Forward 不会
-	// 传入非空值，故不会被注入（自定义 header 会被判第三方客户端）。
+	// 注入客户端最初发来的 model-id：注入值由 Forward 按账号开关预计算，非空即注入
+	// （仅 API Key 账号 + inject_origin_model_id_header 开关打开时非空）。OAuth/ServiceAccount
+	// 走真实 Anthropic，Forward 不会传入非空值，故不会被注入（自定义 header 会被判第三方客户端）。
 	if originModelHeaderValue != "" {
 		setHeaderRaw(req.Header, originModelIDHeader, originModelHeaderValue)
 	}

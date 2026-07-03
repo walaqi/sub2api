@@ -1603,8 +1603,9 @@ func TestParseGatewayRequest_ClientOriginalModelSurvivesMappingAndBodyReplace(t 
 		"CloneForBody 浅拷贝保留 ClientOriginalModel")
 }
 
-// newOriginModelForwardAsAccount 返回一个开了账号映射的 API Key Anthropic 账号，
-// 把 channel-model 映射为 account-model，用于验证 ForwardAs* 路径的 header 注入取值。
+// newOriginModelForwardAsAccount 返回一个开了账号映射 + X-Origin-Model-Id 注入开关的
+// API Key Anthropic 账号，把 channel-model 映射为 account-model，用于验证 ForwardAs* 路径的
+// header 注入取值。注入由 Extra.inject_origin_model_id_header 开关驱动。
 func newOriginModelForwardAsAccount() *Account {
 	return &Account{
 		ID:          601,
@@ -1616,6 +1617,9 @@ func newOriginModelForwardAsAccount() *Account {
 			"api_key":       "sk-ant-upstream",
 			"base_url":      "https://relay.example.com",
 			"model_mapping": map[string]any{"channel-model": "account-model"},
+		},
+		Extra: map[string]any{
+			"inject_origin_model_id_header": true,
 		},
 		Status:      StatusActive,
 		Schedulable: true,
@@ -1687,4 +1691,101 @@ func TestForwardAsResponses_OriginModelHeaderUsesClientOriginalModel(t *testing.
 		"账号映射应把 channel-model 改写为 account-model")
 	require.Equal(t, "client-model", getHeaderRaw(upstream.lastReq.Header, originModelIDHeader),
 		"X-Origin-Model-Id 必须是客户端最初 model，而非渠道映射后的 channel-model")
+}
+
+// TestIsOriginModelIDHeaderEnabled 验证账号开关判定：仅 API Key 账号 + Extra 开关打开才为 true。
+func TestIsOriginModelIDHeaderEnabled(t *testing.T) {
+	tests := []struct {
+		name    string
+		account *Account
+		want    bool
+	}{
+		{
+			name: "api_key + switch on → true",
+			account: &Account{
+				Type:  AccountTypeAPIKey,
+				Extra: map[string]any{"inject_origin_model_id_header": true},
+			},
+			want: true,
+		},
+		{
+			name: "api_key + switch off → false",
+			account: &Account{
+				Type:  AccountTypeAPIKey,
+				Extra: map[string]any{"inject_origin_model_id_header": false},
+			},
+			want: false,
+		},
+		{
+			name:    "api_key + switch absent → false",
+			account: &Account{Type: AccountTypeAPIKey, Extra: map[string]any{}},
+			want:    false,
+		},
+		{
+			name: "oauth + switch on → false (type guard)",
+			account: &Account{
+				Type:  AccountTypeOAuth,
+				Extra: map[string]any{"inject_origin_model_id_header": true},
+			},
+			want: false,
+		},
+		{
+			name: "service_account + switch on → false (type guard)",
+			account: &Account{
+				Type:  AccountTypeServiceAccount,
+				Extra: map[string]any{"inject_origin_model_id_header": true},
+			},
+			want: false,
+		},
+		{
+			name:    "nil extra → false",
+			account: &Account{Type: AccountTypeAPIKey},
+			want:    false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, tt.account.IsOriginModelIDHeaderEnabled())
+		})
+	}
+}
+
+// TestForwardAsChatCompletions_OriginModelHeaderNotInjectedWhenSwitchOff 验证开关关闭时，
+// 即使账号配了映射（channel-model → account-model）也不注入 X-Origin-Model-Id。
+func TestForwardAsChatCompletions_OriginModelHeaderNotInjectedWhenSwitchOff(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+
+	forwardBody := []byte(`{"model":"channel-model","messages":[{"role":"user","content":"hi"}],"stream":false}`)
+	parsed := &ParsedRequest{
+		Body:                NewRequestBodyRef(forwardBody),
+		Model:               "channel-model",
+		ClientOriginalModel: "client-model",
+	}
+
+	// 账号有映射但未开启注入开关 → 不注入
+	account := &Account{
+		ID: 602, Name: "no-switch", Platform: PlatformAnthropic, Type: AccountTypeAPIKey, Concurrency: 1,
+		Credentials: map[string]any{
+			"api_key":       "sk-ant-upstream",
+			"base_url":      "https://relay.example.com",
+			"model_mapping": map[string]any{"channel-model": "account-model"},
+		},
+		Status: StatusActive, Schedulable: true,
+	}
+
+	upstream := &anthropicHTTPUpstreamRecorder{err: errors.New("boom")}
+	svc := &GatewayService{
+		cfg:                 &config.Config{},
+		httpUpstream:        upstream,
+		tlsFPProfileService: &TLSFingerprintProfileService{},
+	}
+
+	_, err := svc.ForwardAsChatCompletions(context.Background(), c, account, forwardBody, parsed)
+	require.Error(t, err)
+	require.NotNil(t, upstream.lastReq)
+	require.Empty(t, getHeaderRaw(upstream.lastReq.Header, originModelIDHeader),
+		"开关关闭 → 即使有映射也不注入 X-Origin-Model-Id")
 }

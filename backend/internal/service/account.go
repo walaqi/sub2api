@@ -1035,6 +1035,19 @@ func (a *Account) IsInterceptWarmupEnabled() bool {
 	return false
 }
 
+// IsOriginModelIDHeaderEnabled 返回是否向上游注入 X-Origin-Model-Id header（携带客户端
+// 最初发来的 model）。仅 API Key 账号可用：OAuth/ServiceAccount 走真实 Anthropic，
+// 注入自定义 header 会被判第三方客户端，故即使开关打开也不生效。
+// 开关打开即无条件注入，不再依赖是否存在模型映射或映射前后是否相同。
+// 与 anthropic_passthrough 一致存于 Extra。
+func (a *Account) IsOriginModelIDHeaderEnabled() bool {
+	if a == nil || a.Type != AccountTypeAPIKey || a.Extra == nil {
+		return false
+	}
+	enabled, ok := a.Extra["inject_origin_model_id_header"].(bool)
+	return ok && enabled
+}
+
 func (a *Account) IsBedrock() bool {
 	return a.Platform == PlatformAnthropic && a.Type == AccountTypeBedrock
 }
