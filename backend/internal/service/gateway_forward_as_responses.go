@@ -76,12 +76,12 @@ func (s *GatewayService) ForwardAsResponses(
 	reasoningEffort = ApplyThinkingEnabledFallback(reasoningEffort, body, mappedModel)
 	anthropicReq.Model = mappedModel
 
-	// X-Origin-Model-Id 注入值：仅 API Key 账号 + 账号映射实际改变了模型时非空。
+	// X-Origin-Model-Id 注入值：由账号开关控制（仅 API Key 账号，开关打开即无条件注入）。
 	// 注意 handler 会先对 body 做渠道映射，这里的 originalModel 已是渠道映射后的值，
 	// 因此注入值优先取 parsed.ClientOriginalModel（客户端最初 model，早于任何映射），
 	// 仅在其为空时才 fallback 到 originalModel。
 	originModelToInject := ""
-	if account.Type == AccountTypeAPIKey && mappedModel != originalModel {
+	if account.IsOriginModelIDHeaderEnabled() {
 		originModelToInject = originalModel
 		if parsed != nil && parsed.ClientOriginalModel != "" {
 			originModelToInject = parsed.ClientOriginalModel
