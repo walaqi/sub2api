@@ -135,7 +135,9 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 	bodyRef := service.NewRequestBodyRef(body)
 	parsedReq, _ := service.ParseGatewayRequest(bodyRef, "chat_completions")
 	if parsedReq == nil {
-		parsedReq = &service.ParsedRequest{Model: reqModel, Stream: reqStream, Body: bodyRef}
+		// reqModel 取自原始 body（渠道映射发生在后续 forwardBody），即客户端最初 model，
+		// 一并写入 ClientOriginalModel 以保证 X-Origin-Model-Id 注入值正确。
+		parsedReq = &service.ParsedRequest{Model: reqModel, ClientOriginalModel: reqModel, Stream: reqStream, Body: bodyRef}
 	}
 	parsedReq.SessionContext = &service.SessionContext{
 		ClientIP:  ip.GetClientIP(c),

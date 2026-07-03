@@ -76,6 +76,9 @@ IMPORTANT: You must NEVER generate or guess URLs for the user unless you are con
 	debugGatewayBodyEnv          = "SUB2API_DEBUG_GATEWAY_BODY"
 	// 上游错误体只需要提取错误 JSON/日志摘要，默认 512KiB 避免错误风暴叠加大请求体。
 	gatewayUpstreamErrorBodyReadLimit int64 = 512 << 10
+	// originModelIDHeader 携带账号级模型映射前的原始入站 model-id，供可控自建/中转上游获知。
+	// 仅在 API Key 账号且映射实际改变了模型时注入（详见 buildUpstreamRequest 注入点）。
+	originModelIDHeader = "X-Origin-Model-Id"
 )
 
 const (
@@ -4772,20 +4775,27 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 	if account != nil && account.IsAnthropicAPIKeyPassthroughEnabled() {
 		passthroughBody := parsed.Body.Bytes()
 		passthroughModel := parsed.Model
+		originModelToInject := ""
 		if passthroughModel != "" {
 			if mappedModel := account.GetMappedModel(passthroughModel); mappedModel != passthroughModel {
 				passthroughBody = s.replaceModelInBody(passthroughBody, mappedModel)
 				logger.LegacyPrintf("service.gateway", "Passthrough model mapping: %s -> %s (account: %s)", parsed.Model, mappedModel, account.Name)
 				passthroughModel = mappedModel
+				// 账号映射改变了模型：注入客户端最初发来的 model（早于任何渠道/账号映射）。
+				originModelToInject = parsed.ClientOriginalModel
+				if originModelToInject == "" {
+					originModelToInject = parsed.Model
+				}
 			}
 		}
 		return s.forwardAnthropicAPIKeyPassthroughWithInput(ctx, c, account, anthropicPassthroughForwardInput{
-			Body:          passthroughBody,
-			Parsed:        parsed,
-			RequestModel:  passthroughModel,
-			OriginalModel: parsed.Model,
-			RequestStream: parsed.Stream,
-			StartTime:     startTime,
+			Body:                   passthroughBody,
+			Parsed:                 parsed,
+			RequestModel:           passthroughModel,
+			OriginalModel:          parsed.Model,
+			RequestStream:          parsed.Stream,
+			StartTime:              startTime,
+			OriginModelHeaderValue: originModelToInject,
 		})
 	}
 
@@ -4944,6 +4954,18 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 		logger.LegacyPrintf("service.gateway", "Model mapping applied: %s -> %s (account: %s, source=%s)", originalModel, mappedModel, account.Name, mappingSource)
 	}
 
+	// 计算 X-Origin-Model-Id 的注入值：仅当"账号级"映射实际改变了模型时注入，
+	// 值取客户端最初发来的 model（ClientOriginalModel，早于任何渠道/账号映射），
+	// 而非 Forward 入口的 originalModel（可能已被渠道映射改写）。
+	// 渠道映射单独发生、账号未映射时不注入（mappingSource != "account"）。
+	originModelToInject := ""
+	if account.Type == AccountTypeAPIKey && mappingSource == "account" {
+		originModelToInject = parsed.ClientOriginalModel
+		if originModelToInject == "" {
+			originModelToInject = originalModel
+		}
+	}
+
 	if s.shouldInjectAnthropicCacheTTL1h(ctx, account) {
 		if err := replaceBody(injectAnthropicCacheControlTTL1h(body)); err != nil {
 			return nil, err
@@ -5005,7 +5027,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 	for attempt := 1; attempt <= maxRetryAttempts; attempt++ {
 		// 构建上游请求（每次重试需要重新构建，因为请求体需要重新读取）
 		upstreamCtx, releaseUpstreamCtx := detachStreamUpstreamContext(ctx, reqStream)
-		upstreamReq, wireBody, err := s.buildUpstreamRequest(upstreamCtx, c, account, body, token, tokenType, reqModel, reqStream, shouldMimicClaudeCode)
+		upstreamReq, wireBody, err := s.buildUpstreamRequest(upstreamCtx, c, account, body, token, tokenType, reqModel, originModelToInject, reqStream, shouldMimicClaudeCode)
 		releaseUpstreamCtx()
 		if err != nil {
 			return nil, err
@@ -5089,7 +5111,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 
 					filteredBody := FilterThinkingBlocksForRetry(body, reqModel)
 					retryCtx, releaseRetryCtx := detachStreamUpstreamContext(ctx, reqStream)
-					retryReq, retryWireBody, buildErr := s.buildUpstreamRequest(retryCtx, c, account, filteredBody, token, tokenType, reqModel, reqStream, shouldMimicClaudeCode)
+					retryReq, retryWireBody, buildErr := s.buildUpstreamRequest(retryCtx, c, account, filteredBody, token, tokenType, reqModel, originModelToInject, reqStream, shouldMimicClaudeCode)
 					releaseRetryCtx()
 					if buildErr == nil {
 						retryResp, retryErr := s.httpUpstream.DoWithTLS(retryReq, proxyURL, account.ID, account.Concurrency, tlsProfile)
@@ -5130,7 +5152,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 									logger.LegacyPrintf("service.gateway", "Account %d: signature retry still failing and looks tool-related, retrying with tool blocks downgraded", account.ID)
 									filteredBody2 := FilterSignatureSensitiveBlocksForRetry(body, reqModel)
 									retryCtx2, releaseRetryCtx2 := detachStreamUpstreamContext(ctx, reqStream)
-									retryReq2, retryWireBody2, buildErr2 := s.buildUpstreamRequest(retryCtx2, c, account, filteredBody2, token, tokenType, reqModel, reqStream, shouldMimicClaudeCode)
+									retryReq2, retryWireBody2, buildErr2 := s.buildUpstreamRequest(retryCtx2, c, account, filteredBody2, token, tokenType, reqModel, originModelToInject, reqStream, shouldMimicClaudeCode)
 									releaseRetryCtx2()
 									if buildErr2 == nil {
 										retryResp2, retryErr2 := s.httpUpstream.DoWithTLS(retryReq2, proxyURL, account.ID, account.Concurrency, tlsProfile)
@@ -5209,7 +5231,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 					if applied && time.Since(retryStart) < maxRetryElapsed {
 						logger.LegacyPrintf("service.gateway", "Account %d: detected budget_tokens constraint error, retrying with rectified budget (budget_tokens=%d, max_tokens=%d)", account.ID, BudgetRectifyBudgetTokens, BudgetRectifyMaxTokens)
 						budgetRetryCtx, releaseBudgetRetryCtx := detachStreamUpstreamContext(ctx, reqStream)
-						budgetRetryReq, budgetWireBody, buildErr := s.buildUpstreamRequest(budgetRetryCtx, c, account, rectifiedBody, token, tokenType, reqModel, reqStream, shouldMimicClaudeCode)
+						budgetRetryReq, budgetWireBody, buildErr := s.buildUpstreamRequest(budgetRetryCtx, c, account, rectifiedBody, token, tokenType, reqModel, originModelToInject, reqStream, shouldMimicClaudeCode)
 						releaseBudgetRetryCtx()
 						if buildErr == nil {
 							budgetRetryResp, retryErr := s.httpUpstream.DoWithTLS(budgetRetryReq, proxyURL, account.ID, account.Concurrency, tlsProfile)
@@ -5509,6 +5531,9 @@ type anthropicPassthroughForwardInput struct {
 	OriginalModel string
 	RequestStream bool
 	StartTime     time.Time
+	// OriginModelHeaderValue 为预计算好的 X-Origin-Model-Id 注入值：
+	// 非空即注入，空则不注入（触发判定由调用方完成，值取客户端最初 model）。
+	OriginModelHeaderValue string
 }
 
 func (s *GatewayService) forwardAnthropicAPIKeyPassthrough(
@@ -5568,7 +5593,7 @@ func (s *GatewayService) forwardAnthropicAPIKeyPassthroughWithInput(
 	retryStart := time.Now()
 	for attempt := 1; attempt <= maxRetryAttempts; attempt++ {
 		upstreamCtx, releaseUpstreamCtx := detachStreamUpstreamContext(ctx, input.RequestStream)
-		upstreamReq, wireBody, err := s.buildUpstreamRequestAnthropicAPIKeyPassthrough(upstreamCtx, c, account, input.Body, token)
+		upstreamReq, wireBody, err := s.buildUpstreamRequestAnthropicAPIKeyPassthrough(upstreamCtx, c, account, input.Body, token, input.OriginModelHeaderValue)
 		releaseUpstreamCtx()
 		if err != nil {
 			return nil, err
@@ -5765,12 +5790,14 @@ func (s *GatewayService) forwardAnthropicAPIKeyPassthroughWithInput(
 	}, nil
 }
 
+// originModelHeaderValue 为预计算好的 X-Origin-Model-Id 注入值：非空即注入，空则不注入。
 func (s *GatewayService) buildUpstreamRequestAnthropicAPIKeyPassthrough(
 	ctx context.Context,
 	c *gin.Context,
 	account *Account,
 	body []byte,
 	token string,
+	originModelHeaderValue string,
 ) (*http.Request, []byte, error) {
 	targetURL := claudeAPIURL
 	baseURL := account.GetBaseURL()
@@ -5823,6 +5850,12 @@ func (s *GatewayService) buildUpstreamRequestAnthropicAPIKeyPassthrough(
 	}
 	if getHeaderRaw(req.Header, "anthropic-version") == "" {
 		setHeaderRaw(req.Header, "anthropic-version", "2023-06-01")
+	}
+
+	// 注入客户端最初发来的 model-id：注入值由调用方预计算（账号级映射改变模型时为非空，
+	// 值取客户端最初 model，早于任何渠道/账号映射）。与 buildUpstreamRequest 保持一致。
+	if originModelHeaderValue != "" {
+		setHeaderRaw(req.Header, originModelIDHeader, originModelHeaderValue)
 	}
 
 	return req, body, nil
@@ -6649,7 +6682,9 @@ func (s *GatewayService) handleBedrockNonStreamingResponse(
 	return usage, nil
 }
 
-func (s *GatewayService) buildUpstreamRequest(ctx context.Context, c *gin.Context, account *Account, body []byte, token, tokenType, modelID string, reqStream bool, mimicClaudeCode bool) (*http.Request, []byte, error) {
+// originModelHeaderValue 为预计算好的 X-Origin-Model-Id 注入值：非空即注入，空则不注入。
+// 触发判定由调用方（Forward）完成——只有那里能区分"账号映射改变了模型"与"仅渠道映射"。
+func (s *GatewayService) buildUpstreamRequest(ctx context.Context, c *gin.Context, account *Account, body []byte, token, tokenType, modelID, originModelHeaderValue string, reqStream bool, mimicClaudeCode bool) (*http.Request, []byte, error) {
 	if account.Platform == PlatformAnthropic && account.Type == AccountTypeServiceAccount {
 		req, err := s.buildUpstreamRequestAnthropicVertex(ctx, c, account, body, token, modelID, reqStream)
 		return req, body, err
@@ -6812,6 +6847,13 @@ func (s *GatewayService) buildUpstreamRequest(ctx context.Context, c *gin.Contex
 				setHeaderRaw(req.Header, "X-Claude-Code-Session-Id", parsed.SessionID)
 			}
 		}
+	}
+
+	// 注入客户端最初发来的 model-id：注入值由 Forward 预计算（仅 API Key 账号 + 账号级
+	// 映射实际改变了模型时为非空）。OAuth/ServiceAccount 走真实 Anthropic，Forward 不会
+	// 传入非空值，故不会被注入（自定义 header 会被判第三方客户端）。
+	if originModelHeaderValue != "" {
+		setHeaderRaw(req.Header, originModelIDHeader, originModelHeaderValue)
 	}
 
 	// === DEBUG: 打印上游转发请求（headers + body 摘要），与 CLIENT_ORIGINAL 对比 ===
