@@ -1,14 +1,39 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# ─── 参数解析 ─────────────────────────────────────────────────────────────────
+# 默认只更新 sub2api；仅当显式传 --image-studio 时才处理 image-studio。
+DEPLOY_IMAGE_STUDIO=false
+for arg in "$@"; do
+    case "$arg" in
+        --image-studio)
+            DEPLOY_IMAGE_STUDIO=true
+            ;;
+        -h|--help)
+            echo "用法: bash manual_update.sh [--image-studio]"
+            echo "  （不带参数）仅更新 sub2api"
+            echo "  --image-studio  同时更新/部署 image-studio"
+            exit 0
+            ;;
+        *)
+            echo "未知参数: $arg（可用: --image-studio, -h/--help）" >&2
+            exit 1
+            ;;
+    esac
+done
+
 # =============================================================================
-# manual_update.sh — 更新 sub2api + image-studio（首次安装或增量更新）
+# manual_update.sh — 更新 sub2api（可选带 image-studio）
 #
-# 用法: bash manual_update.sh（普通用户运行，需要 sudo 权限时会自动提权）
+# 用法:
+#   bash manual_update.sh                  仅更新 sub2api
+#   bash manual_update.sh --image-studio   同时更新/部署 image-studio
+#   （普通用户运行，需要 sudo 权限时会自动提权）
 #
 # 行为:
-#   1. git pull sub2api, rebuild, restart sub2api.service
-#   2. image-studio: 已存在则 pull+rebuild+restart; 不存在则 clone+build+配置+服务
+#   1. git pull sub2api, rebuild, restart sub2api.service（始终执行）
+#   2. 仅当传入 --image-studio 时才处理 image-studio:
+#      已存在则 pull+rebuild+restart; 不存在则 clone+build+配置+服务
 # =============================================================================
 
 # ─── 配置 ───────────────────────────────────────────────────────────────────────
@@ -267,8 +292,18 @@ info "重启 $SUB2API_SERVICE..."
 sudo systemctl restart "$SUB2API_SERVICE"
 sudo systemctl is-active --quiet "$SUB2API_SERVICE" && info "sub2api 运行中 ✓" || warn "sub2api 启动可能有问题，请检查 journalctl -u $SUB2API_SERVICE"
 
+# 未指定 --image-studio 时，到此为止，不触碰 image-studio。
+if [ "$DEPLOY_IMAGE_STUDIO" != true ]; then
+    info ""
+    info "未指定 --image-studio，已跳过 image-studio 处理。"
+    info "（如需同时部署 image-studio，请加参数: bash manual_update.sh --image-studio）"
+    info ""
+    info "更新完成。"
+    exit 0
+fi
+
 # =============================================================================
-# 第二部分: image-studio
+# 第二部分: image-studio（仅在 --image-studio 时执行）
 # =============================================================================
 info ""
 info "── 处理 image-studio ──"
