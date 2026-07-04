@@ -381,6 +381,7 @@ export default {
     redeem: '兑换',
     activities: '活动报名',
     affiliate: '邀请返利',
+    superReferral: '超级邀请',
     affiliateManagement: '邀请返利',
     affiliateInviteRecords: '邀请记录',
     affiliateRebateRecords: '返利记录',
