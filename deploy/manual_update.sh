@@ -26,6 +26,11 @@ IMAGE_STUDIO_PORT=7000
 RSA_PRIVATE_KEY="$SUB2API_DIR/data/image_studio_private.pem"
 RSA_PUBLIC_KEY="$SUB2API_DIR/data/image_studio_public.pem"
 
+# image-studio 配置持久存储（在 dist/package 之外，build.sh 的 rm -rf 不会波及）。
+# 这是 config.toml 的唯一真源，每次更新后再部署进 dist/package/data。
+IMAGE_STUDIO_CONFIG_STORE="$HOME/app/image-studio-config"
+CANONICAL_CONFIG="$IMAGE_STUDIO_CONFIG_STORE/config.toml"
+
 # ─── 辅助函数 ─────────────────────────────────────────────────────────────────
 info()  { echo -e "\033[1;34m[INFO]\033[0m $*"; }
 warn()  { echo -e "\033[1;33m[WARN]\033[0m $*"; }
@@ -47,6 +52,177 @@ read_yaml_field() {
     line=$(sudo grep -E "^[[:space:]]+${field}:" "$file" 2>/dev/null | head -1) || true
     [ -z "$line" ] && return 0
     echo "$line" | sed 's/.*:[[:space:]]*"\{0,1\}\([^"]*\)"\{0,1\}.*/\1/' | xargs
+}
+
+# 从 TOML 文件读取扁平键值（key = "value" 或 key = value），去引号与行内注释
+read_toml_field() {
+    local file="$1" field="$2"
+    [ -f "$file" ] || return 0
+    local line
+    line=$(grep -E "^[[:space:]]*${field}[[:space:]]*=" "$file" 2>/dev/null | head -1) || true
+    [ -z "$line" ] && return 0
+    echo "$line" | sed -E 's/^[^=]*=[[:space:]]*//; s/[[:space:]]*#.*$//; s/^"//; s/"$//' | xargs
+}
+
+# 判断 config.toml 是否包含所有必填的多租户字段（非空）。返回 0=完整，1=缺失/不完整。
+config_is_complete() {
+    local file="$1"
+    [ -f "$file" ] || return 1
+    local secret endpoint gateway session pubkey
+    secret=$(read_toml_field "$file" "internal_secret")
+    endpoint=$(read_toml_field "$file" "endpoint_base")
+    gateway=$(read_toml_field "$file" "gateway_base_url")
+    session=$(read_toml_field "$file" "session_secret")
+    pubkey=$(read_toml_field "$file" "jwt_public_key_path")
+    [ -n "$secret" ] && [ -n "$endpoint" ] && [ -n "$gateway" ] \
+        && [ -n "$session" ] && [ -n "$pubkey" ]
+}
+
+# 生成持久 config.toml（唯一真源，位于 dist/package 之外）。
+# 保留已有 session_secret（避免使现有会话失效）；从母系统 config.yaml 读取 internal_secret / port。
+generate_canonical_config() {
+    # 1. 确保母系统侧 RSA 密钥对存在，并导出公钥
+    if [ ! -f "$RSA_PRIVATE_KEY" ]; then
+        info "生成 RSA 密钥对..."
+        sudo mkdir -p "$(dirname "$RSA_PRIVATE_KEY")"
+        sudo openssl genpkey -algorithm RSA -out "$RSA_PRIVATE_KEY" -pkeyopt rsa_keygen_bits:2048
+        sudo openssl rsa -in "$RSA_PRIVATE_KEY" -pubout -out "$RSA_PUBLIC_KEY"
+        sudo chmod 600 "$RSA_PRIVATE_KEY"
+        info "RSA 密钥对已生成: $RSA_PRIVATE_KEY / $RSA_PUBLIC_KEY"
+    else
+        info "RSA 私钥已存在，导出公钥..."
+        sudo openssl rsa -in "$RSA_PRIVATE_KEY" -pubout -out "$RSA_PUBLIC_KEY" 2>/dev/null
+    fi
+
+    # 2. internal_secret：从母系统 config.yaml 读取，缺失/过短则生成并提示写回
+    local internal_secret=""
+    if [ -f "$SUB2API_CONFIG" ]; then
+        internal_secret=$(read_yaml_field "$SUB2API_CONFIG" "internal_secret")
+    fi
+    if [ -z "$internal_secret" ] || [ ${#internal_secret} -lt 32 ]; then
+        internal_secret=$(generate_secret)
+        warn "母系统 config.yaml 中 image_studio.internal_secret 为空或过短"
+        warn "已生成新 secret: $internal_secret"
+        warn "请手动将此值写入 $SUB2API_CONFIG 的 image_studio.internal_secret 字段并重启 sub2api"
+    fi
+
+    # 3. 端口 / 基址
+    local sub2api_port endpoint_base gateway_base_url
+    sub2api_port=$(read_yaml_field "$SUB2API_CONFIG" "port")
+    sub2api_port="${sub2api_port:-8080}"
+    endpoint_base="http://127.0.0.1:${sub2api_port}"
+    gateway_base_url="${endpoint_base}/v1"
+
+    # 4. session_secret：保留已有真源里的值，否则新生成
+    local session_secret=""
+    session_secret=$(read_toml_field "$CANONICAL_CONFIG" "session_secret")
+    if [ -z "$session_secret" ]; then
+        session_secret=$(generate_secret)
+    fi
+
+    mkdir -p "$IMAGE_STUDIO_CONFIG_STORE"
+    cat > "$CANONICAL_CONFIG" << EOF
+[app]
+name = "chatgpt2api-studio"
+api_key = ""
+auth_key = ""
+image_format = "url"
+max_upload_size_mb = 50
+
+[server]
+host = "0.0.0.0"
+port = ${IMAGE_STUDIO_PORT}
+static_dir = "static"
+public_base_path = "/image-studio"
+max_image_concurrency = 8
+image_queue_limit = 32
+image_queue_timeout_seconds = 20
+image_task_queue_ttl_seconds = 600
+
+[chatgpt]
+model = "gpt-image-2"
+sse_timeout = 600
+poll_interval = 3
+poll_max_wait = 600
+request_timeout = 120
+image_mode = "cpa"
+
+[storage]
+backend = "current"
+config_backend = "file"
+image_dir = "data/tmp/image"
+image_storage = "server"
+image_conversation_storage = "server"
+image_data_storage = "server"
+sqlite_path = "data/chatgpt-image-studio.db"
+
+[cpa]
+base_url = ""
+api_key = ""
+request_timeout = 3000
+route_strategy = "codex_responses"
+responses_context_max_turns = 5
+responses_context_max_bytes = 8388608
+
+[identity]
+jwt_public_key_path = "data/image_studio_public.pem"
+jwt_issuer = "sub2api"
+jwt_audience = "image-studio"
+session_secret = "${session_secret}"
+session_ttl_seconds = 3600
+
+[credential]
+endpoint_base = "${endpoint_base}"
+internal_secret = "${internal_secret}"
+cache_ttl_seconds = 60
+gateway_base_url = "${gateway_base_url}"
+request_timeout = 20
+
+[log]
+log_all_requests = false
+EOF
+    info "已生成持久 config.toml: $CANONICAL_CONFIG"
+}
+
+# 确保持久 config.toml 存在且完整；否则从母系统配置重新生成。
+# 兼容旧部署：真源缺失但 dist/package 内已有完整配置时，先迁移进真源。
+ensure_canonical_config() {
+    mkdir -p "$IMAGE_STUDIO_CONFIG_STORE"
+    local pkg_config="$IMAGE_STUDIO_APP_DIR/dist/package/data/config.toml"
+    if [ ! -f "$CANONICAL_CONFIG" ] && config_is_complete "$pkg_config"; then
+        info "从现有 dist/package 迁移 config.toml 到持久存储..."
+        cp "$pkg_config" "$CANONICAL_CONFIG"
+    fi
+
+    if config_is_complete "$CANONICAL_CONFIG"; then
+        info "持久 config.toml 完整，保留现有配置。"
+        return 0
+    fi
+
+    warn "持久 config.toml 缺失或不完整，重新生成..."
+    generate_canonical_config
+}
+
+# 把真源 config.toml 与 RSA 公钥部署进 dist/package/data，并做部署后校验。
+# 校验失败直接 error 退出，避免静默上线空配置导致登录跳转循环。
+deploy_config_to_package() {
+    local pkg_data="$IMAGE_STUDIO_APP_DIR/dist/package/data"
+    mkdir -p "$pkg_data"
+
+    if [ -f "$RSA_PUBLIC_KEY" ]; then
+        sudo cp "$RSA_PUBLIC_KEY" "$pkg_data/image_studio_public.pem"
+        sudo chown "$(id -u):$(id -g)" "$pkg_data/image_studio_public.pem"
+    fi
+
+    cp "$CANONICAL_CONFIG" "$pkg_data/config.toml"
+
+    if ! config_is_complete "$pkg_data/config.toml"; then
+        error "部署后 config.toml 仍缺少必填字段，image-studio 会陷入登录跳转循环；请检查 $CANONICAL_CONFIG"
+    fi
+    if [ ! -f "$pkg_data/image_studio_public.pem" ]; then
+        error "缺少 RSA 公钥 $pkg_data/image_studio_public.pem，image-studio 无法验证入口票据"
+    fi
+    info "config.toml 与 RSA 公钥已部署并通过校验 ✓"
 }
 
 # ─── 前置检查 ─────────────────────────────────────────────────────────────────
@@ -103,40 +279,20 @@ if [ -d "$IMAGE_STUDIO_APP_DIR/.git" ]; then
 fi
 
 if [ "$IMAGE_STUDIO_EXISTS" = true ]; then
-    # ─── 已存在：pull + rebuild + restart ─────────────────────────────────────
+    # ─── 已存在：pull + rebuild + 从持久真源重新部署配置 + restart ────────────
     info "image-studio 已存在，拉取更新..."
     git -C "$IMAGE_STUDIO_APP_DIR" pull --ff-only
 
-    # ─── 保护现有配置（build.sh 会 rm -rf dist/package） ─────────────────────
-    PACKAGE_DIR="$IMAGE_STUDIO_APP_DIR/dist/package"
-    CONFIG_TOML="$PACKAGE_DIR/data/config.toml"
-    CONFIG_BACKUP="/tmp/image-studio-config-backup.toml"
-    PEM_BACKUP="/tmp/image-studio-pubkey-backup.pem"
-    PUBLIC_KEY_FILE="$PACKAGE_DIR/data/image_studio_public.pem"
-
-    if [ -f "$CONFIG_TOML" ]; then
-        info "备份现有 config.toml..."
-        cp "$CONFIG_TOML" "$CONFIG_BACKUP"
-    fi
-    if [ -f "$PUBLIC_KEY_FILE" ]; then
-        cp "$PUBLIC_KEY_FILE" "$PEM_BACKUP"
-    fi
+    # 确保持久 config.toml 存在且完整（build.sh 会 rm -rf dist/package，
+    # 因此真源必须放在 dist/package 之外；旧部署会自动迁移进真源）。
+    ensure_canonical_config
 
     info "重新构建 image-studio..."
     cd "$IMAGE_STUDIO_APP_DIR"
     bash scripts/build.sh
 
-    # ─── 恢复配置 ─────────────────────────────────────────────────────────────
-    if [ -f "$CONFIG_BACKUP" ]; then
-        info "恢复 config.toml..."
-        mkdir -p "$PACKAGE_DIR/data"
-        cp "$CONFIG_BACKUP" "$CONFIG_TOML"
-        rm -f "$CONFIG_BACKUP"
-    fi
-    if [ -f "$PEM_BACKUP" ]; then
-        cp "$PEM_BACKUP" "$PUBLIC_KEY_FILE"
-        rm -f "$PEM_BACKUP"
-    fi
+    # 从持久真源重新部署 config.toml 与 RSA 公钥，并做部署后校验（失败即退出）。
+    deploy_config_to_package
 
     # sudo: 重启系统服务
     info "重启 $IMAGE_STUDIO_SERVICE..."
@@ -155,116 +311,19 @@ else
     cd "$IMAGE_STUDIO_APP_DIR"
     bash scripts/build.sh
 
-    # ─── 生成/同步密钥 ────────────────────────────────────────────────────────
-    info "配置密钥..."
+    # ─── 生成持久配置真源 + 部署进 dist/package ──────────────────────────────
+    info "配置密钥与 config.toml..."
 
-    # 1. 生成 RSA 密钥对（如不存在）— sudo: 写入 /opt/sub2api/data/
-    if [ ! -f "$RSA_PRIVATE_KEY" ]; then
-        info "生成 RSA 密钥对..."
-        sudo mkdir -p "$(dirname "$RSA_PRIVATE_KEY")"
-        sudo openssl genpkey -algorithm RSA -out "$RSA_PRIVATE_KEY" -pkeyopt rsa_keygen_bits:2048
-        sudo openssl rsa -in "$RSA_PRIVATE_KEY" -pubout -out "$RSA_PUBLIC_KEY"
-        sudo chmod 600 "$RSA_PRIVATE_KEY"
-        info "RSA 密钥对已生成: $RSA_PRIVATE_KEY / $RSA_PUBLIC_KEY"
-    else
-        info "RSA 私钥已存在，导出公钥..."
-        sudo openssl rsa -in "$RSA_PRIVATE_KEY" -pubout -out "$RSA_PUBLIC_KEY" 2>/dev/null
-    fi
+    # 生成/迁移持久真源（RSA 密钥、internal_secret、session_secret 等都在此处理）
+    ensure_canonical_config
 
-    # 2. 读取或生成 internal_secret
-    INTERNAL_SECRET=""
-    if [ -f "$SUB2API_CONFIG" ]; then
-        INTERNAL_SECRET=$(read_yaml_field "$SUB2API_CONFIG" "internal_secret")
-    fi
-    if [ -z "$INTERNAL_SECRET" ] || [ ${#INTERNAL_SECRET} -lt 32 ]; then
-        INTERNAL_SECRET=$(generate_secret)
-        warn "母系统 config.yaml 中 image_studio.internal_secret 为空或过短"
-        warn "已生成新 secret: $INTERNAL_SECRET"
-        warn "请手动将此值写入 $SUB2API_CONFIG 的 image_studio.internal_secret 字段并重启 sub2api"
-    fi
+    # 从真源部署 config.toml 与公钥进 dist/package/data，并做部署后校验
+    deploy_config_to_package
 
-    # 3. 读取母系统监听端口（用于 credential.endpoint_base 和 gateway_base_url）
-    SUB2API_PORT=$(read_yaml_field "$SUB2API_CONFIG" "port")
-    SUB2API_PORT="${SUB2API_PORT:-8080}"
-    ENDPOINT_BASE="http://127.0.0.1:${SUB2API_PORT}"
-    GATEWAY_BASE_URL="${ENDPOINT_BASE}/v1"
-
-    # 4. 生成 image-studio 自有会话密钥
-    SESSION_SECRET=$(generate_secret)
-
-    # ─── 写入 image-studio config.toml ────────────────────────────────────────
     PACKAGE_DIR="$IMAGE_STUDIO_APP_DIR/dist/package"
-    CONFIG_TOML="$PACKAGE_DIR/data/config.toml"
-    PUBLIC_KEY_DEST="$PACKAGE_DIR/data/image_studio_public.pem"
 
-    info "写入 image-studio 配置..."
-    mkdir -p "$PACKAGE_DIR/data"
-
-    # 复制公钥到 image-studio data 目录
-    sudo cp "$RSA_PUBLIC_KEY" "$PUBLIC_KEY_DEST"
-    sudo chown "$(id -u):$(id -g)" "$PUBLIC_KEY_DEST"
-
-    cat > "$CONFIG_TOML" << EOF
-[app]
-name = "chatgpt2api-studio"
-api_key = ""
-auth_key = ""
-image_format = "url"
-max_upload_size_mb = 50
-
-[server]
-host = "0.0.0.0"
-port = ${IMAGE_STUDIO_PORT}
-static_dir = "static"
-public_base_path = "/image-studio"
-max_image_concurrency = 8
-image_queue_limit = 32
-image_queue_timeout_seconds = 20
-image_task_queue_ttl_seconds = 600
-
-[chatgpt]
-model = "gpt-image-2"
-sse_timeout = 600
-poll_interval = 3
-poll_max_wait = 600
-request_timeout = 120
-image_mode = "cpa"
-
-[storage]
-backend = "current"
-config_backend = "file"
-image_dir = "data/tmp/image"
-image_storage = "server"
-image_conversation_storage = "server"
-image_data_storage = "server"
-sqlite_path = "data/chatgpt-image-studio.db"
-
-[cpa]
-base_url = ""
-api_key = ""
-request_timeout = 3000
-route_strategy = "codex_responses"
-responses_context_max_turns = 5
-responses_context_max_bytes = 8388608
-
-[identity]
-jwt_public_key_path = "data/image_studio_public.pem"
-jwt_issuer = "sub2api"
-jwt_audience = "image-studio"
-session_secret = "${SESSION_SECRET}"
-session_ttl_seconds = 3600
-
-[credential]
-endpoint_base = "${ENDPOINT_BASE}"
-internal_secret = "${INTERNAL_SECRET}"
-cache_ttl_seconds = 60
-gateway_base_url = "${GATEWAY_BASE_URL}"
-request_timeout = 20
-
-[log]
-log_all_requests = false
-EOF
-    info "config.toml 已写入: $CONFIG_TOML"
+    # 供安装摘要输出使用
+    INTERNAL_SECRET=$(read_toml_field "$CANONICAL_CONFIG" "internal_secret")
 
     # ─── 创建 systemd 服务 — sudo: 写入 /etc/systemd/system/ ─────────────────
     info "创建 systemd 服务..."
@@ -300,8 +359,9 @@ EOF
     info " image-studio 首次安装完成"
     info "═══════════════════════════════════════════════════════════════"
     info " 应用目录:     $PACKAGE_DIR"
-    info " 配置文件:     $CONFIG_TOML"
-    info " 公钥位置:     $PUBLIC_KEY_DEST"
+    info " 配置真源:     $CANONICAL_CONFIG"
+    info " 运行时配置:   $PACKAGE_DIR/data/config.toml"
+    info " 公钥位置:     $PACKAGE_DIR/data/image_studio_public.pem"
     info " 服务名:       $IMAGE_STUDIO_SERVICE"
     info " 监听端口:     $IMAGE_STUDIO_PORT"
     info ""
