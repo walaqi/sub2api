@@ -683,6 +683,11 @@ const flagModelsPlaza = makeSidebarFlag(FeatureFlags.modelsPlaza)
 const flagImageStudio = makeSidebarFlag(FeatureFlags.imageStudio)
 const flagAffiliate = makeSidebarFlag(FeatureFlags.affiliate)
 const flagRiskControl = makeSidebarFlag(FeatureFlags.riskControl)
+// 超级邀请开启时，用户端"邀请返利"入口临时指向超级邀请页并改名，
+// 以理顺"返利/超级邀请"关系（仍受 affiliate_enabled 控制；管理员端不变）。
+const referralRewardEnabled = computed(
+  () => appStore.cachedPublicSettings?.referral_reward_enabled === true,
+)
 const flagOpsMonitoring = () => adminSettingsStore.opsMonitoringEnabled
 const flagAdminPayment = () => adminSettingsStore.paymentEnabled
 
@@ -710,7 +715,13 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/gifts', label: t('nav.myGifts'), icon: GiftIcon, hideInSimpleMode: true },
     { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, hideInSimpleMode: true },
     { path: '/activities', label: t('nav.activities'), icon: TicketIcon, hideInSimpleMode: true },
-    { path: '/affiliate', label: t('nav.affiliate'), icon: UsersIcon, hideInSimpleMode: true, featureFlag: flagAffiliate },
+    {
+      path: referralRewardEnabled.value ? '/referral' : '/affiliate',
+      label: referralRewardEnabled.value ? t('nav.superReferral') : t('nav.affiliate'),
+      icon: UsersIcon,
+      hideInSimpleMode: true,
+      featureFlag: flagAffiliate,
+    },
     { path: '/profile', label: t('nav.profile'), icon: UserIcon },
     ...customMenuItemsForUser.value.map((item): NavItem => ({
       path: `/custom/${item.id}`,

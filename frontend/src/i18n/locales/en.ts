@@ -381,6 +381,7 @@ export default {
     redeem: 'Redeem',
     activities: 'Activities',
     affiliate: 'Affiliate Rebates',
+    superReferral: 'Super Referral',
     affiliateManagement: 'Affiliate Rebates',
     affiliateInviteRecords: 'Invite Records',
     affiliateRebateRecords: 'Rebate Records',
