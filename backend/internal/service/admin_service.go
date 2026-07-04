@@ -2973,9 +2973,6 @@ func normalizeAccountConcurrency(platform, accountType string, concurrency int) 
 		if concurrency <= 0 {
 			return 1
 		}
-		if concurrency > 1 && !xai.AllowUnsafeHighConcurrency() {
-			return 1
-		}
 	}
 	return concurrency
 }

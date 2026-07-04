@@ -241,6 +241,32 @@ function buildAntigravityAccount(projectId = 'configured-project') {
   } as any
 }
 
+function buildGrokOAuthAccount() {
+  return {
+    id: 5,
+    name: 'Grok OAuth',
+    notes: '',
+    platform: 'grok',
+    type: 'oauth',
+    credentials: {
+      refresh_token: 'grok-rt',
+      base_url: 'https://api.x.ai/v1',
+      model_mapping: {
+        'grok-latest': 'grok-4.3'
+      }
+    },
+    extra: {},
+    proxy_id: null,
+    concurrency: 1,
+    priority: 1,
+    rate_multiplier: 1,
+    status: 'active',
+    group_ids: [],
+    expires_at: null,
+    auto_pause_on_expired: false
+  } as any
+}
+
 function buildOpenAISetupTokenAccount() {
   return {
     ...buildAccount(),
@@ -354,6 +380,28 @@ describe('EditAccountModal', () => {
     expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.openai_compact_mode).toBe('force_on')
     expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.compact_model_mapping).toEqual({
       'gpt-5.4': 'gpt-5.4-openai-compact'
+    })
+  })
+
+  // Fork 使用 ModelMappingJsonEditor（JSON textarea），非 upstream 的逐行预设 chip UI，
+  // 故不断言 "Imagine Image" 等预设。本例验证 Grok OAuth 账号在编辑弹窗中渲染模型映射区，
+  // 且 submit 走独立的 Grok OAuth 分支，保留已加载的 model_mapping。
+  it('loads and submits Grok OAuth model mapping edits', async () => {
+    const account = buildGrokOAuthAccount()
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+    // Grok OAuth 账号应渲染独立的模型映射区（与 OpenAI OAuth 同容器）
+    expect(wrapper.text()).toContain('admin.accounts.modelRestriction')
+
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.model_mapping).toEqual({
+      'grok-latest': 'grok-4.3'
     })
   })
 
