@@ -1083,7 +1083,7 @@ Phase 4 — 公告 Targeting 扩展 (1-1.5d)
 | # | 能力 | 含义 | 判定条件 |
 |---|------|------|----------|
 | 1 | `invite_link_usable` | 邀请码是否可用于新用户注册绑定 | 始终可用（有 aff_code 即可），不因超级邀请资格失效而禁用 |
-| 2 | `invitee_signup_reward_enabled` | 被邀请人注册是否拿赠金 | 全局 `referral_reward_enabled=true` + 绑定成功。不依赖邀请人资格 |
+| 2 | `invitee_signup_reward_enabled` | 被邀请人注册是否拿赠金 | 全局 `referral_reward_enabled=true` + 绑定成功 + **邀请人绑定时有超级邀请资格**（`inviter_reward_eligible_at_bind=true`，与能力 #3 同一时间窗口判定）。**〔2026-07-06 修订〕** 早期设计为"不依赖邀请人资格"，因无资格邀请人用普通返利链接拉人时会被误发被邀请人赠金（同一 `aff_code`、同一 `/register?aff=` 链接，超级邀请开关全局生效），故收敛为"绑定照常，仅当邀请人有资格才发被邀请人赠金" |
 | 3 | `discount_inheritance_eligible` | 被邀请人是否继承折扣 | 邀请人**绑定时**有处于时间窗口内的折扣：`valid_from <= bind_time AND (valid_until IS NULL OR valid_until >= bind_time)`。**不看额度是否耗尽** |
 | 4 | `inviter_reward_eligible_for_this_invitee` | 邀请人是否能因该 invitee 达标拿赠金 | 绑定时快照记录（`inviter_reward_eligible_at_bind`），后续消费达标只读此快照 |
 
@@ -1096,6 +1096,14 @@ Phase 4 — 公告 Targeting 扩展 (1-1.5d)
 - 被邀请人赠金不发
 - 邀请人达标赠金不发
 - 折扣继承不执行（`inheritDiscountFromInviter` 在 `OnInviterBound` 中与赠金同受开关控制）
+
+**〔2026-07-06 修订〕`referral_reward_enabled=true` 但邀请人绑定时无超级邀请资格（`inviter_reward_eligible_at_bind=false`）时的行为：**
+- tracker 行照建（快照记为 false）
+- 邀请关系正常绑定（普通邀请返利照常生效，`aff_count`/返利额度不受影响）
+- 被邀请人赠金**不发**（新增 gate）
+- 折扣继承**不执行**
+- 邀请人达标赠金**不发**（`TrackSpend` 读快照 false 时跳过，原有行为）
+- gate 位置：`OnInviterBound` 入口统一判定 `rewardEligible`（与折扣继承 #3 同一 `queryInviterDiscountsForReferralGrant(boundAt)` 判定源），不再深入 `grantInviteeReward` 内部单独检查
 
 ### Gap 1：邀请人资格过期后，被邀请人达标仍发放邀请人赠金
 

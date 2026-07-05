@@ -62,6 +62,13 @@ func (s *ReferralRewardService) OnInviterBound(ctx context.Context, inviterID, i
 		return
 	}
 
+	// 邀请人在绑定时无超级邀请资格 → 绑定关系照常建立（tracker 已建，快照 false），
+	// 仅跳过超级邀请奖励：不发被邀请人赠金、不继承折扣。
+	// 这防止无资格邀请人用普通返利链接拉人时，被邀请人被按超级邀请逻辑批量发赠金。
+	if !rewardEligible {
+		return
+	}
+
 	// 发放被邀请人赠金
 	if err := s.grantInviteeReward(ctx, inviterID, inviteeID, cfg); err != nil {
 		log.Printf("[referral] grant invitee reward for invitee=%d failed: %v", inviteeID, err)
@@ -283,7 +290,7 @@ func (s *ReferralRewardService) grantInviteeReward(ctx context.Context, inviterI
 
 	// FOR UPDATE 锁 tracker 行
 	rows, err := execer.QueryContext(txCtx, `
-SELECT id, invitee_reward_granted, inviter_reward_eligible_at_bind
+SELECT id, invitee_reward_granted
 FROM referral_reward_tracker
 WHERE inviter_id = $1 AND invitee_id = $2
 FOR UPDATE`, inviterID, inviteeID)
@@ -293,9 +300,8 @@ FOR UPDATE`, inviterID, inviteeID)
 
 	var trackerID int64
 	var alreadyGranted bool
-	var rewardEligible bool
 	if rows.Next() {
-		if err := rows.Scan(&trackerID, &alreadyGranted, &rewardEligible); err != nil {
+		if err := rows.Scan(&trackerID, &alreadyGranted); err != nil {
 			_ = rows.Close()
 			return err
 		}
@@ -307,10 +313,6 @@ FOR UPDATE`, inviterID, inviteeID)
 
 	if alreadyGranted {
 		return nil // 已发放过，幂等退出
-	}
-
-	if !rewardEligible {
-		return nil // 邀请人在绑定时无资格，不发放被邀请人赠金
 	}
 
 	// 发放赠金
