@@ -283,7 +283,7 @@ func (s *ReferralRewardService) grantInviteeReward(ctx context.Context, inviterI
 
 	// FOR UPDATE 锁 tracker 行
 	rows, err := execer.QueryContext(txCtx, `
-SELECT id, invitee_reward_granted
+SELECT id, invitee_reward_granted, inviter_reward_eligible_at_bind
 FROM referral_reward_tracker
 WHERE inviter_id = $1 AND invitee_id = $2
 FOR UPDATE`, inviterID, inviteeID)
@@ -293,8 +293,9 @@ FOR UPDATE`, inviterID, inviteeID)
 
 	var trackerID int64
 	var alreadyGranted bool
+	var rewardEligible bool
 	if rows.Next() {
-		if err := rows.Scan(&trackerID, &alreadyGranted); err != nil {
+		if err := rows.Scan(&trackerID, &alreadyGranted, &rewardEligible); err != nil {
 			_ = rows.Close()
 			return err
 		}
@@ -306,6 +307,10 @@ FOR UPDATE`, inviterID, inviteeID)
 
 	if alreadyGranted {
 		return nil // 已发放过，幂等退出
+	}
+
+	if !rewardEligible {
+		return nil // 邀请人在绑定时无资格，不发放被邀请人赠金
 	}
 
 	// 发放赠金

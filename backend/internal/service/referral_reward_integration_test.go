@@ -9,6 +9,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/gift"
@@ -511,4 +512,98 @@ func TestIntegration_Referral_TrackSpend_NoTracker_UsesBindTimeEligibility(t *te
 	err = db.QueryRow("SELECT inviter_reward_eligible_at_bind FROM referral_reward_tracker WHERE invitee_id = $1", inviteeID).Scan(&rewardEligible)
 	require.NoError(t, err)
 	assert.True(t, rewardEligible)
+}
+
+// ==========================================================================
+// Test 9: OnInviterBound — 邀请人资格为 false 时不发被邀请人赠金（修复 bug）
+// ==========================================================================
+
+func TestIntegration_Referral_OnInviterBound_IneligibleInviter_NoInviteeGift(t *testing.T) {
+	client, db := setupReferralIntegrationDB(t)
+	svc := buildReferralService(t, client, db, true)
+	ctx := context.Background()
+
+	inviterID := int64(800018)
+	inviteeID := int64(800019)
+	ensureTestUser(t, db, inviterID)
+	ensureTestUser(t, db, inviteeID)
+
+	// 邀请人886无折扣（无资格）
+	boundAt := time.Now()
+
+	// 直接调用 OnInviterBound 模拟被邀请人绑定
+	svc.OnInviterBound(ctx, inviterID, inviteeID, boundAt)
+
+	// 验证 tracker 被创建且快照为 false
+	var trackerID int64
+	var rewardEligible bool
+	var inviteeRewardGranted bool
+	err := db.QueryRow(
+		"SELECT id, inviter_reward_eligible_at_bind, invitee_reward_granted FROM referral_reward_tracker WHERE inviter_id = $1 AND invitee_id = $2",
+		inviterID, inviteeID).Scan(&trackerID, &rewardEligible, &inviteeRewardGranted)
+	require.NoError(t, err)
+	assert.False(t, rewardEligible, "邀请人无资格，快照应为 false")
+	assert.False(t, inviteeRewardGranted, "资格为 false 时不应发放被邀请人赠金")
+
+	// 验证被邀请人没有获得赠金
+	var giftCount int
+	err = db.QueryRow("SELECT COUNT(*) FROM user_gifts WHERE user_id = $1 AND source = 'referral_invitee'", inviteeID).Scan(&giftCount)
+	require.NoError(t, err)
+	assert.Equal(t, 0, giftCount, "邀请人无资格时被邀请人不应获得赠金")
+
+	// 验证被邀请人也没有继承折扣
+	var discountCount int
+	err = db.QueryRow("SELECT COUNT(*) FROM user_recharge_discounts WHERE user_id = $1 AND source = 'referral_inherit'", inviteeID).Scan(&discountCount)
+	require.NoError(t, err)
+	assert.Equal(t, 0, discountCount, "邀请人无资格时不应继承折扣")
+}
+
+// ==========================================================================
+// Test 10: OnInviterBound — 邀请人资格为 true 时发被邀请人赠金
+// ==========================================================================
+
+func TestIntegration_Referral_OnInviterBound_EligibleInviter_GrantsInviteeGift(t *testing.T) {
+	client, db := setupReferralIntegrationDB(t)
+	svc := buildReferralService(t, client, db, true)
+	ctx := context.Background()
+
+	inviterID := int64(800020)
+	inviteeID := int64(800021)
+	ensureTestUser(t, db, inviterID)
+	ensureTestUser(t, db, inviteeID)
+
+	boundAt := time.Now()
+
+	// 邀请人在绑定时刻有有效折扣（资格=true）
+	validUntil := time.Now().Add(30 * 24 * time.Hour)
+	insertRechargeDiscount(t, db, inviterID, "api_key:eligible", 100, 100,
+		boundAt.Add(-1*time.Hour).Format(time.RFC3339),
+		validUntil.Format(time.RFC3339))
+
+	svc.OnInviterBound(ctx, inviterID, inviteeID, boundAt)
+
+	// 验证快照为 true
+	var trackerID int64
+	var rewardEligible bool
+	var inviteeRewardGranted bool
+	err := db.QueryRow(
+		"SELECT id, inviter_reward_eligible_at_bind, invitee_reward_granted FROM referral_reward_tracker WHERE inviter_id = $1 AND invitee_id = $2",
+		inviterID, inviteeID).Scan(&trackerID, &rewardEligible, &inviteeRewardGranted)
+	require.NoError(t, err)
+	assert.True(t, rewardEligible, "邀请人有资格，快照应为 true")
+	assert.True(t, inviteeRewardGranted, "资格为 true 时应发放被邀请人赠金")
+
+	// 验证被邀请人获得赠金
+	var giftAmount float64
+	var giftSource string
+	err = db.QueryRow("SELECT amount, source FROM user_gifts WHERE user_id = $1 AND source = 'referral_invitee'", inviteeID).Scan(&giftAmount, &giftSource)
+	require.NoError(t, err)
+	assert.Equal(t, 10.0, giftAmount)
+	assert.Equal(t, "referral_invitee", giftSource)
+
+	// 验证被邀请人继承折扣
+	var inheritDiscountCount int
+	err = db.QueryRow("SELECT COUNT(*) FROM user_recharge_discounts WHERE user_id = $1 AND source = 'referral_inherit'", inviteeID).Scan(&inheritDiscountCount)
+	require.NoError(t, err)
+	assert.Equal(t, 1, inheritDiscountCount, "资格为 true 时应继承折扣")
 }
