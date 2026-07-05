@@ -1146,7 +1146,7 @@ Phase 4 — 公告 Targeting 扩展 (1-1.5d)
 
 **方案：tracker 表加字段 `inviter_reward_eligible_at_bind`**
 
-字段命名用 `inviter_reward_eligible_at_bind` 而非泛泛的 `inviter_eligible_at_bind`，因为邀请人资格失去后邀请码仍可用、被邀请人仍拿赠金，只有"邀请人达标赠金"这一个能力受影响。
+字段命名用 `inviter_reward_eligible_at_bind` 而非泛泛的 `inviter_eligible_at_bind`，因为邀请人资格失去后邀请码仍可用、普通 affiliate 绑定/返利不受影响；快照本身直接决定"邀请人达标赠金"能力。**〔2026-07-06 修订〕** 被邀请人注册赠金、折扣继承、邀请人达标赠金三者均受绑定时超级邀请资格约束（`OnInviterBound` 入口统一 gate），不再是"被邀请人仍拿赠金"。
 
 #### 1.1 Migration
 
@@ -2036,7 +2036,7 @@ hasInviterRewardEligibilityByConfig(ctx, inviterID int64, atTime *time.Time) boo
 
 - 默认 `bind_key_claim`，现有实例行为不变。
 - 新增 `user_affiliates.inviter_bound_at`，历史绑定用 `updated_at` 回填作为 best-effort；未来绑定使用稳定字段。
-- 普通 affiliate 邀请码仍可用；该开关只影响超级邀请资格、折扣继承和邀请人达标赠金资格快照。
+- 普通 affiliate 邀请码仍可用；该开关只影响超级邀请资格、被邀请人注册赠金、折扣继承和邀请人达标赠金资格快照。
 - 已存在的 `referral_reward_tracker.inviter_reward_eligible_at_bind` 不回填；新开关只影响后续绑定/懒补建。
 
 ### Open Questions
