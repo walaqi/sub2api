@@ -487,7 +487,7 @@ func TestIntegration_Referral_TrackSpend_RewardIneligibleAtBind_DoesNotGrantInvi
 }
 
 // ==========================================================================
-// Test 8: lazy 补建 tracker 使用 user_affiliates.updated_at 还原绑定时资格
+// Test 8: lazy 补建 tracker 使用 user_affiliates.inviter_bound_at/updated_at 还原绑定时资格
 // ==========================================================================
 
 func TestIntegration_Referral_TrackSpend_NoTracker_UsesBindTimeEligibility(t *testing.T) {
@@ -606,4 +606,59 @@ func TestIntegration_Referral_OnInviterBound_EligibleInviter_GrantsInviteeGift(t
 	err = db.QueryRow("SELECT COUNT(*) FROM user_recharge_discounts WHERE user_id = $1 AND source = 'referral_inherit'", inviteeID).Scan(&inheritDiscountCount)
 	require.NoError(t, err)
 	assert.Equal(t, 1, inheritDiscountCount, "资格为 true 时应继承折扣")
+}
+
+// ==========================================================================
+// Test 11: OnInviterBound 重放/并发 — 只产生一个 referral_invitee 赠金
+// ==========================================================================
+
+func TestIntegration_Referral_OnInviterBound_ConcurrentReplay_OneInviteeGift(t *testing.T) {
+	client, db := setupReferralIntegrationDB(t)
+	svc := buildReferralService(t, client, db, true)
+	ctx := context.Background()
+
+	inviterID := int64(800022)
+	inviteeID := int64(800023)
+	ensureTestUser(t, db, inviterID)
+	ensureTestUser(t, db, inviteeID)
+
+	boundAt := time.Now()
+
+	// 邀请人在绑定时刻有有效折扣（资格=true）
+	validUntil := time.Now().Add(30 * 24 * time.Hour)
+	insertRechargeDiscount(t, db, inviterID, "api_key:concurrent_replay", 100, 100,
+		boundAt.Add(-1*time.Hour).Format(time.RFC3339),
+		validUntil.Format(time.RFC3339))
+
+	// 10 个 goroutine 同时重放 OnInviterBound，模拟 hook 重放/并发触发
+	const goroutines = 10
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for i := 0; i < goroutines; i++ {
+		go func() {
+			defer wg.Done()
+			svc.OnInviterBound(ctx, inviterID, inviteeID, boundAt)
+		}()
+	}
+	wg.Wait()
+
+	// 只应产生一个被邀请人赠金
+	var giftCount int
+	err := db.QueryRow("SELECT COUNT(*) FROM user_gifts WHERE user_id = $1 AND source = 'referral_invitee'", inviteeID).Scan(&giftCount)
+	require.NoError(t, err)
+	assert.Equal(t, 1, giftCount, "重放/并发下被邀请人赠金只应发一次")
+
+	// tracker 标记已发放且引用该赠金
+	var granted bool
+	var giftID sql.NullInt64
+	err = db.QueryRow("SELECT invitee_reward_granted, invitee_reward_gift_id FROM referral_reward_tracker WHERE inviter_id = $1 AND invitee_id = $2", inviterID, inviteeID).Scan(&granted, &giftID)
+	require.NoError(t, err)
+	assert.True(t, granted)
+	assert.True(t, giftID.Valid)
+
+	// 折扣继承也应只有一条（source_ref 唯一约束保证幂等）
+	var inheritDiscountCount int
+	err = db.QueryRow("SELECT COUNT(*) FROM user_recharge_discounts WHERE user_id = $1 AND source = 'referral_inherit'", inviteeID).Scan(&inheritDiscountCount)
+	require.NoError(t, err)
+	assert.Equal(t, 1, inheritDiscountCount, "重放/并发下折扣继承只应有一条")
 }
