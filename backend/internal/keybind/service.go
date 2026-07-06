@@ -21,6 +21,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
+	"github.com/Wei-Shaw/sub2api/ent/bindkeygiftsetting"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/internal/domain"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -43,6 +44,7 @@ var (
 	ErrEmptyKeyList          = infraerrors.BadRequest("BIND_KEY_EMPTY", "no keys provided")
 	ErrTooManyKeys           = infraerrors.BadRequest("BIND_KEY_TOO_MANY", "too many keys in one request")
 	ErrNoEligibleKey         = infraerrors.NotFound("BIND_KEY_NO_ELIGIBLE", "no eligible key found in the provided list")
+	ErrNoActivityKey         = infraerrors.NotFound("BIND_KEY_NO_ACTIVITY_KEY", "no claimable key is available for this activity")
 	ErrReservationExpired    = infraerrors.NotFound("BIND_KEY_RESERVATION_EXPIRED", "reservation has expired or does not exist")
 	ErrPoolKeyAlreadyClaimed = infraerrors.Conflict("BIND_KEY_RACE", "key has already been claimed by another user")
 	ErrAlreadyParticipated   = infraerrors.Forbidden("BIND_KEY_ALREADY_PARTICIPATED", "you have already bound a key this month")
@@ -285,40 +287,175 @@ func (s *Service) Reserve(ctx context.Context, keys []string) (*ReservationResul
 		if !hasSufficientRemaining(row.Quota, row.QuotaUsed) {
 			continue
 		}
-
-		reservationID, err := newReservationID()
+		res, locked, err := s.lockAndBuildReservation(ctx, row)
 		if err != nil {
-			return nil, fmt.Errorf("generate reservation id: %w", err)
+			return nil, err
 		}
-
-		lockKey := redisLockedKeyPrefix + intToStr(row.ID)
-		ok, err := s.redis.SetNX(ctx, lockKey, reservationID, reservationTTL).Result()
-		if err != nil {
-			return nil, fmt.Errorf("redis setnx: %w", err)
-		}
-		if !ok {
+		if !locked {
 			// another reservation already holds this key
 			continue
 		}
-
-		// Bind reservation_id -> api_key_id with same TTL.
-		if err := s.redis.Set(ctx, redisReservationKeyPrefix+reservationID, intToStr(row.ID), reservationTTL).Err(); err != nil {
-			// best-effort cleanup
-			_ = s.redis.Del(ctx, lockKey).Err()
-			return nil, fmt.Errorf("redis set reservation: %w", err)
-		}
-
-		expiresAt := time.Now().Add(reservationTTL)
-		return &ReservationResult{
-			ReservationID:   reservationID,
-			MaskedKey:       maskKey(row.Key),
-			RemainingQuota:  row.Quota - row.QuotaUsed,
-			QuotaLimit:      row.Quota,
-			ExpiresAtUnixMs: expiresAt.UnixMilli(),
-		}, nil
+		return res, nil
 	}
 
 	return nil, ErrNoEligibleKey
+}
+
+// lockAndBuildReservation attempts to lock a single pool key row in Redis and,
+// on success, returns the ReservationResult the client needs to later Commit.
+//
+// The (nil, false, nil) return means the key is already held by another
+// in-flight reservation — the caller should skip it and try the next candidate.
+// Shared by both the paste-driven Reserve and the activity-driven
+// ReserveForActivity so the lock/TTL protocol stays in one place.
+func (s *Service) lockAndBuildReservation(ctx context.Context, row *ent.APIKey) (*ReservationResult, bool, error) {
+	reservationID, err := newReservationID()
+	if err != nil {
+		return nil, false, fmt.Errorf("generate reservation id: %w", err)
+	}
+
+	lockKey := redisLockedKeyPrefix + intToStr(row.ID)
+	ok, err := s.redis.SetNX(ctx, lockKey, reservationID, reservationTTL).Result()
+	if err != nil {
+		return nil, false, fmt.Errorf("redis setnx: %w", err)
+	}
+	if !ok {
+		return nil, false, nil
+	}
+
+	// Bind reservation_id -> api_key_id with same TTL.
+	if err := s.redis.Set(ctx, redisReservationKeyPrefix+reservationID, intToStr(row.ID), reservationTTL).Err(); err != nil {
+		// best-effort cleanup
+		_ = s.redis.Del(ctx, lockKey).Err()
+		return nil, false, fmt.Errorf("redis set reservation: %w", err)
+	}
+
+	expiresAt := time.Now().Add(reservationTTL)
+	return &ReservationResult{
+		ReservationID:   reservationID,
+		MaskedKey:       maskKey(row.Key),
+		RemainingQuota:  row.Quota - row.QuotaUsed,
+		QuotaLimit:      row.Quota,
+		ExpiresAtUnixMs: expiresAt.UnixMilli(),
+	}, true, nil
+}
+
+// activityKeyMaxScan bounds how many candidate keys ReserveForActivity will
+// walk before giving up. Keys can be locked by concurrent reservations or fall
+// below the quota threshold; scanning a bounded batch keeps a single request
+// cheap while still finding a free key under moderate contention.
+const activityKeyMaxScan = 200
+
+// ReserveForActivity finds one claimable pool key tied to activityID, locks it
+// in Redis, and returns the reservation the client uses to Commit — mirroring
+// the paste-driven Reserve but selecting the key by activity instead of by a
+// user-supplied list.
+//
+// A key is claimable when it is (still) owned by the pool user, active,
+// not soft-deleted, has > 50% remaining quota, and carries a
+// bind_key_gift_settings row whose activity_id == activityID. Ownership
+// transfers away on Commit, so an already-claimed key naturally drops out of
+// this query — no separate "assigned" flag is needed.
+//
+// Returns ErrNoActivityKey when the activity has no free key left. The caller
+// (activity signup) is responsible for the "already claimed by this user"
+// short-circuit via UserHasClaimedActivityKey before calling this.
+func (s *Service) ReserveForActivity(ctx context.Context, activityID int64) (*ReservationResult, error) {
+	if !s.Enabled() {
+		return nil, s.disabledErr()
+	}
+	if activityID <= 0 {
+		return nil, ErrNoActivityKey
+	}
+
+	// Candidate key IDs for this activity, from table A (bind_key_gift_settings).
+	keyIDs, err := s.client.BindKeyGiftSetting.Query().
+		Where(bindkeygiftsetting.ActivityIDEQ(activityID)).
+		Limit(activityKeyMaxScan).
+		Select(bindkeygiftsetting.FieldAPIKeyID).
+		Ints(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("query activity key settings: %w", err)
+	}
+	if len(keyIDs) == 0 {
+		return nil, ErrNoActivityKey
+	}
+
+	ids := make([]int64, 0, len(keyIDs))
+	for _, id := range keyIDs {
+		ids = append(ids, int64(id))
+	}
+
+	// Only rows still owned by the pool user (unclaimed), active, not deleted.
+	rows, err := s.client.APIKey.Query().
+		Where(
+			apikey.IDIn(ids...),
+			apikey.UserIDEQ(s.poolUserID),
+			apikey.StatusEQ(domain.StatusActive),
+			apikey.DeletedAtIsNil(),
+		).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("query activity pool keys: %w", err)
+	}
+
+	for _, row := range rows {
+		if !hasSufficientRemaining(row.Quota, row.QuotaUsed) {
+			continue
+		}
+		res, locked, err := s.lockAndBuildReservation(ctx, row)
+		if err != nil {
+			return nil, err
+		}
+		if !locked {
+			continue
+		}
+		return res, nil
+	}
+
+	return nil, ErrNoActivityKey
+}
+
+// UserHasClaimedActivityKey reports whether userID already owns a key tied to
+// activityID. After a successful Commit the key's ownership moves from the pool
+// user to the claimer while its bind_key_gift_settings.activity_id stays put,
+// so this doubles as the "already participated in this activity" check without
+// a dedicated column on activity_signups.
+func (s *Service) UserHasClaimedActivityKey(ctx context.Context, userID, activityID int64) (bool, error) {
+	if !s.Enabled() {
+		return false, s.disabledErr()
+	}
+	if userID <= 0 || activityID <= 0 {
+		return false, nil
+	}
+
+	keyIDs, err := s.client.BindKeyGiftSetting.Query().
+		Where(bindkeygiftsetting.ActivityIDEQ(activityID)).
+		Select(bindkeygiftsetting.FieldAPIKeyID).
+		Ints(ctx)
+	if err != nil {
+		return false, fmt.Errorf("query activity key settings: %w", err)
+	}
+	if len(keyIDs) == 0 {
+		return false, nil
+	}
+
+	ids := make([]int64, 0, len(keyIDs))
+	for _, id := range keyIDs {
+		ids = append(ids, int64(id))
+	}
+
+	exists, err := s.client.APIKey.Query().
+		Where(
+			apikey.IDIn(ids...),
+			apikey.UserIDEQ(userID),
+			apikey.DeletedAtIsNil(),
+		).
+		Exist(ctx)
+	if err != nil {
+		return false, fmt.Errorf("check user activity key: %w", err)
+	}
+	return exists, nil
 }
 
 // Commit finalizes a reservation by transferring the key's ownership to userID.

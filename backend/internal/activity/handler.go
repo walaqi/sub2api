@@ -73,7 +73,7 @@ func (h *Handler) Signup(c *gin.Context) {
 		return
 	}
 
-	signup, err := h.svc.Signup(c.Request.Context(), activityID, subject.UserID, req.ReceiveEmail)
+	result, err := h.svc.Signup(c.Request.Context(), activityID, subject.UserID, req.ReceiveEmail)
 	if errors.Is(err, ErrInvalidInput) {
 		response.BadRequest(c, "invalid receive_email")
 		return
@@ -86,7 +86,39 @@ func (h *Handler) Signup(c *gin.Context) {
 		response.InternalError(c, "failed to submit activity signup")
 		return
 	}
-	response.Success(c, signup)
+	response.Success(c, newSignupResponse(result))
+}
+
+// signupResponse is the wire shape for a signup: the signup record plus the
+// key-grant outcome. When a key was reserved, `reservation` carries the id and
+// masked key so the frontend can deep-link to /bind-key?reservation=<id>.
+type signupResponse struct {
+	*Signup
+	KeyStatus   string          `json:"key_status"`
+	Reservation *reservationDTO `json:"reservation,omitempty"`
+}
+
+type reservationDTO struct {
+	ReservationID   string  `json:"reservation_id"`
+	MaskedKey       string  `json:"masked_key"`
+	ExpiresAtUnixMs int64   `json:"expires_at_unix_ms"`
+	RemainingQuota  float64 `json:"remaining_quota"`
+}
+
+func newSignupResponse(r *SignupResult) signupResponse {
+	if r == nil {
+		return signupResponse{}
+	}
+	out := signupResponse{Signup: r.Signup, KeyStatus: r.KeyStatus}
+	if r.Reservation != nil {
+		out.Reservation = &reservationDTO{
+			ReservationID:   r.Reservation.ReservationID,
+			MaskedKey:       r.Reservation.MaskedKey,
+			ExpiresAtUnixMs: r.Reservation.ExpiresAtUnixMs,
+			RemainingQuota:  r.Reservation.RemainingQuota,
+		}
+	}
+	return out
 }
 
 func (h *Handler) CreateEvent(c *gin.Context) {

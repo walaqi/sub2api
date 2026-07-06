@@ -124,6 +124,33 @@ func (_u *BindKeyGiftSettingUpdate) ClearExpiresAfterDays() *BindKeyGiftSettingU
 	return _u
 }
 
+// SetActivityID sets the "activity_id" field.
+func (_u *BindKeyGiftSettingUpdate) SetActivityID(v int64) *BindKeyGiftSettingUpdate {
+	_u.mutation.ResetActivityID()
+	_u.mutation.SetActivityID(v)
+	return _u
+}
+
+// SetNillableActivityID sets the "activity_id" field if the given value is not nil.
+func (_u *BindKeyGiftSettingUpdate) SetNillableActivityID(v *int64) *BindKeyGiftSettingUpdate {
+	if v != nil {
+		_u.SetActivityID(*v)
+	}
+	return _u
+}
+
+// AddActivityID adds value to the "activity_id" field.
+func (_u *BindKeyGiftSettingUpdate) AddActivityID(v int64) *BindKeyGiftSettingUpdate {
+	_u.mutation.AddActivityID(v)
+	return _u
+}
+
+// ClearActivityID clears the value of the "activity_id" field.
+func (_u *BindKeyGiftSettingUpdate) ClearActivityID() *BindKeyGiftSettingUpdate {
+	_u.mutation.ClearActivityID()
+	return _u
+}
+
 // SetConfig sets the "config" field.
 func (_u *BindKeyGiftSettingUpdate) SetConfig(v *domain.BindKeyConfig) *BindKeyGiftSettingUpdate {
 	_u.mutation.SetConfig(v)
@@ -228,6 +255,15 @@ func (_u *BindKeyGiftSettingUpdate) sqlSave(ctx context.Context) (_node int, err
 	}
 	if _u.mutation.ExpiresAfterDaysCleared() {
 		_spec.ClearField(bindkeygiftsetting.FieldExpiresAfterDays, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ActivityID(); ok {
+		_spec.SetField(bindkeygiftsetting.FieldActivityID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedActivityID(); ok {
+		_spec.AddField(bindkeygiftsetting.FieldActivityID, field.TypeInt64, value)
+	}
+	if _u.mutation.ActivityIDCleared() {
+		_spec.ClearField(bindkeygiftsetting.FieldActivityID, field.TypeInt64)
 	}
 	if value, ok := _u.mutation.Config(); ok {
 		_spec.SetField(bindkeygiftsetting.FieldConfig, field.TypeJSON, value)
@@ -347,6 +383,33 @@ func (_u *BindKeyGiftSettingUpdateOne) AddExpiresAfterDays(v int) *BindKeyGiftSe
 // ClearExpiresAfterDays clears the value of the "expires_after_days" field.
 func (_u *BindKeyGiftSettingUpdateOne) ClearExpiresAfterDays() *BindKeyGiftSettingUpdateOne {
 	_u.mutation.ClearExpiresAfterDays()
+	return _u
+}
+
+// SetActivityID sets the "activity_id" field.
+func (_u *BindKeyGiftSettingUpdateOne) SetActivityID(v int64) *BindKeyGiftSettingUpdateOne {
+	_u.mutation.ResetActivityID()
+	_u.mutation.SetActivityID(v)
+	return _u
+}
+
+// SetNillableActivityID sets the "activity_id" field if the given value is not nil.
+func (_u *BindKeyGiftSettingUpdateOne) SetNillableActivityID(v *int64) *BindKeyGiftSettingUpdateOne {
+	if v != nil {
+		_u.SetActivityID(*v)
+	}
+	return _u
+}
+
+// AddActivityID adds value to the "activity_id" field.
+func (_u *BindKeyGiftSettingUpdateOne) AddActivityID(v int64) *BindKeyGiftSettingUpdateOne {
+	_u.mutation.AddActivityID(v)
+	return _u
+}
+
+// ClearActivityID clears the value of the "activity_id" field.
+func (_u *BindKeyGiftSettingUpdateOne) ClearActivityID() *BindKeyGiftSettingUpdateOne {
+	_u.mutation.ClearActivityID()
 	return _u
 }
 
@@ -484,6 +547,15 @@ func (_u *BindKeyGiftSettingUpdateOne) sqlSave(ctx context.Context) (_node *Bind
 	}
 	if _u.mutation.ExpiresAfterDaysCleared() {
 		_spec.ClearField(bindkeygiftsetting.FieldExpiresAfterDays, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ActivityID(); ok {
+		_spec.SetField(bindkeygiftsetting.FieldActivityID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedActivityID(); ok {
+		_spec.AddField(bindkeygiftsetting.FieldActivityID, field.TypeInt64, value)
+	}
+	if _u.mutation.ActivityIDCleared() {
+		_spec.ClearField(bindkeygiftsetting.FieldActivityID, field.TypeInt64)
 	}
 	if value, ok := _u.mutation.Config(); ok {
 		_spec.SetField(bindkeygiftsetting.FieldConfig, field.TypeJSON, value)

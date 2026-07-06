@@ -50,6 +50,10 @@ type BindKeyGiftSettingPayload struct {
 	RatioRecharge    *float64 `json:"ratio_recharge,omitempty"`
 	ExpiresAfterDays *int     `json:"expires_after_days,omitempty"`
 	Unlimit          *bool    `json:"unlimit,omitempty"`
+	// ActivityID 可选，把该池 key 关联到某个活动（activity_events.id）。
+	// 传 > 0 的值设置关联；传 0（或省略后由 ops 显式传 0）清除关联。
+	// 用于活动报名时按活动查出可发放的池 key。
+	ActivityID *int64 `json:"activity_id,omitempty"`
 }
 
 // BindKeyGiftSettingResponse 是表 A 的响应 DTO。
@@ -59,6 +63,7 @@ type BindKeyGiftSettingResponse struct {
 	DeductionMode    string                `json:"deduction_mode"`
 	RatioRecharge    *float64              `json:"ratio_recharge,omitempty"`
 	ExpiresAfterDays *int                  `json:"expires_after_days,omitempty"`
+	ActivityID       *int64                `json:"activity_id,omitempty"`
 	Config           *domain.BindKeyConfig `json:"config,omitempty"`
 	CreatedAt        time.Time             `json:"created_at"`
 	UpdatedAt        time.Time             `json:"updated_at"`
@@ -96,6 +101,10 @@ func (h *GiftOpsHandler) UpsertBindKeyGiftSetting(c *gin.Context) {
 		if req.ExpiresAfterDays != nil {
 			create = create.SetExpiresAfterDays(*req.ExpiresAfterDays)
 		}
+		// activity_id：仅正值设置关联；nil 或 <=0 都留空（不关联任何活动）。
+		if req.ActivityID != nil && *req.ActivityID > 0 {
+			create = create.SetActivityID(*req.ActivityID)
+		}
 		if req.Unlimit != nil {
 			create = create.SetConfig(&domain.BindKeyConfig{Unlimit: req.Unlimit})
 		}
@@ -111,6 +120,17 @@ func (h *GiftOpsHandler) UpsertBindKeyGiftSetting(c *gin.Context) {
 			update = update.SetExpiresAfterDays(*req.ExpiresAfterDays)
 		} else {
 			update = update.ClearExpiresAfterDays()
+		}
+		// activity_id 合并语义（区别于 ratio/expires 的"全覆盖"）：
+		//   nil        → 不动，保留已有关联（ops 只改赠金配置时不会误清）
+		//   *val > 0   → 设置为该活动
+		//   *val <= 0  → 显式清除关联
+		if req.ActivityID != nil {
+			if *req.ActivityID > 0 {
+				update = update.SetActivityID(*req.ActivityID)
+			} else {
+				update = update.ClearActivityID()
+			}
 		}
 		if req.Unlimit != nil {
 			cfg := mergeUnlimit(existing.Config, req.Unlimit)
@@ -699,6 +719,10 @@ func bindKeyGiftSettingDTO(r *dbent.BindKeyGiftSetting) BindKeyGiftSettingRespon
 	if r.ExpiresAfterDays != nil {
 		v := *r.ExpiresAfterDays
 		out.ExpiresAfterDays = &v
+	}
+	if r.ActivityID != nil {
+		v := *r.ActivityID
+		out.ActivityID = &v
 	}
 	out.Config = r.Config
 	return out

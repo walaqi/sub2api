@@ -9,11 +9,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// keys is the optional key-pool dependency (the keybind service). When nil or
+// disabled, signup still works but no pool key is reserved. Typed as the
+// KeyReserver interface so the concrete *keybind.Service is injected by the
+// host without this package importing more than it needs.
 func RegisterRoutes(
 	v1 *gin.RouterGroup,
 	client *ent.Client,
 	jwtAuth servermiddleware.JWTAuthMiddleware,
 	adminAuth servermiddleware.AdminAuthMiddleware,
+	keys KeyReserver,
 ) {
 	if client == nil {
 		log.Printf("[activity] disabled: missing ent client")
@@ -21,7 +26,7 @@ func RegisterRoutes(
 	}
 
 	repo := NewRepository(client)
-	svc := NewService(repo)
+	svc := NewService(repo, keys)
 	h := NewHandler(svc)
 
 	g := v1.Group("/activity")

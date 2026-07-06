@@ -443,6 +443,7 @@
 
 <script setup lang="ts">
 import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { apiClient } from '@/api/client'
 import { getPublicSettings, sendVerifyCode } from '@/api/auth'
@@ -654,6 +655,8 @@ const zh: Copy = {
 const { locale } = useI18n()
 const tr = computed<Copy>(() => (String(locale.value).startsWith('zh') ? zh : en))
 
+const route = useRoute()
+
 const fullRegisterUrl = computed(() => `${window.location.origin}/register`)
 
 // ----- Storage availability detection -----
@@ -709,6 +712,27 @@ function writePending(p: Pending): void {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(p))
   } catch {
     /* ignore */
+  }
+}
+
+// Build a pending reservation from the URL query, used when the user is
+// deep-linked here from the activity-signup page (which already reserved a key
+// server-side and passes reservation=<id>&mk=<masked>&exp=<unixms>). Returns
+// null when the params are absent or the reservation has already expired.
+function readPendingFromQuery(): Pending | null {
+  const rid = route.query.reservation
+  if (typeof rid !== 'string' || !rid) return null
+  const mk = typeof route.query.mk === 'string' ? route.query.mk : ''
+  const expRaw = typeof route.query.exp === 'string' ? route.query.exp : ''
+  const exp = Number(expRaw)
+  // Missing/invalid expiry → default to a full TTL window from now so the
+  // countdown still renders; the backend remains the source of truth on commit.
+  const expiresAt = Number.isFinite(exp) && exp > 0 ? exp : Date.now() + 5 * 60 * 1000
+  if (expiresAt < Date.now()) return null
+  return {
+    reservation_id: rid,
+    masked_key: mk,
+    expires_at_unix_ms: expiresAt
   }
 }
 function clearPending(): void {
@@ -1130,7 +1154,16 @@ async function submitAuth(): Promise<void> {
 // ----- Lifecycle -----
 onMounted(async () => {
   if (!storageOk.value) return
-  pending.value = readPending()
+  // A reservation passed via the URL (from the activity-signup deep link) takes
+  // precedence over any stale localStorage pending. Persist it so it survives
+  // the login step if the user somehow arrived unauthenticated.
+  const queryPending = readPendingFromQuery()
+  if (queryPending) {
+    pending.value = queryPending
+    writePending(queryPending)
+  } else {
+    pending.value = readPending()
+  }
   // Load public settings to know whether registration requires email
   // verification or Turnstile. Failures are non-fatal: we keep the
   // single-step flow and let the backend reject if needed.

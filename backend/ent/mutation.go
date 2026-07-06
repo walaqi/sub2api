@@ -8870,6 +8870,8 @@ type BindKeyGiftSettingMutation struct {
 	addratio_recharge     *float64
 	expires_after_days    *int
 	addexpires_after_days *int
+	activity_id           *int64
+	addactivity_id        *int64
 	_config               **domain.BindKeyConfig
 	clearedFields         map[string]struct{}
 	done                  bool
@@ -9279,6 +9281,76 @@ func (m *BindKeyGiftSettingMutation) ResetExpiresAfterDays() {
 	delete(m.clearedFields, bindkeygiftsetting.FieldExpiresAfterDays)
 }
 
+// SetActivityID sets the "activity_id" field.
+func (m *BindKeyGiftSettingMutation) SetActivityID(i int64) {
+	m.activity_id = &i
+	m.addactivity_id = nil
+}
+
+// ActivityID returns the value of the "activity_id" field in the mutation.
+func (m *BindKeyGiftSettingMutation) ActivityID() (r int64, exists bool) {
+	v := m.activity_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldActivityID returns the old "activity_id" field's value of the BindKeyGiftSetting entity.
+// If the BindKeyGiftSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BindKeyGiftSettingMutation) OldActivityID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldActivityID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldActivityID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldActivityID: %w", err)
+	}
+	return oldValue.ActivityID, nil
+}
+
+// AddActivityID adds i to the "activity_id" field.
+func (m *BindKeyGiftSettingMutation) AddActivityID(i int64) {
+	if m.addactivity_id != nil {
+		*m.addactivity_id += i
+	} else {
+		m.addactivity_id = &i
+	}
+}
+
+// AddedActivityID returns the value that was added to the "activity_id" field in this mutation.
+func (m *BindKeyGiftSettingMutation) AddedActivityID() (r int64, exists bool) {
+	v := m.addactivity_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearActivityID clears the value of the "activity_id" field.
+func (m *BindKeyGiftSettingMutation) ClearActivityID() {
+	m.activity_id = nil
+	m.addactivity_id = nil
+	m.clearedFields[bindkeygiftsetting.FieldActivityID] = struct{}{}
+}
+
+// ActivityIDCleared returns if the "activity_id" field was cleared in this mutation.
+func (m *BindKeyGiftSettingMutation) ActivityIDCleared() bool {
+	_, ok := m.clearedFields[bindkeygiftsetting.FieldActivityID]
+	return ok
+}
+
+// ResetActivityID resets all changes to the "activity_id" field.
+func (m *BindKeyGiftSettingMutation) ResetActivityID() {
+	m.activity_id = nil
+	m.addactivity_id = nil
+	delete(m.clearedFields, bindkeygiftsetting.FieldActivityID)
+}
+
 // SetConfig sets the "config" field.
 func (m *BindKeyGiftSettingMutation) SetConfig(dkc *domain.BindKeyConfig) {
 	m._config = &dkc
@@ -9362,7 +9434,7 @@ func (m *BindKeyGiftSettingMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *BindKeyGiftSettingMutation) Fields() []string {
-	fields := make([]string, 0, 7)
+	fields := make([]string, 0, 8)
 	if m.created_at != nil {
 		fields = append(fields, bindkeygiftsetting.FieldCreatedAt)
 	}
@@ -9380,6 +9452,9 @@ func (m *BindKeyGiftSettingMutation) Fields() []string {
 	}
 	if m.expires_after_days != nil {
 		fields = append(fields, bindkeygiftsetting.FieldExpiresAfterDays)
+	}
+	if m.activity_id != nil {
+		fields = append(fields, bindkeygiftsetting.FieldActivityID)
 	}
 	if m._config != nil {
 		fields = append(fields, bindkeygiftsetting.FieldConfig)
@@ -9404,6 +9479,8 @@ func (m *BindKeyGiftSettingMutation) Field(name string) (ent.Value, bool) {
 		return m.RatioRecharge()
 	case bindkeygiftsetting.FieldExpiresAfterDays:
 		return m.ExpiresAfterDays()
+	case bindkeygiftsetting.FieldActivityID:
+		return m.ActivityID()
 	case bindkeygiftsetting.FieldConfig:
 		return m.Config()
 	}
@@ -9427,6 +9504,8 @@ func (m *BindKeyGiftSettingMutation) OldField(ctx context.Context, name string) 
 		return m.OldRatioRecharge(ctx)
 	case bindkeygiftsetting.FieldExpiresAfterDays:
 		return m.OldExpiresAfterDays(ctx)
+	case bindkeygiftsetting.FieldActivityID:
+		return m.OldActivityID(ctx)
 	case bindkeygiftsetting.FieldConfig:
 		return m.OldConfig(ctx)
 	}
@@ -9480,6 +9559,13 @@ func (m *BindKeyGiftSettingMutation) SetField(name string, value ent.Value) erro
 		}
 		m.SetExpiresAfterDays(v)
 		return nil
+	case bindkeygiftsetting.FieldActivityID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetActivityID(v)
+		return nil
 	case bindkeygiftsetting.FieldConfig:
 		v, ok := value.(*domain.BindKeyConfig)
 		if !ok {
@@ -9504,6 +9590,9 @@ func (m *BindKeyGiftSettingMutation) AddedFields() []string {
 	if m.addexpires_after_days != nil {
 		fields = append(fields, bindkeygiftsetting.FieldExpiresAfterDays)
 	}
+	if m.addactivity_id != nil {
+		fields = append(fields, bindkeygiftsetting.FieldActivityID)
+	}
 	return fields
 }
 
@@ -9518,6 +9607,8 @@ func (m *BindKeyGiftSettingMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedRatioRecharge()
 	case bindkeygiftsetting.FieldExpiresAfterDays:
 		return m.AddedExpiresAfterDays()
+	case bindkeygiftsetting.FieldActivityID:
+		return m.AddedActivityID()
 	}
 	return nil, false
 }
@@ -9548,6 +9639,13 @@ func (m *BindKeyGiftSettingMutation) AddField(name string, value ent.Value) erro
 		}
 		m.AddExpiresAfterDays(v)
 		return nil
+	case bindkeygiftsetting.FieldActivityID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddActivityID(v)
+		return nil
 	}
 	return fmt.Errorf("unknown BindKeyGiftSetting numeric field %s", name)
 }
@@ -9561,6 +9659,9 @@ func (m *BindKeyGiftSettingMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(bindkeygiftsetting.FieldExpiresAfterDays) {
 		fields = append(fields, bindkeygiftsetting.FieldExpiresAfterDays)
+	}
+	if m.FieldCleared(bindkeygiftsetting.FieldActivityID) {
+		fields = append(fields, bindkeygiftsetting.FieldActivityID)
 	}
 	if m.FieldCleared(bindkeygiftsetting.FieldConfig) {
 		fields = append(fields, bindkeygiftsetting.FieldConfig)
@@ -9584,6 +9685,9 @@ func (m *BindKeyGiftSettingMutation) ClearField(name string) error {
 		return nil
 	case bindkeygiftsetting.FieldExpiresAfterDays:
 		m.ClearExpiresAfterDays()
+		return nil
+	case bindkeygiftsetting.FieldActivityID:
+		m.ClearActivityID()
 		return nil
 	case bindkeygiftsetting.FieldConfig:
 		m.ClearConfig()
@@ -9613,6 +9717,9 @@ func (m *BindKeyGiftSettingMutation) ResetField(name string) error {
 		return nil
 	case bindkeygiftsetting.FieldExpiresAfterDays:
 		m.ResetExpiresAfterDays()
+		return nil
+	case bindkeygiftsetting.FieldActivityID:
+		m.ResetActivityID()
 		return nil
 	case bindkeygiftsetting.FieldConfig:
 		m.ResetConfig()

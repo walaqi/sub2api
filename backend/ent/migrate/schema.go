@@ -431,6 +431,7 @@ var (
 		{Name: "deduction_mode", Type: field.TypeString, Size: 16},
 		{Name: "ratio_recharge", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
 		{Name: "expires_after_days", Type: field.TypeInt, Nullable: true},
+		{Name: "activity_id", Type: field.TypeInt64, Nullable: true},
 		{Name: "config", Type: field.TypeJSON, Nullable: true},
 	}
 	// BindKeyGiftSettingsTable holds the schema information for the "bind_key_gift_settings" table.
@@ -443,6 +444,11 @@ var (
 				Name:    "bindkeygiftsetting_api_key_id",
 				Unique:  true,
 				Columns: []*schema.Column{BindKeyGiftSettingsColumns[3]},
+			},
+			{
+				Name:    "bindkeygiftsetting_activity_id",
+				Unique:  false,
+				Columns: []*schema.Column{BindKeyGiftSettingsColumns[7]},
 			},
 		},
 	}
