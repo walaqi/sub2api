@@ -21,6 +21,11 @@ const (
 	// KeyStatusDisabled: the key-pool feature is not wired/enabled; signup
 	// behaves as a plain email registration with no key.
 	KeyStatusDisabled = "disabled"
+	// KeyStatusReferralInvitee: the user already received super-referral invitee
+	// benefits at registration (registration gift + inherited recharge discount),
+	// so they are not granted an activity key on top of that. Signup still
+	// succeeds; no key is reserved.
+	KeyStatusReferralInvitee = "referral_invitee"
 )
 
 // SignupResult is the service-level outcome of a signup: the persisted signup

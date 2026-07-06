@@ -34,15 +34,27 @@ type KeyReserver interface {
 	ReserveForActivity(ctx context.Context, activityID, userID int64) (*keybind.ReservationResult, error)
 }
 
+// ReferralBenefitChecker reports whether a user already received super-referral
+// invitee benefits at registration (registration gift + inherited discount).
+// Kept as an interface for testability; the production implementation is the
+// activity Repository, which reads referral_reward_tracker.
+type ReferralBenefitChecker interface {
+	HasInheritedReferralBenefits(ctx context.Context, userID int64) (bool, error)
+}
+
 type Service struct {
 	repo *Repository
 	// keys is optional. When nil (or its Enabled() is false), signup succeeds
 	// without reserving a key (KeyStatusDisabled).
 	keys KeyReserver
+	// referral gates super-referral invitees out of activity keys. Defaults to
+	// repo in NewService; nil skips the gate (only reachable in unit tests that
+	// target the reserve orchestration in isolation).
+	referral ReferralBenefitChecker
 }
 
 func NewService(repo *Repository, keys KeyReserver) *Service {
-	return &Service{repo: repo, keys: keys}
+	return &Service{repo: repo, keys: keys, referral: repo}
 }
 
 func (s *Service) ListActiveEvents(ctx context.Context, userID int64) ([]Event, error) {
@@ -79,6 +91,22 @@ func (s *Service) Signup(ctx context.Context, activityID, userID int64, receiveE
 func (s *Service) reserveActivityKey(ctx context.Context, activityID, userID int64) (string, *keybind.ReservationResult) {
 	if s.keys == nil || !s.keys.Enabled() {
 		return KeyStatusDisabled, nil
+	}
+
+	// Super-referral invitees already inherited the inviter's benefits
+	// (registration gift + recharge discount) at signup time. Granting an
+	// activity key on top would double their benefits, so gate them out here.
+	// A query error is non-fatal but must FAIL CLOSED: if we can't confirm the
+	// user is clean, we skip the key rather than risk a double grant.
+	if s.referral != nil {
+		inherited, err := s.referral.HasInheritedReferralBenefits(ctx, userID)
+		if err != nil {
+			log.Printf("[activity] check referral benefits for user %d failed: %v", userID, err)
+			return KeyStatusReferralInvitee, nil
+		}
+		if inherited {
+			return KeyStatusReferralInvitee, nil
+		}
 	}
 
 	claimed, err := s.keys.UserHasClaimedActivityKey(ctx, userID, activityID)

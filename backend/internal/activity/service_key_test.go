@@ -39,6 +39,18 @@ func (f *fakeKeyReserver) ReserveForActivity(_ context.Context, activityID, user
 	return f.reservation, f.reserveErr
 }
 
+// fakeReferralChecker is a hand-rolled ReferralBenefitChecker for gating tests.
+type fakeReferralChecker struct {
+	inherited bool
+	err       error
+	calls     int
+}
+
+func (f *fakeReferralChecker) HasInheritedReferralBenefits(_ context.Context, _ int64) (bool, error) {
+	f.calls++
+	return f.inherited, f.err
+}
+
 func TestReserveActivityKey(t *testing.T) {
 	ctx := context.Background()
 
@@ -103,6 +115,46 @@ func TestReserveActivityKey(t *testing.T) {
 		status, res := s.reserveActivityKey(ctx, 7, 42)
 		require.Equal(t, KeyStatusNoKeyAvailable, status)
 		require.Nil(t, res)
+	})
+
+	// Super-referral invitee gate: a user who already inherited invitee benefits
+	// at registration must NOT get an activity key on top (would double-grant).
+	t.Run("referral invitee -> gated out, no reserve", func(t *testing.T) {
+		f := &fakeKeyReserver{enabled: true, reservation: &keybind.ReservationResult{ReservationID: "x"}}
+		ref := &fakeReferralChecker{inherited: true}
+		s := &Service{keys: f, referral: ref}
+		status, res := s.reserveActivityKey(ctx, 7, 42)
+		require.Equal(t, KeyStatusReferralInvitee, status)
+		require.Nil(t, res)
+		require.Equal(t, 1, ref.calls)
+		require.Zero(t, f.claimedCalled, "must not check claim when gated as invitee")
+		require.Zero(t, f.reserveCalled, "must not reserve for a referral invitee")
+	})
+
+	// Non-invitee (or plain affiliate invitee that inherited nothing) passes the
+	// gate and proceeds to the normal reserve path.
+	t.Run("not a referral invitee -> proceeds to reserve", func(t *testing.T) {
+		want := &keybind.ReservationResult{ReservationID: "ok"}
+		f := &fakeKeyReserver{enabled: true, reservation: want}
+		ref := &fakeReferralChecker{inherited: false}
+		s := &Service{keys: f, referral: ref}
+		status, res := s.reserveActivityKey(ctx, 7, 42)
+		require.Equal(t, KeyStatusReserved, status)
+		require.Same(t, want, res)
+		require.Equal(t, 1, ref.calls)
+		require.Equal(t, 1, f.reserveCalled)
+	})
+
+	// Fail closed: if the referral check errors we must NOT hand out a key,
+	// since we can't rule out a double grant.
+	t.Run("referral check error -> fail closed, gated as invitee", func(t *testing.T) {
+		f := &fakeKeyReserver{enabled: true, reservation: &keybind.ReservationResult{ReservationID: "x"}}
+		ref := &fakeReferralChecker{err: errors.New("db down")}
+		s := &Service{keys: f, referral: ref}
+		status, res := s.reserveActivityKey(ctx, 7, 42)
+		require.Equal(t, KeyStatusReferralInvitee, status)
+		require.Nil(t, res)
+		require.Zero(t, f.reserveCalled, "must not reserve when referral status is unknown")
 	})
 }
 

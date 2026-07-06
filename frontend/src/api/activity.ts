@@ -17,6 +17,7 @@ export type ActivityKeyStatus =
   | 'already_claimed'
   | 'no_key_available'
   | 'disabled'
+  | 'referral_invitee'
 
 export interface ActivityReservation {
   reservation_id: string

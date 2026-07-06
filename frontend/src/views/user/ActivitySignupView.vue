@@ -294,6 +294,9 @@ async function handleSubmit(): Promise<void> {
       case 'no_key_available':
         successMessage.value = `报名成功，但本活动的赠金 Key 暂时已被领完。接收活动邮件地址：${signup.receive_email}`
         break
+      case 'referral_invitee':
+        successMessage.value = `报名成功。你在注册时已通过邀请获得专属权益，本活动的赠金 Key 不再重复发放。接收活动邮件地址：${signup.receive_email}`
+        break
       default:
         successMessage.value = `接收活动邮件地址：${signup.receive_email}`
     }

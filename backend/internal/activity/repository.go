@@ -196,6 +196,42 @@ ORDER BY s.created_at ASC, s.id ASC`, activityID)
 	return signups, nil
 }
 
+// HasInheritedReferralBenefits reports whether userID already received
+// super-referral invitee benefits at registration — i.e. a referral_reward_tracker
+// row exists for them as invitee with invitee_reward_granted = TRUE.
+//
+// invitee_reward_granted flips to TRUE only when grantInviteeReward actually
+// ran (which happens inside the same eligibility gate that also inherits the
+// inviter's recharge discount). So this single flag is the precise "已继承权益"
+// signal: it excludes plain affiliate invitees whose inviter had no
+// super-referral eligibility (tracker exists but flag stays FALSE) and invitees
+// bound while the global reward switch was off (nothing granted). Those users
+// inherited nothing and remain eligible for activity keys.
+func (r *Repository) HasInheritedReferralBenefits(ctx context.Context, userID int64) (_ bool, err error) {
+	if userID <= 0 {
+		return false, nil
+	}
+	rows, err := r.db.QueryContext(ctx, `
+SELECT 1
+FROM referral_reward_tracker
+WHERE invitee_id = $1
+  AND invitee_reward_granted = TRUE
+LIMIT 1`, userID)
+	if err != nil {
+		return false, fmt.Errorf("query referral invitee benefits: %w", err)
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+	has := rows.Next()
+	if err := rows.Err(); err != nil {
+		return false, err
+	}
+	return has, nil
+}
+
 func normalizeText(s string) string {
 	return strings.TrimSpace(s)
 }
