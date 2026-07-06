@@ -11,6 +11,21 @@ export interface ActivityEvent {
   receive_email?: string | null
 }
 
+// Key-grant outcome codes returned with a signup (mirrors backend KeyStatus*).
+export type ActivityKeyStatus =
+  | 'reserved'
+  | 'already_claimed'
+  | 'no_key_available'
+  | 'disabled'
+  | 'referral_invitee'
+
+export interface ActivityReservation {
+  reservation_id: string
+  masked_key: string
+  expires_at_unix_ms: number
+  remaining_quota: number
+}
+
 export interface ActivitySignup {
   id: number
   activity_id: number
@@ -19,6 +34,10 @@ export interface ActivitySignup {
   receive_email: string
   created_at: string
   updated_at: string
+  // Key-grant outcome. When key_status === 'reserved', `reservation` is set and
+  // the client should redirect to /bind-key?reservation=<id> to claim the gift.
+  key_status?: ActivityKeyStatus
+  reservation?: ActivityReservation | null
 }
 
 export async function listActiveActivities(): Promise<ActivityEvent[]> {

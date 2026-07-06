@@ -91,6 +91,20 @@ func (_c *BindKeyGiftSettingCreate) SetNillableExpiresAfterDays(v *int) *BindKey
 	return _c
 }
 
+// SetActivityID sets the "activity_id" field.
+func (_c *BindKeyGiftSettingCreate) SetActivityID(v int64) *BindKeyGiftSettingCreate {
+	_c.mutation.SetActivityID(v)
+	return _c
+}
+
+// SetNillableActivityID sets the "activity_id" field if the given value is not nil.
+func (_c *BindKeyGiftSettingCreate) SetNillableActivityID(v *int64) *BindKeyGiftSettingCreate {
+	if v != nil {
+		_c.SetActivityID(*v)
+	}
+	return _c
+}
+
 // SetConfig sets the "config" field.
 func (_c *BindKeyGiftSettingCreate) SetConfig(v *domain.BindKeyConfig) *BindKeyGiftSettingCreate {
 	_c.mutation.SetConfig(v)
@@ -211,6 +225,10 @@ func (_c *BindKeyGiftSettingCreate) createSpec() (*BindKeyGiftSetting, *sqlgraph
 	if value, ok := _c.mutation.ExpiresAfterDays(); ok {
 		_spec.SetField(bindkeygiftsetting.FieldExpiresAfterDays, field.TypeInt, value)
 		_node.ExpiresAfterDays = &value
+	}
+	if value, ok := _c.mutation.ActivityID(); ok {
+		_spec.SetField(bindkeygiftsetting.FieldActivityID, field.TypeInt64, value)
+		_node.ActivityID = &value
 	}
 	if value, ok := _c.mutation.Config(); ok {
 		_spec.SetField(bindkeygiftsetting.FieldConfig, field.TypeJSON, value)
@@ -355,6 +373,30 @@ func (u *BindKeyGiftSettingUpsert) AddExpiresAfterDays(v int) *BindKeyGiftSettin
 // ClearExpiresAfterDays clears the value of the "expires_after_days" field.
 func (u *BindKeyGiftSettingUpsert) ClearExpiresAfterDays() *BindKeyGiftSettingUpsert {
 	u.SetNull(bindkeygiftsetting.FieldExpiresAfterDays)
+	return u
+}
+
+// SetActivityID sets the "activity_id" field.
+func (u *BindKeyGiftSettingUpsert) SetActivityID(v int64) *BindKeyGiftSettingUpsert {
+	u.Set(bindkeygiftsetting.FieldActivityID, v)
+	return u
+}
+
+// UpdateActivityID sets the "activity_id" field to the value that was provided on create.
+func (u *BindKeyGiftSettingUpsert) UpdateActivityID() *BindKeyGiftSettingUpsert {
+	u.SetExcluded(bindkeygiftsetting.FieldActivityID)
+	return u
+}
+
+// AddActivityID adds v to the "activity_id" field.
+func (u *BindKeyGiftSettingUpsert) AddActivityID(v int64) *BindKeyGiftSettingUpsert {
+	u.Add(bindkeygiftsetting.FieldActivityID, v)
+	return u
+}
+
+// ClearActivityID clears the value of the "activity_id" field.
+func (u *BindKeyGiftSettingUpsert) ClearActivityID() *BindKeyGiftSettingUpsert {
+	u.SetNull(bindkeygiftsetting.FieldActivityID)
 	return u
 }
 
@@ -523,6 +565,34 @@ func (u *BindKeyGiftSettingUpsertOne) UpdateExpiresAfterDays() *BindKeyGiftSetti
 func (u *BindKeyGiftSettingUpsertOne) ClearExpiresAfterDays() *BindKeyGiftSettingUpsertOne {
 	return u.Update(func(s *BindKeyGiftSettingUpsert) {
 		s.ClearExpiresAfterDays()
+	})
+}
+
+// SetActivityID sets the "activity_id" field.
+func (u *BindKeyGiftSettingUpsertOne) SetActivityID(v int64) *BindKeyGiftSettingUpsertOne {
+	return u.Update(func(s *BindKeyGiftSettingUpsert) {
+		s.SetActivityID(v)
+	})
+}
+
+// AddActivityID adds v to the "activity_id" field.
+func (u *BindKeyGiftSettingUpsertOne) AddActivityID(v int64) *BindKeyGiftSettingUpsertOne {
+	return u.Update(func(s *BindKeyGiftSettingUpsert) {
+		s.AddActivityID(v)
+	})
+}
+
+// UpdateActivityID sets the "activity_id" field to the value that was provided on create.
+func (u *BindKeyGiftSettingUpsertOne) UpdateActivityID() *BindKeyGiftSettingUpsertOne {
+	return u.Update(func(s *BindKeyGiftSettingUpsert) {
+		s.UpdateActivityID()
+	})
+}
+
+// ClearActivityID clears the value of the "activity_id" field.
+func (u *BindKeyGiftSettingUpsertOne) ClearActivityID() *BindKeyGiftSettingUpsertOne {
+	return u.Update(func(s *BindKeyGiftSettingUpsert) {
+		s.ClearActivityID()
 	})
 }
 
@@ -860,6 +930,34 @@ func (u *BindKeyGiftSettingUpsertBulk) UpdateExpiresAfterDays() *BindKeyGiftSett
 func (u *BindKeyGiftSettingUpsertBulk) ClearExpiresAfterDays() *BindKeyGiftSettingUpsertBulk {
 	return u.Update(func(s *BindKeyGiftSettingUpsert) {
 		s.ClearExpiresAfterDays()
+	})
+}
+
+// SetActivityID sets the "activity_id" field.
+func (u *BindKeyGiftSettingUpsertBulk) SetActivityID(v int64) *BindKeyGiftSettingUpsertBulk {
+	return u.Update(func(s *BindKeyGiftSettingUpsert) {
+		s.SetActivityID(v)
+	})
+}
+
+// AddActivityID adds v to the "activity_id" field.
+func (u *BindKeyGiftSettingUpsertBulk) AddActivityID(v int64) *BindKeyGiftSettingUpsertBulk {
+	return u.Update(func(s *BindKeyGiftSettingUpsert) {
+		s.AddActivityID(v)
+	})
+}
+
+// UpdateActivityID sets the "activity_id" field to the value that was provided on create.
+func (u *BindKeyGiftSettingUpsertBulk) UpdateActivityID() *BindKeyGiftSettingUpsertBulk {
+	return u.Update(func(s *BindKeyGiftSettingUpsert) {
+		s.UpdateActivityID()
+	})
+}
+
+// ClearActivityID clears the value of the "activity_id" field.
+func (u *BindKeyGiftSettingUpsertBulk) ClearActivityID() *BindKeyGiftSettingUpsertBulk {
+	return u.Update(func(s *BindKeyGiftSettingUpsert) {
+		s.ClearActivityID()
 	})
 }
 

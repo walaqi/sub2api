@@ -5,8 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"net/mail"
 	"strings"
+
+	"github.com/Wei-Shaw/sub2api/internal/keybind"
 )
 
 var (
@@ -14,19 +17,51 @@ var (
 	ErrEventNotAvailable = errors.New("activity event is not available")
 )
 
-type Service struct {
-	repo *Repository
+// KeyReserver is the subset of the keybind service the activity feature needs
+// to hand a pool key to a user who signs up. Kept as an interface so the
+// service can be unit-tested without a live keybind/Redis stack, and so a nil
+// dependency (feature disabled) degrades to a plain email signup.
+type KeyReserver interface {
+	// Enabled reports whether the underlying key-pool feature is operational.
+	Enabled() bool
+	// UserHasClaimedActivityKey reports whether the user already owns a key
+	// tied to this activity (grant is once-per-user-per-activity).
+	UserHasClaimedActivityKey(ctx context.Context, userID, activityID int64) (bool, error)
+	// ReserveForActivity locks one claimable pool key for this activity and
+	// returns the reservation the client uses to commit at /bind-key. userID
+	// scopes a per-user idempotency hold so repeated/concurrent signups by the
+	// same user return one reservation instead of locking several keys.
+	ReserveForActivity(ctx context.Context, activityID, userID int64) (*keybind.ReservationResult, error)
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+// ReferralBenefitChecker reports whether a user already received super-referral
+// invitee benefits at registration (registration gift + inherited discount).
+// Kept as an interface for testability; the production implementation is the
+// activity Repository, which reads referral_reward_tracker.
+type ReferralBenefitChecker interface {
+	HasInheritedReferralBenefits(ctx context.Context, userID int64) (bool, error)
+}
+
+type Service struct {
+	repo *Repository
+	// keys is optional. When nil (or its Enabled() is false), signup succeeds
+	// without reserving a key (KeyStatusDisabled).
+	keys KeyReserver
+	// referral gates super-referral invitees out of activity keys. Defaults to
+	// repo in NewService; nil skips the gate (only reachable in unit tests that
+	// target the reserve orchestration in isolation).
+	referral ReferralBenefitChecker
+}
+
+func NewService(repo *Repository, keys KeyReserver) *Service {
+	return &Service{repo: repo, keys: keys, referral: repo}
 }
 
 func (s *Service) ListActiveEvents(ctx context.Context, userID int64) ([]Event, error) {
 	return s.repo.ListActiveEvents(ctx, userID)
 }
 
-func (s *Service) Signup(ctx context.Context, activityID, userID int64, receiveEmail string) (*Signup, error) {
+func (s *Service) Signup(ctx context.Context, activityID, userID int64, receiveEmail string) (*SignupResult, error) {
 	email, ok := normalizeEmail(receiveEmail)
 	if !ok {
 		return nil, ErrInvalidInput
@@ -39,7 +74,59 @@ func (s *Service) Signup(ctx context.Context, activityID, userID int64, receiveE
 	if err != nil {
 		return nil, err
 	}
-	return signup, nil
+
+	res := &SignupResult{Signup: signup}
+	res.KeyStatus, res.Reservation = s.reserveActivityKey(ctx, activityID, userID)
+	return res, nil
+}
+
+// reserveActivityKey tries to hand the signed-up user a pool key for this
+// activity. It never fails the signup: any error degrades to "no key" so the
+// user still gets their signup recorded. The returned status tells the client
+// whether (and how) to route the user to the bind-gift page.
+//
+// Ordering matters: we short-circuit on an already-claimed key BEFORE calling
+// ReserveForActivity, so a user re-submitting the form (idempotent signup)
+// doesn't lock a second key they can't use.
+func (s *Service) reserveActivityKey(ctx context.Context, activityID, userID int64) (string, *keybind.ReservationResult) {
+	if s.keys == nil || !s.keys.Enabled() {
+		return KeyStatusDisabled, nil
+	}
+
+	// Super-referral invitees already inherited the inviter's benefits
+	// (registration gift + recharge discount) at signup time. Granting an
+	// activity key on top would double their benefits, so gate them out here.
+	// A query error is non-fatal but must FAIL CLOSED: if we can't confirm the
+	// user is clean, we skip the key rather than risk a double grant.
+	if s.referral != nil {
+		inherited, err := s.referral.HasInheritedReferralBenefits(ctx, userID)
+		if err != nil {
+			log.Printf("[activity] check referral benefits for user %d failed: %v", userID, err)
+			return KeyStatusReferralInvitee, nil
+		}
+		if inherited {
+			return KeyStatusReferralInvitee, nil
+		}
+	}
+
+	claimed, err := s.keys.UserHasClaimedActivityKey(ctx, userID, activityID)
+	if err != nil {
+		log.Printf("[activity] check claimed key for user %d activity %d failed: %v", userID, activityID, err)
+		return KeyStatusNoKeyAvailable, nil
+	}
+	if claimed {
+		return KeyStatusAlreadyClaimed, nil
+	}
+
+	reservation, err := s.keys.ReserveForActivity(ctx, activityID, userID)
+	if err != nil {
+		if errors.Is(err, keybind.ErrNoActivityKey) {
+			return KeyStatusNoKeyAvailable, nil
+		}
+		log.Printf("[activity] reserve key for user %d activity %d failed: %v", userID, activityID, err)
+		return KeyStatusNoKeyAvailable, nil
+	}
+	return KeyStatusReserved, reservation
 }
 
 func (s *Service) CreateEvent(ctx context.Context, input CreateEventInput) (int64, error) {

@@ -93,6 +93,44 @@
               </div>
             </div>
 
+            <transition name="fade">
+              <div
+                v-if="successMessage"
+                class="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800/50 dark:bg-emerald-900/20"
+              >
+                <div class="flex items-start gap-4">
+                  <div
+                    class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30"
+                  >
+                    <Icon name="checkCircle" size="md" class="text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 class="text-sm font-semibold text-emerald-800 dark:text-emerald-300">报名成功</h3>
+                    <p class="mt-2 text-sm text-emerald-700 dark:text-emerald-400">{{ successMessage }}</p>
+                  </div>
+                </div>
+              </div>
+            </transition>
+
+            <transition name="fade">
+              <div
+                v-if="submitError"
+                class="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800/50 dark:bg-red-900/20"
+              >
+                <div class="flex items-start gap-4">
+                  <div
+                    class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/30"
+                  >
+                    <Icon name="exclamationCircle" size="md" class="text-red-600 dark:text-red-400" />
+                  </div>
+                  <div>
+                    <h3 class="text-sm font-semibold text-red-800 dark:text-red-300">提交失败</h3>
+                    <p class="mt-2 text-sm text-red-700 dark:text-red-400">{{ submitError }}</p>
+                  </div>
+                </div>
+              </div>
+            </transition>
+
             <div>
               <label for="receive-email" class="input-label">接收活动邮件地址</label>
               <div class="relative mt-1">
@@ -114,7 +152,7 @@
             <button
               type="submit"
               class="btn btn-primary w-full py-3"
-              :disabled="!selectedEvent || !receiveEmail || submitting"
+              :disabled="!selectedEvent || !receiveEmail || submitting || redirecting"
             >
               <svg
                 v-if="submitting"
@@ -142,50 +180,13 @@
           </form>
         </div>
       </div>
-
-      <transition name="fade">
-        <div
-          v-if="successMessage"
-          class="card border-emerald-200 bg-emerald-50 dark:border-emerald-800/50 dark:bg-emerald-900/20"
-        >
-          <div class="flex items-start gap-4 p-6">
-            <div
-              class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30"
-            >
-              <Icon name="checkCircle" size="md" class="text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <div>
-              <h3 class="text-sm font-semibold text-emerald-800 dark:text-emerald-300">报名成功</h3>
-              <p class="mt-2 text-sm text-emerald-700 dark:text-emerald-400">{{ successMessage }}</p>
-            </div>
-          </div>
-        </div>
-      </transition>
-
-      <transition name="fade">
-        <div
-          v-if="submitError"
-          class="card border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-900/20"
-        >
-          <div class="flex items-start gap-4 p-6">
-            <div
-              class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/30"
-            >
-              <Icon name="exclamationCircle" size="md" class="text-red-600 dark:text-red-400" />
-            </div>
-            <div>
-              <h3 class="text-sm font-semibold text-red-800 dark:text-red-300">提交失败</h3>
-              <p class="mt-2 text-sm text-red-700 dark:text-red-400">{{ submitError }}</p>
-            </div>
-          </div>
-        </div>
-      </transition>
     </div>
   </AppLayout>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import { activityAPI, type ActivityEvent } from '@/api/activity'
@@ -198,6 +199,8 @@ marked.setOptions({
   gfm: true,
 })
 
+const router = useRouter()
+
 const events = ref<ActivityEvent[]>([])
 const selectedEventId = ref<number | null>(null)
 const receiveEmail = ref('')
@@ -206,6 +209,9 @@ const submitting = ref(false)
 const successMessage = ref('')
 const loadError = ref('')
 const submitError = ref('')
+// Set briefly after a successful signup that reserved a key, before we redirect
+// the user to the bind-gift page. Lets the button/copy reflect the transition.
+const redirecting = ref(false)
 
 const selectedEvent = computed(() => {
   return events.value.find((event) => event.id === selectedEventId.value) ?? null
@@ -257,7 +263,43 @@ async function handleSubmit(): Promise<void> {
       target.receive_email = signup.receive_email
     }
     receiveEmail.value = signup.receive_email
-    successMessage.value = `接收活动邮件地址：${signup.receive_email}`
+
+    // If the backend reserved a pool key for this activity, deep-link to the
+    // bind-gift page carrying the reservation id. The user just clicks
+    // "确认绑定" there to receive the gift balance (reserve was done server-side
+    // so concurrent signups never race for the same key).
+    if (signup.key_status === 'reserved' && signup.reservation?.reservation_id) {
+      successMessage.value = '报名成功，正在跳转到赠金绑定页面…'
+      redirecting.value = true
+      const r = signup.reservation
+      router.push({
+        path: '/bind-key',
+        query: {
+          reservation: r.reservation_id,
+          // masked_key + expiry let the bind page render the pending card
+          // without re-fetching. masked_key is already masked (non-sensitive).
+          mk: r.masked_key,
+          exp: String(r.expires_at_unix_ms)
+        }
+      })
+      return
+    }
+
+    // Signed up, but no key was granted. Explain why so the user isn't left
+    // wondering where their gift is.
+    switch (signup.key_status) {
+      case 'already_claimed':
+        successMessage.value = `报名成功。你已领取过本活动的赠金 Key，无需重复领取。接收活动邮件地址：${signup.receive_email}`
+        break
+      case 'no_key_available':
+        successMessage.value = `报名成功，但本活动的赠金 Key 暂时已被领完。接收活动邮件地址：${signup.receive_email}`
+        break
+      case 'referral_invitee':
+        successMessage.value = `报名成功。你在注册时已通过邀请获得专属权益，本活动的赠金 Key 不再重复发放。接收活动邮件地址：${signup.receive_email}`
+        break
+      default:
+        successMessage.value = `接收活动邮件地址：${signup.receive_email}`
+    }
   } catch (error) {
     submitError.value = getErrorMessage(error, '报名提交失败')
   } finally {

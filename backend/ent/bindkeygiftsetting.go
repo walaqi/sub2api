@@ -31,6 +31,8 @@ type BindKeyGiftSetting struct {
 	RatioRecharge *float64 `json:"ratio_recharge,omitempty"`
 	// ExpiresAfterDays holds the value of the "expires_after_days" field.
 	ExpiresAfterDays *int `json:"expires_after_days,omitempty"`
+	// ActivityID holds the value of the "activity_id" field.
+	ActivityID *int64 `json:"activity_id,omitempty"`
 	// Config holds the value of the "config" field.
 	Config       *domain.BindKeyConfig `json:"config,omitempty"`
 	selectValues sql.SelectValues
@@ -45,7 +47,7 @@ func (*BindKeyGiftSetting) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case bindkeygiftsetting.FieldRatioRecharge:
 			values[i] = new(sql.NullFloat64)
-		case bindkeygiftsetting.FieldID, bindkeygiftsetting.FieldAPIKeyID, bindkeygiftsetting.FieldExpiresAfterDays:
+		case bindkeygiftsetting.FieldID, bindkeygiftsetting.FieldAPIKeyID, bindkeygiftsetting.FieldExpiresAfterDays, bindkeygiftsetting.FieldActivityID:
 			values[i] = new(sql.NullInt64)
 		case bindkeygiftsetting.FieldDeductionMode:
 			values[i] = new(sql.NullString)
@@ -110,6 +112,13 @@ func (_m *BindKeyGiftSetting) assignValues(columns []string, values []any) error
 				_m.ExpiresAfterDays = new(int)
 				*_m.ExpiresAfterDays = int(value.Int64)
 			}
+		case bindkeygiftsetting.FieldActivityID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field activity_id", values[i])
+			} else if value.Valid {
+				_m.ActivityID = new(int64)
+				*_m.ActivityID = value.Int64
+			}
 		case bindkeygiftsetting.FieldConfig:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field config", values[i])
@@ -173,6 +182,11 @@ func (_m *BindKeyGiftSetting) String() string {
 	builder.WriteString(", ")
 	if v := _m.ExpiresAfterDays; v != nil {
 		builder.WriteString("expires_after_days=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.ActivityID; v != nil {
+		builder.WriteString("activity_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")

@@ -43,6 +43,13 @@ func (BindKeyGiftSetting) Fields() []ent.Field {
 		field.Int("expires_after_days").
 			Optional().
 			Nillable(),
+		// activity_id 关联该池 key 所属的活动（activity_events.id）。
+		// nil 表示该 key 不隶属任何活动（普通推广 key，仅走 /bind-key 手动领取）。
+		// 用于活动报名时按活动查出未被领走的池 key —— 建独立索引列（而非塞进
+		// config JSONB），才能高效过滤 "某活动的所有 key"。
+		field.Int64("activity_id").
+			Optional().
+			Nillable(),
 		// 可扩展 per-key 配置（首个使用方：registration_window）。
 		// 新增 per-key 选项往 domain.BindKeyConfig 加字段即可，避免再迁移 schema。
 		field.JSON("config", &domain.BindKeyConfig{}).
@@ -57,5 +64,7 @@ func (BindKeyGiftSetting) Edges() []ent.Edge {
 func (BindKeyGiftSetting) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("api_key_id").Unique(),
+		// 活动报名时按 activity_id 过滤该活动下的池 key，需索引。
+		index.Fields("activity_id"),
 	}
 }

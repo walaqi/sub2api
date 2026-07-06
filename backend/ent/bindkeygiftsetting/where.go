@@ -84,6 +84,11 @@ func ExpiresAfterDays(v int) predicate.BindKeyGiftSetting {
 	return predicate.BindKeyGiftSetting(sql.FieldEQ(FieldExpiresAfterDays, v))
 }
 
+// ActivityID applies equality check predicate on the "activity_id" field. It's identical to ActivityIDEQ.
+func ActivityID(v int64) predicate.BindKeyGiftSetting {
+	return predicate.BindKeyGiftSetting(sql.FieldEQ(FieldActivityID, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.BindKeyGiftSetting {
 	return predicate.BindKeyGiftSetting(sql.FieldEQ(FieldCreatedAt, v))
@@ -367,6 +372,56 @@ func ExpiresAfterDaysIsNil() predicate.BindKeyGiftSetting {
 // ExpiresAfterDaysNotNil applies the NotNil predicate on the "expires_after_days" field.
 func ExpiresAfterDaysNotNil() predicate.BindKeyGiftSetting {
 	return predicate.BindKeyGiftSetting(sql.FieldNotNull(FieldExpiresAfterDays))
+}
+
+// ActivityIDEQ applies the EQ predicate on the "activity_id" field.
+func ActivityIDEQ(v int64) predicate.BindKeyGiftSetting {
+	return predicate.BindKeyGiftSetting(sql.FieldEQ(FieldActivityID, v))
+}
+
+// ActivityIDNEQ applies the NEQ predicate on the "activity_id" field.
+func ActivityIDNEQ(v int64) predicate.BindKeyGiftSetting {
+	return predicate.BindKeyGiftSetting(sql.FieldNEQ(FieldActivityID, v))
+}
+
+// ActivityIDIn applies the In predicate on the "activity_id" field.
+func ActivityIDIn(vs ...int64) predicate.BindKeyGiftSetting {
+	return predicate.BindKeyGiftSetting(sql.FieldIn(FieldActivityID, vs...))
+}
+
+// ActivityIDNotIn applies the NotIn predicate on the "activity_id" field.
+func ActivityIDNotIn(vs ...int64) predicate.BindKeyGiftSetting {
+	return predicate.BindKeyGiftSetting(sql.FieldNotIn(FieldActivityID, vs...))
+}
+
+// ActivityIDGT applies the GT predicate on the "activity_id" field.
+func ActivityIDGT(v int64) predicate.BindKeyGiftSetting {
+	return predicate.BindKeyGiftSetting(sql.FieldGT(FieldActivityID, v))
+}
+
+// ActivityIDGTE applies the GTE predicate on the "activity_id" field.
+func ActivityIDGTE(v int64) predicate.BindKeyGiftSetting {
+	return predicate.BindKeyGiftSetting(sql.FieldGTE(FieldActivityID, v))
+}
+
+// ActivityIDLT applies the LT predicate on the "activity_id" field.
+func ActivityIDLT(v int64) predicate.BindKeyGiftSetting {
+	return predicate.BindKeyGiftSetting(sql.FieldLT(FieldActivityID, v))
+}
+
+// ActivityIDLTE applies the LTE predicate on the "activity_id" field.
+func ActivityIDLTE(v int64) predicate.BindKeyGiftSetting {
+	return predicate.BindKeyGiftSetting(sql.FieldLTE(FieldActivityID, v))
+}
+
+// ActivityIDIsNil applies the IsNil predicate on the "activity_id" field.
+func ActivityIDIsNil() predicate.BindKeyGiftSetting {
+	return predicate.BindKeyGiftSetting(sql.FieldIsNull(FieldActivityID))
+}
+
+// ActivityIDNotNil applies the NotNil predicate on the "activity_id" field.
+func ActivityIDNotNil() predicate.BindKeyGiftSetting {
+	return predicate.BindKeyGiftSetting(sql.FieldNotNull(FieldActivityID))
 }
 
 // ConfigIsNil applies the IsNil predicate on the "config" field.

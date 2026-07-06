@@ -131,8 +131,14 @@ func registerRoutes(
 	handler.RegisterPageRoutes(v1, cfg.Pricing.DataDir, gin.HandlerFunc(jwtAuth), gin.HandlerFunc(adminAuth), settingService)
 
 	// 自定义功能：API Key 池绑定（独立包，主干仅一行注册）
-	keybind.RegisterRoutes(v1, entClient, redisClient, jwtAuth, cfg.Pricing.DataDir, apiKeyService, giftEngine)
+	keybindSvc := keybind.RegisterRoutes(v1, entClient, redisClient, jwtAuth, cfg.Pricing.DataDir, apiKeyService, giftEngine)
 
-	// 自定义功能：活动报名（独立包，主干仅一行注册）
-	activity.RegisterRoutes(v1, entClient, jwtAuth, adminAuth)
+	// 自定义功能：活动报名（独立包，主干仅一行注册）。
+	// 复用 keybind 服务给报名用户发放活动关联的池 key；避免 typed-nil 接口陷阱：
+	// keybindSvc 为 nil 时显式传 nil 接口，让 activity 侧走"功能关闭"降级。
+	var activityKeyReserver activity.KeyReserver
+	if keybindSvc != nil {
+		activityKeyReserver = keybindSvc
+	}
+	activity.RegisterRoutes(v1, entClient, jwtAuth, adminAuth, activityKeyReserver)
 }

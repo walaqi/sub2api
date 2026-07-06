@@ -35,6 +35,10 @@ const DefaultPoolUserEmail = "keypool@atai8.cc"
 //
 // authCache 用于绑定成功赠送余额后失效 auth 缓存；传 nil 时降级为"靠 TTL 自然
 // 过期"——首次请求可能仍读到旧 balance=0，等几十秒后恢复。
+// The returned *Service is the constructed bind-key service (nil when the
+// feature is disabled due to missing ent/redis clients). It is handed to other
+// custom features — e.g. activity signup — that reserve/claim pool keys through
+// the same protocol. Callers must nil-check before use.
 func RegisterRoutes(
 	v1 *gin.RouterGroup,
 	client *ent.Client,
@@ -43,10 +47,10 @@ func RegisterRoutes(
 	dataDir string,
 	authCache APIKeyAuthCacheInvalidator,
 	giftEngine *gift.Engine,
-) {
+) *Service {
 	if client == nil || redisClient == nil {
 		log.Printf("[keybind] disabled: missing ent client or redis client")
-		return
+		return nil
 	}
 
 	poolEmail := os.Getenv(PoolUserEmailEnv)
@@ -75,4 +79,5 @@ func RegisterRoutes(
 	g.POST("/reserve", h.Reserve)                                  // public
 	g.POST("/commit", gin.HandlerFunc(jwtAuth), h.Commit)          // requires JWT
 	g.GET("/eligibility", gin.HandlerFunc(jwtAuth), h.Eligibility) // requires JWT
+	return svc
 }

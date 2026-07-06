@@ -25,6 +25,8 @@ const (
 	FieldRatioRecharge = "ratio_recharge"
 	// FieldExpiresAfterDays holds the string denoting the expires_after_days field in the database.
 	FieldExpiresAfterDays = "expires_after_days"
+	// FieldActivityID holds the string denoting the activity_id field in the database.
+	FieldActivityID = "activity_id"
 	// FieldConfig holds the string denoting the config field in the database.
 	FieldConfig = "config"
 	// Table holds the table name of the bindkeygiftsetting in the database.
@@ -40,6 +42,7 @@ var Columns = []string{
 	FieldDeductionMode,
 	FieldRatioRecharge,
 	FieldExpiresAfterDays,
+	FieldActivityID,
 	FieldConfig,
 }
 
@@ -100,4 +103,9 @@ func ByRatioRecharge(opts ...sql.OrderTermOption) OrderOption {
 // ByExpiresAfterDays orders the results by the expires_after_days field.
 func ByExpiresAfterDays(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldExpiresAfterDays, opts...).ToFunc()
+}
+
+// ByActivityID orders the results by the activity_id field.
+func ByActivityID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldActivityID, opts...).ToFunc()
 }

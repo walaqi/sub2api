@@ -196,6 +196,61 @@ ORDER BY s.created_at ASC, s.id ASC`, activityID)
 	return signups, nil
 }
 
+// HasInheritedReferralBenefits reports whether userID already received
+// super-referral invitee benefits at registration. It is TRUE when EITHER:
+//   - referral_reward_tracker.invitee_reward_granted = TRUE (the invitee
+//     registration gift was actually granted), OR
+//   - a user_recharge_discounts row with source='referral_inherit' exists for
+//     the user (the inviter's recharge discount was inherited).
+//
+// Both signals are checked because OnInviterBound performs the two side effects
+// INDEPENDENTLY and does not stop if the first fails: grantInviteeReward errors
+// are only logged, then inheritDiscountFromInviter still runs (see
+// referral_reward_service.go OnInviterBound). So a user can end up with an
+// inherited discount while invitee_reward_granted stays FALSE. Keying the gate
+// on the granted flag alone would let that user grab an activity key and stack
+// the inherited (30-day, higher-value) discount on top — exactly what this gate
+// must prevent. The OR closes that window.
+//
+// It still does NOT catch users who inherited nothing: plain affiliate invitees
+// whose inviter lacked super-referral eligibility (no gift, no discount row) and
+// invitees bound while the global reward switch was off. Those remain eligible
+// for activity keys.
+func (r *Repository) HasInheritedReferralBenefits(ctx context.Context, userID int64) (_ bool, err error) {
+	if userID <= 0 {
+		return false, nil
+	}
+	rows, err := r.db.QueryContext(ctx, `
+SELECT
+  EXISTS (
+    SELECT 1 FROM referral_reward_tracker
+    WHERE invitee_id = $1 AND invitee_reward_granted = TRUE
+  )
+  OR EXISTS (
+    SELECT 1 FROM user_recharge_discounts
+    WHERE user_id = $1 AND source = 'referral_inherit'
+  )`, userID)
+	if err != nil {
+		return false, fmt.Errorf("query referral invitee benefits: %w", err)
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return false, err
+		}
+		return false, nil
+	}
+	var has bool
+	if err := rows.Scan(&has); err != nil {
+		return false, err
+	}
+	return has, rows.Err()
+}
+
 func normalizeText(s string) string {
 	return strings.TrimSpace(s)
 }
