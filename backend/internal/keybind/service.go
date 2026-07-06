@@ -403,9 +403,14 @@ func (s *Service) ReserveForActivity(ctx context.Context, activityID, userID int
 	// winner's reservation, so the user ends up with exactly one.
 	ok, setErr := s.redis.SetNX(ctx, holdKey, res.ReservationID, reservationTTL).Result()
 	if setErr != nil {
-		// Best-effort guard only; the reservation itself is valid. Degrade to
-		// no idempotency rather than failing the signup.
-		return res, nil
+		// The per-user hold IS the invariant this method exists to enforce
+		// ("one in-flight activity reservation per user"). If we can't write it
+		// we must NOT hand back an unguarded reservation — a repeat/concurrent
+		// signup could then lock a second key (the very race we're fixing).
+		// Fail closed: release the key we just locked and report no key. The
+		// caller degrades this to a plain signup (no gift), never a double grant.
+		s.releaseReservation(ctx, res.ReservationID)
+		return nil, ErrNoActivityKey
 	}
 	if !ok {
 		s.releaseReservation(ctx, res.ReservationID)

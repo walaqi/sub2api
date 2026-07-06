@@ -205,6 +205,42 @@ func TestReserveForActivity(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, intToStr(freeID), keyIDStr)
 	})
+
+	// Backs the fail-closed hold-write path (review re-review Finding 1): when
+	// the per-user hold cannot be secured we releaseReservation() the key we
+	// just locked. This must fully free the key so it can be reserved again —
+	// no orphaned lock. Exercised directly since injecting a Redis command
+	// error mid-call isn't reachable through the public API.
+	t.Run("releaseReservation frees the key lock for re-reservation", func(t *testing.T) {
+		client := newWindowTestClient(t)
+		poolID := makePoolUser(t, client)
+		svc := newActivityService(t, client, poolID)
+		keyID := makeActivityKey(t, client, poolID, "sk-release", 100, int64Ptr(7))
+
+		first, err := svc.ReserveForActivity(ctx, 7, claimUser)
+		require.NoError(t, err)
+		require.NotNil(t, first)
+
+		// Simulate the fail-closed branch: drop the per-user hold and release
+		// the reservation, exactly as ReserveForActivity does on a hold-write
+		// failure.
+		_ = svc.redis.Del(ctx, activityHoldKey(7, claimUser)).Err()
+		svc.releaseReservation(ctx, first.ReservationID)
+
+		// The key lock and reservation mapping must be gone.
+		lockExists, err := svc.redis.Exists(ctx, redisLockedKeyPrefix+intToStr(keyID)).Result()
+		require.NoError(t, err)
+		require.Equal(t, int64(0), lockExists, "key lock must be released")
+
+		// A fresh reserve (another user) can now grab the same key.
+		second, err := svc.ReserveForActivity(ctx, 7, claimUser+1)
+		require.NoError(t, err)
+		require.NotNil(t, second)
+		require.NotEqual(t, first.ReservationID, second.ReservationID)
+		keyIDStr, err := svc.redis.Get(ctx, redisReservationKeyPrefix+second.ReservationID).Result()
+		require.NoError(t, err)
+		require.Equal(t, intToStr(keyID), keyIDStr, "released key is claimable again")
+	})
 }
 
 func TestUserHasClaimedActivityKey(t *testing.T) {
