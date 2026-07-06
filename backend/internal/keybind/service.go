@@ -36,6 +36,11 @@ const (
 
 	redisLockedKeyPrefix      = "bindkey:locked:"      // bindkey:locked:<api_key_id> -> reservation_id
 	redisReservationKeyPrefix = "bindkey:reservation:" // bindkey:reservation:<reservation_id> -> api_key_id (string)
+	// redisActivityHoldPrefix gates one in-flight reservation per (activity, user):
+	// bindkey:activity_hold:<activity_id>:<user_id> -> reservation_id.
+	// Prevents a user from reserving multiple activity keys via repeated or
+	// concurrent signups before the first reservation is committed.
+	redisActivityHoldPrefix = "bindkey:activity_hold:"
 )
 
 // Errors mapped to HTTP responses via the project's infraerrors package.
@@ -340,11 +345,13 @@ func (s *Service) lockAndBuildReservation(ctx context.Context, row *ent.APIKey) 
 	}, true, nil
 }
 
-// activityKeyMaxScan bounds how many candidate keys ReserveForActivity will
-// walk before giving up. Keys can be locked by concurrent reservations or fall
-// below the quota threshold; scanning a bounded batch keeps a single request
-// cheap while still finding a free key under moderate contention.
-const activityKeyMaxScan = 200
+// activityKeyScanBatch bounds the size of each api_keys lookup while walking an
+// activity's candidate keys. Claimed keys keep their bind_key_gift_settings row
+// (activity_id is immutable on claim), so an activity that has handed out many
+// keys can have a long prefix of already-claimed candidates; batching lets us
+// scan past them to reach a still-claimable key instead of giving up after a
+// fixed window.
+const activityKeyScanBatch = 500
 
 // ReserveForActivity finds one claimable pool key tied to activityID, locks it
 // in Redis, and returns the reservation the client uses to Commit — mirroring
@@ -357,21 +364,69 @@ const activityKeyMaxScan = 200
 // transfers away on Commit, so an already-claimed key naturally drops out of
 // this query — no separate "assigned" flag is needed.
 //
+// Per-user idempotency: a (activity, user) hold in Redis ensures one user can
+// hold only one in-flight activity reservation. Repeated or concurrent signups
+// by the same user before committing return the SAME reservation rather than
+// locking additional keys — closing the race where UserHasClaimedActivityKey
+// (which only sees committed claims) reports false twice.
+//
 // Returns ErrNoActivityKey when the activity has no free key left. The caller
-// (activity signup) is responsible for the "already claimed by this user"
-// short-circuit via UserHasClaimedActivityKey before calling this.
-func (s *Service) ReserveForActivity(ctx context.Context, activityID int64) (*ReservationResult, error) {
+// (activity signup) still short-circuits on already-committed claims via
+// UserHasClaimedActivityKey before calling this.
+func (s *Service) ReserveForActivity(ctx context.Context, activityID, userID int64) (*ReservationResult, error) {
 	if !s.Enabled() {
 		return nil, s.disabledErr()
 	}
-	if activityID <= 0 {
+	if activityID <= 0 || userID <= 0 {
 		return nil, ErrNoActivityKey
 	}
 
-	// Candidate key IDs for this activity, from table A (bind_key_gift_settings).
+	holdKey := activityHoldKey(activityID, userID)
+
+	// Idempotent fast path: this user already holds an in-flight reservation for
+	// the activity → return it instead of locking a second key.
+	if existing, err := s.redis.Get(ctx, holdKey).Result(); err == nil && existing != "" {
+		if res, ok := s.rebuildReservation(ctx, existing); ok {
+			return res, nil
+		}
+		// Stale hold (its reservation expired/was consumed) — clear and continue.
+		_ = s.redis.Del(ctx, holdKey).Err()
+	}
+
+	res, err := s.reserveOneActivityKey(ctx, activityID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Claim the per-user hold. SetNX so a concurrent signup by the same user
+	// cannot also win: the loser releases the key it just locked and returns the
+	// winner's reservation, so the user ends up with exactly one.
+	ok, setErr := s.redis.SetNX(ctx, holdKey, res.ReservationID, reservationTTL).Result()
+	if setErr != nil {
+		// Best-effort guard only; the reservation itself is valid. Degrade to
+		// no idempotency rather than failing the signup.
+		return res, nil
+	}
+	if !ok {
+		s.releaseReservation(ctx, res.ReservationID)
+		if winner, err := s.redis.Get(ctx, holdKey).Result(); err == nil && winner != "" {
+			if r, ok := s.rebuildReservation(ctx, winner); ok {
+				return r, nil
+			}
+		}
+		return nil, ErrNoActivityKey
+	}
+	return res, nil
+}
+
+// reserveOneActivityKey walks the activity's candidate keys in a deterministic
+// order (ascending api_key_id) and returns the first one it can lock. Claimed
+// keys are filtered out by the pool-ownership predicate, so scanning continues
+// past them across batches instead of stopping at a fixed window.
+func (s *Service) reserveOneActivityKey(ctx context.Context, activityID int64) (*ReservationResult, error) {
 	keyIDs, err := s.client.BindKeyGiftSetting.Query().
 		Where(bindkeygiftsetting.ActivityIDEQ(activityID)).
-		Limit(activityKeyMaxScan).
+		Order(ent.Asc(bindkeygiftsetting.FieldAPIKeyID)).
 		Select(bindkeygiftsetting.FieldAPIKeyID).
 		Ints(ctx)
 	if err != nil {
@@ -381,39 +436,100 @@ func (s *Service) ReserveForActivity(ctx context.Context, activityID int64) (*Re
 		return nil, ErrNoActivityKey
 	}
 
-	ids := make([]int64, 0, len(keyIDs))
-	for _, id := range keyIDs {
-		ids = append(ids, int64(id))
-	}
-
-	// Only rows still owned by the pool user (unclaimed), active, not deleted.
-	rows, err := s.client.APIKey.Query().
-		Where(
-			apikey.IDIn(ids...),
-			apikey.UserIDEQ(s.poolUserID),
-			apikey.StatusEQ(domain.StatusActive),
-			apikey.DeletedAtIsNil(),
-		).
-		All(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("query activity pool keys: %w", err)
-	}
-
-	for _, row := range rows {
-		if !hasSufficientRemaining(row.Quota, row.QuotaUsed) {
-			continue
+	for start := 0; start < len(keyIDs); start += activityKeyScanBatch {
+		end := start + activityKeyScanBatch
+		if end > len(keyIDs) {
+			end = len(keyIDs)
 		}
-		res, locked, err := s.lockAndBuildReservation(ctx, row)
+		batch := make([]int64, 0, end-start)
+		for _, id := range keyIDs[start:end] {
+			batch = append(batch, int64(id))
+		}
+
+		rows, err := s.client.APIKey.Query().
+			Where(
+				apikey.IDIn(batch...),
+				apikey.UserIDEQ(s.poolUserID),
+				apikey.StatusEQ(domain.StatusActive),
+				apikey.DeletedAtIsNil(),
+			).
+			Order(ent.Asc(apikey.FieldID)).
+			All(ctx)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("query activity pool keys: %w", err)
 		}
-		if !locked {
-			continue
+
+		for _, row := range rows {
+			if !hasSufficientRemaining(row.Quota, row.QuotaUsed) {
+				continue
+			}
+			res, locked, err := s.lockAndBuildReservation(ctx, row)
+			if err != nil {
+				return nil, err
+			}
+			if !locked {
+				continue
+			}
+			return res, nil
 		}
-		return res, nil
 	}
 
 	return nil, ErrNoActivityKey
+}
+
+// activityHoldKey builds the per-(activity,user) hold key.
+func activityHoldKey(activityID, userID int64) string {
+	return redisActivityHoldPrefix + intToStr(activityID) + ":" + intToStr(userID)
+}
+
+// rebuildReservation reconstructs a ReservationResult from a reservation id by
+// looking up its key. Returns (nil, false) when the reservation or its key is
+// gone (expired/consumed/deleted), so callers can treat the hold as stale.
+func (s *Service) rebuildReservation(ctx context.Context, reservationID string) (*ReservationResult, bool) {
+	reservationID = strings.TrimSpace(reservationID)
+	if reservationID == "" {
+		return nil, false
+	}
+	keyIDStr, err := s.redis.Get(ctx, redisReservationKeyPrefix+reservationID).Result()
+	if err != nil || keyIDStr == "" {
+		return nil, false
+	}
+	keyID, err := strToInt(keyIDStr)
+	if err != nil {
+		return nil, false
+	}
+	row, err := s.client.APIKey.Get(ctx, keyID)
+	if err != nil {
+		return nil, false
+	}
+	// Reflect the lock's remaining TTL as the reservation expiry so the UI
+	// countdown stays honest across the idempotent re-fetch.
+	expiresAt := time.Now().Add(reservationTTL)
+	if ttl, err := s.redis.TTL(ctx, redisLockedKeyPrefix+intToStr(keyID)).Result(); err == nil && ttl > 0 {
+		expiresAt = time.Now().Add(ttl)
+	}
+	return &ReservationResult{
+		ReservationID:   reservationID,
+		MaskedKey:       maskKey(row.Key),
+		RemainingQuota:  row.Quota - row.QuotaUsed,
+		QuotaLimit:      row.Quota,
+		ExpiresAtUnixMs: expiresAt.UnixMilli(),
+	}, true
+}
+
+// releaseReservation drops a reservation and frees its key lock. Best-effort:
+// used when a concurrent per-user hold loser gives up its freshly-locked key.
+func (s *Service) releaseReservation(ctx context.Context, reservationID string) {
+	reservationID = strings.TrimSpace(reservationID)
+	if reservationID == "" {
+		return
+	}
+	resKey := redisReservationKeyPrefix + reservationID
+	if keyIDStr, err := s.redis.Get(ctx, resKey).Result(); err == nil && keyIDStr != "" {
+		_ = s.redis.Del(ctx, resKey, redisLockedKeyPrefix+keyIDStr).Err()
+		return
+	}
+	_ = s.redis.Del(ctx, resKey).Err()
 }
 
 // UserHasClaimedActivityKey reports whether userID already owns a key tied to

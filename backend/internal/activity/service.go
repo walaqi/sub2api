@@ -28,8 +28,10 @@ type KeyReserver interface {
 	// tied to this activity (grant is once-per-user-per-activity).
 	UserHasClaimedActivityKey(ctx context.Context, userID, activityID int64) (bool, error)
 	// ReserveForActivity locks one claimable pool key for this activity and
-	// returns the reservation the client uses to commit at /bind-key.
-	ReserveForActivity(ctx context.Context, activityID int64) (*keybind.ReservationResult, error)
+	// returns the reservation the client uses to commit at /bind-key. userID
+	// scopes a per-user idempotency hold so repeated/concurrent signups by the
+	// same user return one reservation instead of locking several keys.
+	ReserveForActivity(ctx context.Context, activityID, userID int64) (*keybind.ReservationResult, error)
 }
 
 type Service struct {
@@ -88,7 +90,7 @@ func (s *Service) reserveActivityKey(ctx context.Context, activityID, userID int
 		return KeyStatusAlreadyClaimed, nil
 	}
 
-	reservation, err := s.keys.ReserveForActivity(ctx, activityID)
+	reservation, err := s.keys.ReserveForActivity(ctx, activityID, userID)
 	if err != nil {
 		if errors.Is(err, keybind.ErrNoActivityKey) {
 			return KeyStatusNoKeyAvailable, nil

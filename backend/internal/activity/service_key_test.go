@@ -14,14 +14,15 @@ import (
 // fakeKeyReserver is a hand-rolled KeyReserver for exercising the activity
 // service's key-grant orchestration without a live keybind/Redis stack.
 type fakeKeyReserver struct {
-	enabled        bool
-	claimed        bool
-	claimedErr     error
-	reservation    *keybind.ReservationResult
-	reserveErr     error
-	reserveCalled  int
-	claimedCalled  int
-	lastReserveAct int64
+	enabled         bool
+	claimed         bool
+	claimedErr      error
+	reservation     *keybind.ReservationResult
+	reserveErr      error
+	reserveCalled   int
+	claimedCalled   int
+	lastReserveAct  int64
+	lastReserveUser int64
 }
 
 func (f *fakeKeyReserver) Enabled() bool { return f.enabled }
@@ -31,9 +32,10 @@ func (f *fakeKeyReserver) UserHasClaimedActivityKey(_ context.Context, _, _ int6
 	return f.claimed, f.claimedErr
 }
 
-func (f *fakeKeyReserver) ReserveForActivity(_ context.Context, activityID int64) (*keybind.ReservationResult, error) {
+func (f *fakeKeyReserver) ReserveForActivity(_ context.Context, activityID, userID int64) (*keybind.ReservationResult, error) {
 	f.reserveCalled++
 	f.lastReserveAct = activityID
+	f.lastReserveUser = userID
 	return f.reservation, f.reserveErr
 }
 
@@ -84,6 +86,7 @@ func TestReserveActivityKey(t *testing.T) {
 		require.Equal(t, KeyStatusReserved, status)
 		require.Same(t, want, res)
 		require.Equal(t, int64(7), f.lastReserveAct)
+		require.Equal(t, int64(42), f.lastReserveUser)
 	})
 
 	t.Run("no key available -> no_key_available", func(t *testing.T) {

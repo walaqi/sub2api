@@ -4,9 +4,11 @@ package keybind
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/stretchr/testify/require"
 
@@ -71,6 +73,7 @@ func int64Ptr(v int64) *int64 { return &v }
 
 func TestReserveForActivity(t *testing.T) {
 	ctx := context.Background()
+	const claimUser = int64(1000)
 
 	t.Run("reserves a key tied to the activity", func(t *testing.T) {
 		client := newWindowTestClient(t)
@@ -78,7 +81,7 @@ func TestReserveForActivity(t *testing.T) {
 		svc := newActivityService(t, client, poolID)
 		makeActivityKey(t, client, poolID, "sk-act-1", 100, int64Ptr(7))
 
-		res, err := svc.ReserveForActivity(ctx, 7)
+		res, err := svc.ReserveForActivity(ctx, 7, claimUser)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		require.NotEmpty(t, res.ReservationID)
@@ -92,7 +95,7 @@ func TestReserveForActivity(t *testing.T) {
 		// A key exists, but for a different activity.
 		makeActivityKey(t, client, poolID, "sk-act-other", 100, int64Ptr(99))
 
-		_, err := svc.ReserveForActivity(ctx, 7)
+		_, err := svc.ReserveForActivity(ctx, 7, claimUser)
 		require.ErrorIs(t, err, ErrNoActivityKey)
 	})
 
@@ -104,7 +107,7 @@ func TestReserveForActivity(t *testing.T) {
 		// Key tied to activity 7 but already owned by a claimer → not claimable.
 		makeActivityKey(t, client, claimer, "sk-act-claimed", 100, int64Ptr(7))
 
-		_, err := svc.ReserveForActivity(ctx, 7)
+		_, err := svc.ReserveForActivity(ctx, 7, claimUser)
 		require.ErrorIs(t, err, ErrNoActivityKey)
 	})
 
@@ -123,7 +126,7 @@ func TestReserveForActivity(t *testing.T) {
 			SetConfig(&domain.BindKeyConfig{}).Save(ctx)
 		require.NoError(t, err)
 
-		_, err = svc.ReserveForActivity(ctx, 7)
+		_, err = svc.ReserveForActivity(ctx, 7, claimUser)
 		require.ErrorIs(t, err, ErrNoActivityKey)
 	})
 
@@ -131,14 +134,76 @@ func TestReserveForActivity(t *testing.T) {
 		client := newWindowTestClient(t)
 		poolID := makePoolUser(t, client)
 		svc := newActivityService(t, client, poolID)
-		_, err := svc.ReserveForActivity(ctx, 0)
+		_, err := svc.ReserveForActivity(ctx, 0, claimUser)
+		require.ErrorIs(t, err, ErrNoActivityKey)
+	})
+
+	t.Run("userID <= 0 -> ErrNoActivityKey", func(t *testing.T) {
+		client := newWindowTestClient(t)
+		poolID := makePoolUser(t, client)
+		svc := newActivityService(t, client, poolID)
+		makeActivityKey(t, client, poolID, "sk-act-nouser", 100, int64Ptr(7))
+		_, err := svc.ReserveForActivity(ctx, 7, 0)
 		require.ErrorIs(t, err, ErrNoActivityKey)
 	})
 
 	t.Run("disabled service -> disabled error", func(t *testing.T) {
 		svc := &Service{poolUserID: 0}
-		_, err := svc.ReserveForActivity(ctx, 7)
+		_, err := svc.ReserveForActivity(ctx, 7, claimUser)
 		require.Error(t, err)
+	})
+
+	// Regression for review Finding 1: a user who reserves twice (repeated or
+	// concurrent signups) before committing must NOT lock a second key. The
+	// second call returns the SAME reservation and only one pool key leaves the
+	// pool.
+	t.Run("same user reserving twice returns the same reservation", func(t *testing.T) {
+		client := newWindowTestClient(t)
+		poolID := makePoolUser(t, client)
+		svc := newActivityService(t, client, poolID)
+		makeActivityKey(t, client, poolID, "sk-idem-1", 100, int64Ptr(7))
+		makeActivityKey(t, client, poolID, "sk-idem-2", 100, int64Ptr(7))
+
+		first, err := svc.ReserveForActivity(ctx, 7, claimUser)
+		require.NoError(t, err)
+		second, err := svc.ReserveForActivity(ctx, 7, claimUser)
+		require.NoError(t, err)
+		require.Equal(t, first.ReservationID, second.ReservationID,
+			"repeated reserve for same user must be idempotent")
+
+		// Reserve transfers no ownership, so both pool keys are still present;
+		// the point is that only ONE reservation/lock exists for this user.
+		remaining, err := client.APIKey.Query().
+			Where(apikey.UserIDEQ(poolID)).Count(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 2, remaining, "no key ownership transfers on reserve")
+	})
+
+	// Regression for review Finding 3: claimable keys beyond the first scan
+	// window are still found. All-but-last candidate are already claimed (owned
+	// by other users); the one remaining pool key must still be reserved.
+	t.Run("finds a claimable key past a long claimed prefix", func(t *testing.T) {
+		client := newWindowTestClient(t)
+		poolID := makePoolUser(t, client)
+		svc := newActivityService(t, client, poolID)
+
+		// 12 keys already claimed (owned by distinct non-pool users) + 1 free.
+		for i := 0; i < 12; i++ {
+			other, err := client.User.Create().
+				SetEmail(fmt.Sprintf("claimed-%d@a.test", i)).
+				SetPasswordHash("x").Save(ctx)
+			require.NoError(t, err)
+			makeActivityKey(t, client, other.ID, fmt.Sprintf("sk-claimed-%d", i), 100, int64Ptr(7))
+		}
+		freeID := makeActivityKey(t, client, poolID, "sk-free", 100, int64Ptr(7))
+
+		res, err := svc.ReserveForActivity(ctx, 7, claimUser)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		// The reservation must point at the one free pool key.
+		keyIDStr, err := svc.redis.Get(ctx, redisReservationKeyPrefix+res.ReservationID).Result()
+		require.NoError(t, err)
+		require.Equal(t, intToStr(freeID), keyIDStr)
 	})
 }
 
