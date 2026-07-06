@@ -62,6 +62,13 @@ func (s *ReferralRewardService) OnInviterBound(ctx context.Context, inviterID, i
 		return
 	}
 
+	// 邀请人在绑定时无超级邀请资格 → 绑定关系照常建立（tracker 已建，快照 false），
+	// 仅跳过超级邀请奖励：不发被邀请人赠金、不继承折扣。
+	// 这防止无资格邀请人用普通返利链接拉人时，被邀请人被按超级邀请逻辑批量发赠金。
+	if !rewardEligible {
+		return
+	}
+
 	// 发放被邀请人赠金
 	if err := s.grantInviteeReward(ctx, inviterID, inviteeID, cfg); err != nil {
 		log.Printf("[referral] grant invitee reward for invitee=%d failed: %v", inviteeID, err)
