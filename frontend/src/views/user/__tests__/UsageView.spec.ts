@@ -303,6 +303,30 @@ describe('user UsageView tooltip', () => {
     expect(hasSortedExportQuery).toBe(true)
     expect(clickSpy).toHaveBeenCalled()
     expect(showSuccess).toHaveBeenCalled()
+    // \u672C PR \u6838\u5FC3\uFF1ACSV \u5185\u5BB9\u4EE5 UTF-8 BOM \u5F00\u5934\uFF0C\u4FEE\u590D Excel \u4E2D\u6587\u5217\u4E71\u7801\u3002
+    // \u7528\u539F\u59CB\u5B57\u8282\u6821\u9A8C BOM\uFF08FileReader.readAsText \u4F1A\u6309\u7F16\u7801\u6D88\u8D39 BOM\uFF0C\u6545\u8BFB\u56DE\u7684\u5B57\u7B26\u4E32\u4E0D\u542B\u5B83\uFF09\u3002
+    const bomBytes = new Uint8Array(
+      await new Promise<ArrayBuffer>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as ArrayBuffer)
+        reader.onerror = () => reject(reader.error)
+        reader.readAsArrayBuffer(exportedBlob as Blob)
+      })
+    )
+    expect([bomBytes[0], bomBytes[1], bomBytes[2]]).toEqual([0xef, 0xbb, 0xbf])
+    // fork \u7684\u7528\u6237\u7528\u91CF CSV \u4E0D\u542B upstream \u7684 IP Address \u5217\uFF08IP geo #3615 \u672A\u5408\u5165\uFF09\u3002
+    const csvContent = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result))
+      reader.onerror = () => reject(reader.error)
+      reader.readAsText(exportedBlob as Blob)
+    })
+    expect(csvContent).toContain('Billed Cost')
+    expect(csvContent).toContain('Original Cost')
+    expect(csvContent).not.toContain('IP Address')
+    expect(csvContent).not.toContain('Upstream Endpoint')
+    expect(csvContent).not.toContain('account_cost')
+    expect(csvContent).not.toContain('account_rate_multiplier')
 
     window.URL.createObjectURL = originalCreateObjectURL
     window.URL.revokeObjectURL = originalRevokeObjectURL
