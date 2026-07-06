@@ -93,6 +93,44 @@
               </div>
             </div>
 
+            <transition name="fade">
+              <div
+                v-if="successMessage"
+                class="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800/50 dark:bg-emerald-900/20"
+              >
+                <div class="flex items-start gap-4">
+                  <div
+                    class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30"
+                  >
+                    <Icon name="checkCircle" size="md" class="text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 class="text-sm font-semibold text-emerald-800 dark:text-emerald-300">报名成功</h3>
+                    <p class="mt-2 text-sm text-emerald-700 dark:text-emerald-400">{{ successMessage }}</p>
+                  </div>
+                </div>
+              </div>
+            </transition>
+
+            <transition name="fade">
+              <div
+                v-if="submitError"
+                class="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800/50 dark:bg-red-900/20"
+              >
+                <div class="flex items-start gap-4">
+                  <div
+                    class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/30"
+                  >
+                    <Icon name="exclamationCircle" size="md" class="text-red-600 dark:text-red-400" />
+                  </div>
+                  <div>
+                    <h3 class="text-sm font-semibold text-red-800 dark:text-red-300">提交失败</h3>
+                    <p class="mt-2 text-sm text-red-700 dark:text-red-400">{{ submitError }}</p>
+                  </div>
+                </div>
+              </div>
+            </transition>
+
             <div>
               <label for="receive-email" class="input-label">接收活动邮件地址</label>
               <div class="relative mt-1">
@@ -142,44 +180,6 @@
           </form>
         </div>
       </div>
-
-      <transition name="fade">
-        <div
-          v-if="successMessage"
-          class="card border-emerald-200 bg-emerald-50 dark:border-emerald-800/50 dark:bg-emerald-900/20"
-        >
-          <div class="flex items-start gap-4 p-6">
-            <div
-              class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30"
-            >
-              <Icon name="checkCircle" size="md" class="text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <div>
-              <h3 class="text-sm font-semibold text-emerald-800 dark:text-emerald-300">报名成功</h3>
-              <p class="mt-2 text-sm text-emerald-700 dark:text-emerald-400">{{ successMessage }}</p>
-            </div>
-          </div>
-        </div>
-      </transition>
-
-      <transition name="fade">
-        <div
-          v-if="submitError"
-          class="card border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-900/20"
-        >
-          <div class="flex items-start gap-4 p-6">
-            <div
-              class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/30"
-            >
-              <Icon name="exclamationCircle" size="md" class="text-red-600 dark:text-red-400" />
-            </div>
-            <div>
-              <h3 class="text-sm font-semibold text-red-800 dark:text-red-300">提交失败</h3>
-              <p class="mt-2 text-sm text-red-700 dark:text-red-400">{{ submitError }}</p>
-            </div>
-          </div>
-        </div>
-      </transition>
     </div>
   </AppLayout>
 </template>
