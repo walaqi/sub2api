@@ -492,63 +492,58 @@ func validateMigrationExecutionMode(name, content string) (bool, error) {
 }
 
 // splitSQLStatements splits SQL content into individual statements by semicolon,
-// properly handling line comments (--) to avoid splitting on semicolons inside comments.
-// It uses stripSQLComments which correctly handles SQL string literals.
+// properly handling SQL string literals and comments to avoid splitting on semicolons
+// inside strings or comments.
 func splitSQLStatements(content string) []string {
-	// First remove line comments to ensure semicolons in comments don't affect splitting
-	cleanContent := stripSQLComments(content)
+	var statements []string
+	var current strings.Builder
 
-	// Split by semicolon
-	parts := strings.Split(cleanContent, ";")
-	out := make([]string, 0, len(parts))
-	for _, part := range parts {
-		trimmed := strings.TrimSpace(part)
-		if trimmed == "" {
-			continue
-		}
-		out = append(out, trimmed)
-	}
-	return out
-}
-
-// stripSQLComments removes SQL line comments (--) from a string,
-// correctly handling SQL string literals (single quotes) and quoted identifiers (double quotes).
-func stripSQLComments(s string) string {
-	var result strings.Builder
 	inSingleQuote := false
 	inDoubleQuote := false
+	inComment := false
 
-	for i := 0; i < len(s); i++ {
-		ch := s[i]
+	for i := 0; i < len(content); i++ {
+		ch := content[i]
+
+		// Handle comments
+		if !inSingleQuote && !inDoubleQuote && ch == '-' && i+1 < len(content) && content[i+1] == '-' {
+			// Found line comment start, skip to end of line
+			i++ // Skip the second '-'
+			for i < len(content) && content[i] != '\n' {
+				i++
+			}
+			// Continue processing after comment (the newline will be handled in next iteration)
+			continue
+		}
 
 		// Handle string literals and quoted identifiers
 		if ch == '\'' && !inDoubleQuote {
 			inSingleQuote = !inSingleQuote
-			result.WriteByte(ch)
+			current.WriteByte(ch)
 		} else if ch == '"' && !inSingleQuote {
 			inDoubleQuote = !inDoubleQuote
-			result.WriteByte(ch)
-		} else if ch == '-' && !inSingleQuote && !inDoubleQuote {
-			// Check for "--" comment start
-			if i+1 < len(s) && s[i+1] == '-' {
-				// Found comment start, skip to end of line
-				for i < len(s) && s[i] != '\n' {
-					i++
-				}
-				// Include the newline character
-				if i < len(s) && s[i] == '\n' {
-					result.WriteByte('\n')
-				}
-				continue
+			current.WriteByte(ch)
+		} else if ch == ';' && !inSingleQuote && !inDoubleQuote && !inComment {
+			// Statement terminator outside strings/comments
+			trimmed := strings.TrimSpace(current.String())
+			if trimmed != "" {
+				statements = append(statements, trimmed)
 			}
-			result.WriteByte(ch)
+			current.Reset()
 		} else {
-			result.WriteByte(ch)
+			current.WriteByte(ch)
 		}
 	}
 
-	return strings.TrimSpace(result.String())
+	// Handle any trailing statement without semicolon
+	trimmed := strings.TrimSpace(current.String())
+	if trimmed != "" {
+		statements = append(statements, trimmed)
+	}
+
+	return statements
 }
+
 
 // pgAdvisoryLock 获取 PostgreSQL Advisory Lock。
 // Advisory Lock 是一种轻量级的锁机制，不与任何特定的数据库对象关联。

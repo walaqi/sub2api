@@ -297,48 +297,6 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_rrt_inviter_blocked_pending
 	require.NotContains(t, statements[0], "this narrow partial index", "Should not contain comment text")
 }
 
-func TestStripSQLComments_HandlesStringLiterals(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name: "comment with semicolon",
-			input: "-- This is a comment; with semicolon\nSELECT 1;",
-			expected: "SELECT 1;",
-		},
-		{
-			name: "string literal with -- inside",
-			input: "INSERT INTO settings(value) VALUES ('a--b');",
-			expected: "INSERT INTO settings(value) VALUES ('a--b');",
-		},
-		{
-			name: "multiple string literals",
-			input: `INSERT INTO t(col1, col2) VALUES ('a--b', "c--d"); -- comment`,
-			expected: `INSERT INTO t(col1, col2) VALUES ('a--b', "c--d");`,
-		},
-		{
-			name: "escaped quotes in string",
-			input: "INSERT INTO t(col) VALUES ('a''--b'); -- comment",
-			expected: "INSERT INTO t(col) VALUES ('a''--b');",
-		},
-		{
-			name: "production example with problematic comment",
-			input: `-- AND inviter_reward_blocked_by_quota=true); this narrow partial index...
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_test ON table(col);`,
-			expected: "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_test ON table(col);",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := stripSQLComments(tt.input)
-			require.Equal(t, tt.expected, result)
-		})
-	}
-}
-
 func TestApplyMigrationsFS_NonTransactionalMigration_WithCommentsContainingSemicolons(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
