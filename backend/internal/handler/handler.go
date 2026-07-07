@@ -66,6 +66,7 @@ type Handlers struct {
 	ImageStudio      *ImageStudioHandler
 	RechargeDiscount *RechargeDiscountHandler
 	Referral         *ReferralHandler
+	BatchImage       *BatchImageHandler
 }
 
 // BuildInfo contains build-time information
