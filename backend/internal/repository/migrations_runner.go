@@ -493,9 +493,10 @@ func validateMigrationExecutionMode(name, content string) (bool, error) {
 
 // splitSQLStatements splits SQL content into individual statements by semicolon,
 // properly handling line comments (--) to avoid splitting on semicolons inside comments.
+// It uses stripSQLComments which correctly handles SQL string literals.
 func splitSQLStatements(content string) []string {
 	// First remove line comments to ensure semicolons in comments don't affect splitting
-	cleanContent := stripSQLLineComment(content)
+	cleanContent := stripSQLComments(content)
 
 	// Split by semicolon
 	parts := strings.Split(cleanContent, ";")
@@ -510,14 +511,43 @@ func splitSQLStatements(content string) []string {
 	return out
 }
 
-func stripSQLLineComment(s string) string {
-	lines := strings.Split(s, "\n")
-	for i, line := range lines {
-		if idx := strings.Index(line, "--"); idx >= 0 {
-			lines[i] = line[:idx]
+// stripSQLComments removes SQL line comments (--) from a string,
+// correctly handling SQL string literals (single quotes) and quoted identifiers (double quotes).
+func stripSQLComments(s string) string {
+	var result strings.Builder
+	inSingleQuote := false
+	inDoubleQuote := false
+
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+
+		// Handle string literals and quoted identifiers
+		if ch == '\'' && !inDoubleQuote {
+			inSingleQuote = !inSingleQuote
+			result.WriteByte(ch)
+		} else if ch == '"' && !inSingleQuote {
+			inDoubleQuote = !inDoubleQuote
+			result.WriteByte(ch)
+		} else if ch == '-' && !inSingleQuote && !inDoubleQuote {
+			// Check for "--" comment start
+			if i+1 < len(s) && s[i+1] == '-' {
+				// Found comment start, skip to end of line
+				for i < len(s) && s[i] != '\n' {
+					i++
+				}
+				// Include the newline character
+				if i < len(s) && s[i] == '\n' {
+					result.WriteByte('\n')
+				}
+				continue
+			}
+			result.WriteByte(ch)
+		} else {
+			result.WriteByte(ch)
 		}
 	}
-	return strings.TrimSpace(strings.Join(lines, "\n"))
+
+	return strings.TrimSpace(result.String())
 }
 
 // pgAdvisoryLock 获取 PostgreSQL Advisory Lock。
