@@ -215,9 +215,7 @@ func applyMigrationsFS(ctx context.Context, db *sql.DB, fsys fs.FS) error {
 				if trimmed == "" {
 					continue
 				}
-				if stripSQLLineComment(trimmed) == "" {
-					continue
-				}
+				// splitSQLStatements 已经移除了行注释，因此无需再次调用 stripSQLLineComment
 				if _, err := db.ExecContext(ctx, trimmed); err != nil {
 					return fmt.Errorf("apply migration %s (non-tx statement %d): %w", name, i+1, err)
 				}
@@ -467,7 +465,7 @@ func validateMigrationExecutionMode(name, content string) (bool, error) {
 
 	statements := splitSQLStatements(content)
 	for _, stmt := range statements {
-		normalizedStmt := strings.ToUpper(stripSQLLineComment(strings.TrimSpace(stmt)))
+		normalizedStmt := strings.ToUpper(strings.TrimSpace(stmt))
 		if normalizedStmt == "" {
 			continue
 		}
@@ -493,14 +491,21 @@ func validateMigrationExecutionMode(name, content string) (bool, error) {
 	return true, nil
 }
 
+// splitSQLStatements splits SQL content into individual statements by semicolon,
+// properly handling line comments (--) to avoid splitting on semicolons inside comments.
 func splitSQLStatements(content string) []string {
-	parts := strings.Split(content, ";")
+	// First remove line comments to ensure semicolons in comments don't affect splitting
+	cleanContent := stripSQLLineComment(content)
+
+	// Split by semicolon
+	parts := strings.Split(cleanContent, ";")
 	out := make([]string, 0, len(parts))
 	for _, part := range parts {
-		if strings.TrimSpace(part) == "" {
+		trimmed := strings.TrimSpace(part)
+		if trimmed == "" {
 			continue
 		}
-		out = append(out, part)
+		out = append(out, trimmed)
 	}
 	return out
 }
