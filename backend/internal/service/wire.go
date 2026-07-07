@@ -544,7 +544,7 @@ var ProviderSet = wire.NewSet(
 	NewGroupService,
 	NewAccountService,
 	NewProxyService,
-	NewRedeemService,
+	ProvideRedeemService,
 	NewPromoService,
 	NewUsageService,
 	NewDashboardService,
@@ -645,6 +645,25 @@ func ProvideReferralRewardService(entClient *dbent.Client, giftEngine *gift.Engi
 	return svc
 }
 
+// ProvideRedeemService 创建 RedeemService 并注入邀请奖励服务（兑换赚配额）。
+// 注入放在 provider 内而非 wire_gen 手工 setter，避免 go generate 冲掉
+// （参考 gift_engine 的 SetPriorityGiftChecker 事故）。
+func ProvideRedeemService(
+	redeemRepo RedeemCodeRepository,
+	userRepo UserRepository,
+	subscriptionService *SubscriptionService,
+	cache RedeemCache,
+	billingCacheService *BillingCacheService,
+	entClient *dbent.Client,
+	authCacheInvalidator APIKeyAuthCacheInvalidator,
+	affiliateService *AffiliateService,
+	referralReward *ReferralRewardService,
+) *RedeemService {
+	svc := NewRedeemService(redeemRepo, userRepo, subscriptionService, cache, billingCacheService, entClient, authCacheInvalidator, affiliateService)
+	svc.SetReferralRewardService(referralReward)
+	return svc
+}
+
 // ProvideUserPlatformQuotaUsageFlusher 创建并启动 UserPlatformQuotaUsageFlusher。
 func ProvideUserPlatformQuotaUsageFlusher(cfg *config.Config, cache BillingCache, quotaRepo UserPlatformQuotaRepository, tw *TimingWheelService) *UserPlatformQuotaUsageFlusher {
 	svc := NewUserPlatformQuotaUsageFlusher(cfg, cache, quotaRepo, tw)
@@ -666,13 +685,16 @@ func ProvideBalanceNotifyService(emailService *EmailService, settingRepo Setting
 }
 
 // ProvidePaymentService creates PaymentService and attaches notification email delivery.
-func ProvidePaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService, notificationEmailService *NotificationEmailService, giftEngine *gift.Engine) *PaymentService {
+func ProvidePaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService, notificationEmailService *NotificationEmailService, giftEngine *gift.Engine, referralReward *ReferralRewardService) *PaymentService {
 	svc := NewPaymentService(entClient, registry, loadBalancer, redeemService, subscriptionSvc, configService, userRepo, groupRepo, affiliateService, giftEngine)
 	svc.SetNotificationEmailService(notificationEmailService)
 	// 注入充值折扣仓库（entClient 为 nil 时降级为关闭）
 	if entClient != nil {
 		svc.SetRechargeDiscountRepo(NewRechargeDiscountRepoAdapter(entClient))
 	}
+	// 注入邀请奖励服务（充值赚配额）。放在 provider 内而非 wire_gen 手工 setter，
+	// 避免 go generate 冲掉（参考 gift_engine 的 SetPriorityGiftChecker 事故）。
+	svc.SetReferralRewardService(referralReward)
 	return svc
 }
 

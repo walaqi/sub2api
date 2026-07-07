@@ -884,6 +884,33 @@ func TestIntegration_Referral_QuotaDisabled_UnlimitedGrant(t *testing.T) {
 }
 
 // ==========================================================================
+// Quota Test H: 支付订单 redeem 级被 ContextSkipRedeemReferralQuota 抑制，不与订单级双计
+// ==========================================================================
+
+func TestIntegration_Referral_RedeemSkipContext_SuppressesQuotaAccrual(t *testing.T) {
+	client, db := setupReferralIntegrationDB(t)
+	referralSvc := buildReferralServiceWithQuota(t, client, db, "50", "10")
+	ctx := context.Background()
+
+	inviterID := int64(800044)
+	ensureTestUser(t, db, inviterID)
+	ensureAffiliateRow(t, db, inviterID)
+
+	redeemSvc := &RedeemService{referralReward: referralSvc}
+
+	// 带 skip context（模拟支付订单触发的 redeem）→ 不赚配额
+	redeemSvc.tryAccrueReferralQuotaForRedeem(ContextSkipRedeemReferralQuota(ctx), inviterID, 900030, 100)
+	var quota int
+	require.NoError(t, db.QueryRow("SELECT inviter_reward_quota FROM user_affiliates WHERE user_id=$1", inviterID).Scan(&quota))
+	assert.Equal(t, 0, quota, "带 skip context 时不应赚配额（订单级已处理）")
+
+	// 不带 skip context（直接兑换码）→ 正常赚配额
+	redeemSvc.tryAccrueReferralQuotaForRedeem(ctx, inviterID, 900031, 100)
+	require.NoError(t, db.QueryRow("SELECT inviter_reward_quota FROM user_affiliates WHERE user_id=$1", inviterID).Scan(&quota))
+	assert.Equal(t, 20, quota, "直接兑换码应正常赚配额")
+}
+
+// ==========================================================================
 // Test 11: OnInviterBound 重放/并发 — 只产生一个 referral_invitee 赠金
 // ==========================================================================
 

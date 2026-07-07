@@ -607,6 +607,10 @@ func (s *ReferralRewardService) accrueQuotaTx(ctx context.Context, userID int64,
 // backfillPendingInviterRewards 扫描邀请人名下被 quota 卡住的 pending 奖励，逐笔立即补发（best-effort）。
 // 每个 invitee 独立事务：锁其 tracker 行 → 调唯一发奖入口 grantInviterRewardLocked（锁序 tracker→affiliate）。
 // quota 耗尽后 grantInviterRewardLocked 的 quota<=0 分支自然停发，剩余仍 blocked。
+//
+// 失败处理：backfill 是充值路径上的旁路补偿，不阻断充值；且未补发的 pending 仍由被邀请人
+// 下次消费兜底。这里刻意降级为带 REFERRAL_QUOTA_BACKFILL_FAILED 标记的日志（而非支付审计表）——
+// 因为本服务不持有支付审计写入器，且 backfill 不绑定单一订单；用统一标记便于 ops 从日志检索。
 func (s *ReferralRewardService) backfillPendingInviterRewards(ctx context.Context, inviterID int64) {
 	if s == nil || s.entClient == nil || s.giftEngine == nil {
 		return
@@ -618,7 +622,7 @@ func (s *ReferralRewardService) backfillPendingInviterRewards(ctx context.Contex
 		 WHERE inviter_id = $1 AND inviter_reward_granted = FALSE AND inviter_reward_blocked_by_quota = TRUE
 		 ORDER BY created_at`, inviterID)
 	if err != nil {
-		log.Printf("[referral] backfill list pending for inviter=%d failed: %v", inviterID, err)
+		log.Printf("[referral] REFERRAL_QUOTA_BACKFILL_FAILED list pending for inviter=%d failed: %v", inviterID, err)
 		return
 	}
 	var inviteeIDs []int64
@@ -626,7 +630,7 @@ func (s *ReferralRewardService) backfillPendingInviterRewards(ctx context.Contex
 		var id int64
 		if scanErr := rows.Scan(&id); scanErr != nil {
 			_ = rows.Close()
-			log.Printf("[referral] backfill scan invitee for inviter=%d failed: %v", inviterID, scanErr)
+			log.Printf("[referral] REFERRAL_QUOTA_BACKFILL_FAILED scan invitee for inviter=%d failed: %v", inviterID, scanErr)
 			return
 		}
 		inviteeIDs = append(inviteeIDs, id)
@@ -636,7 +640,7 @@ func (s *ReferralRewardService) backfillPendingInviterRewards(ctx context.Contex
 	for _, inviteeID := range inviteeIDs {
 		if err := s.backfillOnePendingReward(ctx, inviteeID); err != nil {
 			// best-effort：单笔失败记录后继续，剩余 pending 由下次消费兜底。
-			log.Printf("[referral] backfill grant for invitee=%d failed: %v", inviteeID, err)
+			log.Printf("[referral] REFERRAL_QUOTA_BACKFILL_FAILED grant for inviter=%d invitee=%d failed: %v", inviterID, inviteeID, err)
 		}
 	}
 }
