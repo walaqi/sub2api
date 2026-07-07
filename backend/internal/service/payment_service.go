@@ -191,6 +191,12 @@ type PaymentService struct {
 	notificationEmailService *NotificationEmailService
 	giftEngine               *gift.Engine
 	rechargeDiscountRepo     RechargeDiscountRepo
+	referralReward           *ReferralRewardService // 可选，nil 时不赚邀请奖励配额
+}
+
+// SetReferralRewardService 注入邀请奖励服务（可选依赖，nil 时充值不赚配额）。
+func (s *PaymentService) SetReferralRewardService(svc *ReferralRewardService) {
+	s.referralReward = svc
 }
 
 func NewPaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService, giftEngine *gift.Engine) *PaymentService {

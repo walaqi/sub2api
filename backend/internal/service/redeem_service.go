@@ -32,12 +32,23 @@ const (
 )
 
 type ctxKeySkipRedeemAffiliate struct{}
+type ctxKeySkipRedeemReferralQuota struct{}
 
 // ContextSkipRedeemAffiliate returns a context that suppresses the redeem-level
 // affiliate rebate. Used by payment fulfillment which handles rebate separately
 // via applyAffiliateRebateForOrder (with audit-log deduplication).
 func ContextSkipRedeemAffiliate(ctx context.Context) context.Context {
 	return context.WithValue(ctx, ctxKeySkipRedeemAffiliate{}, true)
+}
+
+// ContextSkipRedeemReferralQuota returns a context that suppresses redeem-level
+// inviter-reward quota accrual. Used by payment fulfillment, where the balance
+// recharge is credited via a redeem code but the quota is accrued at the order
+// level (applyReferralQuotaForOrder) to avoid double-counting. Deliberately a
+// distinct key from ContextSkipRedeemAffiliate so the two side effects stay
+// independent.
+func ContextSkipRedeemReferralQuota(ctx context.Context) context.Context {
+	return context.WithValue(ctx, ctxKeySkipRedeemReferralQuota{}, true)
 }
 
 // RedeemCache defines cache operations for redeem service
@@ -142,6 +153,12 @@ type RedeemService struct {
 	entClient            *dbent.Client
 	authCacheInvalidator APIKeyAuthCacheInvalidator
 	affiliateService     *AffiliateService
+	referralReward       *ReferralRewardService // 可选，nil 时兑换不赚邀请奖励配额
+}
+
+// SetReferralRewardService 注入邀请奖励服务（可选依赖，nil 时兑换不赚配额）。
+func (s *RedeemService) SetReferralRewardService(svc *ReferralRewardService) {
+	s.referralReward = svc
 }
 
 // NewRedeemService 创建兑换码服务实例
@@ -498,6 +515,7 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 	// 余额类正数兑换码触发邀请返利（best-effort，失败不影响兑换结果）
 	if redeemCode.Type == RedeemTypeBalance && redeemCode.Value > 0 {
 		s.tryAccrueAffiliateRebateForRedeem(ctx, userID, redeemCode.Value)
+		s.tryAccrueReferralQuotaForRedeem(ctx, userID, redeemCode.ID, redeemCode.Value)
 	}
 
 	// 重新获取更新后的兑换码
@@ -566,6 +584,21 @@ func (s *RedeemService) tryAccrueAffiliateRebateForRedeem(ctx context.Context, u
 	}
 	if rebate > 0 {
 		logger.LegacyPrintf("service.redeem", "[Redeem] affiliate rebate accrued %.8f for inviter of user %d", rebate, userID)
+	}
+}
+
+// tryAccrueReferralQuotaForRedeem 兑换码入账后累积「邀请人达标奖励」发放机会（best-effort）。
+// 支付订单触发的 Redeem 由 ContextSkipRedeemReferralQuota 抑制（订单级 applyReferralQuotaForOrder
+// 已处理），避免双计。配额开关关时 AccrueInviterRewardQuota 内部直接跳过。
+func (s *RedeemService) tryAccrueReferralQuotaForRedeem(ctx context.Context, userID int64, redeemCodeID int64, amount float64) {
+	if ctx.Value(ctxKeySkipRedeemReferralQuota{}) != nil {
+		return
+	}
+	if s.referralReward == nil {
+		return
+	}
+	if err := s.referralReward.AccrueInviterRewardQuota(ctx, userID, ReferralQuotaSourceRedeemCode, redeemCodeID, amount); err != nil {
+		logger.LegacyPrintf("service.redeem", "[Redeem] referral quota accrue failed for user %d code %d amount %.2f: %v", userID, redeemCodeID, amount, err)
 	}
 }
 

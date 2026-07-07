@@ -75,6 +75,20 @@
             </div>
           </div>
 
+          <!-- Inviter reward quota (only when quota feature enabled) -->
+          <div v-if="status?.inviter_reward_quota_enabled" class="card border-indigo-200 bg-indigo-50 p-6 dark:border-indigo-800/50 dark:bg-indigo-900/20">
+            <div class="flex items-start gap-3">
+              <Icon name="sparkles" size="md" class="mt-0.5 text-indigo-600 dark:text-indigo-400" />
+              <div>
+                <h3 class="text-sm font-semibold text-indigo-800 dark:text-indigo-200">{{ t('referral.rewardQuotaTitle') }}</h3>
+                <p class="mt-1 text-sm text-indigo-700 dark:text-indigo-300">
+                  {{ t('referral.rewardQuotaRemaining', { count: status.inviter_reward_quota ?? 0 }) }}
+                </p>
+                <p class="mt-1 text-xs text-indigo-600/80 dark:text-indigo-300/70">{{ t('referral.rewardQuotaHint') }}</p>
+              </div>
+            </div>
+          </div>
+
           <!-- Inviter progress -->
           <div class="card p-6">
             <h2 class="text-sm font-semibold text-gray-700 dark:text-dark-200">{{ t('referral.inviterProgressTitle') }}</h2>
@@ -110,9 +124,9 @@
                 </div>
                 <span
                   class="rounded-md px-2 py-0.5 text-xs font-medium"
-                  :class="item.granted ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : item.reward_eligible === false ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-gray-100 text-gray-600 dark:bg-dark-700 dark:text-dark-300'"
+                  :class="item.granted ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : item.blocked_by_quota ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : item.reward_eligible === false ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-gray-100 text-gray-600 dark:bg-dark-700 dark:text-dark-300'"
                 >
-                  {{ item.granted ? t('referral.statusGranted') : item.reward_eligible === false ? t('referral.statusIneligible') : t('referral.statusPending') }}
+                  {{ item.granted ? t('referral.statusGranted') : item.blocked_by_quota ? t('referral.statusBlockedByQuota') : item.reward_eligible === false ? t('referral.statusIneligible') : t('referral.statusPending') }}
                 </span>
               </div>
             </div>
@@ -156,6 +170,8 @@ interface ReferralStatusResponse {
   eligibility_recharge_min_amount: number
   aff_code: string
   invitee_reward: { granted: boolean; amount: number } | null
+  inviter_reward_quota_enabled: boolean
+  inviter_reward_quota: number
   inviter_progress: Array<{
     invitee_name: string
     invitee_email: string
@@ -163,6 +179,7 @@ interface ReferralStatusResponse {
     threshold: number
     granted: boolean
     reward_eligible: boolean
+    blocked_by_quota: boolean
   }>
 }
 

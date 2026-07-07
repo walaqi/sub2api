@@ -32,13 +32,17 @@ func setupReferralIntegrationDB(t *testing.T) (*dbent.Client, *sql.DB) {
 	_, _ = sqlDB.Exec("DELETE FROM referral_reward_tracker WHERE invitee_id >= 800000")
 	_, _ = sqlDB.Exec("DELETE FROM recharge_discount_applications WHERE user_id >= 800000 AND user_id < 900000")
 	_, _ = sqlDB.Exec("DELETE FROM user_recharge_discounts WHERE user_id >= 800000 AND user_id < 900000")
+	_, _ = sqlDB.Exec("DELETE FROM referral_recharge_quota_grants WHERE user_id >= 800000 AND user_id < 900000")
+	_, _ = sqlDB.Exec("DELETE FROM user_affiliates WHERE user_id >= 800000 AND user_id < 900000")
 
 	t.Cleanup(func() {
 		_, _ = sqlDB.Exec("DELETE FROM referral_spend_events WHERE invitee_id >= 800000")
 		_, _ = sqlDB.Exec("DELETE FROM referral_reward_tracker WHERE invitee_id >= 800000")
 		_, _ = sqlDB.Exec("DELETE FROM recharge_discount_applications WHERE user_id >= 800000 AND user_id < 900000")
 		_, _ = sqlDB.Exec("DELETE FROM user_recharge_discounts WHERE user_id >= 800000 AND user_id < 900000")
+		_, _ = sqlDB.Exec("DELETE FROM referral_recharge_quota_grants WHERE user_id >= 800000 AND user_id < 900000")
 		_, _ = sqlDB.Exec("DELETE FROM user_gifts WHERE user_id >= 800000")
+		_, _ = sqlDB.Exec("DELETE FROM user_affiliates WHERE user_id >= 800000 AND user_id < 900000")
 		_, _ = sqlDB.Exec("DELETE FROM users WHERE id >= 800000 AND id < 900000")
 		_ = client.Close()
 		_ = sqlDB.Close()
@@ -108,6 +112,10 @@ type integrationSettingRepoStub struct {
 	enabled          bool
 	inviterGiftMode  string
 	inviterGiftRatio string
+	// 邀请人达标奖励发放次数配额（默认关闭，行为不变）
+	quotaEnabled      bool
+	quotaRechargeStep string // 空=默认 50
+	quotaPerBatch     string // 空=默认 10
 }
 
 func (s *integrationSettingRepoStub) Get(_ context.Context, key string) (*Setting, error) {
@@ -147,6 +155,21 @@ func (s *integrationSettingRepoStub) GetValue(_ context.Context, key string) (st
 		return "10", nil
 	case SettingKeyReferralDiscountValidDays:
 		return "30", nil
+	case SettingKeyReferralInviterRewardQuotaEnabled:
+		if s.quotaEnabled {
+			return "true", nil
+		}
+		return "false", nil
+	case SettingKeyReferralInviterRewardQuotaRechargeStep:
+		if s.quotaRechargeStep != "" {
+			return s.quotaRechargeStep, nil
+		}
+		return "50", nil
+	case SettingKeyReferralInviterRewardQuotaPerBatch:
+		if s.quotaPerBatch != "" {
+			return s.quotaPerBatch, nil
+		}
+		return "10", nil
 	}
 	return "", fmt.Errorf("key not found: %s", key)
 }
@@ -606,6 +629,285 @@ func TestIntegration_Referral_OnInviterBound_EligibleInviter_GrantsInviteeGift(t
 	err = db.QueryRow("SELECT COUNT(*) FROM user_recharge_discounts WHERE user_id = $1 AND source = 'referral_inherit'", inviteeID).Scan(&inheritDiscountCount)
 	require.NoError(t, err)
 	assert.Equal(t, 1, inheritDiscountCount, "资格为 true 时应继承折扣")
+}
+
+// ensureAffiliateRow 为用户建一个独立 user_affiliates 行（无 inviter），供配额赚/花测试用。
+func ensureAffiliateRow(t *testing.T, db *sql.DB, userID int64) {
+	t.Helper()
+	_, err := db.Exec(`INSERT INTO user_affiliates (user_id, aff_code, aff_count, aff_quota, aff_history_quota)
+		VALUES ($1, $2, 0, 0, 0)
+		ON CONFLICT (user_id) DO NOTHING`,
+		userID, fmt.Sprintf("referral_test_%d", userID))
+	require.NoError(t, err)
+}
+
+func buildReferralServiceWithQuota(t *testing.T, client *dbent.Client, db *sql.DB, step, perBatch string) *ReferralRewardService {
+	t.Helper()
+	giftEngine := gift.NewEngine(client, db)
+	discountRepo := NewRechargeDiscountRepoAdapter(client)
+	settingSvc := &SettingService{settingRepo: &integrationSettingRepoStub{
+		enabled:           true,
+		quotaEnabled:      true,
+		quotaRechargeStep: step,
+		quotaPerBatch:     perBatch,
+	}}
+	return NewReferralRewardService(client, giftEngine, settingSvc, discountRepo, nil)
+}
+
+// ==========================================================================
+// Quota Test A: 充值赚配额 — carry 跨次累积
+// ==========================================================================
+
+func TestIntegration_Referral_QuotaAccrual_CarryAccumulates(t *testing.T) {
+	client, db := setupReferralIntegrationDB(t)
+	svc := buildReferralServiceWithQuota(t, client, db, "50", "10")
+	ctx := context.Background()
+
+	inviterID := int64(800030)
+	ensureTestUser(t, db, inviterID)
+	ensureAffiliateRow(t, db, inviterID)
+
+	// 充值 70 → floor(70/50)=1 批 → +10 机会，carry=20
+	require.NoError(t, svc.AccrueInviterRewardQuota(ctx, inviterID, ReferralQuotaSourcePaymentOrder, 900001, 70))
+	var quota int
+	var carry float64
+	require.NoError(t, db.QueryRow("SELECT inviter_reward_quota, inviter_reward_recharge_carry::double precision FROM user_affiliates WHERE user_id=$1", inviterID).Scan(&quota, &carry))
+	assert.Equal(t, 10, quota)
+	assert.InDelta(t, 20.0, carry, 0.001)
+
+	// 再充值 30 → carry=50 → floor(50/50)=1 批 → +10 机会（共20），carry=0
+	require.NoError(t, svc.AccrueInviterRewardQuota(ctx, inviterID, ReferralQuotaSourcePaymentOrder, 900002, 30))
+	require.NoError(t, db.QueryRow("SELECT inviter_reward_quota, inviter_reward_recharge_carry::double precision FROM user_affiliates WHERE user_id=$1", inviterID).Scan(&quota, &carry))
+	assert.Equal(t, 20, quota)
+	assert.InDelta(t, 0.0, carry, 0.001)
+}
+
+// ==========================================================================
+// Quota Test B: 赚配额幂等 — 同一 source 重放不重复赚
+// ==========================================================================
+
+func TestIntegration_Referral_QuotaAccrual_Idempotent(t *testing.T) {
+	client, db := setupReferralIntegrationDB(t)
+	svc := buildReferralServiceWithQuota(t, client, db, "50", "10")
+	ctx := context.Background()
+
+	inviterID := int64(800031)
+	ensureTestUser(t, db, inviterID)
+	ensureAffiliateRow(t, db, inviterID)
+
+	require.NoError(t, svc.AccrueInviterRewardQuota(ctx, inviterID, ReferralQuotaSourcePaymentOrder, 900010, 100))
+	require.NoError(t, svc.AccrueInviterRewardQuota(ctx, inviterID, ReferralQuotaSourcePaymentOrder, 900010, 100)) // 同 source 重放
+
+	var quota int
+	require.NoError(t, db.QueryRow("SELECT inviter_reward_quota FROM user_affiliates WHERE user_id=$1", inviterID).Scan(&quota))
+	assert.Equal(t, 20, quota, "重放不应重复赚（应只 +20 而非 +40）")
+
+	var grantCount int
+	require.NoError(t, db.QueryRow("SELECT COUNT(*) FROM referral_recharge_quota_grants WHERE source_type=$1 AND source_id=$2", ReferralQuotaSourcePaymentOrder, 900010).Scan(&grantCount))
+	assert.Equal(t, 1, grantCount)
+}
+
+// ==========================================================================
+// Quota Test C: quota=0 达标 → 不发、置 blocked flag
+// ==========================================================================
+
+func TestIntegration_Referral_QuotaZero_BlocksAndFlagsPending(t *testing.T) {
+	client, db := setupReferralIntegrationDB(t)
+	svc := buildReferralServiceWithQuota(t, client, db, "50", "10")
+	ctx := context.Background()
+
+	inviterID := int64(800032)
+	inviteeID := int64(800033)
+	ensureTestUser(t, db, inviterID)
+	ensureTestUser(t, db, inviteeID)
+	ensureAffiliateRow(t, db, inviterID) // quota=0
+	insertTracker(t, db, inviterID, inviteeID, 10)
+
+	// 达标（$12 > $10）但 quota=0 → 不发、置 blocked
+	require.NoError(t, svc.TrackSpendAndMaybeGrantInviterReward(ctx, inviteeID, "billing:qzero:key1", 12.0))
+
+	var granted, blocked bool
+	require.NoError(t, db.QueryRow("SELECT inviter_reward_granted, inviter_reward_blocked_by_quota FROM referral_reward_tracker WHERE invitee_id=$1", inviteeID).Scan(&granted, &blocked))
+	assert.False(t, granted, "quota=0 时不应发放")
+	assert.True(t, blocked, "quota=0 时应置 blocked flag")
+
+	var giftCount int
+	require.NoError(t, db.QueryRow("SELECT COUNT(*) FROM user_gifts WHERE user_id=$1 AND source='referral_inviter'", inviterID).Scan(&giftCount))
+	assert.Equal(t, 0, giftCount)
+}
+
+// ==========================================================================
+// Quota Test D: quota>0 达标 → 发放、扣一次机会、清 blocked
+// ==========================================================================
+
+func TestIntegration_Referral_QuotaAvailable_GrantsAndConsumes(t *testing.T) {
+	client, db := setupReferralIntegrationDB(t)
+	svc := buildReferralServiceWithQuota(t, client, db, "50", "10")
+	ctx := context.Background()
+
+	inviterID := int64(800034)
+	inviteeID := int64(800035)
+	ensureTestUser(t, db, inviterID)
+	ensureTestUser(t, db, inviteeID)
+	ensureAffiliateRow(t, db, inviterID)
+	// 预置 quota=3
+	_, err := db.Exec("UPDATE user_affiliates SET inviter_reward_quota=3 WHERE user_id=$1", inviterID)
+	require.NoError(t, err)
+	insertTracker(t, db, inviterID, inviteeID, 10)
+
+	require.NoError(t, svc.TrackSpendAndMaybeGrantInviterReward(ctx, inviteeID, "billing:qavail:key1", 12.0))
+
+	var granted, blocked bool
+	require.NoError(t, db.QueryRow("SELECT inviter_reward_granted, inviter_reward_blocked_by_quota FROM referral_reward_tracker WHERE invitee_id=$1", inviteeID).Scan(&granted, &blocked))
+	assert.True(t, granted)
+	assert.False(t, blocked)
+
+	var quota, consumed int
+	require.NoError(t, db.QueryRow("SELECT inviter_reward_quota, inviter_reward_quota_consumed_total FROM user_affiliates WHERE user_id=$1", inviterID).Scan(&quota, &consumed))
+	assert.Equal(t, 2, quota, "应扣一次机会")
+	assert.Equal(t, 1, consumed)
+
+	var giftCount int
+	require.NoError(t, db.QueryRow("SELECT COUNT(*) FROM user_gifts WHERE user_id=$1 AND source='referral_inviter'", inviterID).Scan(&giftCount))
+	assert.Equal(t, 1, giftCount)
+}
+
+// ==========================================================================
+// Quota Test E: 充值后立即补发被卡 pending
+// ==========================================================================
+
+func TestIntegration_Referral_RechargeBackfillsPending(t *testing.T) {
+	client, db := setupReferralIntegrationDB(t)
+	svc := buildReferralServiceWithQuota(t, client, db, "50", "10")
+	ctx := context.Background()
+
+	inviterID := int64(800036)
+	inviteeID := int64(800037)
+	ensureTestUser(t, db, inviterID)
+	ensureTestUser(t, db, inviteeID)
+	ensureAffiliateRow(t, db, inviterID) // quota=0
+	insertTracker(t, db, inviterID, inviteeID, 10)
+
+	// 达标但 quota=0 → pending blocked
+	require.NoError(t, svc.TrackSpendAndMaybeGrantInviterReward(ctx, inviteeID, "billing:bf1:key1", 12.0))
+	var blocked, granted bool
+	require.NoError(t, db.QueryRow("SELECT inviter_reward_blocked_by_quota, inviter_reward_granted FROM referral_reward_tracker WHERE invitee_id=$1", inviteeID).Scan(&blocked, &granted))
+	require.True(t, blocked)
+	require.False(t, granted)
+
+	// 邀请人充值 50 → +10 机会 → 立即补发
+	require.NoError(t, svc.AccrueInviterRewardQuota(ctx, inviterID, ReferralQuotaSourcePaymentOrder, 900020, 50))
+
+	require.NoError(t, db.QueryRow("SELECT inviter_reward_blocked_by_quota, inviter_reward_granted FROM referral_reward_tracker WHERE invitee_id=$1", inviteeID).Scan(&blocked, &granted))
+	assert.True(t, granted, "充值后应立即补发")
+	assert.False(t, blocked, "补发后清 blocked flag")
+
+	var giftCount int
+	require.NoError(t, db.QueryRow("SELECT COUNT(*) FROM user_gifts WHERE user_id=$1 AND source='referral_inviter'", inviterID).Scan(&giftCount))
+	assert.Equal(t, 1, giftCount)
+
+	// 补发消耗一次机会：quota 10 → 9
+	var quota int
+	require.NoError(t, db.QueryRow("SELECT inviter_reward_quota FROM user_affiliates WHERE user_id=$1", inviterID).Scan(&quota))
+	assert.Equal(t, 9, quota)
+}
+
+// ==========================================================================
+// Quota Test F: 补发受 quota 数量限制 — 机会不足时部分补发，剩余仍 blocked
+// ==========================================================================
+
+func TestIntegration_Referral_BackfillLimitedByQuota(t *testing.T) {
+	client, db := setupReferralIntegrationDB(t)
+	svc := buildReferralServiceWithQuota(t, client, db, "50", "10")
+	ctx := context.Background()
+
+	inviterID := int64(800038)
+	ensureTestUser(t, db, inviterID)
+	ensureAffiliateRow(t, db, inviterID)
+
+	// 3 个被邀请人全部达标但 quota=0 → 全部 blocked
+	inviteeIDs := []int64{800039, 800040, 800041}
+	for i, invID := range inviteeIDs {
+		ensureTestUser(t, db, invID)
+		insertTracker(t, db, inviterID, invID, 10)
+		require.NoError(t, svc.TrackSpendAndMaybeGrantInviterReward(ctx, invID, fmt.Sprintf("billing:bl_%d:key1", i), 12.0))
+	}
+	var blockedCount int
+	require.NoError(t, db.QueryRow("SELECT COUNT(*) FROM referral_reward_tracker WHERE inviter_id=$1 AND inviter_reward_blocked_by_quota=TRUE", inviterID).Scan(&blockedCount))
+	require.Equal(t, 3, blockedCount)
+
+	// 手动只给 2 次机会（模拟 step/perBatch 下不足以覆盖全部），走 backfill
+	_, err := db.Exec("UPDATE user_affiliates SET inviter_reward_quota=2 WHERE user_id=$1", inviterID)
+	require.NoError(t, err)
+	svc.backfillPendingInviterRewards(ctx, inviterID)
+
+	var grantedCount, stillBlocked int
+	require.NoError(t, db.QueryRow("SELECT COUNT(*) FROM referral_reward_tracker WHERE inviter_id=$1 AND inviter_reward_granted=TRUE", inviterID).Scan(&grantedCount))
+	require.NoError(t, db.QueryRow("SELECT COUNT(*) FROM referral_reward_tracker WHERE inviter_id=$1 AND inviter_reward_granted=FALSE AND inviter_reward_blocked_by_quota=TRUE", inviterID).Scan(&stillBlocked))
+	assert.Equal(t, 2, grantedCount, "只应补发 2 笔（机会数）")
+	assert.Equal(t, 1, stillBlocked, "剩余 1 笔仍 blocked")
+
+	var quota int
+	require.NoError(t, db.QueryRow("SELECT inviter_reward_quota FROM user_affiliates WHERE user_id=$1", inviterID).Scan(&quota))
+	assert.Equal(t, 0, quota)
+}
+
+// ==========================================================================
+// Quota Test G: 开关关闭时行为不变（无限发放，不赚不花）
+// ==========================================================================
+
+func TestIntegration_Referral_QuotaDisabled_UnlimitedGrant(t *testing.T) {
+	client, db := setupReferralIntegrationDB(t)
+	svc := buildReferralService(t, client, db, true) // 配额开关关（默认）
+	ctx := context.Background()
+
+	inviterID := int64(800042)
+	inviteeID := int64(800043)
+	ensureTestUser(t, db, inviterID)
+	ensureTestUser(t, db, inviteeID)
+	ensureAffiliateRow(t, db, inviterID) // quota=0，但开关关时不看 quota
+	insertTracker(t, db, inviterID, inviteeID, 10)
+
+	// 开关关：即使 quota=0 也应发放（无限行为）
+	require.NoError(t, svc.TrackSpendAndMaybeGrantInviterReward(ctx, inviteeID, "billing:qdis:key1", 12.0))
+
+	var granted, blocked bool
+	require.NoError(t, db.QueryRow("SELECT inviter_reward_granted, inviter_reward_blocked_by_quota FROM referral_reward_tracker WHERE invitee_id=$1", inviteeID).Scan(&granted, &blocked))
+	assert.True(t, granted, "开关关时无限发放")
+	assert.False(t, blocked)
+
+	// quota 不被消耗（仍 0），carry 不变
+	var quota, consumed int
+	require.NoError(t, db.QueryRow("SELECT inviter_reward_quota, inviter_reward_quota_consumed_total FROM user_affiliates WHERE user_id=$1", inviterID).Scan(&quota, &consumed))
+	assert.Equal(t, 0, quota)
+	assert.Equal(t, 0, consumed)
+}
+
+// ==========================================================================
+// Quota Test H: 支付订单 redeem 级被 ContextSkipRedeemReferralQuota 抑制，不与订单级双计
+// ==========================================================================
+
+func TestIntegration_Referral_RedeemSkipContext_SuppressesQuotaAccrual(t *testing.T) {
+	client, db := setupReferralIntegrationDB(t)
+	referralSvc := buildReferralServiceWithQuota(t, client, db, "50", "10")
+	ctx := context.Background()
+
+	inviterID := int64(800044)
+	ensureTestUser(t, db, inviterID)
+	ensureAffiliateRow(t, db, inviterID)
+
+	redeemSvc := &RedeemService{referralReward: referralSvc}
+
+	// 带 skip context（模拟支付订单触发的 redeem）→ 不赚配额
+	redeemSvc.tryAccrueReferralQuotaForRedeem(ContextSkipRedeemReferralQuota(ctx), inviterID, 900030, 100)
+	var quota int
+	require.NoError(t, db.QueryRow("SELECT inviter_reward_quota FROM user_affiliates WHERE user_id=$1", inviterID).Scan(&quota))
+	assert.Equal(t, 0, quota, "带 skip context 时不应赚配额（订单级已处理）")
+
+	// 不带 skip context（直接兑换码）→ 正常赚配额
+	redeemSvc.tryAccrueReferralQuotaForRedeem(ctx, inviterID, 900031, 100)
+	require.NoError(t, db.QueryRow("SELECT inviter_reward_quota FROM user_affiliates WHERE user_id=$1", inviterID).Scan(&quota))
+	assert.Equal(t, 20, quota, "直接兑换码应正常赚配额")
 }
 
 // ==========================================================================

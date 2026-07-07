@@ -223,7 +223,8 @@ const balanceOperatorOptions = computed(() => [
 const referralValueOptions = computed(() => [
   { value: 'has_inviter', label: t('admin.announcements.form.referralHasInviter') },
   { value: 'is_inviter', label: t('admin.announcements.form.referralIsInviter') },
-  { value: 'no_inviter', label: t('admin.announcements.form.referralNoInviter') }
+  { value: 'no_inviter', label: t('admin.announcements.form.referralNoInviter') },
+  { value: 'inviter_reward_blocked', label: t('admin.announcements.form.referralInviterRewardBlocked') }
 ])
 
 function setMode(next: Mode) {

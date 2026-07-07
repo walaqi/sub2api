@@ -450,3 +450,67 @@ func TestGetReferralRewardConfig_EligibilityInvalidFallback(t *testing.T) {
 	assert.Equal(t, ReferralEligibilityGrantModeBindKeyClaim, cfg.EligibilityGrantMode)
 	assert.Equal(t, 0.0, cfg.EligibilityRechargeMinAmount)
 }
+
+func TestGetReferralRewardConfig_InviterRewardQuotaDefaults(t *testing.T) {
+	svc := &SettingService{settingRepo: &referralConfigSettingRepoStub{values: map[string]string{}}}
+
+	cfg := svc.GetReferralRewardConfig(context.Background())
+
+	// 默认关闭，行为不变；step=50, per_batch=10
+	assert.False(t, cfg.InviterRewardQuotaEnabled)
+	assert.Equal(t, 50.0, cfg.InviterRewardQuotaRechargeStep)
+	assert.Equal(t, 10, cfg.InviterRewardQuotaPerBatch)
+}
+
+func TestGetReferralRewardConfig_InviterRewardQuotaEnabled(t *testing.T) {
+	svc := &SettingService{settingRepo: &referralConfigSettingRepoStub{values: map[string]string{
+		SettingKeyReferralInviterRewardQuotaEnabled:      "true",
+		SettingKeyReferralInviterRewardQuotaRechargeStep: "100",
+		SettingKeyReferralInviterRewardQuotaPerBatch:     "5",
+	}}}
+
+	cfg := svc.GetReferralRewardConfig(context.Background())
+
+	assert.True(t, cfg.InviterRewardQuotaEnabled)
+	assert.Equal(t, 100.0, cfg.InviterRewardQuotaRechargeStep)
+	assert.Equal(t, 5, cfg.InviterRewardQuotaPerBatch)
+}
+
+func TestGetReferralRewardConfig_InviterRewardQuotaInvalidFallback(t *testing.T) {
+	// step<=0 / per_batch<=0 / 非法值 → 回退默认值，开关按非 "true" 关闭。
+	svc := &SettingService{settingRepo: &referralConfigSettingRepoStub{values: map[string]string{
+		SettingKeyReferralInviterRewardQuotaEnabled:      "1", // 非 "true" → false
+		SettingKeyReferralInviterRewardQuotaRechargeStep: "0",
+		SettingKeyReferralInviterRewardQuotaPerBatch:     "-3",
+	}}}
+
+	cfg := svc.GetReferralRewardConfig(context.Background())
+
+	assert.False(t, cfg.InviterRewardQuotaEnabled)
+	assert.Equal(t, 50.0, cfg.InviterRewardQuotaRechargeStep)
+	assert.Equal(t, 10, cfg.InviterRewardQuotaPerBatch)
+}
+
+func TestAccrueInviterRewardQuota_QuotaDisabled_NoOp(t *testing.T) {
+	// 配额开关关时，AccrueInviterRewardQuota 直接跳过（不访问 DB，entClient=nil 也安全）。
+	svc := &ReferralRewardService{
+		settingService: &SettingService{settingRepo: &referralConfigSettingRepoStub{values: map[string]string{}}},
+	}
+	err := svc.AccrueInviterRewardQuota(context.Background(), 1, ReferralQuotaSourcePaymentOrder, 100, 50)
+	assert.NoError(t, err)
+}
+
+func TestAccrueInviterRewardQuota_NonPositiveAmount_NoOp(t *testing.T) {
+	svc := &ReferralRewardService{
+		settingService: &SettingService{settingRepo: &referralConfigSettingRepoStub{values: map[string]string{
+			SettingKeyReferralInviterRewardQuotaEnabled: "true",
+		}}},
+	}
+	assert.NoError(t, svc.AccrueInviterRewardQuota(context.Background(), 1, ReferralQuotaSourcePaymentOrder, 100, 0))
+	assert.NoError(t, svc.AccrueInviterRewardQuota(context.Background(), 1, ReferralQuotaSourcePaymentOrder, 100, -5))
+}
+
+func TestAccrueInviterRewardQuota_NilService_NoOp(t *testing.T) {
+	var svc *ReferralRewardService
+	assert.NoError(t, svc.AccrueInviterRewardQuota(context.Background(), 1, ReferralQuotaSourcePaymentOrder, 100, 50))
+}

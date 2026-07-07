@@ -309,7 +309,7 @@ export type AnnouncementConditionType = 'subscription' | 'balance' | 'referral'
 
 export type AnnouncementOperator = 'in' | 'gt' | 'gte' | 'lt' | 'lte' | 'eq'
 
-export type AnnouncementReferralValue = 'has_inviter' | 'is_inviter' | 'no_inviter'
+export type AnnouncementReferralValue = 'has_inviter' | 'is_inviter' | 'no_inviter' | 'inviter_reward_blocked'
 
 export interface AnnouncementCondition {
   type: AnnouncementConditionType
