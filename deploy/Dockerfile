@@ -18,9 +18,12 @@ ARG GOSUMDB=sum.golang.google.cn
 FROM ${NODE_IMAGE} AS frontend-builder
 
 WORKDIR /app/frontend
+ENV NODE_OPTIONS=--max-old-space-size=1536
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Install pnpm. Pinned to the fork's packageManager version (pnpm 11) so
+# Docker builds stay reproducible AND honor pnpm-workspace.yaml overrides,
+# which pnpm 9 does not read (would silently drop fork's overrides).
+RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
 
 # Install dependencies first (better caching)
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
