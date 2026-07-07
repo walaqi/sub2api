@@ -270,6 +270,10 @@ type SystemSettings struct {
 	ReferralDiscountValidDays            int     `json:"referral_discount_valid_days"`
 	ReferralEligibilityGrantMode         string  `json:"referral_eligibility_grant_mode"`
 	ReferralEligibilityRechargeMinAmount float64 `json:"referral_eligibility_recharge_min_amount"`
+	// 邀请人达标奖励发放次数配额
+	ReferralInviterRewardQuotaEnabled      bool    `json:"referral_inviter_reward_quota_enabled"`
+	ReferralInviterRewardQuotaRechargeStep float64 `json:"referral_inviter_reward_quota_recharge_step"`
+	ReferralInviterRewardQuotaPerBatch     int     `json:"referral_inviter_reward_quota_per_batch"`
 
 	// OpenAI fast/flex policy
 	OpenAIFastPolicySettings *OpenAIFastPolicySettings `json:"openai_fast_policy_settings,omitempty"`

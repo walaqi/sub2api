@@ -2063,6 +2063,17 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	settings.ReferralEligibilityRechargeMinAmount = normalizeReferralEligibilityRechargeMinAmount(settings.ReferralEligibilityRechargeMinAmount)
 	updates[SettingKeyReferralEligibilityRechargeMin] = strconv.FormatFloat(settings.ReferralEligibilityRechargeMinAmount, 'f', 2, 64)
 
+	// 邀请人达标奖励发放次数配额
+	updates[SettingKeyReferralInviterRewardQuotaEnabled] = strconv.FormatBool(settings.ReferralInviterRewardQuotaEnabled)
+	if settings.ReferralInviterRewardQuotaRechargeStep <= 0 {
+		settings.ReferralInviterRewardQuotaRechargeStep = 50
+	}
+	updates[SettingKeyReferralInviterRewardQuotaRechargeStep] = strconv.FormatFloat(settings.ReferralInviterRewardQuotaRechargeStep, 'f', 2, 64)
+	if settings.ReferralInviterRewardQuotaPerBatch <= 0 {
+		settings.ReferralInviterRewardQuotaPerBatch = 10
+	}
+	updates[SettingKeyReferralInviterRewardQuotaPerBatch] = strconv.Itoa(settings.ReferralInviterRewardQuotaPerBatch)
+
 	// 风控中心功能开关
 	updates[SettingKeyRiskControlEnabled] = strconv.FormatBool(settings.RiskControlEnabled)
 
@@ -2635,6 +2646,10 @@ type ReferralRewardConfig struct {
 	DiscountValidDays            int // 裂变继承折扣有效天数
 	EligibilityGrantMode         string
 	EligibilityRechargeMinAmount float64
+	// 邀请人达标奖励发放次数配额
+	InviterRewardQuotaEnabled      bool    // 配额总开关（false=无限发放，行为不变）
+	InviterRewardQuotaRechargeStep float64 // 每档充值额 (USD)
+	InviterRewardQuotaPerBatch     int     // 每档给的机会数
 }
 
 const (
@@ -2659,16 +2674,19 @@ func normalizeReferralEligibilityRechargeMinAmount(v float64) float64 {
 // GetReferralRewardConfig 读取双向邀请赠金配置，缺失时使用默认值。
 func (s *SettingService) GetReferralRewardConfig(ctx context.Context) ReferralRewardConfig {
 	cfg := ReferralRewardConfig{
-		InviteeAmount:                10,
-		InviteeExpiryDays:            2,
-		InviterAmount:                10,
-		InviterExpiryDays:            30,
-		InviterGiftMode:              "priority",
-		InviterGiftRatio:             0.5,
-		SpendThreshold:               10,
-		DiscountValidDays:            30,
-		EligibilityGrantMode:         ReferralEligibilityGrantModeBindKeyClaim,
-		EligibilityRechargeMinAmount: 0,
+		InviteeAmount:                  10,
+		InviteeExpiryDays:              2,
+		InviterAmount:                  10,
+		InviterExpiryDays:              30,
+		InviterGiftMode:                "priority",
+		InviterGiftRatio:               0.5,
+		SpendThreshold:                 10,
+		DiscountValidDays:              30,
+		EligibilityGrantMode:           ReferralEligibilityGrantModeBindKeyClaim,
+		EligibilityRechargeMinAmount:   0,
+		InviterRewardQuotaEnabled:      false,
+		InviterRewardQuotaRechargeStep: 50,
+		InviterRewardQuotaPerBatch:     10,
 	}
 	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralInviteeAmount); err == nil {
 		if f, e := strconv.ParseFloat(v, 64); e == nil && f > 0 {
@@ -2716,6 +2734,19 @@ func (s *SettingService) GetReferralRewardConfig(ctx context.Context) ReferralRe
 	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralEligibilityRechargeMin); err == nil {
 		if f, e := strconv.ParseFloat(strings.TrimSpace(v), 64); e == nil {
 			cfg.EligibilityRechargeMinAmount = normalizeReferralEligibilityRechargeMinAmount(f)
+		}
+	}
+	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralInviterRewardQuotaEnabled); err == nil {
+		cfg.InviterRewardQuotaEnabled = strings.TrimSpace(v) == "true"
+	}
+	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralInviterRewardQuotaRechargeStep); err == nil {
+		if f, e := strconv.ParseFloat(strings.TrimSpace(v), 64); e == nil && f > 0 {
+			cfg.InviterRewardQuotaRechargeStep = f
+		}
+	}
+	if v, err := s.settingRepo.GetValue(ctx, SettingKeyReferralInviterRewardQuotaPerBatch); err == nil {
+		if d, e := strconv.Atoi(strings.TrimSpace(v)); e == nil && d > 0 {
+			cfg.InviterRewardQuotaPerBatch = d
 		}
 	}
 	return cfg
@@ -3703,6 +3734,17 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	result.ReferralEligibilityRechargeMinAmount = 0
 	if v, err := strconv.ParseFloat(strings.TrimSpace(settings[SettingKeyReferralEligibilityRechargeMin]), 64); err == nil {
 		result.ReferralEligibilityRechargeMinAmount = normalizeReferralEligibilityRechargeMinAmount(v)
+	}
+
+	// 邀请人达标奖励发放次数配额（默认关闭；step=50, per_batch=10）
+	result.ReferralInviterRewardQuotaEnabled = settings[SettingKeyReferralInviterRewardQuotaEnabled] == "true"
+	result.ReferralInviterRewardQuotaRechargeStep = 50
+	if v, err := strconv.ParseFloat(strings.TrimSpace(settings[SettingKeyReferralInviterRewardQuotaRechargeStep]), 64); err == nil && v > 0 {
+		result.ReferralInviterRewardQuotaRechargeStep = v
+	}
+	result.ReferralInviterRewardQuotaPerBatch = 10
+	if v, err := strconv.Atoi(strings.TrimSpace(settings[SettingKeyReferralInviterRewardQuotaPerBatch])); err == nil && v > 0 {
+		result.ReferralInviterRewardQuotaPerBatch = v
 	}
 
 	// 风控中心功能（默认关闭，严格 true 才启用）

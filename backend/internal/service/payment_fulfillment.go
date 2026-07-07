@@ -283,6 +283,7 @@ func (s *PaymentService) doBalance(ctx context.Context, o *dbent.PaymentOrder) e
 		if err := s.applyRechargeDiscountForOrder(ctx, o); err != nil {
 			return err
 		}
+		s.applyReferralQuotaForOrder(ctx, o)
 		// Code already created and redeemed — just mark completed
 		return s.markCompleted(ctx, o, "RECHARGE_SUCCESS")
 	case redeemActionCreate:
@@ -293,7 +294,8 @@ func (s *PaymentService) doBalance(ctx context.Context, o *dbent.PaymentOrder) e
 	case redeemActionRedeem:
 		// Code exists but unused — skip creation, proceed to redeem
 	}
-	if _, err := s.redeemService.Redeem(ContextSkipRedeemAffiliate(ctx), o.UserID, o.RechargeCode); err != nil {
+	// 抑制兑换级的 affiliate 返利与邀请奖励配额累积——两者都在订单级单独处理，避免双计。
+	if _, err := s.redeemService.Redeem(ContextSkipRedeemReferralQuota(ContextSkipRedeemAffiliate(ctx)), o.UserID, o.RechargeCode); err != nil {
 		return fmt.Errorf("redeem balance: %w", err)
 	}
 	if err := s.applyAffiliateRebateForOrder(ctx, o); err != nil {
@@ -302,7 +304,24 @@ func (s *PaymentService) doBalance(ctx context.Context, o *dbent.PaymentOrder) e
 	if err := s.applyRechargeDiscountForOrder(ctx, o); err != nil {
 		return err
 	}
+	s.applyReferralQuotaForOrder(ctx, o)
 	return s.markCompleted(ctx, o, "RECHARGE_SUCCESS")
+}
+
+// applyReferralQuotaForOrder 在充值订单入账后累积「邀请人达标奖励」发放机会（best-effort）。
+// 与 affiliate/discount 的"失败阻断+重试"不同：配额是旁路权益，失败只记日志、绝不阻断订单完成。
+// 幂等由 AccrueInviterRewardQuota 内部去重表保证。配额开关关时内部直接跳过。
+func (s *PaymentService) applyReferralQuotaForOrder(ctx context.Context, o *dbent.PaymentOrder) {
+	if s.referralReward == nil || o == nil {
+		return
+	}
+	if err := s.referralReward.AccrueInviterRewardQuota(ctx, o.UserID, ReferralQuotaSourcePaymentOrder, o.ID, o.Amount); err != nil {
+		s.writeAuditLog(ctx, o.ID, "REFERRAL_QUOTA_ACCRUE_FAILED", "system", map[string]any{
+			"user_id": o.UserID,
+			"amount":  o.Amount,
+			"error":   err.Error(),
+		})
+	}
 }
 
 func (s *PaymentService) markCompleted(ctx context.Context, o *dbent.PaymentOrder, auditAction string) error {

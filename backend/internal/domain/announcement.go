@@ -64,7 +64,7 @@ type AnnouncementCondition struct {
 	// balance 条件：比较阈值
 	Value float64 `json:"value,omitempty"`
 
-	// referral 条件：has_inviter | is_inviter | no_inviter
+	// referral 条件：has_inviter | is_inviter | no_inviter | inviter_reward_blocked
 	ReferralValue string `json:"referral_value,omitempty"`
 }
 
@@ -75,6 +75,7 @@ type UserTargetingContext struct {
 	ReferralKnown              bool // true 表示 HasInviter/IsInviter 已成功查询；false 时 referral 条件一律不命中（fail-closed）
 	HasInviter                 bool // user_affiliates.inviter_id IS NOT NULL
 	IsInviter                  bool // user_affiliates.aff_count > 0
+	InviterRewardBlocked       bool // 存在因配额用尽被卡的 pending 达标奖励（referral_reward_tracker.inviter_reward_blocked_by_quota）
 }
 
 func (t AnnouncementTargeting) Matches(ctx UserTargetingContext) bool {
@@ -152,6 +153,8 @@ func (c AnnouncementCondition) Matches(ctx UserTargetingContext) bool {
 			return ctx.IsInviter
 		case "no_inviter":
 			return !ctx.HasInviter
+		case "inviter_reward_blocked":
+			return ctx.InviterRewardBlocked
 		default:
 			return false
 		}
@@ -232,7 +235,7 @@ func (c AnnouncementCondition) validate() error {
 			return ErrAnnouncementInvalidTarget
 		}
 		switch c.ReferralValue {
-		case "has_inviter", "is_inviter", "no_inviter":
+		case "has_inviter", "is_inviter", "no_inviter", "inviter_reward_blocked":
 			return nil
 		default:
 			return ErrAnnouncementInvalidTarget

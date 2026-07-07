@@ -115,6 +115,29 @@ func TestAnnouncementTargeting_Matches_ReferralCondition(t *testing.T) {
 	require.False(t, noInviterTargeting.Matches(domain.UserTargetingContext{ReferralKnown: false, HasInviter: false}))
 }
 
+func TestAnnouncementTargeting_Matches_InviterRewardBlocked(t *testing.T) {
+	// 只展示给"有被配额卡住的 pending 达标奖励"的邀请人
+	blockedTargeting := AnnouncementTargeting{
+		AnyOf: []AnnouncementConditionGroup{
+			{AllOf: []AnnouncementCondition{
+				{Type: AnnouncementConditionTypeReferral, Operator: AnnouncementOperatorEQ, ReferralValue: "inviter_reward_blocked"},
+			}},
+		},
+	}
+	// 有被卡奖励 → 命中
+	require.True(t, blockedTargeting.Matches(domain.UserTargetingContext{ReferralKnown: true, InviterRewardBlocked: true}))
+	// 无被卡奖励 → 不命中（即使是邀请人）
+	require.False(t, blockedTargeting.Matches(domain.UserTargetingContext{ReferralKnown: true, IsInviter: true, InviterRewardBlocked: false}))
+	// fail-closed：查询失败（ReferralKnown=false）不命中
+	require.False(t, blockedTargeting.Matches(domain.UserTargetingContext{ReferralKnown: false, InviterRewardBlocked: true}))
+
+	// validate 接受新取值
+	result, err := blockedTargeting.NormalizeAndValidate()
+	require.NoError(t, err)
+	require.Len(t, result.AnyOf, 1)
+	require.Equal(t, "inviter_reward_blocked", result.AnyOf[0].AllOf[0].ReferralValue)
+}
+
 func TestAnnouncementTargeting_NormalizeAndValidate_ReferralCondition(t *testing.T) {
 	// Valid
 	targeting := AnnouncementTargeting{

@@ -2046,3 +2046,71 @@ hasInviterRewardEligibilityByConfig(ctx, inviterID int64, atTime *time.Time) boo
 - 金额门槛按单个 discount 行累计。
 - 切换开关前已经创建的 tracker 不重算。
 - `recharge` 模式下折扣继承与邀请人赠金资格共用同一闸门。
+
+---
+
+## Change Request: 邀请人达标奖励发放次数配额 + 配额耗尽登录弹窗 (2026-07-07)
+
+> 详细实施方案与两轮 cx-s2 审阅记录见同目录 `inviter-reward-quota-plan.md`（已 approved）。本节为并入主计划的摘要。
+
+### 背景
+
+当前"邀请人达标奖励"（被邀请人累计非订阅消费达 `SpendThreshold` → 给邀请人发赠金）**无发放次数上限**：只要被邀请人达标、绑定时快照 `inviter_reward_eligible_at_bind=true` 且全局开关开着，每个 (inviter,invitee) 配对都发一次，配对数量无上限。
+
+新增限制：**邀请人每充值 50 USD 获得 10 次**"领取达标奖励"的机会；机会用尽后被邀请人达标也不再给邀请人发奖。并在邀请人因配额用尽卡住 pending 奖励时，登录弹窗告知（走公告板块）。
+
+### 决策（需求方确认）
+
+- 充值口径 = **支付充值 + 兑换码**（`RedeemTypeBalance && Value>0`，含支付订单与直接兑换码；不含订阅/并发/负数退款）。
+- 配额总开关**默认关闭**：关=完全直通（既不赚也不花），行为 == 现在的无限发放。
+- 存量历史邀请人初始配额：新列默认 0，**不自动折算历史充值**；由需求方拿 SQL 手动 UPDATE。
+- 弹窗命中语义：**仅"有被 quota=0 卡住的 pending 达标奖励"** 的邀请人（不打扰从未获得机会的新邀请人）。
+
+### 数据模型（migration 175）
+
+- `user_affiliates` 加列：`inviter_reward_quota INT DEFAULT 0`（剩余机会）、`inviter_reward_recharge_carry DECIMAL(20,8) DEFAULT 0`（未凑满一档的充值余额，跨次累积）、`inviter_reward_quota_consumed_total INT DEFAULT 0`（审计/展示）。
+- `referral_reward_tracker` 加列：`inviter_reward_blocked_by_quota BOOLEAN NOT NULL DEFAULT FALSE`（弹窗事实源，pair 级）。
+- 新表 `referral_recharge_quota_grants(id, user_id, source_type, source_id, order_amount, batches_granted, created_at)`，`UNIQUE(source_type,source_id)`，`source_id` 用数字主键（`payment_orders.id`/`redeem_codes.id`）。
+- CHECK：quota/carry/consumed_total >= 0、batches_granted >= 0、order_amount > 0。
+- partial index（`_notx`）：`referral_reward_tracker(inviter_id) WHERE inviter_reward_granted=false AND inviter_reward_blocked_by_quota=true`。
+
+### 赚机会（充值入账时）
+
+- 订单级 `applyReferralQuotaForOrder`：`doBalance` 里 `Redeem` 后、`markCompleted` 前。抢去重 slot → `FOR UPDATE` 锁 affiliate 行 → `carry+=amount; batches=floor(carry/step); quota+=batches*perBatch; carry-=batches*step`。**best-effort**：失败只记审计 `REFERRAL_QUOTA_ACCRUE_FAILED` 并 `return nil`，绝不阻断充值主链路（与 affiliate/discount 的失败阻断语义刻意不同）。
+- 兑换级 `tryAccrueReferralQuotaForRedeem`：`Redeem` 后 best-effort；支付订单触发的 Redeem 用**新增独立** `ContextSkipRedeemReferralQuota` 抑制（不复用 `ContextSkipRedeemAffiliate`），去重表 UNIQUE 作第二重保险。
+- 充值者无 affiliate 行时先 `EnsureUserAffiliate` 再更新。
+
+### 花机会（达标发奖时）
+
+`referral_reward_service.go` 现有 grant 事务内、`giftEngine.Grant` 前：`SELECT inviter_reward_quota ... FOR UPDATE`。
+- `quota<=0`：跳过发放、不置 granted（保留 pending，语义同"全局开关关闭"），并置 `inviter_reward_blocked_by_quota=true`。
+- `quota>0`：`quota-=1; consumed_total+=1`，置 granted 并清 blocked flag，同事务原子。
+- 锁序：先 tracker(invitee) 后 affiliate(inviter)，赚机会只锁 affiliate → 无死锁。
+- pending 可能**无限挂起**：只有被邀请人新消费才重试，补配额/事件重放都不主动补发。
+
+### 配置（3 新 setting）
+
+`referral_inviter_reward_quota_enabled`（默认 false）、`referral_inviter_reward_quota_recharge_step`（默认 50）、`referral_inviter_reward_quota_per_batch`（默认 10）。
+
+### 配额耗尽登录弹窗（公告 Targeting 扩展）
+
+复用公告 `notify_mode=popup`，新增 referral 投放取值 `inviter_reward_blocked`。`UserTargetingContext` 加 `InviterRewardBlocked`；`fillReferralTargeting` 补 `EXISTS(SELECT 1 FROM referral_reward_tracker WHERE inviter_id=$1 AND inviter_reward_granted=false AND inviter_reward_blocked_by_quota=true)`，沿用 `ReferralKnown` fail-closed。domain `Matches`/`validate` + DTO + 前端 `AnnouncementTargetingEditor.vue` + `types/index.ts` + i18n 各加一分支。查询**不 gate** 配额总开关（关关后历史 pending 仍可弹，符合"充值即可解锁"语义）。
+
+### 充值后立即补发（第三轮追加，需求方决策）
+
+原"不主动补发"被推翻：邀请人充值补足配额后 pending 奖励**立即到账**。唯一发奖逻辑抽成内层 `grantInviterRewardLocked`（**不自开事务、不重锁 tracker**，前置=调用方已在打开事务里且已 `FOR UPDATE` 锁该 invitee tracker，内层仅在配额开关开时再锁 affiliate，锁序恒 `tracker→affiliate`）。两个入口：① `TrackSpend` 在其现有事务内累加 spend 后直接调（Option A，复用已持锁）；② `backfillPendingInviterRewards` 在"加 quota"事务提交后，对每个被卡 invitee 新开独立事务锁 tracker 再调同一内层，quota 耗尽自然停发。补发 best-effort（失败记 `REFERRAL_QUOTA_BACKFILL_FAILED`，不阻断充值），剩余 pending 由下次消费兜底。
+
+### 展示
+
+`ReferralStatus` 加 `InviterRewardQuota`；`InviteeProgress` 加 `BlockedByQuota`。前端 `/referral` 状态徽章由三态扩**四态**（未达标/已发/无资格/**配额用尽待充值解锁**）。登录弹窗（公告 popup）**只做定性告知不带数字**（公告为全体共享静态文本，无模板变量），具体"哪些被邀请人卡住"由 `/referral` 四态徽章展示。
+
+### 影响面
+
+migration×1（`user_affiliates` 3 列 + `referral_reward_tracker` 1 列 + 新表 + partial index）；改 `domain_constants.go`、`setting_service.go`、`dto/settings.go`、`setting_handler.go`、`payment_fulfillment.go`(+新文件 `payment_referral_quota.go`)、`redeem_service.go`、`referral_reward_service.go`、repo 层、`domain/announcement.go`、`announcement_service.go`、`handler/dto/announcement.go`、前端 `AnnouncementTargetingEditor.vue`/`types/index.ts`/ReferralView/i18n、单测。**不动**绑定/继承/被邀请人赠金/折扣逻辑。
+
+### 审阅状态
+
+cx-s2 三轮审阅全部 approved：
+- 第一轮（配额主体）：7 点意见全采纳——best-effort 失败不阻断、独立 skip key、pending 语义与前端三态、CHECK 约束、source_id 数字主键、锁序无环、carry 跨次累积。
+- 第二轮（弹窗追加）：4 点认可——flag 放 tracker 为 pair 级事实源、置/清路径无 stale、投放解耦配额开关、fail-closed；采纳 partial index 非阻塞建议。
+- 第三轮（充值立即补发 + 四态 + 弹窗定性）：#8 死锁规避确认（先提交加 quota 再逐笔补发，环消除）、#10 四态徽章+弹窗定性分工认可；#9 事务边界原有"同一/独立事务"歧义按 cx-s2 意见收紧为 Option A（内层不自开事务不重锁 tracker）后通过。

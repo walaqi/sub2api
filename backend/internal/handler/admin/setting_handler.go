@@ -305,17 +305,20 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 
 		AffiliateEnabled: settings.AffiliateEnabled,
 
-		ReferralRewardEnabled:                settings.ReferralRewardEnabled,
-		ReferralInviteeAmount:                settings.ReferralInviteeAmount,
-		ReferralInviteeExpiryDays:            settings.ReferralInviteeExpiryDays,
-		ReferralInviterAmount:                settings.ReferralInviterAmount,
-		ReferralInviterExpiryDays:            settings.ReferralInviterExpiryDays,
-		ReferralInviterGiftMode:              settings.ReferralInviterGiftMode,
-		ReferralInviterGiftRatio:             settings.ReferralInviterGiftRatio,
-		ReferralSpendThreshold:               settings.ReferralSpendThreshold,
-		ReferralDiscountValidDays:            settings.ReferralDiscountValidDays,
-		ReferralEligibilityGrantMode:         settings.ReferralEligibilityGrantMode,
-		ReferralEligibilityRechargeMinAmount: settings.ReferralEligibilityRechargeMinAmount,
+		ReferralRewardEnabled:                  settings.ReferralRewardEnabled,
+		ReferralInviteeAmount:                  settings.ReferralInviteeAmount,
+		ReferralInviteeExpiryDays:              settings.ReferralInviteeExpiryDays,
+		ReferralInviterAmount:                  settings.ReferralInviterAmount,
+		ReferralInviterExpiryDays:              settings.ReferralInviterExpiryDays,
+		ReferralInviterGiftMode:                settings.ReferralInviterGiftMode,
+		ReferralInviterGiftRatio:               settings.ReferralInviterGiftRatio,
+		ReferralSpendThreshold:                 settings.ReferralSpendThreshold,
+		ReferralDiscountValidDays:              settings.ReferralDiscountValidDays,
+		ReferralEligibilityGrantMode:           settings.ReferralEligibilityGrantMode,
+		ReferralEligibilityRechargeMinAmount:   settings.ReferralEligibilityRechargeMinAmount,
+		ReferralInviterRewardQuotaEnabled:      settings.ReferralInviterRewardQuotaEnabled,
+		ReferralInviterRewardQuotaRechargeStep: settings.ReferralInviterRewardQuotaRechargeStep,
+		ReferralInviterRewardQuotaPerBatch:     settings.ReferralInviterRewardQuotaPerBatch,
 
 		AllowUserViewErrorRequests: settings.AllowUserViewErrorRequests,
 	}
@@ -669,17 +672,20 @@ type UpdateSettingsRequest struct {
 	AffiliateEnabled *bool `json:"affiliate_enabled"`
 
 	// Referral Reward (双向邀请赠金) feature switch + params
-	ReferralRewardEnabled                *bool    `json:"referral_reward_enabled"`
-	ReferralInviteeAmount                *float64 `json:"referral_invitee_amount"`
-	ReferralInviteeExpiryDays            *int     `json:"referral_invitee_expiry_days"`
-	ReferralInviterAmount                *float64 `json:"referral_inviter_amount"`
-	ReferralInviterExpiryDays            *int     `json:"referral_inviter_expiry_days"`
-	ReferralInviterGiftMode              *string  `json:"referral_inviter_gift_mode"`
-	ReferralInviterGiftRatio             *float64 `json:"referral_inviter_gift_ratio_recharge"`
-	ReferralSpendThreshold               *float64 `json:"referral_spend_threshold"`
-	ReferralDiscountValidDays            *int     `json:"referral_discount_valid_days"`
-	ReferralEligibilityGrantMode         *string  `json:"referral_eligibility_grant_mode"`
-	ReferralEligibilityRechargeMinAmount *float64 `json:"referral_eligibility_recharge_min_amount"`
+	ReferralRewardEnabled                  *bool    `json:"referral_reward_enabled"`
+	ReferralInviteeAmount                  *float64 `json:"referral_invitee_amount"`
+	ReferralInviteeExpiryDays              *int     `json:"referral_invitee_expiry_days"`
+	ReferralInviterAmount                  *float64 `json:"referral_inviter_amount"`
+	ReferralInviterExpiryDays              *int     `json:"referral_inviter_expiry_days"`
+	ReferralInviterGiftMode                *string  `json:"referral_inviter_gift_mode"`
+	ReferralInviterGiftRatio               *float64 `json:"referral_inviter_gift_ratio_recharge"`
+	ReferralSpendThreshold                 *float64 `json:"referral_spend_threshold"`
+	ReferralDiscountValidDays              *int     `json:"referral_discount_valid_days"`
+	ReferralEligibilityGrantMode           *string  `json:"referral_eligibility_grant_mode"`
+	ReferralEligibilityRechargeMinAmount   *float64 `json:"referral_eligibility_recharge_min_amount"`
+	ReferralInviterRewardQuotaEnabled      *bool    `json:"referral_inviter_reward_quota_enabled"`
+	ReferralInviterRewardQuotaRechargeStep *float64 `json:"referral_inviter_reward_quota_recharge_step"`
+	ReferralInviterRewardQuotaPerBatch     *int     `json:"referral_inviter_reward_quota_per_batch"`
 
 	// 风控中心功能开关
 	RiskControlEnabled *bool `json:"risk_control_enabled"`
@@ -1513,6 +1519,14 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		response.BadRequest(c, "referral_eligibility_recharge_min_amount must be >= 0")
 		return
 	}
+	if req.ReferralInviterRewardQuotaRechargeStep != nil && *req.ReferralInviterRewardQuotaRechargeStep <= 0 {
+		response.BadRequest(c, "referral_inviter_reward_quota_recharge_step must be > 0")
+		return
+	}
+	if req.ReferralInviterRewardQuotaPerBatch != nil && *req.ReferralInviterRewardQuotaPerBatch <= 0 {
+		response.BadRequest(c, "referral_inviter_reward_quota_per_batch must be > 0")
+		return
+	}
 
 	settings := &service.SystemSettings{
 		// 系统全局 platform quota 默认值（整体替换语义）
@@ -1905,6 +1919,24 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.ReferralEligibilityRechargeMinAmount
 		}(),
+		ReferralInviterRewardQuotaEnabled: func() bool {
+			if req.ReferralInviterRewardQuotaEnabled != nil {
+				return *req.ReferralInviterRewardQuotaEnabled
+			}
+			return previousSettings.ReferralInviterRewardQuotaEnabled
+		}(),
+		ReferralInviterRewardQuotaRechargeStep: func() float64 {
+			if req.ReferralInviterRewardQuotaRechargeStep != nil {
+				return *req.ReferralInviterRewardQuotaRechargeStep
+			}
+			return previousSettings.ReferralInviterRewardQuotaRechargeStep
+		}(),
+		ReferralInviterRewardQuotaPerBatch: func() int {
+			if req.ReferralInviterRewardQuotaPerBatch != nil {
+				return *req.ReferralInviterRewardQuotaPerBatch
+			}
+			return previousSettings.ReferralInviterRewardQuotaPerBatch
+		}(),
 		RiskControlEnabled: func() bool {
 			if req.RiskControlEnabled != nil {
 				return *req.RiskControlEnabled
@@ -2249,17 +2281,20 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 
 		AffiliateEnabled: updatedSettings.AffiliateEnabled,
 
-		ReferralRewardEnabled:                updatedSettings.ReferralRewardEnabled,
-		ReferralInviteeAmount:                updatedSettings.ReferralInviteeAmount,
-		ReferralInviteeExpiryDays:            updatedSettings.ReferralInviteeExpiryDays,
-		ReferralInviterAmount:                updatedSettings.ReferralInviterAmount,
-		ReferralInviterExpiryDays:            updatedSettings.ReferralInviterExpiryDays,
-		ReferralInviterGiftMode:              updatedSettings.ReferralInviterGiftMode,
-		ReferralInviterGiftRatio:             updatedSettings.ReferralInviterGiftRatio,
-		ReferralSpendThreshold:               updatedSettings.ReferralSpendThreshold,
-		ReferralDiscountValidDays:            updatedSettings.ReferralDiscountValidDays,
-		ReferralEligibilityGrantMode:         updatedSettings.ReferralEligibilityGrantMode,
-		ReferralEligibilityRechargeMinAmount: updatedSettings.ReferralEligibilityRechargeMinAmount,
+		ReferralRewardEnabled:                  updatedSettings.ReferralRewardEnabled,
+		ReferralInviteeAmount:                  updatedSettings.ReferralInviteeAmount,
+		ReferralInviteeExpiryDays:              updatedSettings.ReferralInviteeExpiryDays,
+		ReferralInviterAmount:                  updatedSettings.ReferralInviterAmount,
+		ReferralInviterExpiryDays:              updatedSettings.ReferralInviterExpiryDays,
+		ReferralInviterGiftMode:                updatedSettings.ReferralInviterGiftMode,
+		ReferralInviterGiftRatio:               updatedSettings.ReferralInviterGiftRatio,
+		ReferralSpendThreshold:                 updatedSettings.ReferralSpendThreshold,
+		ReferralDiscountValidDays:              updatedSettings.ReferralDiscountValidDays,
+		ReferralEligibilityGrantMode:           updatedSettings.ReferralEligibilityGrantMode,
+		ReferralEligibilityRechargeMinAmount:   updatedSettings.ReferralEligibilityRechargeMinAmount,
+		ReferralInviterRewardQuotaEnabled:      updatedSettings.ReferralInviterRewardQuotaEnabled,
+		ReferralInviterRewardQuotaRechargeStep: updatedSettings.ReferralInviterRewardQuotaRechargeStep,
+		ReferralInviterRewardQuotaPerBatch:     updatedSettings.ReferralInviterRewardQuotaPerBatch,
 
 		RiskControlEnabled:          updatedSettings.RiskControlEnabled,
 		CyberSessionBlockEnabled:    updatedSettings.CyberSessionBlockEnabled,
@@ -2786,6 +2821,15 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.ReferralEligibilityRechargeMinAmount != after.ReferralEligibilityRechargeMinAmount {
 		changed = append(changed, "referral_eligibility_recharge_min_amount")
+	}
+	if before.ReferralInviterRewardQuotaEnabled != after.ReferralInviterRewardQuotaEnabled {
+		changed = append(changed, "referral_inviter_reward_quota_enabled")
+	}
+	if before.ReferralInviterRewardQuotaRechargeStep != after.ReferralInviterRewardQuotaRechargeStep {
+		changed = append(changed, "referral_inviter_reward_quota_recharge_step")
+	}
+	if before.ReferralInviterRewardQuotaPerBatch != after.ReferralInviterRewardQuotaPerBatch {
+		changed = append(changed, "referral_inviter_reward_quota_per_batch")
 	}
 	if before.RiskControlEnabled != after.RiskControlEnabled {
 		changed = append(changed, "risk_control_enabled")

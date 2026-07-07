@@ -5847,6 +5847,55 @@
                   {{ t('admin.settings.features.affiliate.referralDiscountValidDaysHint') }}
                 </p>
               </div>
+
+              <!-- 邀请人达标奖励发放次数配额 -->
+              <div class="rounded-lg border border-gray-200 p-4 dark:border-dark-700">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t('admin.settings.features.affiliate.referralRewardQuotaEnabled') }}
+                    </label>
+                    <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t('admin.settings.features.affiliate.referralRewardQuotaEnabledHint') }}
+                    </p>
+                  </div>
+                  <Toggle v-model="form.referral_inviter_reward_quota_enabled" />
+                </div>
+                <div v-if="form.referral_inviter_reward_quota_enabled" class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label class="input-label">
+                      {{ t('admin.settings.features.affiliate.referralRewardQuotaRechargeStep') }}
+                    </label>
+                    <div class="relative">
+                      <input
+                        v-model.number="form.referral_inviter_reward_quota_recharge_step"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        class="input pr-12"
+                      />
+                      <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-gray-400">USD</span>
+                    </div>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t('admin.settings.features.affiliate.referralRewardQuotaRechargeStepHint') }}
+                    </p>
+                  </div>
+                  <div>
+                    <label class="input-label">
+                      {{ t('admin.settings.features.affiliate.referralRewardQuotaPerBatch') }}
+                    </label>
+                    <input
+                      v-model.number="form.referral_inviter_reward_quota_per_batch"
+                      type="number"
+                      min="1"
+                      class="input"
+                    />
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t('admin.settings.features.affiliate.referralRewardQuotaPerBatchHint') }}
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="flex items-center justify-between">
@@ -8152,6 +8201,9 @@ const form = reactive<SettingsForm>({
   referral_discount_valid_days: 30,
   referral_eligibility_grant_mode: 'bind_key_claim' as 'bind_key_claim' | 'recharge',
   referral_eligibility_recharge_min_amount: 0,
+  referral_inviter_reward_quota_enabled: false,
+  referral_inviter_reward_quota_recharge_step: 50,
+  referral_inviter_reward_quota_per_batch: 10,
   // Allow user view error requests
   allow_user_view_error_requests: false,
 });
@@ -9410,6 +9462,9 @@ async function saveSettings() {
       referral_discount_valid_days: form.referral_discount_valid_days,
       referral_eligibility_grant_mode: form.referral_eligibility_grant_mode,
       referral_eligibility_recharge_min_amount: form.referral_eligibility_recharge_min_amount,
+      referral_inviter_reward_quota_enabled: form.referral_inviter_reward_quota_enabled,
+      referral_inviter_reward_quota_recharge_step: form.referral_inviter_reward_quota_recharge_step,
+      referral_inviter_reward_quota_per_batch: form.referral_inviter_reward_quota_per_batch,
       allow_user_view_error_requests: form.allow_user_view_error_requests,
     };
 

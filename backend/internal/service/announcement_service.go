@@ -616,4 +616,22 @@ func (s *AnnouncementService) fillReferralTargeting(ctx context.Context, userID 
 		// 无 user_affiliates 行 = 确认该用户非被邀请人也非邀请人
 		tc.ReferralKnown = true
 	}
+
+	// 是否存在因配额用尽被卡的 pending 达标奖励（供"配额耗尽登录弹窗"投放）。
+	// 独立 EXISTS 查询：命中 partial index，与上面 affiliate 查询共享 fail-closed 语义
+	// （查询失败则 InviterRewardBlocked 保持 false，不误投）。
+	blockedRows, err := s.entClient.QueryContext(ctx,
+		`SELECT EXISTS(SELECT 1 FROM referral_reward_tracker WHERE inviter_id = $1 AND inviter_reward_granted = FALSE AND inviter_reward_blocked_by_quota = TRUE)`,
+		userID)
+	if err != nil {
+		return
+	}
+	defer func() { _ = blockedRows.Close() }()
+	if blockedRows.Next() {
+		var blocked bool
+		if err := blockedRows.Scan(&blocked); err != nil {
+			return
+		}
+		tc.InviterRewardBlocked = blocked
+	}
 }
