@@ -500,7 +500,6 @@ func splitSQLStatements(content string) []string {
 
 	inSingleQuote := false
 	inDoubleQuote := false
-	inComment := false
 
 	for i := 0; i < len(content); i++ {
 		ch := content[i]
@@ -516,22 +515,25 @@ func splitSQLStatements(content string) []string {
 			continue
 		}
 
-		// Handle string literals and quoted identifiers
-		if ch == '\'' && !inDoubleQuote {
+		// Handle string literals and quoted identifiers.
+		// strings.Builder.WriteByte never returns a non-nil error, so the
+		// return value is intentionally discarded.
+		switch {
+		case ch == '\'' && !inDoubleQuote:
 			inSingleQuote = !inSingleQuote
-			current.WriteByte(ch)
-		} else if ch == '"' && !inSingleQuote {
+			_ = current.WriteByte(ch)
+		case ch == '"' && !inSingleQuote:
 			inDoubleQuote = !inDoubleQuote
-			current.WriteByte(ch)
-		} else if ch == ';' && !inSingleQuote && !inDoubleQuote && !inComment {
+			_ = current.WriteByte(ch)
+		case ch == ';' && !inSingleQuote && !inDoubleQuote:
 			// Statement terminator outside strings/comments
 			trimmed := strings.TrimSpace(current.String())
 			if trimmed != "" {
 				statements = append(statements, trimmed)
 			}
 			current.Reset()
-		} else {
-			current.WriteByte(ch)
+		default:
+			_ = current.WriteByte(ch)
 		}
 	}
 
@@ -543,7 +545,6 @@ func splitSQLStatements(content string) []string {
 
 	return statements
 }
-
 
 // pgAdvisoryLock 获取 PostgreSQL Advisory Lock。
 // Advisory Lock 是一种轻量级的锁机制，不与任何特定的数据库对象关联。

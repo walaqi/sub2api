@@ -1,19 +1,19 @@
 package repository
 
 import (
-	"testing"
 	"github.com/stretchr/testify/require"
+	"testing"
 )
 
 func TestSplitSQLStatements_StringLiterals(t *testing.T) {
 	tests := []struct {
-		name      string
-		input     string
-		expected  []string
+		name     string
+		input    string
+		expected []string
 	}{
 		{
-			name: "string literal with semicolon",
-			input: "CREATE TABLE t (id INT, expr TEXT DEFAULT 'test;value');",
+			name:     "string literal with semicolon",
+			input:    "CREATE TABLE t (id INT, expr TEXT DEFAULT 'test;value');",
 			expected: []string{"CREATE TABLE t (id INT, expr TEXT DEFAULT 'test;value')"},
 		},
 		{
@@ -24,28 +24,28 @@ ON t ((replace(name, ';', ',')));`,
 ON t ((replace(name, ';', ',')))`},
 		},
 		{
-			name: "multiple string literals with semicolons",
-			input: `INSERT INTO settings(key, value) VALUES ('key1', 'val;ue1'), ('key2', 'val;ue2');`,
+			name:     "multiple string literals with semicolons",
+			input:    `INSERT INTO settings(key, value) VALUES ('key1', 'val;ue1'), ('key2', 'val;ue2');`,
 			expected: []string{`INSERT INTO settings(key, value) VALUES ('key1', 'val;ue1'), ('key2', 'val;ue2')`},
 		},
 		{
-			name: "escaped single quotes with semicolon",
-			input: "UPDATE t SET col = 'don''t split; here' WHERE id = 1;",
+			name:     "escaped single quotes with semicolon",
+			input:    "UPDATE t SET col = 'don''t split; here' WHERE id = 1;",
 			expected: []string{"UPDATE t SET col = 'don''t split; here' WHERE id = 1"},
 		},
 		{
-			name: "quoted identifiers with semicolon",
-			input: `CREATE TABLE "test;table" (id INT);`,
+			name:     "quoted identifiers with semicolon",
+			input:    `CREATE TABLE "test;table" (id INT);`,
 			expected: []string{`CREATE TABLE "test;table" (id INT)`},
 		},
 		{
-			name: "mixed quotes and semicolons",
-			input: `INSERT INTO t(col1, col2) VALUES ('a;b', "c;d");`,
+			name:     "mixed quotes and semicolons",
+			input:    `INSERT INTO t(col1, col2) VALUES ('a;b', "c;d");`,
 			expected: []string{`INSERT INTO t(col1, col2) VALUES ('a;b', "c;d")`},
 		},
 		{
-			name: "comment with semicolon followed by statement",
-			input: "-- This is a comment; with semicolon\nSELECT * FROM t WHERE col = 'value;with;semicolon';",
+			name:     "comment with semicolon followed by statement",
+			input:    "-- This is a comment; with semicolon\nSELECT * FROM t WHERE col = 'value;with;semicolon';",
 			expected: []string{"SELECT * FROM t WHERE col = 'value;with;semicolon'"},
 		},
 	}
