@@ -187,6 +187,9 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		}
 		batchImageHoldMultiplier = *input.BatchImageHoldMultiplier
 	}
+	if batchImageHoldMultiplier < batchImageDiscountMultiplier {
+		return nil, errors.New("batch_image_hold_multiplier must be >= batch_image_discount_multiplier")
+	}
 	videoRateMultiplier := 1.0
 	if input.VideoRateMultiplier != nil {
 		if *input.VideoRateMultiplier < 0 {
@@ -500,6 +503,10 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 			return nil, errors.New("batch_image_hold_multiplier must be >= 0")
 		}
 		group.BatchImageHoldMultiplier = *input.BatchImageHoldMultiplier
+	}
+	if (input.BatchImageDiscountMultiplier != nil || input.BatchImageHoldMultiplier != nil) &&
+		group.BatchImageHoldMultiplier < group.BatchImageDiscountMultiplier {
+		return nil, errors.New("batch_image_hold_multiplier must be >= batch_image_discount_multiplier")
 	}
 	if input.VideoRateIndependent != nil {
 		group.VideoRateIndependent = *input.VideoRateIndependent

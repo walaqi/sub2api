@@ -141,6 +141,9 @@ type LiteLLMModelPricing struct {
 	SupportsAssistantPrefill bool `json:"supports_assistant_prefill"`
 	SupportsAudioInput       bool `json:"supports_audio_input"`
 	SupportsAudioOutput      bool `json:"supports_audio_output"`
+
+	// TokenPricingAbsent prevents image-only entries from being used as free token pricing.
+	TokenPricingAbsent bool `json:"-"`
 }
 
 // PricingRemoteClient 远程价格数据获取接口
@@ -482,6 +485,7 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 			SupportsAssistantPrefill: entry.SupportsAssistantPrefill,
 			SupportsAudioInput:       entry.SupportsAudioInput,
 			SupportsAudioOutput:      entry.SupportsAudioOutput,
+			TokenPricingAbsent:       entry.InputCostPerToken == nil && entry.OutputCostPerToken == nil,
 		}
 		if entry.MaxInputTokens != nil {
 			pricing.MaxInputTokens = *entry.MaxInputTokens

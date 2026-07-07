@@ -44,6 +44,24 @@ func TestParsePricingData_ParsesPriorityAndServiceTierFields(t *testing.T) {
 	require.True(t, pricing.SupportsServiceTier)
 }
 
+func TestBillingService_GetModelPricing_FailsClosedForImageOnlyEntries(t *testing.T) {
+	pricingSvc := &PricingService{}
+	data, err := pricingSvc.parsePricingData([]byte(`{
+		"imagen-9.0-generate": {"output_cost_per_image": 0.04, "mode": "image_generation"},
+		"gemini-image-with-token-price": {"input_cost_per_token": 0.0, "output_cost_per_token": 0.0, "output_cost_per_image": 0.034, "mode": "image_generation"}
+	}`))
+	require.NoError(t, err)
+	pricingSvc.pricingData = data
+	billingSvc := NewBillingService(&config.Config{}, pricingSvc)
+
+	_, err = billingSvc.GetModelPricing("imagen-9.0-generate")
+	require.ErrorIs(t, err, ErrModelPricingUnavailable)
+	pricing, err := billingSvc.GetModelPricing("gemini-image-with-token-price")
+	require.NoError(t, err)
+	require.Zero(t, pricing.InputPricePerToken)
+	require.InDelta(t, 0.04, pricingSvc.GetModelPricing("imagen-9.0-generate").OutputCostPerImage, 1e-12)
+}
+
 // TestParsePricingData_ParsesPlazaMetadataFields 验证模型广场展示用的元数据字段
 // （max_input_tokens / max_output_tokens / supports_*）能正确从 model_pricing.json 解析。
 func TestParsePricingData_ParsesPlazaMetadataFields(t *testing.T) {

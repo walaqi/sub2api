@@ -475,6 +475,34 @@ func TestAdminService_UpdateGroup_RejectsNegativeVideoRateMultiplier(t *testing.
 	require.Nil(t, repo.updated)
 }
 
+func TestAdminService_CreateGroup_BatchImagePricingSettings(t *testing.T) {
+	repo := &groupRepoStubForAdmin{}
+	svc := &adminServiceImpl{groupRepo: repo}
+	discount, hold := 0.8, 0.9
+
+	group, err := svc.CreateGroup(context.Background(), &CreateGroupInput{
+		Name: "batch-image-pricing", Platform: PlatformGemini, RateMultiplier: 1,
+		BatchImageDiscountMultiplier: &discount, BatchImageHoldMultiplier: &hold,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, group)
+	require.InDelta(t, 0.8, repo.created.BatchImageDiscountMultiplier, 1e-12)
+	require.InDelta(t, 0.9, repo.created.BatchImageHoldMultiplier, 1e-12)
+}
+
+func TestAdminService_CreateGroup_RejectsHoldBelowDiscount(t *testing.T) {
+	repo := &groupRepoStubForAdmin{}
+	svc := &adminServiceImpl{groupRepo: repo}
+	discount, hold := 0.8, 0.6
+
+	_, err := svc.CreateGroup(context.Background(), &CreateGroupInput{
+		Name: "batch-image-pricing-invalid", Platform: PlatformGemini, RateMultiplier: 1,
+		BatchImageDiscountMultiplier: &discount, BatchImageHoldMultiplier: &hold,
+	})
+	require.Error(t, err)
+	require.Nil(t, repo.created)
+}
+
 func TestAdminService_UpdateGroup_InvalidatesAuthCacheOnRPMLimitChange(t *testing.T) {
 	existingGroup := &Group{
 		ID:       1,
