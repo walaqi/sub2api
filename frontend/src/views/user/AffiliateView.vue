@@ -62,6 +62,31 @@
           >
             {{ eligibilityHint }}
           </p>
+
+          <!-- 当前用户作为被邀请人的注册赠金状态（原 /referral 页能力，合并保留） -->
+          <div
+            v-if="superReferral.invitee_reward"
+            class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-800/50 dark:bg-emerald-900/20"
+          >
+            <p class="text-sm font-medium text-emerald-800 dark:text-emerald-200">{{ t('affiliate.superReferral.inviteeRewardTitle') }}</p>
+            <p class="mt-1 text-sm text-emerald-700 dark:text-emerald-300">
+              {{ superReferral.invitee_reward.granted
+                ? t('affiliate.superReferral.inviteeRewardGranted', { amount: formatCurrency(superReferral.invitee_reward.amount) })
+                : t('affiliate.superReferral.inviteeRewardPending', { amount: formatCurrency(superReferral.invitee_reward.amount) }) }}
+            </p>
+          </div>
+
+          <!-- 邀请人达标奖励发放机会（原 /referral 页能力，仅配额开关开时展示） -->
+          <div
+            v-if="superReferral.eligible && superReferral.inviter_reward_quota_enabled"
+            class="mt-4 rounded-lg border border-indigo-200 bg-white/60 p-3 dark:border-indigo-800/50 dark:bg-dark-900/40"
+          >
+            <p class="text-sm font-medium text-indigo-800 dark:text-indigo-200">{{ t('affiliate.superReferral.rewardQuotaTitle') }}</p>
+            <p class="mt-1 text-sm text-indigo-700 dark:text-indigo-300">
+              {{ t('affiliate.superReferral.rewardQuotaRemaining', { count: superReferral.inviter_reward_quota ?? 0 }) }}
+            </p>
+            <p class="mt-1 text-xs text-indigo-600/80 dark:text-indigo-300/70">{{ t('affiliate.superReferral.rewardQuotaHint') }}</p>
+          </div>
         </div>
 
         <div class="card p-6">

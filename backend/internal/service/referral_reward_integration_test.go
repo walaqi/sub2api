@@ -113,6 +113,17 @@ ON CONFLICT (payment_order_id) DO NOTHING`, userID, discountID, orderID, applied
 	return discountID
 }
 
+// addFutureApplication 给已有折扣挂一条 created_at 在未来的 application。
+// 资格判定按 created_at <= NOW() 过滤，remaining 计算须与之一致——未来 application 不应计入。
+func addFutureApplication(t *testing.T, db *sql.DB, userID, discountID, orderID int64, appliedAmount float64) {
+	t.Helper()
+	_, err := db.Exec(`
+INSERT INTO recharge_discount_applications (user_id, discount_id, payment_order_id, applied_amount, bonus_amount, discount_rate_snapshot, created_at)
+VALUES ($1, $2, $3, $4, 0, 0.1, NOW() + INTERVAL '1 day')
+ON CONFLICT (payment_order_id) DO NOTHING`, userID, discountID, orderID, appliedAmount)
+	require.NoError(t, err)
+}
+
 func buildReferralService(t *testing.T, client *dbent.Client, db *sql.DB, enabled bool) *ReferralRewardService {
 	t.Helper()
 	giftEngine := gift.NewEngine(client, db)
@@ -1067,5 +1078,30 @@ func TestIntegration_Referral_GetReferralStatus_RechargeRemaining_PerDiscountMax
 	require.NoError(t, err)
 	assert.False(t, status.Eligible, "单笔折扣均未达门槛 → 未达标")
 	// 缺口取距门槛最近的一档：100 - max(40,40) = 60
+	assert.InDelta(t, 60.0, status.EligibilityRechargeRemaining, 0.001)
+}
+
+// ==========================================================================
+// Test 14: GetReferralStatus — remaining 排除未来 application，与资格判定一致
+// 资格查询按 a.created_at <= NOW() 过滤；remaining 不能把未来 application 计进去，
+// 否则会出现 eligible=false 但 remaining=0 的矛盾。
+// ==========================================================================
+
+func TestIntegration_Referral_GetReferralStatus_RechargeRemaining_ExcludesFuture(t *testing.T) {
+	client, db := setupReferralIntegrationDB(t)
+	svc := buildReferralServiceRecharge(t, client, db, "100")
+	ctx := context.Background()
+
+	userID := int64(800052)
+	ensureTestUser(t, db, userID)
+
+	// 当前有效充值 40 + 一笔未来 application 70（若误计则 110 ≥ 100 会误判达标/remaining=0）
+	discountID := insertDiscountWithApplication(t, db, userID, "future_case", 40, 900054)
+	addFutureApplication(t, db, userID, discountID, 900055, 70)
+
+	status, err := svc.GetReferralStatus(ctx, userID)
+	require.NoError(t, err)
+	assert.False(t, status.Eligible, "未来 application 不计入资格 → 仍未达标")
+	// 只计当前的 40：remaining = 100 - 40 = 60（未来 70 被排除）
 	assert.InDelta(t, 60.0, status.EligibilityRechargeRemaining, 0.001)
 }

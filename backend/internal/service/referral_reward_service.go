@@ -475,6 +475,8 @@ func (s *ReferralRewardService) hasInviterRewardEligibilityAtTime(ctx context.Co
 // 资格判定语义（见 QueryDiscountsForEligibilityAfterRecharge）：
 // 用户名下"单笔折扣"的累计 applied_amount 达到 minAmount 即算达标。
 // 因此缺口取所有有效折扣中「距门槛最近」的一档：remaining = minAmount - max(单折扣累计额)。
+// 过滤条件须与资格查询完全一致（折扣有效期 + a.created_at <= NOW()，排除未来 application），
+// 否则可能出现 eligible=false 但 remaining=0 的矛盾。
 // minAmount<=0 时资格只要求有一笔折扣充值、无金额门槛，无法用金额表达"还需"，返回 0。
 func (s *ReferralRewardService) eligibilityRechargeRemaining(ctx context.Context, userID int64, minAmount float64) float64 {
 	if minAmount <= 0 {
@@ -488,6 +490,7 @@ SELECT COALESCE(MAX(applied_sum), 0) FROM (
     WHERE d.user_id = $1
       AND d.valid_from <= NOW()
       AND (d.valid_until IS NULL OR d.valid_until >= NOW())
+      AND a.created_at <= NOW()
     GROUP BY d.id
 ) t`, userID)
 	if err != nil {

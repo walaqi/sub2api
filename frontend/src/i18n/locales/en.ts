@@ -1274,6 +1274,12 @@ export default {
       rechargeNeeded: 'Recharge {amount} more to become a Super Referrer',
       rechargeNeededAny: 'Complete one recharge using the super referral discount to become a Super Referrer',
       rule: 'Super Referral rules: invitees get {invitee} gift credit on signup; once they spend {threshold}, you get {inviter} gift credit!',
+      inviteeRewardTitle: 'Your signup reward',
+      inviteeRewardGranted: 'You received {amount} signup gift credit',
+      inviteeRewardPending: '{amount} signup gift credit pending',
+      rewardQuotaTitle: 'Reward grant chances',
+      rewardQuotaRemaining: '{count} inviter-reward grant chance(s) remaining',
+      rewardQuotaHint: 'Once exhausted, invitee thresholds no longer pay out; recharge to earn more chances and immediately release any pending rewards.',
       progress: {
         title: 'Super Referral Progress',
         header: 'Progress',

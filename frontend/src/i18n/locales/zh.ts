@@ -1278,6 +1278,12 @@ export default {
       rechargeNeeded: '尚需充值 {amount} 变成超级邀请',
       rechargeNeededAny: '完成一次参与超级邀请折扣的充值即可成为超级邀请',
       rule: '超级邀请规则：被邀请人注册即得 {invitee} 赠金，消费达标 {threshold}，你得 {inviter} 赠金！',
+      inviteeRewardTitle: '你的注册奖励',
+      inviteeRewardGranted: '你已获得 {amount} 注册赠金',
+      inviteeRewardPending: '注册赠金 {amount} 待发放',
+      rewardQuotaTitle: '达标奖励发放机会',
+      rewardQuotaRemaining: '剩余 {count} 次达标奖励发放机会',
+      rewardQuotaHint: '机会用尽后，被邀请人达标也暂不发奖；充值即可获得更多机会并立即补发被卡的奖励。',
       progress: {
         title: '超级邀请达标进度',
         header: '达标进度',
