@@ -1271,6 +1271,22 @@ export default {
       line2: '被邀请用户充值后，你可获得 {rate} 的返利额度。',
       line3: '返利额度可随时转入账户余额。',
       line4: '新产生的返利需要经过冻结期后才能提现。'
+    },
+    // 超级邀请开启时叠加在返利页上的内容
+    superReferral: {
+      enabledBadge: '超级邀请已开启',
+      rechargeNeeded: '尚需充值 {amount} 变成超级邀请',
+      rechargeNeededAny: '完成一次参与超级邀请折扣的充值即可成为超级邀请',
+      rule: '超级邀请规则：被邀请人注册即得 {invitee} 赠金，消费达标 {threshold}，你得 {inviter} 赠金！',
+      progress: {
+        title: '超级邀请达标进度',
+        header: '达标进度',
+        statusGranted: '已达标',
+        statusPending: '进行中',
+        statusIneligible: '不可获得',
+        statusBlockedByQuota: '待充值解锁',
+        empty: '还没有被邀请人开始消费'
+      }
     }
   },
 
@@ -7702,39 +7718,6 @@ export default {
     sourceAdmin: '管理员调整',
     sourceAffiliate: '推荐返佣',
     sourceSignup: '注册赠送',
-  },
-
-  referral: {
-    title: '超级邀请',
-    subtitle: '邀请好友注册，双方都能获得奖励',
-    disabledTitle: '该功能当前未开启',
-    disabledBody: '管理员尚未启用超级邀请功能，请稍后再试。',
-    inviteLinkTitle: '你的邀请链接',
-    inviteLinkHint: '将此链接分享给好友，他们注册后双方都能获得赠金奖励。',
-    eligibilityPendingTitle: '超级邀请资格未开启',
-    eligibilityBindKeyHint: '领取带超级邀请权益的 Key 后即可开启资格。',
-    eligibilityRechargeHint: '完成一次参与超级邀请折扣的充值后即可开启资格。',
-    eligibilityRechargeMinHint: '累计参与超级邀请折扣的充值本金达到 {amount} USD 后即可开启资格。',
-    copyLink: '复制链接',
-    copied: '已复制',
-    inviteeRewardTitle: '你的注册奖励',
-    inviteeRewardGranted: '你已获得 {amount} 注册赠金',
-    inviteeRewardPending: '注册赠金 {amount} 待发放',
-    inviterProgressTitle: '邀请进度',
-    inviterProgressHint: '被邀请人消费达标后，你将获得赠金奖励。',
-    statusGranted: '已达标',
-    statusPending: '进行中',
-    statusIneligible: '不可获得',
-    statusBlockedByQuota: '待充值解锁',
-    noInvitees: '还没有邀请记录，分享你的链接开始邀请吧',
-    rewardQuotaTitle: '达标奖励发放机会',
-    rewardQuotaRemaining: '剩余 {count} 次达标奖励发放机会',
-    rewardQuotaHint: '机会用尽后，被邀请人达标也暂不发奖；充值即可获得更多机会并立即补发被卡的奖励。',
-    rulesTitle: '奖励规则',
-    rule1: '被邀请人注册成功后立即获得赠金',
-    rule2: '被邀请人累计消费达标后，邀请人获得赠金',
-    rule3: '被邀请人同时继承你的充值折扣权益',
-    rule4: '每位被邀请人只触发一次邀请人奖励',
   },
 
   gifts: {

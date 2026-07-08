@@ -44,6 +44,26 @@
           </div>
         </div>
 
+        <!-- 超级邀请开启时：规则说明 + 资格进度（叠加在返利页上） -->
+        <div
+          v-if="superReferral?.enabled"
+          class="card border-indigo-200 bg-indigo-50 p-6 dark:border-indigo-800/50 dark:bg-indigo-900/20"
+        >
+          <div class="flex items-center gap-2">
+            <Icon name="sparkles" size="md" class="text-indigo-600 dark:text-indigo-400" />
+            <span class="rounded-md bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+              {{ t('affiliate.superReferral.enabledBadge') }}
+            </span>
+          </div>
+          <p class="mt-3 text-sm text-indigo-800 dark:text-indigo-200">{{ superReferralRule }}</p>
+          <p
+            v-if="!superReferral.eligible"
+            class="mt-2 text-sm font-medium text-amber-700 dark:text-amber-300"
+          >
+            {{ eligibilityHint }}
+          </p>
+        </div>
+
         <div class="card p-6">
           <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('affiliate.title') }}</h3>
           <p class="mt-1 text-sm text-gray-500 dark:text-dark-400">{{ t('affiliate.description') }}</p>
@@ -116,6 +136,7 @@
                   <th class="px-3 py-2 font-medium">{{ t('affiliate.invitees.columns.email') }}</th>
                   <th class="px-3 py-2 font-medium">{{ t('affiliate.invitees.columns.username') }}</th>
                   <th class="px-3 py-2 font-medium text-right">{{ t('affiliate.invitees.columns.rebate') }}</th>
+                  <th v-if="superReferral?.enabled && superReferral.eligible" class="px-3 py-2 font-medium">{{ t('affiliate.superReferral.progress.header') }}</th>
                   <th class="px-3 py-2 font-medium">{{ t('affiliate.invitees.columns.joinedAt') }}</th>
                 </tr>
               </thead>
@@ -128,6 +149,21 @@
                   <td class="px-3 py-3 text-gray-900 dark:text-white">{{ item.email || '-' }}</td>
                   <td class="px-3 py-3 text-gray-700 dark:text-gray-300">{{ item.username || '-' }}</td>
                   <td class="px-3 py-3 text-right font-medium text-emerald-600 dark:text-emerald-400">{{ formatCurrency(item.total_rebate) }}</td>
+                  <td v-if="superReferral?.enabled && superReferral.eligible" class="px-3 py-3">
+                    <div v-if="progressByInvitee.get(item.user_id)" class="flex items-center gap-2">
+                      <div class="h-1.5 w-20 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-700">
+                        <div
+                          class="h-full rounded-full transition-all"
+                          :class="progressByInvitee.get(item.user_id)!.granted ? 'bg-emerald-500' : 'bg-indigo-500'"
+                          :style="{ width: progressPercent(progressByInvitee.get(item.user_id)!) + '%' }"
+                        ></div>
+                      </div>
+                      <span class="text-xs text-gray-500 dark:text-dark-400">
+                        {{ progressLabel(progressByInvitee.get(item.user_id)!) }}
+                      </span>
+                    </div>
+                    <span v-else class="text-xs text-gray-400 dark:text-dark-500">-</span>
+                  </td>
                   <td class="px-3 py-3 text-gray-700 dark:text-gray-300">{{ formatDateTime(item.created_at) || '-' }}</td>
                 </tr>
               </tbody>
@@ -145,7 +181,7 @@ import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import userAPI from '@/api/user'
-import type { UserAffiliateDetail } from '@/types'
+import type { UserAffiliateDetail, ReferralStatus, ReferralInviteeProgress } from '@/types'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { useClipboard } from '@/composables/useClipboard'
@@ -160,6 +196,52 @@ const { copyToClipboard } = useClipboard()
 const loading = ref(true)
 const transferring = ref(false)
 const detail = ref<UserAffiliateDetail | null>(null)
+const superReferral = ref<ReferralStatus | null>(null)
+
+// 被邀请人 id -> 超级邀请达标进度，用于在返利邀请列表里叠加进度列。
+// 返利列表的 email 是打码的，无法按邮箱关联；后端在 inviter_progress 里带了 invitee_id。
+const progressByInvitee = computed(() => {
+  const map = new Map<number, ReferralInviteeProgress>()
+  for (const p of superReferral.value?.inviter_progress ?? []) {
+    map.set(p.invitee_id, p)
+  }
+  return map
+})
+
+// 超级邀请规则说明：注册即得 X / 消费达标 Y / 你得 Z。
+const superReferralRule = computed(() => {
+  const s = superReferral.value
+  if (!s) return ''
+  return t('affiliate.superReferral.rule', {
+    invitee: formatCurrency(s.invitee_amount),
+    threshold: formatCurrency(s.spend_threshold),
+    inviter: formatCurrency(s.inviter_amount),
+  })
+})
+
+// 资格未达标时的提示：recharge 模式给出"还需充值多少"，否则给出通用文案。
+const eligibilityHint = computed(() => {
+  const s = superReferral.value
+  if (!s) return ''
+  if (s.eligibility_grant_mode === 'recharge' && s.eligibility_recharge_remaining > 0) {
+    return t('affiliate.superReferral.rechargeNeeded', {
+      amount: formatCurrency(s.eligibility_recharge_remaining),
+    })
+  }
+  return t('affiliate.superReferral.rechargeNeededAny')
+})
+
+function progressPercent(p: ReferralInviteeProgress): number {
+  if (p.threshold <= 0) return p.granted ? 100 : 0
+  return Math.min(100, (p.spend_tracked / p.threshold) * 100)
+}
+
+function progressLabel(p: ReferralInviteeProgress): string {
+  if (p.granted) return t('affiliate.superReferral.progress.statusGranted')
+  if (p.blocked_by_quota) return t('affiliate.superReferral.progress.statusBlockedByQuota')
+  if (p.reward_eligible === false) return t('affiliate.superReferral.progress.statusIneligible')
+  return `${formatCurrency(p.spend_tracked)} / ${formatCurrency(p.threshold)}`
+}
 
 const inviteLink = computed(() => {
   if (!detail.value) return ''
@@ -184,7 +266,13 @@ async function loadAffiliateDetail(silent = false): Promise<void> {
     loading.value = true
   }
   try {
-    detail.value = await userAPI.getAffiliateDetail()
+    // 返利明细为主数据；超级邀请状态为叠加信息，单独失败不应阻断返利页展示。
+    const [affiliate, referral] = await Promise.all([
+      userAPI.getAffiliateDetail(),
+      userAPI.getReferralStatus().catch(() => null),
+    ])
+    detail.value = affiliate
+    superReferral.value = referral
   } catch (error) {
     appStore.showError(extractApiErrorMessage(error, t('affiliate.loadFailed')))
   } finally {

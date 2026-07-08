@@ -18,6 +18,7 @@ import type {
   UserAffiliateDetail,
   AffiliateTransferResponse,
   PlatformQuotasResponse,
+  ReferralStatus,
 } from '@/types'
 
 /**
@@ -197,6 +198,15 @@ export async function transferAffiliateQuota(): Promise<AffiliateTransferRespons
 }
 
 /**
+ * 获取当前用户的超级邀请状态（返利页在超级邀请开启时叠加展示达标进度）。
+ * 响应拦截器已解包信封，data 即为 ReferralStatus。
+ */
+export async function getReferralStatus(): Promise<ReferralStatus> {
+  const { data } = await apiClient.get<ReferralStatus>('/user/referral/status')
+  return data
+}
+
+/**
  * 获取当前用户的平台限额 + 用量。
  */
 export async function getMyPlatformQuotas(): Promise<PlatformQuotasResponse> {
@@ -247,6 +257,7 @@ export const userAPI = {
   startOAuthBinding,
   getAffiliateDetail,
   transferAffiliateQuota,
+  getReferralStatus,
   getMyPlatformQuotas,
   getMyActiveRechargeDiscount,
 }

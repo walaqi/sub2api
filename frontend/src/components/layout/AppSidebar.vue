@@ -716,7 +716,8 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, hideInSimpleMode: true },
     { path: '/activities', label: t('nav.activities'), icon: TicketIcon, hideInSimpleMode: true },
     {
-      path: referralRewardEnabled.value ? '/referral' : '/affiliate',
+      // 超级邀请已并入邀请返利页，菜单统一指向 /affiliate；开启超级邀请时仅切换标签文案。
+      path: '/affiliate',
       label: referralRewardEnabled.value ? t('nav.superReferral') : t('nav.affiliate'),
       icon: UsersIcon,
       hideInSimpleMode: true,

@@ -167,6 +167,36 @@ export interface AffiliateTransferResponse {
   balance: number
 }
 
+/** 超级邀请（referral reward）进度中的单个被邀请人。 */
+export interface ReferralInviteeProgress {
+  invitee_id: number
+  invitee_name: string
+  invitee_email: string
+  spend_tracked: number
+  threshold: number
+  granted: boolean
+  reward_eligible: boolean
+  blocked_by_quota: boolean
+}
+
+/** GET /user/referral/status 返回的超级邀请状态。 */
+export interface ReferralStatus {
+  enabled: boolean
+  eligible: boolean
+  eligibility_grant_mode: 'bind_key_claim' | 'recharge'
+  eligibility_recharge_min_amount: number
+  /** recharge 模式且未达标时，还需累计充值多少 USD 才能成为超级邀请人。 */
+  eligibility_recharge_remaining: number
+  aff_code: string
+  invitee_amount: number
+  inviter_amount: number
+  spend_threshold: number
+  invitee_reward: { granted: boolean; amount: number } | null
+  inviter_reward_quota_enabled: boolean
+  inviter_reward_quota: number
+  inviter_progress: ReferralInviteeProgress[]
+}
+
 export interface SendVerifyCodeRequest {
   email: string
   turnstile_token?: string

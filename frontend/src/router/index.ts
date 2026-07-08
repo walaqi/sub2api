@@ -441,16 +441,10 @@ const routes: RouteRecordRaw[] = [
     }
   },
 
-  // 超级邀请：邀请奖励状态页面（需登录）
+  // 超级邀请已合并进邀请返利页（/affiliate），保留旧链接重定向以兼容书签/深链。
   {
     path: '/referral',
-    name: 'Referral',
-    component: () => import('@/views/user/ReferralView.vue'),
-    meta: {
-      requiresAuth: true,
-      title: 'Super Referral',
-      titleKey: 'referral.title',
-    }
+    redirect: '/affiliate',
   },
 
   // ==================== Admin Routes ====================
