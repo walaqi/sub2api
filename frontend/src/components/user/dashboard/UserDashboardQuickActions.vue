@@ -64,7 +64,7 @@
         />
       </button>
 
-      <button @click="router.push('/referral')" class="group flex w-full items-center gap-4 rounded-xl bg-gray-50 p-4 text-left transition-all duration-200 hover:bg-gray-100 dark:bg-dark-800/50 dark:hover:bg-dark-800">
+      <button @click="router.push('/affiliate')" class="group flex w-full items-center gap-4 rounded-xl bg-gray-50 p-4 text-left transition-all duration-200 hover:bg-gray-100 dark:bg-dark-800/50 dark:hover:bg-dark-800">
         <div class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-indigo-100 transition-transform group-hover:scale-105 dark:bg-indigo-900/30">
           <Icon name="userPlus" size="lg" class="text-indigo-600 dark:text-indigo-400" />
         </div>

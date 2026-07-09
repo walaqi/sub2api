@@ -1267,6 +1267,28 @@ export default {
       line2: 'When invitees recharge, you receive {rate} of the recharge as rebate quota.',
       line3: 'Transfer rebate quota to balance at any time.',
       line4: 'Newly earned rebates may have a waiting period before they can be transferred.'
+    },
+    // Overlaid on the affiliate page when super referral is enabled
+    superReferral: {
+      enabledBadge: 'Super Referral enabled',
+      rechargeNeeded: 'Recharge {amount} more to become a Super Referrer',
+      rechargeNeededAny: 'Complete one recharge using the super referral discount to become a Super Referrer',
+      rule: 'Super Referral rules: invitees get {invitee} gift credit on signup; once they spend {threshold}, you get {inviter} gift credit!',
+      inviteeRewardTitle: 'Your signup reward',
+      inviteeRewardGranted: 'You received {amount} signup gift credit',
+      inviteeRewardPending: '{amount} signup gift credit pending',
+      rewardQuotaTitle: 'Reward grant chances',
+      rewardQuotaRemaining: '{count} inviter-reward grant chance(s) remaining',
+      rewardQuotaHint: 'Once exhausted, invitee thresholds no longer pay out; recharge to earn more chances and immediately release any pending rewards.',
+      progress: {
+        title: 'Super Referral Progress',
+        header: 'Progress',
+        statusGranted: 'Completed',
+        statusPending: 'In progress',
+        statusIneligible: 'Ineligible',
+        statusBlockedByQuota: 'Recharge to unlock',
+        empty: 'No invitees have started spending yet'
+      }
     }
   },
 
@@ -7525,39 +7547,6 @@ export default {
     sourceAdmin: 'Admin Adjustment',
     sourceAffiliate: 'Affiliate Transfer',
     sourceSignup: 'Signup Grant',
-  },
-
-  referral: {
-    title: 'Super Referral',
-    subtitle: 'Invite friends to register and both of you get rewarded',
-    disabledTitle: 'This feature is currently unavailable',
-    disabledBody: 'The super referral feature has not been enabled by the administrator. Please try again later.',
-    inviteLinkTitle: 'Your invite link',
-    inviteLinkHint: 'Share this link with friends. Both of you receive gift credits when they register.',
-    eligibilityPendingTitle: 'Super referral eligibility is not active',
-    eligibilityBindKeyHint: 'Claim a key with super referral benefits to activate eligibility.',
-    eligibilityRechargeHint: 'Complete one recharge using the super referral discount to activate eligibility.',
-    eligibilityRechargeMinHint: 'Reach {amount} USD in recharge principal using the super referral discount to activate eligibility.',
-    copyLink: 'Copy link',
-    copied: 'Copied',
-    inviteeRewardTitle: 'Your signup reward',
-    inviteeRewardGranted: 'You received {amount} signup gift credit',
-    inviteeRewardPending: '{amount} signup gift credit pending',
-    inviterProgressTitle: 'Invite progress',
-    inviterProgressHint: 'You receive a gift credit when your invitees reach the spending threshold.',
-    statusGranted: 'Completed',
-    statusPending: 'In progress',
-    statusIneligible: 'Ineligible',
-    statusBlockedByQuota: 'Recharge to unlock',
-    noInvitees: 'No invitations yet. Share your link to get started.',
-    rewardQuotaTitle: 'Reward grant chances',
-    rewardQuotaRemaining: '{count} inviter-reward grant chance(s) remaining',
-    rewardQuotaHint: 'Once exhausted, invitee thresholds no longer pay out; recharge to earn more chances and immediately release any pending rewards.',
-    rulesTitle: 'Reward rules',
-    rule1: 'Invitees receive gift credit immediately upon registration',
-    rule2: 'When an invitee reaches the spending threshold, the inviter receives gift credit',
-    rule3: 'Invitees also inherit your recharge discount benefits',
-    rule4: 'Each invitee triggers the inviter reward only once',
   },
 
   gifts: {

@@ -470,6 +470,46 @@ func (s *ReferralRewardService) hasInviterRewardEligibilityAtTime(ctx context.Co
 	return err == nil && len(discounts) > 0
 }
 
+// eligibilityRechargeRemaining 计算 recharge 模式下用户还需累计充值多少（USD）才能获得超级邀请资格。
+//
+// 资格判定语义（见 QueryDiscountsForEligibilityAfterRecharge）：
+// 用户名下"单笔折扣"的累计 applied_amount 达到 minAmount 即算达标。
+// 因此缺口取所有有效折扣中「距门槛最近」的一档：remaining = minAmount - max(单折扣累计额)。
+// 过滤条件须与资格查询完全一致（折扣有效期 + a.created_at <= NOW()，排除未来 application），
+// 否则可能出现 eligible=false 但 remaining=0 的矛盾。
+// minAmount<=0 时资格只要求有一笔折扣充值、无金额门槛，无法用金额表达"还需"，返回 0。
+func (s *ReferralRewardService) eligibilityRechargeRemaining(ctx context.Context, userID int64, minAmount float64) float64 {
+	if minAmount <= 0 {
+		return 0
+	}
+	rows, err := s.execer(ctx).QueryContext(ctx, `
+SELECT COALESCE(MAX(applied_sum), 0) FROM (
+    SELECT SUM(a.applied_amount)::double precision AS applied_sum
+    FROM user_recharge_discounts d
+    JOIN recharge_discount_applications a ON a.discount_id = d.id
+    WHERE d.user_id = $1
+      AND d.valid_from <= NOW()
+      AND (d.valid_until IS NULL OR d.valid_until >= NOW())
+      AND a.created_at <= NOW()
+    GROUP BY d.id
+) t`, userID)
+	if err != nil {
+		return minAmount
+	}
+	defer func() { _ = rows.Close() }()
+	var best float64
+	if rows.Next() {
+		if err := rows.Scan(&best); err != nil {
+			return minAmount
+		}
+	}
+	remaining := minAmount - best
+	if remaining < 0 {
+		remaining = 0
+	}
+	return remaining
+}
+
 func (s *ReferralRewardService) queryInviterDiscountsForReferralGrant(ctx context.Context, inviterID int64, atTime *time.Time) ([]RechargeDiscountSummary, error) {
 	if s == nil || s.discountRepo == nil {
 		return nil, nil
@@ -694,6 +734,13 @@ type ReferralStatus struct {
 	AffCode                      string            `json:"aff_code"`         // 用户的邀请码（用于生成邀请链接）
 	InviteeReward                *InviteeRewardDTO `json:"invitee_reward"`   // 当前用户作为被邀请人的奖励状态（nil=非被邀请人）
 	InviterProgress              []InviteeProgress `json:"inviter_progress"` // 当前用户作为邀请人，各被邀请人的消费进度
+	// 奖励规则金额（供前端展示"注册即得 X / 消费达标 Y / 你得 Z"）。
+	InviteeAmount  float64 `json:"invitee_amount"`  // 被邀请人注册赠金
+	InviterAmount  float64 `json:"inviter_amount"`  // 邀请人达标赠金
+	SpendThreshold float64 `json:"spend_threshold"` // 被邀请人消费达标阈值
+	// EligibilityRechargeRemaining 仅在 recharge 模式且尚未获得资格时有意义：
+	// 表示还需累计充值多少（USD）才能成为超级邀请人。0 表示已满足或不适用。
+	EligibilityRechargeRemaining float64 `json:"eligibility_recharge_remaining"`
 	// 邀请人达标奖励发放次数配额（仅配额开关开时有意义）
 	InviterRewardQuotaEnabled bool `json:"inviter_reward_quota_enabled"` // 配额功能是否开启
 	InviterRewardQuota        int  `json:"inviter_reward_quota"`         // 剩余可领取达标奖励的机会数
@@ -705,6 +752,7 @@ type InviteeRewardDTO struct {
 }
 
 type InviteeProgress struct {
+	InviteeID      int64   `json:"invitee_id"` // 被邀请人 user id（前端用于与返利已邀请列表按 id 关联）
 	InviteeName    string  `json:"invitee_name"`
 	InviteeEmail   string  `json:"invitee_email"`
 	SpendTracked   float64 `json:"spend_tracked"`
@@ -739,9 +787,20 @@ func (s *ReferralRewardService) GetReferralStatus(ctx context.Context, userID in
 		Enabled:                      enabled,
 		EligibilityGrantMode:         cfg.EligibilityGrantMode,
 		EligibilityRechargeMinAmount: cfg.EligibilityRechargeMinAmount,
+		InviteeAmount:                cfg.InviteeAmount,
+		InviterAmount:                cfg.InviterAmount,
+		SpendThreshold:               cfg.SpendThreshold,
 	}
 	status.Eligible = s.hasInviterRewardEligibility(ctx, userID)
 	status.InviterRewardQuotaEnabled = cfg.InviterRewardQuotaEnabled
+
+	// recharge 模式且尚未获得资格时，计算还需累计充值多少才能成为超级邀请人。
+	// 语义对齐资格判定：单笔折扣的累计 applied_amount 达到门槛即算资格，
+	// 因此"还需"取所有在有效期内折扣中「距门槛最近」的缺口（缺口最小 = 最容易达标）。
+	if enabled && !status.Eligible && cfg.EligibilityGrantMode == ReferralEligibilityGrantModeRecharge {
+		minAmount := normalizeReferralEligibilityRechargeMinAmount(cfg.EligibilityRechargeMinAmount)
+		status.EligibilityRechargeRemaining = s.eligibilityRechargeRemaining(ctx, userID, minAmount)
+	}
 
 	// 0. 获取用户的邀请码（lazy-create：无 user_affiliates 行时自动创建并生成 aff_code）
 	if s.affiliateService != nil {
@@ -790,7 +849,7 @@ func (s *ReferralRewardService) GetReferralStatus(ctx context.Context, userID in
 
 	// 2. 作为邀请人的各被邀请人进度
 	progressRows, err := execer.QueryContext(ctx, `
-SELECT COALESCE(u.username, ''), COALESCE(u.email, ''),
+SELECT t.invitee_id, COALESCE(u.username, ''), COALESCE(u.email, ''),
        t.invitee_spend_tracked::double precision, t.spend_threshold::double precision, t.inviter_reward_granted, t.inviter_reward_eligible_at_bind, t.inviter_reward_blocked_by_quota
 FROM referral_reward_tracker t
 LEFT JOIN users u ON u.id = t.invitee_id
@@ -803,7 +862,7 @@ LIMIT 50`, userID)
 	defer func() { _ = progressRows.Close() }()
 	for progressRows.Next() {
 		var p InviteeProgress
-		if err := progressRows.Scan(&p.InviteeName, &p.InviteeEmail, &p.SpendTracked, &p.Threshold, &p.Granted, &p.RewardEligible, &p.BlockedByQuota); err != nil {
+		if err := progressRows.Scan(&p.InviteeID, &p.InviteeName, &p.InviteeEmail, &p.SpendTracked, &p.Threshold, &p.Granted, &p.RewardEligible, &p.BlockedByQuota); err != nil {
 			return nil, fmt.Errorf("scan inviter progress: %w", err)
 		}
 		status.InviterProgress = append(status.InviterProgress, p)
