@@ -278,3 +278,58 @@ func prepareMigrationsBootstrapExpectations(mock sqlmock.Sqlmock) {
 	mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM atlas_schema_revisions").
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 }
+
+func TestSplitSQLStatements_HandlesCommentsWithSemicolons(t *testing.T) {
+	// Test case from production failure: migration 176 with semicolon in comment
+	migrationContent := `-- 176_referral_tracker_blocked_by_quota_index_notx.sql
+-- Partial index for the "quota exhausted" login popup targeting.
+-- fillReferralTargeting runs EXISTS(... inviter_id=$1 AND inviter_reward_granted=false
+-- AND inviter_reward_blocked_by_quota=true); this narrow partial index keeps that
+-- probe cheap even for inviters with many invitee tracker rows.
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_rrt_inviter_blocked_pending
+    ON referral_reward_tracker (inviter_id)
+    WHERE inviter_reward_granted = FALSE AND inviter_reward_blocked_by_quota = TRUE;`
+
+	// This should split into exactly 1 statement (the CREATE INDEX)
+	statements := splitSQLStatements(migrationContent)
+	require.Len(t, statements, 1, "Should have exactly 1 SQL statement")
+	require.Contains(t, statements[0], "CREATE INDEX CONCURRENTLY IF NOT EXISTS", "Should contain the CREATE INDEX statement")
+	require.NotContains(t, statements[0], "this narrow partial index", "Should not contain comment text")
+}
+
+func TestApplyMigrationsFS_NonTransactionalMigration_WithCommentsContainingSemicolons(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	prepareMigrationsBootstrapExpectations(mock)
+	mock.ExpectQuery("SELECT checksum FROM schema_migrations WHERE filename = \\$1").
+		WithArgs("176_comments_with_semicolons_notx.sql").
+		WillReturnError(sql.ErrNoRows)
+	mock.ExpectExec("CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_rrt_inviter_blocked_pending ON referral_reward_tracker \\(inviter_id\\) WHERE inviter_reward_granted = FALSE AND inviter_reward_blocked_by_quota = TRUE").
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("INSERT INTO schema_migrations \\(filename, checksum\\) VALUES \\(\\$1, \\$2\\)").
+		WithArgs("176_comments_with_semicolons_notx.sql", sqlmock.AnyArg()).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("SELECT pg_advisory_unlock\\(\\$1\\)").
+		WithArgs(migrationsAdvisoryLockID).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	// This is the exact problematic comment pattern from production
+	fsys := fstest.MapFS{
+		"176_comments_with_semicolons_notx.sql": &fstest.MapFile{
+			Data: []byte(`-- 176_referral_tracker_blocked_by_quota_index_notx.sql
+-- Partial index for the "quota exhausted" login popup targeting.
+-- fillReferralTargeting runs EXISTS(... inviter_id=$1 AND inviter_reward_granted=false
+-- AND inviter_reward_blocked_by_quota=true); this narrow partial index keeps that
+-- probe cheap even for inviters with many invitee tracker rows.
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_rrt_inviter_blocked_pending
+    ON referral_reward_tracker (inviter_id)
+    WHERE inviter_reward_granted = FALSE AND inviter_reward_blocked_by_quota = TRUE;`),
+		},
+	}
+
+	err = applyMigrationsFS(context.Background(), db, fsys)
+	require.NoError(t, err, "Migration should apply successfully despite semicolon in comment")
+	require.NoError(t, mock.ExpectationsWereMet())
+}

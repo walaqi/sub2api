@@ -215,9 +215,7 @@ func applyMigrationsFS(ctx context.Context, db *sql.DB, fsys fs.FS) error {
 				if trimmed == "" {
 					continue
 				}
-				if stripSQLLineComment(trimmed) == "" {
-					continue
-				}
+				// splitSQLStatements 已经移除了行注释，因此无需再次调用 stripSQLLineComment
 				if _, err := db.ExecContext(ctx, trimmed); err != nil {
 					return fmt.Errorf("apply migration %s (non-tx statement %d): %w", name, i+1, err)
 				}
@@ -467,7 +465,7 @@ func validateMigrationExecutionMode(name, content string) (bool, error) {
 
 	statements := splitSQLStatements(content)
 	for _, stmt := range statements {
-		normalizedStmt := strings.ToUpper(stripSQLLineComment(strings.TrimSpace(stmt)))
+		normalizedStmt := strings.ToUpper(strings.TrimSpace(stmt))
 		if normalizedStmt == "" {
 			continue
 		}
@@ -493,26 +491,59 @@ func validateMigrationExecutionMode(name, content string) (bool, error) {
 	return true, nil
 }
 
+// splitSQLStatements splits SQL content into individual statements by semicolon,
+// properly handling SQL string literals and comments to avoid splitting on semicolons
+// inside strings or comments.
 func splitSQLStatements(content string) []string {
-	parts := strings.Split(content, ";")
-	out := make([]string, 0, len(parts))
-	for _, part := range parts {
-		if strings.TrimSpace(part) == "" {
+	var statements []string
+	var current strings.Builder
+
+	inSingleQuote := false
+	inDoubleQuote := false
+
+	for i := 0; i < len(content); i++ {
+		ch := content[i]
+
+		// Handle comments
+		if !inSingleQuote && !inDoubleQuote && ch == '-' && i+1 < len(content) && content[i+1] == '-' {
+			// Found line comment start, skip to end of line
+			i++ // Skip the second '-'
+			for i < len(content) && content[i] != '\n' {
+				i++
+			}
+			// Continue processing after comment (the newline will be handled in next iteration)
 			continue
 		}
-		out = append(out, part)
-	}
-	return out
-}
 
-func stripSQLLineComment(s string) string {
-	lines := strings.Split(s, "\n")
-	for i, line := range lines {
-		if idx := strings.Index(line, "--"); idx >= 0 {
-			lines[i] = line[:idx]
+		// Handle string literals and quoted identifiers.
+		// strings.Builder.WriteByte never returns a non-nil error, so the
+		// return value is intentionally discarded.
+		switch {
+		case ch == '\'' && !inDoubleQuote:
+			inSingleQuote = !inSingleQuote
+			_ = current.WriteByte(ch)
+		case ch == '"' && !inSingleQuote:
+			inDoubleQuote = !inDoubleQuote
+			_ = current.WriteByte(ch)
+		case ch == ';' && !inSingleQuote && !inDoubleQuote:
+			// Statement terminator outside strings/comments
+			trimmed := strings.TrimSpace(current.String())
+			if trimmed != "" {
+				statements = append(statements, trimmed)
+			}
+			current.Reset()
+		default:
+			_ = current.WriteByte(ch)
 		}
 	}
-	return strings.TrimSpace(strings.Join(lines, "\n"))
+
+	// Handle any trailing statement without semicolon
+	trimmed := strings.TrimSpace(current.String())
+	if trimmed != "" {
+		statements = append(statements, trimmed)
+	}
+
+	return statements
 }
 
 // pgAdvisoryLock 获取 PostgreSQL Advisory Lock。
