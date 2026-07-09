@@ -103,6 +103,16 @@ export interface PaymentOrder {
   refund_request_reason?: string
   plan_id?: number
   provider_instance_id?: string
+  /** 该订单发放的充值折扣赠金，nil/缺省=未发赠金。用于充值成功页展示"赠金 $X"。 */
+  gift_bonus?: OrderGiftBonus
+}
+
+/** 订单发放的充值折扣赠金。 */
+export interface OrderGiftBonus {
+  bonus_amount: number
+  /** 赠金扣除模式：priority=优先扣除 / ratio=比例扣除。 */
+  deduction_mode: 'priority' | 'ratio'
+  ratio_recharge?: number
 }
 
 // ==================== Plans & Channels ====================

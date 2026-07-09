@@ -45,6 +45,46 @@ func (r *rechargeDiscountRepoImpl) CheckApplicationExists(ctx context.Context, p
 	return exists, rows.Close()
 }
 
+func (r *rechargeDiscountRepoImpl) QueryOrderGiftBonus(ctx context.Context, paymentOrderID int64) (*OrderGiftBonus, error) {
+	// bonus_amount 在 application 行；扣除模式固化在关联的 discount 行。
+	rows, err := r.execer(ctx).QueryContext(ctx, `
+SELECT a.bonus_amount::double precision,
+       d.gift_deduction_mode,
+       d.gift_ratio_recharge::double precision
+FROM recharge_discount_applications a
+JOIN user_recharge_discounts d ON d.id = a.discount_id
+WHERE a.payment_order_id = $1
+LIMIT 1`, paymentOrderID)
+	if err != nil {
+		return nil, fmt.Errorf("query order gift bonus: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+
+	var b OrderGiftBonus
+	var ratio sql.NullFloat64
+	if err := rows.Scan(&b.BonusAmount, &b.DeductionMode, &ratio); err != nil {
+		return nil, err
+	}
+	if ratio.Valid {
+		v := ratio.Float64
+		b.RatioRecharge = &v
+	}
+	// 归一化，与发放边界保持一致（DB 已有 check，此处兜底）。
+	normMode, normRatio, err := domain.NormalizeGiftDeduction(b.DeductionMode, b.RatioRecharge)
+	if err == nil {
+		b.DeductionMode = normMode
+		b.RatioRecharge = normRatio
+	}
+	return &b, rows.Close()
+}
+
 func (r *rechargeDiscountRepoImpl) QueryBestActiveDiscountForUpdate(ctx context.Context, userID int64) (*RechargeDiscountRecord, error) {
 	rows, err := r.execer(ctx).QueryContext(ctx, `
 SELECT id, user_id, discount_rate,

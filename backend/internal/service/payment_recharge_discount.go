@@ -36,6 +36,19 @@ type RechargeDiscountRepo interface {
 	QueryDiscountsForEligibilityAfterRechargeAtTime(ctx context.Context, userID int64, atTime time.Time, minAppliedAmount float64) ([]RechargeDiscountSummary, error)
 	// CreateDiscount inserts a new discount record (idempotent via ON CONFLICT DO NOTHING).
 	CreateDiscount(ctx context.Context, in CreateRechargeDiscountInput) (int64, error)
+	// QueryOrderGiftBonus 按支付订单查该订单发放的充值折扣赠金（bonus_amount + 扣除模式）。
+	// 返回 nil 表示该订单未命中折扣、未发放赠金。用于充值成功页展示"赠金 $X"。
+	QueryOrderGiftBonus(ctx context.Context, paymentOrderID int64) (*OrderGiftBonus, error)
+}
+
+// OrderGiftBonus 描述一笔支付订单发放的充值折扣赠金，供充值成功页展示。
+type OrderGiftBonus struct {
+	// BonusAmount 发放的赠金金额（recharge_discount_applications.bonus_amount）。
+	BonusAmount float64
+	// DeductionMode 赠金扣除模式（随折扣行固化）："priority" | "ratio"。
+	DeductionMode string
+	// RatioRecharge 仅 ratio 模式非 nil。
+	RatioRecharge *float64
 }
 
 // CreateRechargeDiscountInput 是 CreateDiscount 的入参。

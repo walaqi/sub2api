@@ -59,6 +59,10 @@
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.creditedAmount') }}</span>
               <span class="font-medium text-gray-900 dark:text-white">{{ order.order_type === 'balance' ? '$' + order.amount.toFixed(2) : formatGatewayAmount(order.amount) }}</span>
             </div>
+            <div v-if="giftBonusText" class="flex justify-between">
+              <span class="text-gray-500 dark:text-gray-400">{{ giftBonusLabel }}</span>
+              <span class="font-medium text-green-600 dark:text-green-400">{{ giftBonusText }}</span>
+            </div>
             <div class="flex justify-between">
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.paymentMethod') }}</span>
               <span class="font-medium text-gray-900 dark:text-white">{{ t(paymentMethodI18nKey(order.payment_type), normalizedOrderPaymentType(order.payment_type)) }}</span>
@@ -110,6 +114,7 @@ import { usePaymentStore } from '@/stores/payment'
 import { paymentAPI } from '@/api/payment'
 import type { PaymentOrder } from '@/types/payment'
 import { formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
+import { resolveGiftBonusDisplay } from '@/components/payment/giftBonus'
 import { normalizePaymentMethodForDisplay, paymentMethodI18nKey } from './paymentUx'
 
 const i18n = useI18n()
@@ -180,6 +185,13 @@ const statusTitle = computed(() => {
   }
   return t('payment.result.failed')
 })
+
+// 充值折扣赠金展示（命中折扣时显示「赠金(扣除模式) $金额」）。
+const giftBonus = computed(() => resolveGiftBonusDisplay(order.value?.gift_bonus))
+const giftBonusText = computed(() => giftBonus.value?.amountText ?? '')
+const giftBonusLabel = computed(() =>
+  giftBonus.value ? t(giftBonus.value.labelKey, { mode: t(giftBonus.value.labelModeKey) }) : ''
+)
 
 function normalizedOrderPaymentType(paymentType: string): string {
   return normalizePaymentMethodForDisplay(paymentType) || paymentType
