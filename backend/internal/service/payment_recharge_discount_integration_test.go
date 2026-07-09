@@ -545,3 +545,62 @@ WHERE user_id = $1 AND source = 'recharge_discount' ORDER BY id DESC LIMIT 1`, u
 	require.True(t, expiresAt.Valid)
 	assert.True(t, !expiresAt.Time.Before(before) && !expiresAt.Time.After(after), "expires_at=%s should be within [%s, %s]", expiresAt.Time, before, after)
 }
+
+// TestIntegration_QueryOrderGiftBonus 验证按订单查赠金：命中折扣后返回 bonus_amount + 扣除模式；
+// 无 application 时返回 nil。用于充值成功页展示"赠金 $X(扣除模式)"。
+func TestIntegration_QueryOrderGiftBonus(t *testing.T) {
+	client, db := setupIntegrationDB(t)
+	repo := &rechargeDiscountRepoImpl{client: client}
+	ctx := context.Background()
+
+	// --- 无 application 的订单 → nil ---
+	bonus, err := repo.QueryOrderGiftBonus(ctx, int64(990900))
+	require.NoError(t, err)
+	assert.Nil(t, bonus, "无 application 的订单应返回 nil")
+
+	// --- priority 模式：rate 0.1，充值本金 50 → bonus 5 ---
+	userID := int64(900010)
+	discountID := insertTestDiscountWithPolicy(t, db, userID, 0.1, 100, 30, "priority", nil, "discount_valid_until", nil)
+	priorityOrderID := int64(990901)
+	claimed, err := repo.ClaimApplication(ctx, &RechargeDiscountApplicationRecord{
+		UserID:               userID,
+		DiscountID:           discountID,
+		PaymentOrderID:       priorityOrderID,
+		AppliedAmount:        50,
+		BonusAmount:          5,
+		DiscountRateSnapshot: 0.1,
+	})
+	require.NoError(t, err)
+	require.True(t, claimed)
+
+	bonus, err = repo.QueryOrderGiftBonus(ctx, priorityOrderID)
+	require.NoError(t, err)
+	require.NotNil(t, bonus)
+	assert.InDelta(t, 5.0, bonus.BonusAmount, 0.0001)
+	assert.Equal(t, "priority", bonus.DeductionMode)
+	assert.Nil(t, bonus.RatioRecharge)
+
+	// --- ratio 模式：扣除模式与比例应随折扣行返回 ---
+	ratioUserID := int64(900011)
+	ratioVal := 2.0
+	ratioDiscountID := insertTestDiscountWithPolicy(t, db, ratioUserID, 0.2, 100, 30, "ratio", &ratioVal, "discount_valid_until", nil)
+	ratioOrderID := int64(990902)
+	claimed, err = repo.ClaimApplication(ctx, &RechargeDiscountApplicationRecord{
+		UserID:               ratioUserID,
+		DiscountID:           ratioDiscountID,
+		PaymentOrderID:       ratioOrderID,
+		AppliedAmount:        40,
+		BonusAmount:          8,
+		DiscountRateSnapshot: 0.2,
+	})
+	require.NoError(t, err)
+	require.True(t, claimed)
+
+	bonus, err = repo.QueryOrderGiftBonus(ctx, ratioOrderID)
+	require.NoError(t, err)
+	require.NotNil(t, bonus)
+	assert.InDelta(t, 8.0, bonus.BonusAmount, 0.0001)
+	assert.Equal(t, "ratio", bonus.DeductionMode)
+	require.NotNil(t, bonus.RatioRecharge)
+	assert.InDelta(t, 2.0, *bonus.RatioRecharge, 0.0001)
+}

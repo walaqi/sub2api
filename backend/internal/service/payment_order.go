@@ -811,6 +811,15 @@ func (s *PaymentService) GetOrder(ctx context.Context, orderID, userID int64) (*
 	return o, nil
 }
 
+// GetOrderGiftBonus 返回该订单发放的充值折扣赠金（bonus_amount + 扣除模式）。
+// 返回 nil 表示该订单未命中折扣、未发赠金。仅用于充值成功页展示，失败不阻断主流程。
+func (s *PaymentService) GetOrderGiftBonus(ctx context.Context, orderID int64) (*OrderGiftBonus, error) {
+	if s.rechargeDiscountRepo == nil {
+		return nil, nil
+	}
+	return s.rechargeDiscountRepo.QueryOrderGiftBonus(ctx, orderID)
+}
+
 func (s *PaymentService) GetOrderByID(ctx context.Context, orderID int64) (*dbent.PaymentOrder, error) {
 	o, err := s.entClient.PaymentOrder.Get(ctx, orderID)
 	if err != nil {

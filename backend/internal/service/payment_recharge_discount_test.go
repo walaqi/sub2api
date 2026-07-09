@@ -86,6 +86,10 @@ func (s *rechargeDiscountRepoStub) CreateDiscount(_ context.Context, _ CreateRec
 	return 0, nil
 }
 
+func (s *rechargeDiscountRepoStub) QueryOrderGiftBonus(_ context.Context, _ int64) (*OrderGiftBonus, error) {
+	return nil, nil
+}
+
 // --- Tests ---
 
 func TestApplyRechargeDiscount_NilRepo_Skips(t *testing.T) {
@@ -249,6 +253,10 @@ func (s *queryErrorRepoStub) QueryDiscountsForEligibilityAfterRecharge(_ context
 }
 
 func (s *queryErrorRepoStub) QueryDiscountsForEligibilityAfterRechargeAtTime(_ context.Context, _ int64, _ time.Time, _ float64) ([]RechargeDiscountSummary, error) {
+	return nil, nil
+}
+
+func (s *queryErrorRepoStub) QueryOrderGiftBonus(_ context.Context, _ int64) (*OrderGiftBonus, error) {
 	return nil, nil
 }
 

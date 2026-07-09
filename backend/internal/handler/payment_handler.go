@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -355,7 +356,44 @@ func (h *PaymentHandler) GetOrder(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, sanitizePaymentOrderForResponse(order))
+	result := sanitizePaymentOrderForResponse(order)
+	h.attachGiftBonus(c.Request.Context(), order, result)
+	response.Success(c, result)
+}
+
+// attachGiftBonus 在订单成功且为余额充值时，查该订单发放的折扣赠金并挂到响应上。
+// 仅用于展示，查询失败静默忽略（不阻断订单信息返回）。
+func (h *PaymentHandler) attachGiftBonus(ctx context.Context, order *dbent.PaymentOrder, result *PaymentOrderResult) {
+	if result == nil || order == nil {
+		return
+	}
+	// 只有余额充值订单会命中充值折扣发赠金；订阅订单不发。
+	if order.OrderType != "balance" {
+		return
+	}
+	// 未进入成功态时折扣尚未发放，无需查询。
+	if !isSuccessOrderStatus(order.Status) {
+		return
+	}
+	bonus, err := h.paymentService.GetOrderGiftBonus(ctx, order.ID)
+	if err != nil || bonus == nil || bonus.BonusAmount <= 0 {
+		return
+	}
+	result.GiftBonus = &OrderGiftBonusResult{
+		BonusAmount:   bonus.BonusAmount,
+		DeductionMode: bonus.DeductionMode,
+		RatioRecharge: bonus.RatioRecharge,
+	}
+}
+
+// isSuccessOrderStatus 判断订单是否已进入充值成功态（与前端 SUCCESS_STATUSES 对齐）。
+func isSuccessOrderStatus(status string) bool {
+	switch status {
+	case "COMPLETED", "PAID", "RECHARGING":
+		return true
+	default:
+		return false
+	}
 }
 
 // CancelOrder cancels a pending order for the authenticated user.
@@ -451,7 +489,9 @@ func (h *PaymentHandler) VerifyOrder(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, sanitizePaymentOrderForResponse(order))
+	result := sanitizePaymentOrderForResponse(order)
+	h.attachGiftBonus(c.Request.Context(), order, result)
+	response.Success(c, result)
 }
 
 // PublicOrderResult is the limited order info returned by the public verify endpoint.
@@ -581,6 +621,15 @@ type PaymentOrderResult struct {
 	RefundRequestReason *string    `json:"refund_request_reason,omitempty"`
 	PlanID              *int64     `json:"plan_id,omitempty"`
 	ProviderInstanceID  *string    `json:"provider_instance_id,omitempty"`
+	// 充值折扣赠金（该订单发放的赠金），nil=未发赠金。用于充值成功页展示"赠金 $X"。
+	GiftBonus *OrderGiftBonusResult `json:"gift_bonus,omitempty"`
+}
+
+// OrderGiftBonusResult 是订单发放赠金的响应体。
+type OrderGiftBonusResult struct {
+	BonusAmount   float64  `json:"bonus_amount"`
+	DeductionMode string   `json:"deduction_mode"`
+	RatioRecharge *float64 `json:"ratio_recharge,omitempty"`
 }
 
 func sanitizePaymentOrdersForResponse(orders []*dbent.PaymentOrder) []PaymentOrderResult {

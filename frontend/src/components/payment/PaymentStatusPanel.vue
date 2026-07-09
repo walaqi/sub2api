@@ -28,6 +28,10 @@
                 <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.payAmount') }}</span>
                 <span class="font-medium text-gray-900 dark:text-white">{{ formatGatewayAmount(paidOrder.pay_amount) }}</span>
               </div>
+              <div v-if="giftBonusText" class="flex justify-between">
+                <span class="text-gray-500 dark:text-gray-400">{{ giftBonusLabel }}</span>
+                <span class="font-medium text-green-600 dark:text-green-400">{{ giftBonusText }}</span>
+              </div>
             </div>
           </div>
           <button class="btn btn-primary" @click="handleDone">{{ t('common.confirm') }}</button>
@@ -130,6 +134,7 @@ import { paymentAPI } from '@/api/payment'
 import { extractI18nErrorMessage } from '@/utils/apiError'
 import { getPaymentPopupFeatures } from '@/components/payment/providerConfig'
 import { formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
+import { resolveGiftBonusDisplay } from '@/components/payment/giftBonus'
 import type { PaymentOrder } from '@/types/payment'
 import Icon from '@/components/icons/Icon.vue'
 import QRCode from 'qrcode'
@@ -217,6 +222,13 @@ const countdownDisplay = computed(() => {
 function formatGatewayAmount(value: number): string {
   return formatPaymentAmount(value, paymentCurrency.value, localeCode.value)
 }
+
+// 充值折扣赠金展示（命中折扣时显示「赠金(扣除模式) $金额」）。
+const giftBonus = computed(() => resolveGiftBonusDisplay(paidOrder.value?.gift_bonus))
+const giftBonusText = computed(() => giftBonus.value?.amountText ?? '')
+const giftBonusLabel = computed(() =>
+  giftBonus.value ? t(giftBonus.value.labelKey, { mode: t(giftBonus.value.labelModeKey) }) : ''
+)
 
 function isSuccessStatus(status: string | null | undefined): boolean {
   return status === 'COMPLETED' || status === 'PAID' || status === 'RECHARGING'

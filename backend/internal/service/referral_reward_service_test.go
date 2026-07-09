@@ -123,6 +123,10 @@ func (r *discountRepoForReferralStub) QueryDiscountsForEligibilityAfterRechargeA
 	}
 	return r.atTime[atTime.Unix()], nil
 }
+func (r *discountRepoForReferralStub) QueryOrderGiftBonus(_ context.Context, _ int64) (*OrderGiftBonus, error) {
+	return nil, nil
+}
+
 func (r *discountRepoForReferralStub) CreateDiscount(_ context.Context, in CreateRechargeDiscountInput) (int64, error) {
 	r.createdCalls = append(r.createdCalls, createDiscountCall{
 		UserID:               in.UserID,

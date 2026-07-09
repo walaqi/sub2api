@@ -59,6 +59,10 @@ func (s *discountRepoStub) CreateDiscount(_ context.Context, _ service.CreateRec
 	return 0, nil
 }
 
+func (s *discountRepoStub) QueryOrderGiftBonus(_ context.Context, _ int64) (*service.OrderGiftBonus, error) {
+	return nil, nil
+}
+
 func TestGetMyActiveDiscount_NilRepo_ReturnsNull(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	h := NewRechargeDiscountHandler(nil)
