@@ -289,9 +289,14 @@ func TestAppendUsageLogBillingModeWhereCondition(t *testing.T) {
 		wantCondition string
 	}{
 		{
-			name:          "image includes legacy image rows",
+			name:          "image includes explicit image and legacy image rows",
 			billingMode:   string(service.BillingModeImage),
-			wantCondition: "(billing_mode = $1 OR COALESCE(image_count, 0) > 0)",
+			wantCondition: "(billing_mode = $1 OR ((billing_mode IS NULL OR billing_mode = '') AND COALESCE(image_count, 0) > 0))",
+		},
+		{
+			name:          "video remains exact",
+			billingMode:   string(service.BillingModeVideo),
+			wantCondition: "billing_mode = $1",
 		},
 		{
 			name:          "token includes legacy non-image rows",

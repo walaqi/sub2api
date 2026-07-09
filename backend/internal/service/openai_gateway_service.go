@@ -243,6 +243,8 @@ type OpenAIForwardResult struct {
 	ImageOutputSizes   []string
 	ImageSizeSource    string
 	ImageSizeBreakdown map[string]int
+	VideoCount         int
+	VideoResolution    string
 
 	wsReplayInput       []json.RawMessage
 	wsReplayInputExists bool
