@@ -419,11 +419,11 @@ func TestGetFallbackPricing_FamilyMatching(t *testing.T) {
 		{name: "openai gpt5.4 mini", model: "gpt-5.4-mini", expectedInput: 7.5e-7},
 		{name: "openai gpt5.3 codex", model: "gpt-5.3-codex", expectedInput: 1.5e-6},
 		{name: "openai gpt5.3 codex spark", model: "gpt-5.3-codex-spark", expectedInput: 1.5e-6},
-		// GPT-5.6（sol / terra / luna）与 GPT-5.5 Pro 暂无独立本地兜底定价，
-		// 回退到 GPT-5.4（input 2.5e-6）。运行时优先用线上 model-pricing 数据。
-		{name: "openai gpt5.6 sol falls back to gpt5.4", model: "gpt-5.6-sol", expectedInput: 2.5e-6},
-		{name: "openai gpt5.6 terra falls back to gpt5.4", model: "gpt-5.6-terra", expectedInput: 2.5e-6},
-		{name: "openai gpt5.6 luna falls back to gpt5.4", model: "gpt-5.6-luna", expectedInput: 2.5e-6},
+		// GPT-5.6（sol / terra / luna）自 #3898 起有独立本地兜底定价（官方价，
+		// 缓存写入=输入价×1.25）。运行时仍优先用线上 model-pricing 数据。
+		{name: "openai gpt5.6 sol dedicated fallback", model: "gpt-5.6-sol", expectedInput: 5e-6, expectedOutput: floatPtr(30e-6), expectedCacheRead: floatPtr(0.5e-6)},
+		{name: "openai gpt5.6 terra dedicated fallback", model: "gpt-5.6-terra", expectedInput: 2.5e-6, expectedOutput: floatPtr(15e-6), expectedCacheRead: floatPtr(0.25e-6)},
+		{name: "openai gpt5.6 luna dedicated fallback", model: "gpt-5.6-luna", expectedInput: 1e-6, expectedOutput: floatPtr(6e-6), expectedCacheRead: floatPtr(0.1e-6)},
 		{name: "openai gpt5.5 pro falls back to gpt5.4", model: "gpt-5.5-pro", expectedInput: 2.5e-6},
 		{name: "openai legacy gpt5.1 falls back to gpt5.4", model: "gpt-5.1", expectedInput: 2.5e-6},
 		{name: "openai legacy gpt5.1 codex falls back to gpt5.3 codex", model: "gpt-5.1-codex", expectedInput: 1.5e-6},
