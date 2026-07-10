@@ -392,7 +392,6 @@ export default {
     channels: '渠道管理',
     availableChannels: '可用渠道',
     modelsPlaza: '模型广场',
-    chatPlaza: '聊天广场',
     imageStudio: '图片工作台',
     subscriptions: '订阅管理',
     accounts: '账号管理',
@@ -1193,28 +1192,6 @@ export default {
       audio: '音频',
       file: '文件'
     }
-  },
-
-  chatPlaza: {
-    title: '聊天广场',
-    description: '挑选一个聊天客户端，一键接入对话，无需配置',
-    intro: '选择分组与额度上限，然后打开下方任一聊天客户端。我们会为本次会话派生一个受限的临时密钥，你的原始密钥不会离开本站。对话完全在外部客户端中进行，费用计入该临时密钥。',
-    group: '分组',
-    noGroup: '无可用分组',
-    quotaLimit: '额度上限（USD）',
-    quotaLimitHint: '临时密钥的最高可用额度，到额后自动失效',
-    quotaPlaceholder: '例如 5',
-    quotaInvalid: '请填写一个大于 0 的额度上限',
-    securityNote: '为安全起见，外跳使用的是临时受限密钥（限定额度、1 天后过期），而非你的原始密钥。',
-    clients: '聊天客户端',
-    clientsHint: '网页版在新标签打开，本地应用通过系统协议唤起',
-    webClient: '网页版',
-    appClient: '本地应用',
-    open: '打开',
-    opening: '准备中…',
-    creatingKey: '正在创建临时密钥…',
-    keyReady: '临时密钥已就绪，正在跳转到 {client}',
-    failed: '无法打开聊天客户端，请重试',
   },
 
   imageStudio: {
