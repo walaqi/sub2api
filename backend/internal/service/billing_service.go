@@ -1180,9 +1180,6 @@ func (s *BillingService) shouldApplySessionLongContextPricing(tokens UsageTokens
 	return totalInputTokens > pricing.LongContextInputThreshold
 }
 
-// isOpenAIGPT56Model 复用 seq198 在 openai_gateway_request_body.go 定义的实现
-// （canonicalize + 前缀匹配，比 upstream 的精确匹配更健壮，能覆盖 -preview 等后缀）。
-
 func usesOpenAILegacyLongContextPricing(normalized string) bool {
 	return normalized == "gpt-5.4" || normalized == "gpt-5.5" || normalized == "gpt-5.5-pro"
 }
