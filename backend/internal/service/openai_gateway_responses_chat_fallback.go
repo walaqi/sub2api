@@ -49,7 +49,7 @@ func (s *OpenAIGatewayService) forwardResponsesViaRawChatCompletions(
 	billingModel, explicitlyMapped := resolveOpenAIForwardModelDetailed(account, originalModel, "")
 	explicitlyMapped = explicitlyMapped || OpenAIChannelModelMappedFromContext(ctx)
 	upstreamModel := normalizeOpenAIModelForUpstreamWithPolicy(account, billingModel, explicitlyMapped)
-	reasoningEffort := extractOpenAIReasoningEffortFromBody(body, firstNonEmpty(upstreamModel, billingModel, originalModel))
+	reasoningEffort := extractOpenAIReasoningEffortFromBody(body, upstreamModel, billingModel, originalModel)
 	// 国产模型默认 effort 补充：需要 mappedModel 判定，推迟到 billingModel 算出之后。
 	reasoningEffort = ApplyThinkingEnabledFallback(reasoningEffort, body, billingModel)
 	chatReq.Model = upstreamModel
