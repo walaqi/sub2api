@@ -566,7 +566,31 @@ func normalizeKnownCodexModelWithPolicy(model string, collapseUnknownGPT5 bool) 
 			return item.target, true
 		}
 	}
+	// 显式映射场景（collapseUnknownGPT5=false）下，未知 gpt-5* 目标不做 collapse，
+	// 但仍须剥离推理档位后缀（-none/-minimal/-low/-medium/-high/-xhigh）——档位在模型名
+	// 里对上游是非法的，需单独走 reasoning.effort。这属于线格式正确性，与是否为已知
+	// 型号无关；已知型号已在上面分支完成剥离，此处仅兜底未知 gpt-5* 透传目标。
+	// 仅剥档位后缀，不剥日期后缀（日期是型号版本标识，应原样透传）。
+	if !collapseUnknownGPT5 && strings.HasPrefix(key, "gpt-5") {
+		if base, ok := stripTrailingCodexEffortSuffix(key); ok {
+			return base, true
+		}
+	}
 	return "", false
+}
+
+// stripTrailingCodexEffortSuffix 剥离末尾的推理档位后缀（-none/-minimal/-low/
+// -medium/-high/-xhigh），返回基础型号与是否剥离。不匹配则原样返回、ok=false。
+func stripTrailingCodexEffortSuffix(key string) (string, bool) {
+	idx := strings.LastIndex(key, "-")
+	if idx <= 0 {
+		return key, false
+	}
+	switch key[idx+1:] {
+	case "none", "minimal", "low", "medium", "high", "xhigh":
+		return key[:idx], true
+	}
+	return key, false
 }
 
 func codexModelLookupKey(modelID string) string {

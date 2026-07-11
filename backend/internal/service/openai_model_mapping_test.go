@@ -290,6 +290,33 @@ func TestNormalizeCodexModelPolicy(t *testing.T) {
 			want:            "gpt-5.4",
 		},
 		{
+			// 发现 1 修复：未知 gpt-5* 显式映射目标不 collapse，但档位后缀仍须剥离。
+			name:            "unknown gpt-5 strips effort suffix but does not collapse",
+			model:           "gpt-5.9-nova-high",
+			collapseUnknown: false,
+			want:            "gpt-5.9-nova",
+		},
+		{
+			name:            "unknown gpt-5 strips low suffix",
+			model:           "gpt-5.9-nova-low",
+			collapseUnknown: false,
+			want:            "gpt-5.9-nova",
+		},
+		{
+			// 未知 gpt-5* 无档位后缀：原样透传。
+			name:            "unknown gpt-5 without effort suffix passes through",
+			model:           "gpt-5.9-nova",
+			collapseUnknown: false,
+			want:            "gpt-5.9-nova",
+		},
+		{
+			// 档位剥离仅限 gpt-5* 前缀，非 gpt-5 未知模型即使带 -high 也不动。
+			name:            "non gpt-5 unknown model with high suffix untouched",
+			model:           "foo-bar-high",
+			collapseUnknown: false,
+			want:            "foo-bar-high",
+		},
+		{
 			name:            "non gpt-5 model unaffected by policy",
 			model:           "gpt6",
 			collapseUnknown: false,
@@ -406,6 +433,14 @@ func TestNormalizeOpenAIModelForUpstreamWithPolicy(t *testing.T) {
 			model:            "gpt-5.4-high",
 			explicitlyMapped: true,
 			want:             "gpt-5.4",
+		},
+		{
+			// 发现 1 修复：未知 gpt-5* 显式映射目标不 collapse，但档位后缀仍剥离。
+			name:             "oauth unknown gpt-5 explicitly mapped strips effort suffix without collapse",
+			account:          &Account{Type: AccountTypeOAuth},
+			model:            "gpt-5.9-nova-high",
+			explicitlyMapped: true,
+			want:             "gpt-5.9-nova",
 		},
 		{
 			name:             "apikey account unaffected by explicit-mapped flag",
