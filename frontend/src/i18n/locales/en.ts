@@ -392,7 +392,6 @@ export default {
     channels: 'Channels',
     availableChannels: 'Available Channels',
     modelsPlaza: 'Models Plaza',
-    chatPlaza: 'Chat Plaza',
     imageStudio: 'Image Studio',
     subscriptions: 'Subscriptions',
     accounts: 'Accounts',
@@ -1189,28 +1188,6 @@ export default {
       audio: 'Audio',
       file: 'File'
     }
-  },
-
-  chatPlaza: {
-    title: 'Chat Plaza',
-    description: 'Pick a chat client and start chatting — no setup required',
-    intro: 'Choose a group and a spending cap, then open one of the chat clients below. We mint a short-lived restricted key just for that session; your real keys never leave this site. Chat runs entirely in the external client and is billed to that temporary key.',
-    group: 'Group',
-    noGroup: 'No groups available',
-    quotaLimit: 'Spending cap (USD)',
-    quotaLimitHint: 'The temporary key stops working once this cap is reached.',
-    quotaPlaceholder: 'e.g. 5',
-    quotaInvalid: 'Enter a spending cap greater than 0',
-    securityNote: 'For safety, deep links use a temporary restricted key (capped quota, expires in 1 day) rather than your real key.',
-    clients: 'Chat Clients',
-    clientsHint: 'Web clients open in a new tab; local apps open via their custom protocol.',
-    webClient: 'Web',
-    appClient: 'App',
-    open: 'Open',
-    opening: 'Opening...',
-    creatingKey: 'Minting temporary key...',
-    keyReady: 'Temporary key ready, opening {client}',
-    failed: 'Failed to open chat client, please retry',
   },
 
   imageStudio: {
