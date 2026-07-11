@@ -79,8 +79,19 @@ func (c *openAIWSPolicyEnforcingFrameConn) Close() error {
 // openAIWSPassthroughPolicyModelForFrame returns the upstream-perspective
 // model name that should be passed to evaluateOpenAIFastPolicy for a single
 // passthrough WS frame. Mirrors the HTTP-side normalization
-// (account.GetMappedModel + normalizeOpenAIModelForUpstream) so the WS path
-// matches model whitelists identically.
+// (account.ResolveMappedModel + normalizeOpenAIModelForUpstreamWithPolicy) so
+// the WS path matches model whitelists identically.
+//
+// TODO(model-mapping): this resolver only honors account-level model_mapping,
+// not channel-level mapping. The handler rewrites the WS first-frame model to
+// the channel target before forwarding, but this fast-policy resolver re-reads
+// the (already channel-mapped) payload model and treats it as unmapped. If the
+// channel target is a future *unknown* gpt-5* model and no account mapping
+// matches, explicitlyMapped is false here and the policy model collapses to
+// gpt-5.4 — potentially inconsistent with the HTTP path's whitelist decision.
+// Registered models (gpt-5.6-sol/terra/luna, gpt-5.5-pro) are unaffected since
+// they are known. Threading the channel-mapped signal into this pure helper is
+// deferred; revisit if a channel maps to an unregistered gpt-5* model on WS.
 func openAIWSPassthroughPolicyModelForFrame(account *Account, payload []byte) string {
 	if account == nil || len(payload) == 0 {
 		return ""
