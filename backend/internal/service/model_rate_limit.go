@@ -108,6 +108,25 @@ func OpenAIImageGenerationIntentFromContext(ctx context.Context) bool {
 	return ok && enabled
 }
 
+// WithOpenAIChannelModelMapped marks that the request model was rewritten by a
+// channel-level model mapping (an explicit admin configuration). Forwarders read
+// this via OpenAIChannelModelMappedFromContext to treat the model as explicitly
+// mapped when normalizing the upstream model.
+func WithOpenAIChannelModelMapped(ctx context.Context) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, ctxkey.OpenAIChannelModelMapped, true)
+}
+
+func OpenAIChannelModelMappedFromContext(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	mapped, ok := ctx.Value(ctxkey.OpenAIChannelModelMapped).(bool)
+	return ok && mapped
+}
+
 func resolveFinalAntigravityModelKey(ctx context.Context, account *Account, requestedModel string) string {
 	modelKey := mapAntigravityModel(account, requestedModel)
 	if modelKey == "" {

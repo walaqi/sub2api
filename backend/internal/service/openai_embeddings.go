@@ -32,8 +32,9 @@ func (s *OpenAIGatewayService) ForwardEmbeddings(
 		return nil, fmt.Errorf("missing model in request")
 	}
 
-	billingModel := resolveOpenAIForwardModel(account, originalModel, defaultMappedModel)
-	upstreamModel := normalizeOpenAIModelForUpstream(account, billingModel)
+	billingModel, explicitlyMapped := resolveOpenAIForwardModelDetailed(account, originalModel, defaultMappedModel)
+	explicitlyMapped = explicitlyMapped || OpenAIChannelModelMappedFromContext(ctx)
+	upstreamModel := normalizeOpenAIModelForUpstreamWithPolicy(account, billingModel, explicitlyMapped)
 	upstreamBody := body
 	if upstreamModel != originalModel {
 		upstreamBody = ReplaceModelInBody(body, upstreamModel)

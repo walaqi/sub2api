@@ -9,6 +9,12 @@ import (
 )
 
 var codexModelMap = map[string]string{
+	// GPT-5.6 系列（sol / terra / luna）与 GPT-5.5 Pro：作为已知型号透传，
+	// 不被 normalizeKnownOpenAICodexModel 的未知 gpt-5* 兜底改写为 gpt-5.4。
+	"gpt-5.6-sol":                "gpt-5.6-sol",
+	"gpt-5.6-terra":              "gpt-5.6-terra",
+	"gpt-5.6-luna":               "gpt-5.6-luna",
+	"gpt-5.5-pro":                "gpt-5.5-pro",
 	"gpt-5.5":                    "gpt-5.5",
 	"codex-auto-review":          "codex-auto-review",
 	"gpt-5.4":                    "gpt-5.4",
@@ -57,6 +63,10 @@ var codexVersionModelPrefixes = []struct {
 	prefix string
 	target string
 }{
+	{prefix: "gpt-5.6-sol", target: "gpt-5.6-sol"},
+	{prefix: "gpt-5.6-terra", target: "gpt-5.6-terra"},
+	{prefix: "gpt-5.6-luna", target: "gpt-5.6-luna"},
+	{prefix: "gpt-5.5-pro", target: "gpt-5.5-pro"},
 	{prefix: "gpt-5.3-codex-spark", target: "gpt-5.3-codex-spark"},
 	{prefix: "gpt-5.3-codex", target: "gpt-5.3-codex"},
 	{prefix: "gpt-5.4-mini", target: "gpt-5.4-mini"},
@@ -496,17 +506,34 @@ func stringifyCodexContentText(value any) string {
 }
 
 func normalizeCodexModel(model string) string {
+	return normalizeCodexModelWithPolicy(model, true)
+}
+
+// normalizeCodexModelWithPolicy normalizes a client-facing model string to the
+// Codex/ChatGPT upstream model name it should be forwarded as.
+//
+// collapseUnknownGPT5 governs the treatment of unrecognised gpt-5* models:
+//   - true (default): an unknown gpt-5* collapses to "gpt-5.4" (legacy behavior).
+//   - false: an unknown gpt-5* is returned unchanged (pass-through), so an admin's
+//     explicit model_mapping target reaches upstream verbatim rather than being
+//     rewritten. Known models and reasoning-effort suffix stripping behave
+//     identically under both policies.
+func normalizeCodexModelWithPolicy(model string, collapseUnknownGPT5 bool) string {
 	model = strings.TrimSpace(model)
 	if model == "" {
 		return "gpt-5.4"
 	}
-	if mapped, ok := normalizeKnownCodexModel(model); ok {
+	if mapped, ok := normalizeKnownCodexModelWithPolicy(model, collapseUnknownGPT5); ok {
 		return mapped
 	}
 	return model
 }
 
 func normalizeKnownCodexModel(model string) (string, bool) {
+	return normalizeKnownCodexModelWithPolicy(model, true)
+}
+
+func normalizeKnownCodexModelWithPolicy(model string, collapseUnknownGPT5 bool) (string, bool) {
 	model = strings.TrimSpace(model)
 	if model == "" {
 		return "", false
@@ -520,7 +547,7 @@ func normalizeKnownCodexModel(model string) (string, bool) {
 	if normalized := canonicalizeOpenAIModelAliasSpelling(modelID); normalized != "" {
 		modelID = normalized
 	}
-	if mapped := normalizeKnownOpenAICodexModel(modelID); mapped != "" {
+	if mapped := normalizeKnownOpenAICodexModelWithPolicy(modelID, collapseUnknownGPT5); mapped != "" {
 		return mapped, true
 	}
 	key := codexModelLookupKey(modelID)
@@ -539,7 +566,31 @@ func normalizeKnownCodexModel(model string) (string, bool) {
 			return item.target, true
 		}
 	}
+	// 显式映射场景（collapseUnknownGPT5=false）下，未知 gpt-5* 目标不做 collapse，
+	// 但仍须剥离推理档位后缀（-none/-minimal/-low/-medium/-high/-xhigh）——档位在模型名
+	// 里对上游是非法的，需单独走 reasoning.effort。这属于线格式正确性，与是否为已知
+	// 型号无关；已知型号已在上面分支完成剥离，此处仅兜底未知 gpt-5* 透传目标。
+	// 仅剥档位后缀，不剥日期后缀（日期是型号版本标识，应原样透传）。
+	if !collapseUnknownGPT5 && strings.HasPrefix(key, "gpt-5") {
+		if base, ok := stripTrailingCodexEffortSuffix(key); ok {
+			return base, true
+		}
+	}
 	return "", false
+}
+
+// stripTrailingCodexEffortSuffix 剥离末尾的推理档位后缀（-none/-minimal/-low/
+// -medium/-high/-xhigh），返回基础型号与是否剥离。不匹配则原样返回、ok=false。
+func stripTrailingCodexEffortSuffix(key string) (string, bool) {
+	idx := strings.LastIndex(key, "-")
+	if idx <= 0 {
+		return key, false
+	}
+	switch key[idx+1:] {
+	case "none", "minimal", "low", "medium", "high", "xhigh":
+		return key[:idx], true
+	}
+	return key, false
 }
 
 func codexModelLookupKey(modelID string) string {
@@ -842,8 +893,27 @@ func normalizeOpenAIResponsesImageOnlyModel(reqBody map[string]any) bool {
 }
 
 func normalizeOpenAIModelForUpstream(account *Account, model string) string {
+	return normalizeOpenAIModelForUpstreamWithPolicy(account, model, false)
+}
+
+// normalizeOpenAIModelForUpstreamWithPolicy resolves the upstream model for an
+// OpenAI-compatible forward.
+//
+// explicitlyMapped must be true when `model` was produced by an explicit admin
+// mapping — either an account-level model_mapping rule matched
+// (Account.ResolveMappedModel returned matched=true) or a channel-level mapping
+// was applied by the handler before forwarding. In that case the admin's chosen
+// target has final authority: for OAuth (Codex/ChatGPT) accounts we still strip
+// reasoning-effort suffixes and canonicalise known models (wire-format
+// correctness), but we do NOT collapse an unrecognised gpt-5* target to gpt-5.4,
+// so a deliberately configured passthrough model (e.g. "gpt-5.6-sol") reaches
+// upstream verbatim.
+//
+// When explicitlyMapped is false the legacy behavior is preserved: unknown gpt-5*
+// models collapse to gpt-5.4.
+func normalizeOpenAIModelForUpstreamWithPolicy(account *Account, model string, explicitlyMapped bool) string {
 	if account == nil || account.Type == AccountTypeOAuth {
-		return normalizeCodexModel(model)
+		return normalizeCodexModelWithPolicy(model, !explicitlyMapped)
 	}
 	return strings.TrimSpace(model)
 }

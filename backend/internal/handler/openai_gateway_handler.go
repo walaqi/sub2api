@@ -269,6 +269,11 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	// 解析渠道级模型映射
 	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
 	forwardBody := openAIModelMappedBody(body, channelMapping.Mapped, channelMapping.MappedModel, h.gatewayService.ReplaceModelInBody)
+	// 渠道映射属于管理员显式配置，透传给 service 层，使上游模型归一化尊重该配置
+	// （不将未知 gpt-5* 目标兜底改写为 gpt-5.4）。
+	if channelMapping.Mapped {
+		c.Request = c.Request.WithContext(service.WithOpenAIChannelModelMapped(c.Request.Context()))
+	}
 
 	// 提前校验 function_call_output 是否具备可关联上下文，避免上游 400。
 	if !h.validateFunctionCallOutputRequest(c, body, reqLog) {
@@ -695,6 +700,10 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 
 	// 解析渠道级模型映射
 	channelMappingMsg, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
+	// 渠道映射属于管理员显式配置，透传给 service 层，使上游模型归一化尊重该配置。
+	if channelMappingMsg.Mapped {
+		c.Request = c.Request.WithContext(service.WithOpenAIChannelModelMapped(c.Request.Context()))
+	}
 	mappedBodyForMessages := newOpenAIModelMappedBodyCache(body, h.gatewayService.ReplaceModelInBody)
 
 	// 绑定错误透传服务，允许 service 层在非 failover 错误场景复用规则。
@@ -1265,6 +1274,10 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 
 	// 解析渠道级模型映射
 	channelMappingWS, _ := h.gatewayService.ResolveChannelMappingAndRestrict(ctx, apiKey.GroupID, reqModel)
+	// 渠道映射属于管理员显式配置，透传给 WS service 层，使上游模型归一化尊重该配置。
+	if channelMappingWS.Mapped {
+		ctx = service.WithOpenAIChannelModelMapped(ctx)
+	}
 
 	var currentUserRelease func()
 	var currentAccountRelease func()

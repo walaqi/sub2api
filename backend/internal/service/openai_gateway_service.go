@@ -2515,7 +2515,11 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		markPatchSet("instructions", defaultCodexSynthInstructions(reqModel))
 	}
 
-	billingModel := account.GetMappedModel(reqModel)
+	billingModel, accountExplicitlyMapped := account.ResolveMappedModel(reqModel)
+	// 渠道映射由 handler 在转发前写入 body（见 openAIModelMappedBody），并通过
+	// context 传递标记。账号映射命中或渠道映射均视为管理员显式配置，据此让上游
+	// 模型归一化尊重配置：不将未知 gpt-5* 目标兜底改写为 gpt-5.4。
+	explicitlyMapped := accountExplicitlyMapped || OpenAIChannelModelMappedFromContext(ctx)
 	if billingModel != reqModel {
 		logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Model mapping applied: %s -> %s (account: %s, isCodexCLI: %v)", reqModel, billingModel, account.Name, isCodexCLI)
 		reqModel = billingModel
@@ -2539,7 +2543,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		if modelForNormalize == "" {
 			modelForNormalize = requestView.Model
 		}
-		upstreamModel = normalizeOpenAIModelForUpstream(account, modelForNormalize)
+		upstreamModel = normalizeOpenAIModelForUpstreamWithPolicy(account, modelForNormalize, explicitlyMapped)
 		if upstreamModel != "" && upstreamModel != modelForNormalize {
 			logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Upstream model resolved: %s -> %s (account: %s, type: %s, isCodexCLI: %v)", modelForNormalize, upstreamModel, account.Name, account.Type, isCodexCLI)
 			reqModel = upstreamModel
