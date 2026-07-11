@@ -95,6 +95,11 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 
 	// 解析渠道级模型映射
 	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
+	// 渠道映射属于管理员显式配置，透传给 service 层，使上游模型归一化尊重该配置
+	// （不将未知 gpt-5* 目标兜底改写为 gpt-5.4）。
+	if channelMapping.Mapped {
+		c.Request = c.Request.WithContext(service.WithOpenAIChannelModelMapped(c.Request.Context()))
+	}
 
 	if h.errorPassthroughService != nil {
 		service.BindErrorPassthroughService(c, h.errorPassthroughService)

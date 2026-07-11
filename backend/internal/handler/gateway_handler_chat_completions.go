@@ -87,6 +87,10 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 
 	// 解析渠道级模型映射
 	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
+	// 渠道映射属于管理员显式配置，透传给 service 层，使上游模型归一化尊重该配置。
+	if channelMapping.Mapped {
+		c.Request = c.Request.WithContext(service.WithOpenAIChannelModelMapped(c.Request.Context()))
+	}
 
 	// Claude Code only restriction
 	if apiKey.Group != nil && apiKey.Group.ClaudeCodeOnly {

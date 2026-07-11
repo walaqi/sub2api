@@ -75,6 +75,10 @@ func (h *OpenAIGatewayHandler) Embeddings(c *gin.Context) {
 	setOpsEndpointContext(c, "", int16(service.RequestTypeSync))
 
 	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
+	// 渠道映射属于管理员显式配置，透传给 service 层，使上游模型归一化尊重该配置。
+	if channelMapping.Mapped {
+		c.Request = c.Request.WithContext(service.WithOpenAIChannelModelMapped(c.Request.Context()))
+	}
 
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())

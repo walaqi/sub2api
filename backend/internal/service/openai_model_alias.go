@@ -50,6 +50,22 @@ func canonicalizeOpenAIModelAliasSpelling(model string) string {
 }
 
 func normalizeKnownOpenAICodexModel(model string) string {
+	return normalizeKnownOpenAICodexModelWithPolicy(model, true)
+}
+
+// normalizeKnownOpenAICodexModelWithPolicy resolves a client-facing model string
+// to its canonical Codex/ChatGPT upstream model name.
+//
+// collapseUnknownGPT5 controls the final defensive fallback: when true (the
+// default, used for billing and normal forwarding), any unrecognised gpt-5*
+// model collapses to "gpt-5.4". When false, an unrecognised gpt-5* model yields
+// "" instead — signalling "not a known model" so the caller can pass it through
+// unchanged. The false variant is used only when the model was produced by an
+// explicit admin mapping (account/channel model_mapping), so the admin's chosen
+// target reaches upstream verbatim instead of being silently rewritten. Known
+// models (including the gpt-5.6 / gpt-5.5-pro families below) resolve identically
+// under both policies.
+func normalizeKnownOpenAICodexModelWithPolicy(model string, collapseUnknownGPT5 bool) string {
 	normalized := canonicalizeOpenAIModelAliasSpelling(model)
 	if normalized == "" {
 		return ""
@@ -65,6 +81,14 @@ func normalizeKnownOpenAICodexModel(model string) string {
 	}
 
 	switch {
+	case strings.Contains(normalized, "gpt-5.6-sol"):
+		return "gpt-5.6-sol"
+	case strings.Contains(normalized, "gpt-5.6-terra"):
+		return "gpt-5.6-terra"
+	case strings.Contains(normalized, "gpt-5.6-luna"):
+		return "gpt-5.6-luna"
+	case strings.Contains(normalized, "gpt-5.5-pro"):
+		return "gpt-5.5-pro"
 	case strings.Contains(normalized, "gpt-5.5"):
 		return "gpt-5.5"
 	case strings.Contains(normalized, "gpt-5.4-mini"):
@@ -84,7 +108,10 @@ func normalizeKnownOpenAICodexModel(model string) string {
 	case strings.Contains(normalized, "codex"):
 		return "gpt-5.3-codex"
 	case strings.Contains(normalized, "gpt-5"):
-		return "gpt-5.4"
+		if collapseUnknownGPT5 {
+			return "gpt-5.4"
+		}
+		return ""
 	default:
 		return ""
 	}

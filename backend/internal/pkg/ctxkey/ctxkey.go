@@ -38,6 +38,11 @@ const (
 	// OpenAIImageGenerationIntent 标识 OpenAI 请求会触发生图能力（用于图片能力维度限流）
 	OpenAIImageGenerationIntent Key = "ctx_openai_image_generation_intent"
 
+	// OpenAIChannelModelMapped 标识当前请求的 model 已被渠道级模型映射改写
+	// （由 handler 在转发前写入请求 body）。渠道映射属于管理员显式配置，
+	// 上游模型归一化据此尊重该配置：不将未知 gpt-5* 目标兜底改写为 gpt-5.4。
+	OpenAIChannelModelMapped Key = "ctx_openai_channel_model_mapped"
+
 	// Group 认证后的分组信息，由 API Key 认证中间件设置
 	Group Key = "ctx_group"
 
