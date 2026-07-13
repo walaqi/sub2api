@@ -1,6 +1,7 @@
 # 赠金子系统 — 赠金权益绑定分组（group-scoped gift）
 
-状态：**方案定稿，cx-s2 六轮评审已 APPROVE（2026-07-13），待用户最终批准后开工。**
+状态：**已实施并通过 cx-s2 code review（2026-07-13）。分支 feat/group-scoped-gift，PR #56。**
+设计评审：基线六轮 APPROVE + 两个新功能 delta 四轮 APPROVE + 实现后 code review（见 §八）。
 方向：推翻"锁 key 分组"旧方案，改为把权益约束落在**赠金**上。
 日期：2026-07-13
 
@@ -347,6 +348,30 @@
   `IsGlobal` 严格由 `GroupID==nil` 推导（不看 group_name）；UnpinGift 只清状态无需锁 user 行；
   契约测试覆盖分页/legacy 两种响应形态。
 - 产品决策：置顶跨模式语义 = **绝对第一**（置顶 ratio 也先于 priority 消费，字面兑现"置顶"）。
+
+## 八、实现后 code review（cx-s2 gpt-5.6-sol max，对照 PR #56 实际代码）
+深审 42 文件 diff 对照本 plan，确认核心算法/锁/指纹/注入全部落地正确。两个真实次要发现
+（均为 plan 已承诺、实现漏掉，已修复并追加提交 a0d3cc37）：
+1. **陈旧置顶清理**（§3.10）：置顶赠金被扣至耗尽（`applyDeductions`）或过期（`expirer`
+   sweep）时未清 `pinned`。修复：两处 UPDATE 加 `pinned=false`。正确性不依赖它
+   （`lockedSnapshot` 的 `remaining>0`/未过期谓词已把陈旧置顶排除出消费），仅 UI 整洁。
+2. **Profile 展示排序维度⓪**（§3.10）：`listActiveGiftsForDisplay` 的 `sortGiftDisplayItems`
+   漏了 pinned 居顶（`GiftDisplayItem` 原无 Pinned 字段）→ 置顶 ratio 会显示在 priority 之下。
+   修复：`GiftDisplayItem` 加 `Pinned`（仅排序用，Profile 卡不渲染置顶按钮）+ 排序维度⓪。
+
+经核实为**非问题**的疑点：
+- 构造器 `cfg==nil` 跳过 giftEngine 硬校验：纯测试路径（生产 Wire 恒传非 nil config +
+  engine），且运行时 `postUsageBilling` 有 `giftEngine==nil` fail-closed 兜底（纵深防御）。
+- 迁移 177 与 ent 生成的索引重名：ent auto-migrate 从不在启动运行（`ent.go:62` 只跑 raw SQL
+  迁移），ent schema 名仅 sqlite 单测用，无重复索引风险。
+- 软删组的"孤儿赠金"（group_id 指向已删组、`is_global=false` 但组名空）：仅两条软删组路径
+  （DeleteCascade + 裸 Delete），都在 groups 行锁内原子置 NULL，生产不可达（仅测试直改
+  `deleted_at` 构造）。
+- Profile legacy `/user/gifts`（无 status 参）响应带 scope 字段但前端 `listGifts()` 是死代码
+  （无引用）；唯一渲染逐条赠金的是 My Gifts 分页页，已完整改造 → 非发布阻塞。
+
+验证：后端单测 + gift/repository 集成测试 + 前端 typecheck/lint 全绿；唯一失败
+`TestUsageLogRepositoryGetUserSpendingRanking` 是干净 main 上即存在的预存 sqlmock 问题，与本 PR 无关。
 
 ---
 
