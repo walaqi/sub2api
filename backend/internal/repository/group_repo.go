@@ -212,9 +212,51 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 }
 
 func (r *groupRepository) Delete(ctx context.Context, id int64) error {
-	_, err := r.client.Group.Delete().Where(group.IDEQ(id)).Exec(ctx)
+	// 与 DeleteCascade 一致的原子协议（plan.md §3.5/S11）：单事务内先锁 groups 行
+	// FOR UPDATE（与 grant 侧 lockGroupIfActive 抢同一把锁而序列化），再把绑该组的
+	// 赠金转全局（group_id=NULL），最后软删 group。避免"清赠金后并发 grant 又插入
+	// 绑该组赠金、随后删除提交"留下悬挂 scope。
+	tx, err := r.client.Tx(ctx)
+	if err != nil && !errors.Is(err, dbent.ErrTxStarted) {
+		return err
+	}
+	exec := r.client
+	txClient := r.client
+	if err == nil {
+		defer func() { _ = tx.Rollback() }()
+		exec = tx.Client()
+		txClient = exec
+	}
+	// err 为 dbent.ErrTxStarted 时复用当前事务。
+
+	rows, err := exec.QueryContext(ctx, "SELECT id FROM groups WHERE id = $1 AND deleted_at IS NULL FOR UPDATE", id)
 	if err != nil {
+		return err
+	}
+	locked := rows.Next()
+	if scanErr := rows.Err(); scanErr != nil {
+		_ = rows.Close()
+		return scanErr
+	}
+	if closeErr := rows.Close(); closeErr != nil {
+		return closeErr
+	}
+	if !locked {
+		return service.ErrGroupNotFound
+	}
+
+	if _, err := exec.ExecContext(ctx, "UPDATE user_gifts SET group_id = NULL, updated_at = NOW() WHERE group_id = $1", id); err != nil {
+		return err
+	}
+
+	if _, err := txClient.Group.Delete().Where(group.IDEQ(id)).Exec(ctx); err != nil {
 		return translatePersistenceError(err, service.ErrGroupNotFound, nil)
+	}
+
+	if tx != nil {
+		if err := tx.Commit(); err != nil {
+			return err
+		}
 	}
 	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventGroupChanged, nil, &id, nil); err != nil {
 		logger.LegacyPrintf("repository.group", "[SchedulerOutbox] enqueue group delete failed: group=%d err=%v", id, err)
@@ -646,6 +688,13 @@ func (r *groupRepository) DeleteCascade(ctx context.Context, id int64) ([]int64,
 
 	// 3. Delete account_groups join rows.
 	if _, err := exec.ExecContext(ctx, "DELETE FROM account_groups WHERE group_id = $1", id); err != nil {
+		return nil, err
+	}
+
+	// 3b. 绑定该组的赠金转为全局可用（group_id 置 NULL，plan.md §3.5/S11）。
+	// 在已持有 groups 行 FOR UPDATE 锁的同一事务内执行，与 grant 侧的 lockGroupIfActive
+	// 串行化——保证不会留下指向已删组的赠金。幂等。
+	if _, err := exec.ExecContext(ctx, "UPDATE user_gifts SET group_id = NULL, updated_at = NOW() WHERE group_id = $1", id); err != nil {
 		return nil, err
 	}
 

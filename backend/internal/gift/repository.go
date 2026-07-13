@@ -5,11 +5,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
+	"sort"
 	"time"
 
 	"github.com/shopspring/decimal"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/ent/group"
+	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/ent/usergift"
 )
 
@@ -50,6 +54,21 @@ func (r *repository) insertGiftWithBalance(ctx context.Context, tx *dbent.Tx, in
 	if in.SourceRef != nil {
 		create = create.SetSourceRef(*in.SourceRef)
 	}
+	// 绑定分组：在同一事务内 SELECT groups ... FOR UPDATE，与 groupRepository 的
+	// DeleteCascade / Delete 抢同一把行锁，序列化 grant 与删组。
+	//   - 组仍 active → 落 group_id = 该组；
+	//   - 组已被软删（删除赢了竞态）→ 落 group_id = NULL（转全局，与 §3.5 一致）。
+	// nil GroupID 无需加锁，直接全局插入。
+	if in.GroupID != nil {
+		groupStillActive, err := lockGroupIfActive(ctx, tx, *in.GroupID)
+		if err != nil {
+			return nil, err
+		}
+		if groupStillActive {
+			create = create.SetGroupID(*in.GroupID)
+		}
+		// groupStillActive == false → 不 SetGroupID，落 NULL（全局）。
+	}
 	created, err := create.Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("insert user_gift: %w", err)
@@ -58,6 +77,23 @@ func (r *repository) insertGiftWithBalance(ctx context.Context, tx *dbent.Tx, in
 		return nil, fmt.Errorf("add balance: %w", err)
 	}
 	return entToUserGift(created), nil
+}
+
+// lockGroupIfActive 在 ent 事务内对 groups 行加 FOR UPDATE 锁，返回该组是否仍存活
+// （未软删除）。与 groupRepository.DeleteCascade / Delete 的同一行锁互斥，
+// 保证 grant 与删组严格串行、不留悬挂 scope。
+func lockGroupIfActive(ctx context.Context, tx *dbent.Tx, groupID int64) (bool, error) {
+	rows, err := tx.QueryContext(ctx,
+		`SELECT id FROM groups WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`, groupID)
+	if err != nil {
+		return false, fmt.Errorf("lock group %d: %w", groupID, err)
+	}
+	defer func() { _ = rows.Close() }()
+	active := rows.Next()
+	if err := rows.Err(); err != nil {
+		return false, fmt.Errorf("lock group %d rows: %w", groupID, err)
+	}
+	return active, nil
 }
 
 // sumActiveGiftRemaining 返回用户所有 active 且未过期的赠金 remaining 之和。
@@ -106,14 +142,20 @@ func (r *repository) lockedSnapshot(ctx context.Context, tx *sql.Tx, userID int6
 		return decimal.Zero, nil, fmt.Errorf("parse balance: %w", err)
 	}
 
-	// 2. 锁 user_gifts active 行（按 id ASC）
+	// 2. 锁 user_gifts active 行。
+	// 注意：**不加 group 过滤**——全局充值池依赖用户的全部 active 赠金求和，
+	// 且 ratio 分摊需要一致快照。分组切分（eligible/ineligible）在 Go 内做（partitionByGroup）。
+	// 排序维度：⓪ pinned 置顶最前 → ① priority 先于 ratio → ② 分组专属先于全局
+	//         → ③ ratio_recharge → 到期 → id。让消费顺序与展示顺序对齐。
 	rows, err := tx.QueryContext(ctx, `
-		SELECT id, deduction_mode, remaining::text, COALESCE(ratio_recharge::text, '0')
+		SELECT id, deduction_mode, remaining::text, COALESCE(ratio_recharge::text, '0'), group_id, pinned
 		FROM user_gifts
 		WHERE user_id = $1 AND status = 'active'
 		  AND (expires_at IS NULL OR expires_at > NOW())
 		ORDER BY
+			pinned DESC,
 			CASE deduction_mode WHEN 'priority' THEN 0 ELSE 1 END,
+			CASE WHEN group_id IS NOT NULL THEN 0 ELSE 1 END,
 			ratio_recharge ASC NULLS LAST,
 			expires_at ASC NULLS LAST,
 			id ASC
@@ -128,12 +170,17 @@ func (r *repository) lockedSnapshot(ctx context.Context, tx *sql.Tx, userID int6
 	for rows.Next() {
 		var g ActiveGift
 		var modeStr, remStr, ratioStr string
-		if err := rows.Scan(&g.ID, &modeStr, &remStr, &ratioStr); err != nil {
+		var groupID sql.NullInt64
+		if err := rows.Scan(&g.ID, &modeStr, &remStr, &ratioStr, &groupID, &g.Pinned); err != nil {
 			return decimal.Zero, nil, fmt.Errorf("scan gift: %w", err)
 		}
 		g.Mode = DeductionMode(modeStr)
 		g.Remaining, _ = decimal.NewFromString(remStr)
 		g.RatioRecharge, _ = decimal.NewFromString(ratioStr)
+		if groupID.Valid {
+			v := groupID.Int64
+			g.GroupID = &v
+		}
 		gifts = append(gifts, g)
 	}
 	if err := rows.Err(); err != nil {
@@ -234,6 +281,11 @@ func entToUserGift(e *dbent.UserGift) *UserGift {
 		v := *e.SourceRef
 		out.SourceRef = &v
 	}
+	if e.GroupID != nil {
+		v := *e.GroupID
+		out.GroupID = &v
+	}
+	out.Pinned = e.Pinned
 	return out
 }
 
@@ -247,6 +299,9 @@ func (r *repository) listActiveGiftsForDisplay(ctx context.Context, userID int64
 	}
 	now := time.Now()
 	cutoff := now.Add(expiringSoonWindow)
+	// 用 ent 查询保持方言无关（该展示接口有 SQLite 单测）；分组名走 ent 批量查，
+	// 排序在 Go 内完成，与 lockedSnapshot 的消费顺序对齐（pinned → priority → 分组专属
+	// → ratio → 到期 → id）。
 	rows, err := r.entClient.UserGift.Query().
 		Where(
 			usergift.UserID(userID),
@@ -257,17 +312,17 @@ func (r *repository) listActiveGiftsForDisplay(ctx context.Context, userID int64
 				usergift.ExpiresAtGT(now),
 			),
 		).
-		Order(
-			// priority 先于 ratio：用 deduction_mode 升序时 'priority' < 'ratio'，恰好等价。
-			dbent.Asc(usergift.FieldDeductionMode),
-			dbent.Asc(usergift.FieldRatioRecharge),
-			dbent.Asc(usergift.FieldExpiresAt),
-			dbent.Asc(usergift.FieldID),
-		).
 		All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list active gifts: %w", err)
 	}
+
+	// 批量查分组名（仅未软删的组；软删组不返回 → 展示为全局）。
+	groupNames, err := r.resolveGroupNames(ctx, rows)
+	if err != nil {
+		return nil, err
+	}
+
 	out := make([]GiftDisplayItem, 0, len(rows))
 	for _, g := range rows {
 		item := GiftDisplayItem{
@@ -283,9 +338,102 @@ func (r *repository) listActiveGiftsForDisplay(ctx context.Context, userID int64
 			item.ExpiresAt = &t
 			item.ExpiringSoon = t.Before(cutoff)
 		}
+		if g.GroupID != nil {
+			v := *g.GroupID
+			item.GroupID = &v
+			item.GroupName = groupNames[v] // 软删组无名 → ""
+		}
 		out = append(out, item)
 	}
+	sortGiftDisplayItems(out)
 	return out, nil
+}
+
+// resolveGroupNames 批量查 rows 里出现的分组名（仅未软删的组）。软删组不在结果里 → 展示为全局。
+func (r *repository) resolveGroupNames(ctx context.Context, rows []*dbent.UserGift) (map[int64]string, error) {
+	idset := make(map[int64]struct{})
+	for _, g := range rows {
+		if g.GroupID != nil {
+			idset[*g.GroupID] = struct{}{}
+		}
+	}
+	if len(idset) == 0 {
+		return map[int64]string{}, nil
+	}
+	ids := make([]int64, 0, len(idset))
+	for id := range idset {
+		ids = append(ids, id)
+	}
+	groups, err := r.entClient.Group.Query().
+		Where(group.IDIn(ids...), group.DeletedAtIsNil()).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("resolve group names: %w", err)
+	}
+	names := make(map[int64]string, len(groups))
+	for _, gr := range groups {
+		names[gr.ID] = gr.Name
+	}
+	return names, nil
+}
+
+// sortGiftDisplayItems 按消费顺序排序展示项：pinned 优先字段未在 GiftDisplayItem 暴露，
+// 此处按 (priority 先于 ratio) → (分组专属先于全局) → (ratio_recharge 升序) →
+// (到期升序) → 稳定顺序。置顶维度由分页查询的 SQL ORDER BY 负责（Profile 卡不含置顶）。
+func sortGiftDisplayItems(items []GiftDisplayItem) {
+	sort.SliceStable(items, func(i, j int) bool {
+		a, b := items[i], items[j]
+		// ① priority 先于 ratio
+		if pa, pb := modeRank(a.Mode), modeRank(b.Mode); pa != pb {
+			return pa < pb
+		}
+		// ② 分组专属先于全局
+		ga, gb := groupRank(a.GroupID), groupRank(b.GroupID)
+		if ga != gb {
+			return ga < gb
+		}
+		// ③ ratio_recharge 升序（nil 视为 +inf 排后）
+		ra, rb := ratioValue(a.RatioRecharge), ratioValue(b.RatioRecharge)
+		if ra != rb {
+			return ra < rb
+		}
+		// ④ 到期升序（nil=永不过期排后）
+		return expiresBefore(a.ExpiresAt, b.ExpiresAt)
+	})
+}
+
+func modeRank(m DeductionMode) int {
+	if m == DeductionModePriority {
+		return 0
+	}
+	return 1
+}
+
+func groupRank(g *int64) int {
+	if g != nil {
+		return 0
+	}
+	return 1
+}
+
+func ratioValue(r *float64) float64 {
+	if r == nil {
+		return math.Inf(1)
+	}
+	return *r
+}
+
+func expiresBefore(a, b *time.Time) bool {
+	switch {
+	case a == nil && b == nil:
+		return false
+	case a == nil:
+		return false // a 永不过期 → 排 b 之后
+	case b == nil:
+		return true
+	default:
+		return a.Before(*b)
+	}
 }
 
 // ---------- ops 路径：撤销/列表/查单笔/balance breakdown ----------
@@ -317,8 +465,19 @@ func (r *repository) giftBalanceBreakdown(ctx context.Context, userID int64, exp
 // hasActivePriorityGift 返回用户是否存在至少一笔 active 且未过期、remaining > 0 的 priority 赠金。
 // 只读、不加锁；供 billing preflight 判定是否放行。
 // 使用 ent query builder 确保跨数据库方言兼容。
-func (r *repository) hasActivePriorityGift(ctx context.Context, userID int64) (bool, error) {
+func (r *repository) hasActivePriorityGift(ctx context.Context, userID int64, groupID *int64) (bool, error) {
 	now := time.Now()
+	// 分组可用谓词：全局赠金(group_id IS NULL)恒可用；带分组赠金仅当 == 请求组时可用。
+	// 请求无分组(groupID==nil)时只有全局赠金可用。
+	var groupPred predicate.UserGift
+	if groupID != nil {
+		groupPred = usergift.Or(
+			usergift.GroupIDIsNil(),
+			usergift.GroupIDEQ(*groupID),
+		)
+	} else {
+		groupPred = usergift.GroupIDIsNil()
+	}
 	count, err := r.entClient.UserGift.Query().
 		Where(
 			usergift.UserID(userID),
@@ -329,6 +488,7 @@ func (r *repository) hasActivePriorityGift(ctx context.Context, userID int64) (b
 				usergift.ExpiresAtIsNil(),
 				usergift.ExpiresAtGT(now),
 			),
+			groupPred,
 		).
 		Limit(1).
 		Count(ctx)
@@ -402,36 +562,98 @@ func (r *repository) revokeOneGift(ctx context.Context, giftID int64, reason str
 	return tx.Commit()
 }
 
+// pinGift 把某用户的一笔 active 且未过期的赠金置顶。事务内：
+//  1. 锁 users 行（与扣费/退款/撤销保持 user→gift 加锁顺序，杜绝死锁；
+//     无置顶时只锁当前 pinned 行不足以序列化并发 pin）。
+//  2. 清掉该用户已有的置顶（UPDATE ... SET pinned=false WHERE user_id AND pinned）。
+//  3. 置顶目标（WHERE id AND user_id AND active AND remaining>0 AND 未过期）。
+//     affected==0 → 非本人/已过期/已耗尽 → 返回 ErrGiftNotPinnable，回滚。
+//
+// 部分唯一索引 user_gifts_one_pin_per_user 作为 defense-in-depth。
+func (r *repository) pinGift(ctx context.Context, userID, giftID int64) error {
+	tx, err := r.sqlDB.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.ExecContext(ctx,
+		`SELECT id FROM users WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`, userID,
+	); err != nil {
+		return fmt.Errorf("lock user: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE user_gifts SET pinned = false, updated_at = NOW() WHERE user_id = $1 AND pinned`, userID,
+	); err != nil {
+		return fmt.Errorf("clear old pin: %w", err)
+	}
+
+	res, err := tx.ExecContext(ctx, `
+		UPDATE user_gifts SET pinned = true, updated_at = NOW()
+		WHERE id = $1 AND user_id = $2 AND status = 'active' AND remaining > 0
+		  AND (expires_at IS NULL OR expires_at > NOW())
+	`, giftID, userID)
+	if err != nil {
+		return fmt.Errorf("set pin: %w", err)
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("pin rows affected: %w", err)
+	}
+	if affected == 0 {
+		return ErrGiftNotPinnable
+	}
+	return tx.Commit()
+}
+
+// unpinGift 取消某用户某笔赠金的置顶。只清状态、无需锁 users 行（幂等；不改余额/不改分摊）。
+// affected==0（非本人/未置顶）视为幂等成功，不报错。
+func (r *repository) unpinGift(ctx context.Context, userID, giftID int64) error {
+	if _, err := r.sqlDB.ExecContext(ctx, `
+		UPDATE user_gifts SET pinned = false, updated_at = NOW()
+		WHERE id = $1 AND user_id = $2 AND pinned
+	`, giftID, userID); err != nil {
+		return fmt.Errorf("unpin gift: %w", err)
+	}
+	return nil
+}
+
 // listGiftsByUser 列出某用户的赠金，可按 status 过滤。返回总数便于分页。
 func (r *repository) listGiftsByUser(ctx context.Context, userID int64, status Status, page, pageSize int) ([]UserGift, int64, error) {
-	return r.listGiftsByUserWithSort(ctx, userID, status, page, pageSize, "id DESC")
+	return r.listGiftsByUserWithSort(ctx, userID, status, page, pageSize, "ug.id DESC")
 }
 
 // listGiftsByUserExpiryAsc 同 listGiftsByUser，但按过期时间从早到晚排序。
+// 置顶行(pinned)恒排最前，供"我的赠金"分页页展示与消费顺序一致。
 func (r *repository) listGiftsByUserExpiryAsc(ctx context.Context, userID int64, status Status, page, pageSize int) ([]UserGift, int64, error) {
-	return r.listGiftsByUserWithSort(ctx, userID, status, page, pageSize, "expires_at ASC NULLS LAST, id ASC")
+	return r.listGiftsByUserWithSort(ctx, userID, status, page, pageSize, "ug.pinned DESC, ug.expires_at ASC NULLS LAST, ug.id ASC")
 }
 
+// listGiftsByUserWithSort 分页列出赠金。
+// user_gifts 一律别名 ug；orderBy 由调用方以 ug. 限定列传入。
+// SELECT 侧 LEFT JOIN groups 带出分组名（软删组过滤 → 无名 → 全局展示）；
+// COUNT 侧无需 join。共享的 where 谓词全部 ug. 限定，避免加 join 后列名歧义。
 func (r *repository) listGiftsByUserWithSort(ctx context.Context, userID int64, status Status, page, pageSize int, orderBy string) ([]UserGift, int64, error) {
 	args := []any{userID}
-	where := "user_id = $1"
+	where := "ug.user_id = $1"
 	if status != "" {
 		switch status {
 		case StatusActive:
 			// 语义过滤：status='active' 且未自然过期（expirer 有延迟，可能还没 sweep）
-			where += " AND status = 'active' AND (expires_at IS NULL OR expires_at > NOW())"
+			where += " AND ug.status = 'active' AND (ug.expires_at IS NULL OR ug.expires_at > NOW())"
 		case StatusExpired:
 			// 语义过滤：status='expired' 或 status='active' 但已自然过期（expirer 尚未 sweep）
-			where += " AND (status = 'expired' OR (status = 'active' AND expires_at IS NOT NULL AND expires_at <= NOW()))"
+			where += " AND (ug.status = 'expired' OR (ug.status = 'active' AND ug.expires_at IS NOT NULL AND ug.expires_at <= NOW()))"
 		default:
 			args = append(args, string(status))
-			where += " AND status = $2"
+			where += " AND ug.status = $2"
 		}
 	}
 
 	var total int64
 	if err := r.sqlDB.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM user_gifts WHERE `+where, args...,
+		`SELECT COUNT(*) FROM user_gifts ug WHERE `+where, args...,
 	).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count gifts: %w", err)
 	}
@@ -443,10 +665,12 @@ func (r *repository) listGiftsByUserWithSort(ctx context.Context, userID int64, 
 	limitIdx := len(args) - 1
 	offsetIdx := len(args)
 	rows, err := r.sqlDB.QueryContext(ctx, fmt.Sprintf(`
-		SELECT id, user_id, amount::text, remaining::text, deduction_mode,
-		       COALESCE(ratio_recharge::text, ''), expires_at,
-		       source, COALESCE(source_ref, ''), status, created_at, updated_at
-		FROM user_gifts
+		SELECT ug.id, ug.user_id, ug.amount::text, ug.remaining::text, ug.deduction_mode,
+		       COALESCE(ug.ratio_recharge::text, ''), ug.expires_at,
+		       ug.source, COALESCE(ug.source_ref, ''), ug.status, ug.created_at, ug.updated_at,
+		       ug.group_id, COALESCE(grp.name, ''), ug.pinned
+		FROM user_gifts ug
+		LEFT JOIN groups grp ON grp.id = ug.group_id AND grp.deleted_at IS NULL
 		WHERE %s
 		ORDER BY %s
 		LIMIT $%d OFFSET $%d
@@ -470,14 +694,17 @@ func (r *repository) listGiftsByUserWithSort(ctx context.Context, userID int64, 
 	return out, total, nil
 }
 
-// getGiftByID 查单笔（运维接口用）。
+// getGiftByID 查单笔（运维接口用）。列与 listGiftsByUserWithSort 对齐（含 group/pinned），
+// 共享 scanUserGift，故列数与顺序必须一致。
 func (r *repository) getGiftByID(ctx context.Context, giftID int64) (*UserGift, error) {
 	row := r.sqlDB.QueryRowContext(ctx, `
-		SELECT id, user_id, amount::text, remaining::text, deduction_mode,
-		       COALESCE(ratio_recharge::text, ''), expires_at,
-		       source, COALESCE(source_ref, ''), status, created_at, updated_at
-		FROM user_gifts
-		WHERE id = $1
+		SELECT ug.id, ug.user_id, ug.amount::text, ug.remaining::text, ug.deduction_mode,
+		       COALESCE(ug.ratio_recharge::text, ''), ug.expires_at,
+		       ug.source, COALESCE(ug.source_ref, ''), ug.status, ug.created_at, ug.updated_at,
+		       ug.group_id, COALESCE(grp.name, ''), ug.pinned
+		FROM user_gifts ug
+		LEFT JOIN groups grp ON grp.id = ug.group_id AND grp.deleted_at IS NULL
+		WHERE ug.id = $1
 	`, giftID)
 	g, err := scanUserGift(row)
 	if err != nil {
@@ -490,6 +717,10 @@ func (r *repository) getGiftByID(ctx context.Context, giftID int64) (*UserGift, 
 }
 
 // scanUserGift 把一行查询结果映射到 *UserGift。decimal 列以 text 读出再解析。
+// 列顺序：id,user_id,amount,remaining,mode,ratio,expires_at,source,source_ref,status,
+//
+//	created_at,updated_at,group_id,group_name,pinned（listGiftsByUserWithSort 与
+//	getGiftByID 两处 SELECT 必须与此一致）。
 func scanUserGift(scanner interface{ Scan(dst ...any) error }) (*UserGift, error) {
 	var (
 		id        int64
@@ -504,8 +735,11 @@ func scanUserGift(scanner interface{ Scan(dst ...any) error }) (*UserGift, error
 		statusStr string
 		createdAt time.Time
 		updatedAt time.Time
+		groupID   sql.NullInt64
+		groupName string
+		pinned    bool
 	)
-	if err := scanner.Scan(&id, &userID, &amountStr, &remStr, &modeStr, &ratioStr, &expiresAt, &source, &sourceRef, &statusStr, &createdAt, &updatedAt); err != nil {
+	if err := scanner.Scan(&id, &userID, &amountStr, &remStr, &modeStr, &ratioStr, &expiresAt, &source, &sourceRef, &statusStr, &createdAt, &updatedAt, &groupID, &groupName, &pinned); err != nil {
 		return nil, err
 	}
 	g := &UserGift{
@@ -516,6 +750,8 @@ func scanUserGift(scanner interface{ Scan(dst ...any) error }) (*UserGift, error
 		Status:    Status(statusStr),
 		CreatedAt: createdAt,
 		UpdatedAt: updatedAt,
+		GroupName: groupName,
+		Pinned:    pinned,
 	}
 	if v, err := decimal.NewFromString(amountStr); err == nil {
 		g.Amount, _ = v.Float64()
@@ -535,6 +771,10 @@ func scanUserGift(scanner interface{ Scan(dst ...any) error }) (*UserGift, error
 	}
 	if sourceRef != "" {
 		g.SourceRef = &sourceRef
+	}
+	if groupID.Valid {
+		v := groupID.Int64
+		g.GroupID = &v
 	}
 	return g, nil
 }

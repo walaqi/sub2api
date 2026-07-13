@@ -61,7 +61,7 @@ func TestHasActivePriorityGift_TrueWhenActivePriorityExists(t *testing.T) {
 	_, err := eng.Grant(ctx, GrantInput{UserID: uid, Amount: 50, Mode: DeductionModePriority, Source: SourceKeybind})
 	require.NoError(t, err)
 
-	has, err := eng.HasActivePriorityGift(ctx, uid)
+	has, err := eng.HasActivePriorityGift(ctx, uid, nil)
 	require.NoError(t, err)
 	require.True(t, has)
 }
@@ -74,7 +74,7 @@ func TestHasActivePriorityGift_FalseWhenOnlyRatioGift(t *testing.T) {
 	_, err := eng.Grant(ctx, GrantInput{UserID: uid, Amount: 60, Mode: DeductionModeRatio, RatioRecharge: integRatioPtr(2), Source: SourceKeybind})
 	require.NoError(t, err)
 
-	has, err := eng.HasActivePriorityGift(ctx, uid)
+	has, err := eng.HasActivePriorityGift(ctx, uid, nil)
 	require.NoError(t, err)
 	require.False(t, has)
 }
@@ -93,7 +93,7 @@ func TestHasActivePriorityGift_FalseWhenExpired(t *testing.T) {
 	_, err = client.UserGift.UpdateOneID(g.ID).SetExpiresAt(past).Save(ctx)
 	require.NoError(t, err)
 
-	has, err := eng.HasActivePriorityGift(ctx, uid)
+	has, err := eng.HasActivePriorityGift(ctx, uid, nil)
 	require.NoError(t, err)
 	require.False(t, has)
 }
@@ -110,7 +110,7 @@ func TestHasActivePriorityGift_FalseWhenExhausted(t *testing.T) {
 	_, err = client.UserGift.UpdateOneID(g.ID).SetRemaining(0).SetStatus(string(StatusExhausted)).Save(ctx)
 	require.NoError(t, err)
 
-	has, err := eng.HasActivePriorityGift(ctx, uid)
+	has, err := eng.HasActivePriorityGift(ctx, uid, nil)
 	require.NoError(t, err)
 	require.False(t, has)
 }
@@ -126,7 +126,7 @@ func TestHasActivePriorityGift_FalseWhenRevoked(t *testing.T) {
 	_, err = client.UserGift.UpdateOneID(g.ID).SetStatus(string(StatusRevoked)).Save(ctx)
 	require.NoError(t, err)
 
-	has, err := eng.HasActivePriorityGift(ctx, uid)
+	has, err := eng.HasActivePriorityGift(ctx, uid, nil)
 	require.NoError(t, err)
 	require.False(t, has)
 }
@@ -137,7 +137,7 @@ func TestHasActivePriorityGift_FalseWhenNoGifts(t *testing.T) {
 	uid := seedPreflightUser(t, client, 100)
 	_ = client
 
-	has, err := eng.HasActivePriorityGift(ctx, uid)
+	has, err := eng.HasActivePriorityGift(ctx, uid, nil)
 	require.NoError(t, err)
 	require.False(t, has)
 }

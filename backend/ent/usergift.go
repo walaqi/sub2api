@@ -40,6 +40,10 @@ type UserGift struct {
 	SourceRef *string `json:"source_ref,omitempty"`
 	// Status holds the value of the "status" field.
 	Status string `json:"status,omitempty"`
+	// GroupID holds the value of the "group_id" field.
+	GroupID *int64 `json:"group_id,omitempty"`
+	// Pinned holds the value of the "pinned" field.
+	Pinned bool `json:"pinned,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the UserGiftQuery when eager-loading is set.
 	Edges        UserGiftEdges `json:"edges"`
@@ -71,9 +75,11 @@ func (*UserGift) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case usergift.FieldPinned:
+			values[i] = new(sql.NullBool)
 		case usergift.FieldAmount, usergift.FieldRemaining, usergift.FieldRatioRecharge:
 			values[i] = new(sql.NullFloat64)
-		case usergift.FieldID, usergift.FieldUserID:
+		case usergift.FieldID, usergift.FieldUserID, usergift.FieldGroupID:
 			values[i] = new(sql.NullInt64)
 		case usergift.FieldDeductionMode, usergift.FieldSource, usergift.FieldSourceRef, usergift.FieldStatus:
 			values[i] = new(sql.NullString)
@@ -169,6 +175,19 @@ func (_m *UserGift) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Status = value.String
 			}
+		case usergift.FieldGroupID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field group_id", values[i])
+			} else if value.Valid {
+				_m.GroupID = new(int64)
+				*_m.GroupID = value.Int64
+			}
+		case usergift.FieldPinned:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field pinned", values[i])
+			} else if value.Valid {
+				_m.Pinned = value.Bool
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -248,6 +267,14 @@ func (_m *UserGift) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)
+	builder.WriteString(", ")
+	if v := _m.GroupID; v != nil {
+		builder.WriteString("group_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("pinned=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Pinned))
 	builder.WriteByte(')')
 	return builder.String()
 }

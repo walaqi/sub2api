@@ -26,6 +26,7 @@ import (
 	"unsafe"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/gift"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -654,6 +655,7 @@ type GatewayService struct {
 	balanceNotifyService  *BalanceNotifyService
 	userPlatformQuotaRepo UserPlatformQuotaRepository
 	referralReward        *ReferralRewardService // 可选，nil 时不追踪消费
+	giftEngine            giftBalanceDeducter    // 余额扣费硬依赖（兜底路径 group-aware 分摊）
 }
 
 // NewGatewayService creates a new GatewayService
@@ -685,7 +687,18 @@ func NewGatewayService(
 	resolver *ModelPricingResolver,
 	balanceNotifyService *BalanceNotifyService,
 	userPlatformQuotaRepo UserPlatformQuotaRepository,
+	giftEngine *gift.Engine,
 ) *GatewayService {
+	// 余额扣费硬依赖：非 simple 模式下 giftEngine 必须非 nil，否则兜底路径会退化直扣
+	// users.balance，绕过赠金子账本与分组隔离（plan.md §3.7/S8）。构造期 fail fast。
+	// nil *gift.Engine 转成 nil 接口值（避免 typed-nil 逃过下面的判空）。
+	var giftDeducter giftBalanceDeducter
+	if giftEngine != nil {
+		giftDeducter = giftEngine
+	}
+	if cfg != nil && config.NormalizeRunMode(cfg.RunMode) != config.RunModeSimple && giftDeducter == nil {
+		panic("NewGatewayService: giftEngine must not be nil when balance billing is enabled (RunMode != simple)")
+	}
 	userGroupRateTTL := resolveUserGroupRateCacheTTL(cfg)
 	modelsListTTL := resolveModelsListCacheTTL(cfg)
 
@@ -721,6 +734,7 @@ func NewGatewayService(
 		resolver:              resolver,
 		balanceNotifyService:  balanceNotifyService,
 		userPlatformQuotaRepo: userPlatformQuotaRepo,
+		giftEngine:            giftDeducter,
 	}
 	svc.userGroupRateResolver = newUserGroupRateResolver(
 		userGroupRateRepo,
@@ -8856,10 +8870,14 @@ func (p *postUsageBillingParams) shouldUpdateAccountQuota() bool {
 // billing repo is unavailable (nil). Production uses applyUsageBilling → repo.Apply
 // for atomic billing. This path only runs in tests or degraded mode.
 //
-// TODO(gift-subsystem): legacy fallback 仍走 userRepo.DeductBalance（直接扣 users.balance），
-// 不经过赠金引擎。生产主路径 applyUsageBilling → repo.Apply 已接入赠金子账本。
-// 后续若 fallback 真在生产复活，需同步改为 giftEngine.AllocateAndDeductSimple。
-func postUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *billingDeps) {
+// 余额扣费 fail-closed（plan.md §3.7/S8）：非订阅分支经 giftEngine.AllocateAndDeductSimple
+// 做 group-aware 分摊，绝不直扣 users.balance（否则绕过赠金子账本 + 分组隔离）。
+// giftEngine 为 nil（misconfiguration）→ 返回错误，绝不退化直扣。
+//
+// 返回 error 语义：只有"扣费本身"失败才返回（可让上层重试）；扣费提交之后的附属
+// best-effort 更新（key quota / rate-limit / account quota / platform quota）失败仅记日志，
+// 不返回错误——否则重试会重复扣费（cx-s2 实现注）。
+func postUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *billingDeps) error {
 	billingCtx, cancel := detachedBillingContext(ctx)
 	defer cancel()
 
@@ -8870,13 +8888,18 @@ func postUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *bill
 		// consumes the quota at the expected speed.
 		if cost.ActualCost > 0 {
 			if err := deps.userSubRepo.IncrementUsage(billingCtx, p.Subscription.ID, cost.ActualCost); err != nil {
-				slog.Error("increment subscription usage failed", "subscription_id", p.Subscription.ID, "error", err)
+				// 订阅额度扣费失败是"扣费本身"失败 → 返回错误。
+				return fmt.Errorf("increment subscription usage: %w", err)
 			}
 		}
 	} else {
 		if cost.ActualCost > 0 {
-			if err := deps.userRepo.DeductBalance(billingCtx, p.User.ID, cost.ActualCost); err != nil {
-				slog.Error("deduct balance failed", "user_id", p.User.ID, "error", err)
+			if deps.giftEngine == nil {
+				// fail closed：缺赠金引擎绝不直扣，否则绕过子账本 + 分组隔离。
+				return errors.New("postUsageBilling: giftEngine is nil, refusing to deduct balance (fail closed)")
+			}
+			if err := deps.giftEngine.AllocateAndDeductSimple(billingCtx, p.User.ID, p.APIKey.GroupID, cost.ActualCost); err != nil {
+				return fmt.Errorf("gift-engine deduct balance: %w", err)
 			}
 		}
 	}
@@ -8924,6 +8947,7 @@ func postUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *bill
 	// cache updates. The legacy path does DB writes directly; the finalize path
 	// does cache queue + notifications. Notifications are dispatched separately
 	// by the caller after recording the usage log.
+	return nil
 }
 
 func resolveUsageBillingRequestID(ctx context.Context, upstreamRequestID string) string {
@@ -8956,7 +8980,7 @@ func resolveUsageBillingPayloadFingerprint(ctx context.Context, requestPayloadHa
 	return ""
 }
 
-func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsageBillingParams) *UsageBillingCommand {
+func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsageBillingParams, fingerprintVersion int16) *UsageBillingCommand {
 	if p == nil || p.Cost == nil || p.APIKey == nil || p.User == nil || p.Account == nil {
 		return nil
 	}
@@ -8968,6 +8992,9 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 		AccountID:          p.Account.ID,
 		AccountType:        p.Account.Type,
 		RequestPayloadHash: strings.TrimSpace(p.RequestPayloadHash),
+		// 请求分组：唯一 scope 源 = apiKey.GroupID（nil=无分组）。赠金按此过滤，并纳入 V2 指纹。
+		GroupID:            p.APIKey.GroupID,
+		FingerprintVersion: fingerprintVersion,
 	}
 	if usageLog != nil {
 		cmd.Model = usageLog.Model
@@ -9018,9 +9045,11 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 		return false, nil
 	}
 
-	cmd := buildUsageBillingCommand(requestID, usageLog, p)
+	cmd := buildUsageBillingCommand(requestID, usageLog, p, usageBillingFingerprintVersion(deps.cfg))
 	if cmd == nil || cmd.RequestID == "" || repo == nil {
-		postUsageBilling(ctx, p, deps)
+		if err := postUsageBilling(ctx, p, deps); err != nil {
+			return false, err
+		}
 		return true, nil
 	}
 
@@ -9225,6 +9254,25 @@ type billingDeps struct {
 	balanceNotifyService  *BalanceNotifyService
 	userPlatformQuotaRepo UserPlatformQuotaRepository
 	cfg                   *config.Config
+	// giftEngine 是余额扣费的硬依赖：兜底路径经它做 group-aware 分摊，
+	// 绝不直扣 users.balance（否则绕过赠金子账本 + 分组隔离，见 plan.md §3.7）。
+	// 非 simple 模式下构造期强制非 nil。用窄接口（*gift.Engine 满足）便于单测注入 stub。
+	giftEngine giftBalanceDeducter
+}
+
+// giftBalanceDeducter 是兜底扣费路径对赠金引擎的最小依赖：group-aware 分摊扣 users.balance。
+// 生产注入真 *gift.Engine；单测可注入 stub 断言扣费发生。
+type giftBalanceDeducter interface {
+	AllocateAndDeductSimple(ctx context.Context, userID int64, groupID *int64, totalCost float64) error
+}
+
+// usageBillingFingerprintVersion 按 config 两阶段开关决定新写入用哪版指纹公式。
+// 默认 V1（不含 group_id），确认全体实例升级后翻 usage_billing_fingerprint_v2_enabled=true 写 V2。
+func usageBillingFingerprintVersion(cfg *config.Config) int16 {
+	if cfg != nil && cfg.Database.UsageBillingFingerprintV2Enabled {
+		return UsageBillingFingerprintV2
+	}
+	return UsageBillingFingerprintV1
 }
 
 func (s *GatewayService) billingDeps() *billingDeps {
@@ -9237,6 +9285,7 @@ func (s *GatewayService) billingDeps() *billingDeps {
 		balanceNotifyService:  s.balanceNotifyService,
 		userPlatformQuotaRepo: s.userPlatformQuotaRepo,
 		cfg:                   s.cfg,
+		giftEngine:            s.giftEngine,
 	}
 }
 

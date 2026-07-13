@@ -112,7 +112,11 @@ type suspectMembershipReader interface {
 // independently support billing (without requiring recharge balance), and
 // provides the gift balance for computing rechargePool.
 type priorityGiftChecker interface {
-	HasActivePriorityGift(ctx context.Context, userID int64) (bool, error)
+	// HasActivePriorityGift 判定用户是否持有"当前请求分组可用"的 active priority 赠金。
+	// groupID = 本次请求分组（apiKey.GroupID，nil=无分组）。仅此方法 group-aware。
+	HasActivePriorityGift(ctx context.Context, userID int64, groupID *int64) (bool, error)
+	// GetGiftBalance 保持全局（Σ 全部 active 赠金），供全局充值池公式 rechargePool = balance − 全局赠金。
+	// 不 group-filter，否则会把别组赠金误算进充值池（plan.md §3.4）。
 	GetGiftBalance(ctx context.Context, userID int64) (float64, error)
 }
 
@@ -788,7 +792,13 @@ func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user 
 			return err
 		}
 	} else {
-		if err := s.checkBalanceEligibility(ctx, user.ID); err != nil {
+		// scope 唯一取 apiKey.GroupID（非 group.ID）：group 可能为 nil（软删/关系未加载）
+		// 而 apiKey.GroupID 非 nil，用 group.ID 会与扣费路径错位（plan.md §3.4/S9）。
+		var reqGroupID *int64
+		if apiKey != nil {
+			reqGroupID = apiKey.GroupID
+		}
+		if err := s.checkBalanceEligibility(ctx, user.ID, reqGroupID); err != nil {
 			return err
 		}
 	}
@@ -968,11 +978,18 @@ func scaleRPMLimit(limit, ratePercent int) int {
 	return scaled
 }
 
-// checkBalanceEligibility 检查余额模式资格
-// 拦截条件：充值余额（rechargePool = balance - gift_balance）≤ 0 且不存在 active 的 priority 赠金。
-// priority 赠金可以独立支撑请求（不依赖充值余额），因此有 priority 赠金时放行。
+// checkBalanceEligibility 检查余额模式资格（group-aware + fail-closed）。
+// 拦截条件：充值余额（rechargePool = balance - 全局 gift_balance）≤ 0 且不存在
+// 当前请求分组可用的 active priority 赠金。
+//   - rechargePool 用**全局**赠金算（真金不能被 group 遮蔽）；
+//   - "≤0 时靠 priority 兜底"这步按 group 过滤（groupID = apiKey.GroupID，nil=无分组）。
+//
 // ratio 赠金需要充值余额配对，不参与拦截判断。
-func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, userID int64) error {
+//
+// fail-closed（plan.md §3.4/S15）：非 simple 模式下 priorityGiftChecker 缺失 / GetGiftBalance
+// 出错都返回 ErrBillingServiceUnavailable，绝不退化 balance-only 放行——因为 balance 含
+// ineligible（别组）赠金，balance-only 会重演扣费路径要防的透支。
+func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, userID int64, groupID *int64) error {
 	balance, err := s.GetUserBalance(ctx, userID)
 	if err != nil {
 		if s.circuitBreaker != nil {
@@ -985,26 +1002,28 @@ func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, userI
 		s.circuitBreaker.OnSuccess()
 	}
 
-	// Fast path: if no gift checker wired, fall back to legacy balance-only check.
+	// fail closed：非 simple 模式下 gift checker 是硬依赖，缺失即 misconfiguration。
 	if s.priorityGiftChecker == nil {
-		if balance <= 0 {
-			return ErrInsufficientBalance
+		if s.cfg != nil && config.NormalizeRunMode(s.cfg.RunMode) == config.RunModeSimple {
+			// simple 模式本就跳过所有计费（CheckBillingEligibility 顶部已 return）；
+			// 极端兜底：退化 balance-only。
+			if balance <= 0 {
+				return ErrInsufficientBalance
+			}
+			return nil
 		}
-		return nil
+		logger.LegacyPrintf("service.billing_cache", "ALERT: priorityGiftChecker not wired for user %d (fail closed)", userID)
+		return ErrBillingServiceUnavailable
 	}
 
-	// Compute rechargePool = balance - gift_balance.
+	// Compute rechargePool = balance - 全局 gift_balance.
 	// This is the "real money" the user has; gift balance cannot be spent without
 	// recharge pairing (ratio) or is consumed first (priority).
 	giftBalance, err := s.priorityGiftChecker.GetGiftBalance(ctx, userID)
 	if err != nil {
-		// Non-fatal: fall back to legacy balance-only check (conservative for users
-		// with balance > 0; slightly permissive but same as before the fix).
-		logger.LegacyPrintf("service.billing_cache", "Warning: gift balance check failed for user %d: %v, falling back to balance check", userID, err)
-		if balance <= 0 {
-			return ErrInsufficientBalance
-		}
-		return nil
+		// fail closed：不退化 balance-only（balance 含别组赠金，会误放行导致透支）。
+		logger.LegacyPrintf("service.billing_cache", "ALERT: gift balance check failed for user %d: %v (fail closed)", userID, err)
+		return ErrBillingServiceUnavailable.WithCause(err)
 	}
 
 	rechargePool := balance - giftBalance
@@ -1012,8 +1031,8 @@ func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, userI
 		return nil
 	}
 
-	// rechargePool ≤ 0: only pass if user has active priority gifts
-	hasPriority, err := s.priorityGiftChecker.HasActivePriorityGift(ctx, userID)
+	// rechargePool ≤ 0: only pass if user has an active priority gift usable in this group.
+	hasPriority, err := s.priorityGiftChecker.HasActivePriorityGift(ctx, userID, groupID)
 	if err != nil {
 		logger.LegacyPrintf("service.billing_cache", "Warning: priority gift check failed for user %d: %v", userID, err)
 		return ErrInsufficientBalance

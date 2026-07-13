@@ -7723,6 +7723,10 @@ export default {
     sourceRechargeDiscount: '充值折扣',
     sourceOAuthFirstBind: '首次绑定奖励',
     sourcePromoCode: '优惠码兑换',
+    scopeGlobal: '全局',
+    scopeGroup: '仅限分组 {group}',
+    pin: '置顶',
+    unpin: '取消置顶',
   },
 
 }

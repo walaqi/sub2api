@@ -137,6 +137,34 @@ func (_c *UserGiftCreate) SetNillableStatus(v *string) *UserGiftCreate {
 	return _c
 }
 
+// SetGroupID sets the "group_id" field.
+func (_c *UserGiftCreate) SetGroupID(v int64) *UserGiftCreate {
+	_c.mutation.SetGroupID(v)
+	return _c
+}
+
+// SetNillableGroupID sets the "group_id" field if the given value is not nil.
+func (_c *UserGiftCreate) SetNillableGroupID(v *int64) *UserGiftCreate {
+	if v != nil {
+		_c.SetGroupID(*v)
+	}
+	return _c
+}
+
+// SetPinned sets the "pinned" field.
+func (_c *UserGiftCreate) SetPinned(v bool) *UserGiftCreate {
+	_c.mutation.SetPinned(v)
+	return _c
+}
+
+// SetNillablePinned sets the "pinned" field if the given value is not nil.
+func (_c *UserGiftCreate) SetNillablePinned(v *bool) *UserGiftCreate {
+	if v != nil {
+		_c.SetPinned(*v)
+	}
+	return _c
+}
+
 // SetUser sets the "user" edge to the User entity.
 func (_c *UserGiftCreate) SetUser(v *User) *UserGiftCreate {
 	return _c.SetUserID(v.ID)
@@ -189,6 +217,10 @@ func (_c *UserGiftCreate) defaults() {
 		v := usergift.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.Pinned(); !ok {
+		v := usergift.DefaultPinned
+		_c.mutation.SetPinned(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -236,6 +268,9 @@ func (_c *UserGiftCreate) check() error {
 		if err := usergift.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "UserGift.status": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.Pinned(); !ok {
+		return &ValidationError{Name: "pinned", err: errors.New(`ent: missing required field "UserGift.pinned"`)}
 	}
 	if len(_c.mutation.UserIDs()) == 0 {
 		return &ValidationError{Name: "user", err: errors.New(`ent: missing required edge "UserGift.user"`)}
@@ -306,6 +341,14 @@ func (_c *UserGiftCreate) createSpec() (*UserGift, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(usergift.FieldStatus, field.TypeString, value)
 		_node.Status = value
+	}
+	if value, ok := _c.mutation.GroupID(); ok {
+		_spec.SetField(usergift.FieldGroupID, field.TypeInt64, value)
+		_node.GroupID = &value
+	}
+	if value, ok := _c.mutation.Pinned(); ok {
+		_spec.SetField(usergift.FieldPinned, field.TypeBool, value)
+		_node.Pinned = value
 	}
 	if nodes := _c.mutation.UserIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -529,6 +572,42 @@ func (u *UserGiftUpsert) SetStatus(v string) *UserGiftUpsert {
 // UpdateStatus sets the "status" field to the value that was provided on create.
 func (u *UserGiftUpsert) UpdateStatus() *UserGiftUpsert {
 	u.SetExcluded(usergift.FieldStatus)
+	return u
+}
+
+// SetGroupID sets the "group_id" field.
+func (u *UserGiftUpsert) SetGroupID(v int64) *UserGiftUpsert {
+	u.Set(usergift.FieldGroupID, v)
+	return u
+}
+
+// UpdateGroupID sets the "group_id" field to the value that was provided on create.
+func (u *UserGiftUpsert) UpdateGroupID() *UserGiftUpsert {
+	u.SetExcluded(usergift.FieldGroupID)
+	return u
+}
+
+// AddGroupID adds v to the "group_id" field.
+func (u *UserGiftUpsert) AddGroupID(v int64) *UserGiftUpsert {
+	u.Add(usergift.FieldGroupID, v)
+	return u
+}
+
+// ClearGroupID clears the value of the "group_id" field.
+func (u *UserGiftUpsert) ClearGroupID() *UserGiftUpsert {
+	u.SetNull(usergift.FieldGroupID)
+	return u
+}
+
+// SetPinned sets the "pinned" field.
+func (u *UserGiftUpsert) SetPinned(v bool) *UserGiftUpsert {
+	u.Set(usergift.FieldPinned, v)
+	return u
+}
+
+// UpdatePinned sets the "pinned" field to the value that was provided on create.
+func (u *UserGiftUpsert) UpdatePinned() *UserGiftUpsert {
+	u.SetExcluded(usergift.FieldPinned)
 	return u
 }
 
@@ -756,6 +835,48 @@ func (u *UserGiftUpsertOne) SetStatus(v string) *UserGiftUpsertOne {
 func (u *UserGiftUpsertOne) UpdateStatus() *UserGiftUpsertOne {
 	return u.Update(func(s *UserGiftUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetGroupID sets the "group_id" field.
+func (u *UserGiftUpsertOne) SetGroupID(v int64) *UserGiftUpsertOne {
+	return u.Update(func(s *UserGiftUpsert) {
+		s.SetGroupID(v)
+	})
+}
+
+// AddGroupID adds v to the "group_id" field.
+func (u *UserGiftUpsertOne) AddGroupID(v int64) *UserGiftUpsertOne {
+	return u.Update(func(s *UserGiftUpsert) {
+		s.AddGroupID(v)
+	})
+}
+
+// UpdateGroupID sets the "group_id" field to the value that was provided on create.
+func (u *UserGiftUpsertOne) UpdateGroupID() *UserGiftUpsertOne {
+	return u.Update(func(s *UserGiftUpsert) {
+		s.UpdateGroupID()
+	})
+}
+
+// ClearGroupID clears the value of the "group_id" field.
+func (u *UserGiftUpsertOne) ClearGroupID() *UserGiftUpsertOne {
+	return u.Update(func(s *UserGiftUpsert) {
+		s.ClearGroupID()
+	})
+}
+
+// SetPinned sets the "pinned" field.
+func (u *UserGiftUpsertOne) SetPinned(v bool) *UserGiftUpsertOne {
+	return u.Update(func(s *UserGiftUpsert) {
+		s.SetPinned(v)
+	})
+}
+
+// UpdatePinned sets the "pinned" field to the value that was provided on create.
+func (u *UserGiftUpsertOne) UpdatePinned() *UserGiftUpsertOne {
+	return u.Update(func(s *UserGiftUpsert) {
+		s.UpdatePinned()
 	})
 }
 
@@ -1149,6 +1270,48 @@ func (u *UserGiftUpsertBulk) SetStatus(v string) *UserGiftUpsertBulk {
 func (u *UserGiftUpsertBulk) UpdateStatus() *UserGiftUpsertBulk {
 	return u.Update(func(s *UserGiftUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetGroupID sets the "group_id" field.
+func (u *UserGiftUpsertBulk) SetGroupID(v int64) *UserGiftUpsertBulk {
+	return u.Update(func(s *UserGiftUpsert) {
+		s.SetGroupID(v)
+	})
+}
+
+// AddGroupID adds v to the "group_id" field.
+func (u *UserGiftUpsertBulk) AddGroupID(v int64) *UserGiftUpsertBulk {
+	return u.Update(func(s *UserGiftUpsert) {
+		s.AddGroupID(v)
+	})
+}
+
+// UpdateGroupID sets the "group_id" field to the value that was provided on create.
+func (u *UserGiftUpsertBulk) UpdateGroupID() *UserGiftUpsertBulk {
+	return u.Update(func(s *UserGiftUpsert) {
+		s.UpdateGroupID()
+	})
+}
+
+// ClearGroupID clears the value of the "group_id" field.
+func (u *UserGiftUpsertBulk) ClearGroupID() *UserGiftUpsertBulk {
+	return u.Update(func(s *UserGiftUpsert) {
+		s.ClearGroupID()
+	})
+}
+
+// SetPinned sets the "pinned" field.
+func (u *UserGiftUpsertBulk) SetPinned(v bool) *UserGiftUpsertBulk {
+	return u.Update(func(s *UserGiftUpsert) {
+		s.SetPinned(v)
+	})
+}
+
+// UpdatePinned sets the "pinned" field to the value that was provided on create.
+func (u *UserGiftUpsertBulk) UpdatePinned() *UserGiftUpsertBulk {
+	return u.Update(func(s *UserGiftUpsert) {
+		s.UpdatePinned()
 	})
 }
 

@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/gift"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/apicompat"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -357,6 +358,7 @@ type OpenAIGatewayService struct {
 	settingService        *SettingService
 	userPlatformQuotaRepo UserPlatformQuotaRepository
 	referralReward        *ReferralRewardService // 可选，nil 时不追踪消费
+	giftEngine            giftBalanceDeducter    // 余额扣费硬依赖（兜底路径 group-aware 分摊）
 
 	openaiWSPoolOnce              sync.Once
 	openaiWSStateStoreOnce        sync.Once
@@ -402,7 +404,17 @@ func NewOpenAIGatewayService(
 	balanceNotifyService *BalanceNotifyService,
 	settingService *SettingService,
 	userPlatformQuotaRepo UserPlatformQuotaRepository,
+	giftEngine *gift.Engine,
 ) *OpenAIGatewayService {
+	// 余额扣费硬依赖：非 simple 模式下 giftEngine 必须非 nil（plan.md §3.7/S8）。构造期 fail fast。
+	// nil *gift.Engine 转成 nil 接口值（避免 typed-nil 逃过判空）。
+	var giftDeducter giftBalanceDeducter
+	if giftEngine != nil {
+		giftDeducter = giftEngine
+	}
+	if cfg != nil && config.NormalizeRunMode(cfg.RunMode) != config.RunModeSimple && giftDeducter == nil {
+		panic("NewOpenAIGatewayService: giftEngine must not be nil when balance billing is enabled (RunMode != simple)")
+	}
 	svc := &OpenAIGatewayService{
 		accountRepo:         accountRepo,
 		usageLogRepo:        usageLogRepo,
@@ -434,6 +446,7 @@ func NewOpenAIGatewayService(
 		balanceNotifyService:  balanceNotifyService,
 		settingService:        settingService,
 		userPlatformQuotaRepo: userPlatformQuotaRepo,
+		giftEngine:            giftDeducter,
 		responseHeaderFilter:  compileResponseHeaderFilter(cfg),
 		codexSnapshotThrottle: newAccountWriteThrottle(openAICodexSnapshotPersistMinInterval),
 	}
@@ -551,6 +564,8 @@ func (s *OpenAIGatewayService) billingDeps() *billingDeps {
 		deferredService:       s.deferredService,
 		balanceNotifyService:  s.balanceNotifyService,
 		userPlatformQuotaRepo: s.userPlatformQuotaRepo,
+		cfg:                   s.cfg,
+		giftEngine:            s.giftEngine,
 	}
 }
 

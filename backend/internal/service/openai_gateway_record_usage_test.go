@@ -143,6 +143,35 @@ func (s *openAIRecordUsageUserRepoStub) DeductBalance(ctx context.Context, id in
 	return s.deductErr
 }
 
+// AllocateAndDeductSimple 使该 stub 同时满足 giftBalanceDeducter：兜底扣费已从
+// DeductBalance 改道赠金引擎，这里把扣费计进同一 deductCalls/lastAmount，
+// 使既有对 userRepo.deductCalls/lastAmount 的断言语义不变。
+func (s *openAIRecordUsageUserRepoStub) AllocateAndDeductSimple(ctx context.Context, _ int64, _ *int64, totalCost float64) error {
+	s.deductCalls++
+	s.lastAmount = totalCost
+	s.lastCtxErr = ctx.Err()
+	return s.deductErr
+}
+
+// recordUsageGiftDeductStub 是兜底扣费的默认 stub，用于未实现 giftBalanceDeducter 的 userRepo。
+// 定义在无 build tag 文件，供 gateway_record_usage_test.go（unit tag）与本文件共用。
+type recordUsageGiftDeductStub struct{}
+
+func (s *recordUsageGiftDeductStub) AllocateAndDeductSimple(_ context.Context, _ int64, _ *int64, _ float64) error {
+	return nil
+}
+
+// giftDeducterFromUserRepo 把兜底扣费依赖解析出来：兜底扣费已从 userRepo.DeductBalance
+// 改道 giftEngine.AllocateAndDeductSimple。若 userRepo 同时实现了 giftBalanceDeducter
+// （openAIRecordUsageUserRepoStub 即如此，把扣费计进同一 deductCalls/lastAmount），
+// 就用它——使既有对 userRepo.deductCalls/lastAmount 的断言语义不变；否则用空 stub。
+func giftDeducterFromUserRepo(userRepo UserRepository) giftBalanceDeducter {
+	if d, ok := userRepo.(giftBalanceDeducter); ok {
+		return d
+	}
+	return &recordUsageGiftDeductStub{}
+}
+
 type openAIRecordUsageSubRepoStub struct {
 	UserSubscriptionRepository
 
@@ -201,7 +230,9 @@ func i64p(v int64) *int64 {
 }
 
 func newOpenAIRecordUsageServiceForTest(usageRepo UsageLogRepository, userRepo UserRepository, subRepo UserSubscriptionRepository, rateRepo UserGroupRateRepository) *OpenAIGatewayService {
+	// 见 gateway 侧同名 helper：simple 构造过硬校验，构造后翻 standard 并注入兜底扣费 stub。
 	cfg := &config.Config{}
+	cfg.RunMode = config.RunModeSimple
 	cfg.Default.RateMultiplier = 1.1
 	svc := NewOpenAIGatewayService(
 		nil,
@@ -225,7 +256,10 @@ func newOpenAIRecordUsageServiceForTest(usageRepo UsageLogRepository, userRepo U
 		nil,
 		nil,
 		nil, // userPlatformQuotaRepo
+		nil, // giftEngine
 	)
+	cfg.RunMode = config.RunModeStandard
+	svc.giftEngine = giftDeducterFromUserRepo(userRepo)
 	svc.userGroupRateResolver = newUserGroupRateResolver(
 		rateRepo,
 		nil,

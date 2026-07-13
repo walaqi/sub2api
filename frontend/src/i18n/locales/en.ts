@@ -7546,6 +7546,10 @@ export default {
     sourceRechargeDiscount: 'Recharge Discount',
     sourceOAuthFirstBind: 'First Bind Reward',
     sourcePromoCode: 'Promo Code',
+    scopeGlobal: 'Global',
+    scopeGroup: 'Group {group} only',
+    pin: 'Pin',
+    unpin: 'Unpin',
   },
 
 }

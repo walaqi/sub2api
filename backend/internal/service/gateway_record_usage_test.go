@@ -14,10 +14,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// recordUsageGiftDeductStub / giftDeducterFromUserRepo 定义在无 build tag 的
+// openai_gateway_record_usage_test.go，供本文件（unit tag）与该文件共用。
+
 func newGatewayRecordUsageServiceForTest(usageRepo UsageLogRepository, userRepo UserRepository, subRepo UserSubscriptionRepository) *GatewayService {
+	// 用 simple 模式构造以合法通过"标准模式 giftEngine 非空"硬校验（构造期 fail-fast），
+	// 构造后翻回 standard 并注入兜底扣费依赖 —— 使 RecordUsage 走计费路径且可断言扣费发生。
 	cfg := &config.Config{}
+	cfg.RunMode = config.RunModeSimple
 	cfg.Default.RateMultiplier = 1.1
-	return NewGatewayService(
+	svc := NewGatewayService(
 		nil,
 		nil,
 		usageRepo,
@@ -45,7 +51,11 @@ func newGatewayRecordUsageServiceForTest(usageRepo UsageLogRepository, userRepo 
 		nil,
 		nil,
 		nil, // userPlatformQuotaRepo
+		nil, // giftEngine
 	)
+	cfg.RunMode = config.RunModeStandard
+	svc.giftEngine = giftDeducterFromUserRepo(userRepo)
+	return svc
 }
 
 func newGatewayRecordUsageServiceWithBillingRepoForTest(usageRepo UsageLogRepository, billingRepo UsageBillingRepository, userRepo UserRepository, subRepo UserSubscriptionRepository) *GatewayService {
@@ -110,6 +120,9 @@ func TestGatewayServiceRecordUsage_BillingUsesDetachedContext(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, 1, usageRepo.calls)
+	// 兜底扣费已改道赠金引擎（不再直扣 userRepo）：断言 stub 在 detached ctx 内被调用。
+	// 兜底扣费改道赠金引擎，但 userRepo stub 实现了 giftBalanceDeducter 并计进同一
+	// deductCalls/lastCtxErr，故断言语义不变（"在 detached ctx 内扣费一次"）。
 	require.Equal(t, 1, userRepo.deductCalls)
 	require.NoError(t, userRepo.lastCtxErr)
 	require.Equal(t, 1, quotaSvc.quotaCalls)

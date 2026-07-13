@@ -110,6 +110,16 @@ func Status(v string) predicate.UserGift {
 	return predicate.UserGift(sql.FieldEQ(FieldStatus, v))
 }
 
+// GroupID applies equality check predicate on the "group_id" field. It's identical to GroupIDEQ.
+func GroupID(v int64) predicate.UserGift {
+	return predicate.UserGift(sql.FieldEQ(FieldGroupID, v))
+}
+
+// Pinned applies equality check predicate on the "pinned" field. It's identical to PinnedEQ.
+func Pinned(v bool) predicate.UserGift {
+	return predicate.UserGift(sql.FieldEQ(FieldPinned, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.UserGift {
 	return predicate.UserGift(sql.FieldEQ(FieldCreatedAt, v))
@@ -658,6 +668,66 @@ func StatusEqualFold(v string) predicate.UserGift {
 // StatusContainsFold applies the ContainsFold predicate on the "status" field.
 func StatusContainsFold(v string) predicate.UserGift {
 	return predicate.UserGift(sql.FieldContainsFold(FieldStatus, v))
+}
+
+// GroupIDEQ applies the EQ predicate on the "group_id" field.
+func GroupIDEQ(v int64) predicate.UserGift {
+	return predicate.UserGift(sql.FieldEQ(FieldGroupID, v))
+}
+
+// GroupIDNEQ applies the NEQ predicate on the "group_id" field.
+func GroupIDNEQ(v int64) predicate.UserGift {
+	return predicate.UserGift(sql.FieldNEQ(FieldGroupID, v))
+}
+
+// GroupIDIn applies the In predicate on the "group_id" field.
+func GroupIDIn(vs ...int64) predicate.UserGift {
+	return predicate.UserGift(sql.FieldIn(FieldGroupID, vs...))
+}
+
+// GroupIDNotIn applies the NotIn predicate on the "group_id" field.
+func GroupIDNotIn(vs ...int64) predicate.UserGift {
+	return predicate.UserGift(sql.FieldNotIn(FieldGroupID, vs...))
+}
+
+// GroupIDGT applies the GT predicate on the "group_id" field.
+func GroupIDGT(v int64) predicate.UserGift {
+	return predicate.UserGift(sql.FieldGT(FieldGroupID, v))
+}
+
+// GroupIDGTE applies the GTE predicate on the "group_id" field.
+func GroupIDGTE(v int64) predicate.UserGift {
+	return predicate.UserGift(sql.FieldGTE(FieldGroupID, v))
+}
+
+// GroupIDLT applies the LT predicate on the "group_id" field.
+func GroupIDLT(v int64) predicate.UserGift {
+	return predicate.UserGift(sql.FieldLT(FieldGroupID, v))
+}
+
+// GroupIDLTE applies the LTE predicate on the "group_id" field.
+func GroupIDLTE(v int64) predicate.UserGift {
+	return predicate.UserGift(sql.FieldLTE(FieldGroupID, v))
+}
+
+// GroupIDIsNil applies the IsNil predicate on the "group_id" field.
+func GroupIDIsNil() predicate.UserGift {
+	return predicate.UserGift(sql.FieldIsNull(FieldGroupID))
+}
+
+// GroupIDNotNil applies the NotNil predicate on the "group_id" field.
+func GroupIDNotNil() predicate.UserGift {
+	return predicate.UserGift(sql.FieldNotNull(FieldGroupID))
+}
+
+// PinnedEQ applies the EQ predicate on the "pinned" field.
+func PinnedEQ(v bool) predicate.UserGift {
+	return predicate.UserGift(sql.FieldEQ(FieldPinned, v))
+}
+
+// PinnedNEQ applies the NEQ predicate on the "pinned" field.
+func PinnedNEQ(v bool) predicate.UserGift {
+	return predicate.UserGift(sql.FieldNEQ(FieldPinned, v))
 }
 
 // HasUser applies the HasEdge predicate on the "user" edge.

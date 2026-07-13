@@ -665,13 +665,23 @@ func (s *Service) Commit(ctx context.Context, userID int64, reservationID string
 	// TOCTOU guard: only update if the row is still owned by the pool user
 	// and still matches the active/non-deleted invariants. group_id 随 key 一
 	// 起转移到新 owner（不再调用 ClearGroupID），运营保证池 key 不在排他分组。
-	affected, err := s.client.APIKey.Update().
+	//
+	// claim-time group pin（plan.md §3.2/S6）：把上面读到的 poolKey.GroupID 固化进
+	// transfer WHERE。若管理员在 read 与 update 之间改了池 key 的分组，affected==0
+	// 触发重试，保证转移的 key 行与随后 Grant 用的 groupID 一致。
+	transferUpdate := s.client.APIKey.Update().
 		Where(
 			apikey.IDEQ(keyID),
 			apikey.UserIDEQ(s.poolUserID),
 			apikey.StatusEQ(domain.StatusActive),
 			apikey.DeletedAtIsNil(),
-		).
+		)
+	if poolKey.GroupID != nil {
+		transferUpdate = transferUpdate.Where(apikey.GroupIDEQ(*poolKey.GroupID))
+	} else {
+		transferUpdate = transferUpdate.Where(apikey.GroupIDIsNil())
+	}
+	affected, err := transferUpdate.
 		SetUserID(userID).
 		Save(ctx)
 	if err != nil {
@@ -689,7 +699,9 @@ func (s *Service) Commit(ctx context.Context, userID int64, reservationID string
 	// Phase 3：把 apiKeyID 一并传下去，由 updater 读表 A 决定 mode/ratio_recharge/expires_after_days。
 	var grantedGift *GrantedGift
 	if giftAmount > 0 && s.userBalanceUpdater != nil {
-		g, err := s.userBalanceUpdater.GrantForBindKey(ctx, userID, giftAmount, keyID)
+		// 传 poolKey.GroupID：绑分组的池 key → 发一笔绑该组的赠金（只能在该组消费）；
+		// 无分组池 key → 全局赠金（与现状一致）。见 plan.md §3.2。
+		g, err := s.userBalanceUpdater.GrantForBindKey(ctx, userID, giftAmount, keyID, poolKey.GroupID)
 		if err != nil {
 			log.Printf("[keybind] grant balance %.4f to user %d failed: %v", giftAmount, userID, err)
 		} else {

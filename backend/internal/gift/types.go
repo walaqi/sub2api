@@ -47,6 +47,10 @@ type GrantInput struct {
 	ExpiresAt     *time.Time // nil 表示永不过期
 	Source        Source
 	SourceRef     *string
+	// GroupID 绑定分组：非 nil 时该赠金仅限该分组消费；nil = 全局通用。
+	// 领取带分组池 key 时由 keybind 传入；insertGiftWithBalance 会在同一事务内
+	// 锁 groups 行校验——若该组已被软删除则落 NULL（转全局）。
+	GroupID *int64
 }
 
 // GiftDisplayItem 面向用户展示的单笔有效赠金快照。
@@ -58,6 +62,10 @@ type GiftDisplayItem struct {
 	RatioRecharge *float64
 	ExpiresAt     *time.Time
 	ExpiringSoon  bool
+	// GroupID / GroupName：赠金绑定分组的展示信息。GroupID==nil → 全局。
+	// 供 Profile 卡片渲染"全局 / 仅限分组 X"列（此展示面无置顶按钮，故不含 id/pinned）。
+	GroupID   *int64
+	GroupName string
 }
 
 // UserGift 赠金记录的对外快照（与 ent 实体解耦，便于跨包使用）。
@@ -74,4 +82,9 @@ type UserGift struct {
 	Status        Status
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
+	// GroupID / GroupName：赠金绑定分组。GroupID==nil → 全局。分页"我的赠金"页展示用。
+	GroupID   *int64
+	GroupName string
+	// Pinned：用户置顶（allocator Stage 0 最先消费）。
+	Pinned bool
 }

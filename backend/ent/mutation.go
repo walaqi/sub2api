@@ -45032,6 +45032,9 @@ type UserGiftMutation struct {
 	source            *string
 	source_ref        *string
 	status            *string
+	group_id          *int64
+	addgroup_id       *int64
+	pinned            *bool
 	clearedFields     map[string]struct{}
 	user              *int64
 	cleareduser       bool
@@ -45634,6 +45637,112 @@ func (m *UserGiftMutation) ResetStatus() {
 	m.status = nil
 }
 
+// SetGroupID sets the "group_id" field.
+func (m *UserGiftMutation) SetGroupID(i int64) {
+	m.group_id = &i
+	m.addgroup_id = nil
+}
+
+// GroupID returns the value of the "group_id" field in the mutation.
+func (m *UserGiftMutation) GroupID() (r int64, exists bool) {
+	v := m.group_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGroupID returns the old "group_id" field's value of the UserGift entity.
+// If the UserGift object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserGiftMutation) OldGroupID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGroupID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGroupID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGroupID: %w", err)
+	}
+	return oldValue.GroupID, nil
+}
+
+// AddGroupID adds i to the "group_id" field.
+func (m *UserGiftMutation) AddGroupID(i int64) {
+	if m.addgroup_id != nil {
+		*m.addgroup_id += i
+	} else {
+		m.addgroup_id = &i
+	}
+}
+
+// AddedGroupID returns the value that was added to the "group_id" field in this mutation.
+func (m *UserGiftMutation) AddedGroupID() (r int64, exists bool) {
+	v := m.addgroup_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearGroupID clears the value of the "group_id" field.
+func (m *UserGiftMutation) ClearGroupID() {
+	m.group_id = nil
+	m.addgroup_id = nil
+	m.clearedFields[usergift.FieldGroupID] = struct{}{}
+}
+
+// GroupIDCleared returns if the "group_id" field was cleared in this mutation.
+func (m *UserGiftMutation) GroupIDCleared() bool {
+	_, ok := m.clearedFields[usergift.FieldGroupID]
+	return ok
+}
+
+// ResetGroupID resets all changes to the "group_id" field.
+func (m *UserGiftMutation) ResetGroupID() {
+	m.group_id = nil
+	m.addgroup_id = nil
+	delete(m.clearedFields, usergift.FieldGroupID)
+}
+
+// SetPinned sets the "pinned" field.
+func (m *UserGiftMutation) SetPinned(b bool) {
+	m.pinned = &b
+}
+
+// Pinned returns the value of the "pinned" field in the mutation.
+func (m *UserGiftMutation) Pinned() (r bool, exists bool) {
+	v := m.pinned
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPinned returns the old "pinned" field's value of the UserGift entity.
+// If the UserGift object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserGiftMutation) OldPinned(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPinned is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPinned requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPinned: %w", err)
+	}
+	return oldValue.Pinned, nil
+}
+
+// ResetPinned resets all changes to the "pinned" field.
+func (m *UserGiftMutation) ResetPinned() {
+	m.pinned = nil
+}
+
 // ClearUser clears the "user" edge to the User entity.
 func (m *UserGiftMutation) ClearUser() {
 	m.cleareduser = true
@@ -45695,7 +45804,7 @@ func (m *UserGiftMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserGiftMutation) Fields() []string {
-	fields := make([]string, 0, 11)
+	fields := make([]string, 0, 13)
 	if m.created_at != nil {
 		fields = append(fields, usergift.FieldCreatedAt)
 	}
@@ -45729,6 +45838,12 @@ func (m *UserGiftMutation) Fields() []string {
 	if m.status != nil {
 		fields = append(fields, usergift.FieldStatus)
 	}
+	if m.group_id != nil {
+		fields = append(fields, usergift.FieldGroupID)
+	}
+	if m.pinned != nil {
+		fields = append(fields, usergift.FieldPinned)
+	}
 	return fields
 }
 
@@ -45759,6 +45874,10 @@ func (m *UserGiftMutation) Field(name string) (ent.Value, bool) {
 		return m.SourceRef()
 	case usergift.FieldStatus:
 		return m.Status()
+	case usergift.FieldGroupID:
+		return m.GroupID()
+	case usergift.FieldPinned:
+		return m.Pinned()
 	}
 	return nil, false
 }
@@ -45790,6 +45909,10 @@ func (m *UserGiftMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldSourceRef(ctx)
 	case usergift.FieldStatus:
 		return m.OldStatus(ctx)
+	case usergift.FieldGroupID:
+		return m.OldGroupID(ctx)
+	case usergift.FieldPinned:
+		return m.OldPinned(ctx)
 	}
 	return nil, fmt.Errorf("unknown UserGift field %s", name)
 }
@@ -45876,6 +45999,20 @@ func (m *UserGiftMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetStatus(v)
 		return nil
+	case usergift.FieldGroupID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGroupID(v)
+		return nil
+	case usergift.FieldPinned:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPinned(v)
+		return nil
 	}
 	return fmt.Errorf("unknown UserGift field %s", name)
 }
@@ -45893,6 +46030,9 @@ func (m *UserGiftMutation) AddedFields() []string {
 	if m.addratio_recharge != nil {
 		fields = append(fields, usergift.FieldRatioRecharge)
 	}
+	if m.addgroup_id != nil {
+		fields = append(fields, usergift.FieldGroupID)
+	}
 	return fields
 }
 
@@ -45907,6 +46047,8 @@ func (m *UserGiftMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedRemaining()
 	case usergift.FieldRatioRecharge:
 		return m.AddedRatioRecharge()
+	case usergift.FieldGroupID:
+		return m.AddedGroupID()
 	}
 	return nil, false
 }
@@ -45937,6 +46079,13 @@ func (m *UserGiftMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddRatioRecharge(v)
 		return nil
+	case usergift.FieldGroupID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddGroupID(v)
+		return nil
 	}
 	return fmt.Errorf("unknown UserGift numeric field %s", name)
 }
@@ -45953,6 +46102,9 @@ func (m *UserGiftMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(usergift.FieldSourceRef) {
 		fields = append(fields, usergift.FieldSourceRef)
+	}
+	if m.FieldCleared(usergift.FieldGroupID) {
+		fields = append(fields, usergift.FieldGroupID)
 	}
 	return fields
 }
@@ -45976,6 +46128,9 @@ func (m *UserGiftMutation) ClearField(name string) error {
 		return nil
 	case usergift.FieldSourceRef:
 		m.ClearSourceRef()
+		return nil
+	case usergift.FieldGroupID:
+		m.ClearGroupID()
 		return nil
 	}
 	return fmt.Errorf("unknown UserGift nullable field %s", name)
@@ -46017,6 +46172,12 @@ func (m *UserGiftMutation) ResetField(name string) error {
 		return nil
 	case usergift.FieldStatus:
 		m.ResetStatus()
+		return nil
+	case usergift.FieldGroupID:
+		m.ResetGroupID()
+		return nil
+	case usergift.FieldPinned:
+		m.ResetPinned()
 		return nil
 	}
 	return fmt.Errorf("unknown UserGift field %s", name)

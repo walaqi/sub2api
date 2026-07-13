@@ -151,7 +151,7 @@ type priorityGiftCheckerStub struct {
 	giftErr     error
 }
 
-func (s *priorityGiftCheckerStub) HasActivePriorityGift(_ context.Context, _ int64) (bool, error) {
+func (s *priorityGiftCheckerStub) HasActivePriorityGift(_ context.Context, _ int64, _ *int64) (bool, error) {
 	return s.has, s.err
 }
 
@@ -165,7 +165,7 @@ func TestCheckBalanceEligibility_PositiveRechargePool_Passes(t *testing.T) {
 	t.Cleanup(svc.Stop)
 	svc.SetPriorityGiftChecker(&priorityGiftCheckerStub{giftBalance: 30})
 
-	err := svc.checkBalanceEligibility(context.Background(), 1)
+	err := svc.checkBalanceEligibility(context.Background(), 1, nil)
 	require.NoError(t, err)
 }
 
@@ -175,7 +175,7 @@ func TestCheckBalanceEligibility_ZeroRechargePool_NoPriorityGift_Rejects(t *test
 	t.Cleanup(svc.Stop)
 	svc.SetPriorityGiftChecker(&priorityGiftCheckerStub{giftBalance: 60, has: false})
 
-	err := svc.checkBalanceEligibility(context.Background(), 1)
+	err := svc.checkBalanceEligibility(context.Background(), 1, nil)
 	require.ErrorIs(t, err, ErrInsufficientBalance)
 }
 
@@ -185,7 +185,7 @@ func TestCheckBalanceEligibility_ZeroRechargePool_HasPriorityGift_Passes(t *test
 	t.Cleanup(svc.Stop)
 	svc.SetPriorityGiftChecker(&priorityGiftCheckerStub{giftBalance: 50, has: true})
 
-	err := svc.checkBalanceEligibility(context.Background(), 1)
+	err := svc.checkBalanceEligibility(context.Background(), 1, nil)
 	require.NoError(t, err)
 }
 
@@ -195,7 +195,7 @@ func TestCheckBalanceEligibility_NegativeRechargePool_HasPriorityGift_Passes(t *
 	t.Cleanup(svc.Stop)
 	svc.SetPriorityGiftChecker(&priorityGiftCheckerStub{giftBalance: 50, has: true})
 
-	err := svc.checkBalanceEligibility(context.Background(), 1)
+	err := svc.checkBalanceEligibility(context.Background(), 1, nil)
 	require.NoError(t, err)
 }
 
@@ -205,42 +205,47 @@ func TestCheckBalanceEligibility_NegativeBalance_NoGift_Rejects(t *testing.T) {
 	t.Cleanup(svc.Stop)
 	svc.SetPriorityGiftChecker(&priorityGiftCheckerStub{giftBalance: 0, has: false})
 
-	err := svc.checkBalanceEligibility(context.Background(), 1)
+	err := svc.checkBalanceEligibility(context.Background(), 1, nil)
 	require.ErrorIs(t, err, ErrInsufficientBalance)
 }
 
-func TestCheckBalanceEligibility_CheckerNil_FallsBackToBalance(t *testing.T) {
-	// No checker wired, balance > 0 → pass (legacy behavior)
+func TestCheckBalanceEligibility_CheckerNil_StandardMode_FailsClosed(t *testing.T) {
+	// 组绑赠金上线后：standard 模式下未接 gift checker 是硬依赖违约 → fail closed
+	// （返回 ErrBillingServiceUnavailable，绝不退化 balance-only），无论余额正负。
 	svc := NewBillingCacheService(nil, &balanceEligibilityUserRepoStub{balance: 10}, nil, nil, nil, nil, &config.Config{}, nil)
 	t.Cleanup(svc.Stop)
 
-	err := svc.checkBalanceEligibility(context.Background(), 1)
-	require.NoError(t, err)
+	err := svc.checkBalanceEligibility(context.Background(), 1, nil)
+	require.ErrorIs(t, err, ErrBillingServiceUnavailable)
 
-	// No checker wired, balance ≤ 0 → reject (legacy behavior)
 	svc2 := NewBillingCacheService(nil, &balanceEligibilityUserRepoStub{balance: 0}, nil, nil, nil, nil, &config.Config{}, nil)
 	t.Cleanup(svc2.Stop)
 
-	err = svc2.checkBalanceEligibility(context.Background(), 1)
-	require.ErrorIs(t, err, ErrInsufficientBalance)
+	err = svc2.checkBalanceEligibility(context.Background(), 1, nil)
+	require.ErrorIs(t, err, ErrBillingServiceUnavailable)
 }
 
-func TestCheckBalanceEligibility_GiftBalanceError_FallsBackToBalance(t *testing.T) {
-	// GetGiftBalance fails, balance > 0 → pass (fallback)
+func TestCheckBalanceEligibility_CheckerNil_SimpleMode_FallsBackToBalance(t *testing.T) {
+	// simple 模式：极端兜底退化 balance-only（simple 本就跳过计费）。
+	simpleCfg := &config.Config{RunMode: config.RunModeSimple}
+	svc := NewBillingCacheService(nil, &balanceEligibilityUserRepoStub{balance: 10}, nil, nil, nil, nil, simpleCfg, nil)
+	t.Cleanup(svc.Stop)
+	require.NoError(t, svc.checkBalanceEligibility(context.Background(), 1, nil))
+
+	svc2 := NewBillingCacheService(nil, &balanceEligibilityUserRepoStub{balance: 0}, nil, nil, nil, nil, simpleCfg, nil)
+	t.Cleanup(svc2.Stop)
+	require.ErrorIs(t, svc2.checkBalanceEligibility(context.Background(), 1, nil), ErrInsufficientBalance)
+}
+
+func TestCheckBalanceEligibility_GiftBalanceError_StandardMode_FailsClosed(t *testing.T) {
+	// 组绑赠金上线后：GetGiftBalance 出错 → fail closed（不退化 balance-only，
+	// 否则 balance 含别组赠金会误放行导致透支）。
 	svc := NewBillingCacheService(nil, &balanceEligibilityUserRepoStub{balance: 60}, nil, nil, nil, nil, &config.Config{}, nil)
 	t.Cleanup(svc.Stop)
 	svc.SetPriorityGiftChecker(&priorityGiftCheckerStub{giftErr: errors.New("db down")})
 
-	err := svc.checkBalanceEligibility(context.Background(), 1)
-	require.NoError(t, err)
-
-	// GetGiftBalance fails, balance ≤ 0 → reject (fallback)
-	svc2 := NewBillingCacheService(nil, &balanceEligibilityUserRepoStub{balance: 0}, nil, nil, nil, nil, &config.Config{}, nil)
-	t.Cleanup(svc2.Stop)
-	svc2.SetPriorityGiftChecker(&priorityGiftCheckerStub{giftErr: errors.New("db down")})
-
-	err = svc2.checkBalanceEligibility(context.Background(), 1)
-	require.ErrorIs(t, err, ErrInsufficientBalance)
+	err := svc.checkBalanceEligibility(context.Background(), 1, nil)
+	require.ErrorIs(t, err, ErrBillingServiceUnavailable)
 }
 
 func TestCheckBalanceEligibility_PriorityCheckError_Rejects(t *testing.T) {
@@ -249,6 +254,6 @@ func TestCheckBalanceEligibility_PriorityCheckError_Rejects(t *testing.T) {
 	t.Cleanup(svc.Stop)
 	svc.SetPriorityGiftChecker(&priorityGiftCheckerStub{giftBalance: 60, err: errors.New("db down")})
 
-	err := svc.checkBalanceEligibility(context.Background(), 1)
+	err := svc.checkBalanceEligibility(context.Background(), 1, nil)
 	require.ErrorIs(t, err, ErrInsufficientBalance)
 }

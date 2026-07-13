@@ -39,19 +39,42 @@ type UsageBillingCommand struct {
 	APIKeyQuotaCost     float64
 	APIKeyRateLimitCost float64
 	AccountQuotaCost    float64
+
+	// GroupID 是本次请求分组（apiKey.GroupID，nil=无分组）。用于赠金按组扣费，
+	// 同时纳入 v2 指纹以区分"同请求改组后重试"（见 FingerprintVersion）。
+	GroupID *int64
+
+	// FingerprintVersion 决定 Normalize 用哪版公式计算指纹：
+	//   1（默认/legacy）：不含 group_id，与历史行兼容；
+	//   2：含 group_id。两阶段发布下由 config 开关控制新写入用哪版（见 plan.md §3.6）。
+	// dedup 表持久化该版本，比对时按存储版本选公式，避免混版误判冲突。
+	FingerprintVersion int16
 }
+
+// UsageBillingFingerprintV1 / V2 是指纹公式版本号。
+// V1：历史公式（不含 group_id）；V2：追加 group_id。
+const (
+	UsageBillingFingerprintV1 int16 = 1
+	UsageBillingFingerprintV2 int16 = 2
+)
 
 func (c *UsageBillingCommand) Normalize() {
 	if c == nil {
 		return
 	}
 	c.RequestID = strings.TrimSpace(c.RequestID)
+	if c.FingerprintVersion == 0 {
+		c.FingerprintVersion = UsageBillingFingerprintV1
+	}
 	if strings.TrimSpace(c.RequestFingerprint) == "" {
-		c.RequestFingerprint = buildUsageBillingFingerprint(c)
+		c.RequestFingerprint = buildUsageBillingFingerprint(c, c.FingerprintVersion)
 	}
 }
 
-func buildUsageBillingFingerprint(c *UsageBillingCommand) string {
+// buildUsageBillingFingerprint 按 version 计算指纹。
+// V1 与历史逐字节一致（不含 group_id）；V2 在 payloadHash 之后追加 group_id 段，
+// 使仅 group 不同的两请求得到不同 hash、而不影响 V1 存量行的重算比对。
+func buildUsageBillingFingerprint(c *UsageBillingCommand, version int16) string {
 	if c == nil {
 		return ""
 	}
@@ -81,8 +104,18 @@ func buildUsageBillingFingerprint(c *UsageBillingCommand) string {
 	if payloadHash := strings.TrimSpace(c.RequestPayloadHash); payloadHash != "" {
 		raw += "|" + payloadHash
 	}
+	if version >= UsageBillingFingerprintV2 {
+		// V2 追加 group 段；V1 完全不含此段，与历史行逐字节一致。
+		raw += fmt.Sprintf("|g:%d", valueOrZero(c.GroupID))
+	}
 	sum := sha256.Sum256([]byte(raw))
 	return hex.EncodeToString(sum[:])
+}
+
+// FingerprintForVersion 用指定版本公式重算本命令的指纹，供 dedup 比对：
+// 存储行标注 version=1 → 用 V1 重算比对（即使本命令是 V2 写入），避免混版误判冲突。
+func (c *UsageBillingCommand) FingerprintForVersion(version int16) string {
+	return buildUsageBillingFingerprint(c, version)
 }
 
 func HashUsageRequestPayload(payload []byte) string {

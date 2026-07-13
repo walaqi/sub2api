@@ -1683,6 +1683,8 @@ var (
 		{Name: "source", Type: field.TypeString, Size: 32},
 		{Name: "source_ref", Type: field.TypeString, Nullable: true, Size: 128},
 		{Name: "status", Type: field.TypeString, Size: 16, Default: "active"},
+		{Name: "group_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "pinned", Type: field.TypeBool, Default: false},
 		{Name: "user_id", Type: field.TypeInt64},
 	}
 	// UserGiftsTable holds the schema information for the "user_gifts" table.
@@ -1693,7 +1695,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "user_gifts_users_gifts",
-				Columns:    []*schema.Column{UserGiftsColumns[11]},
+				Columns:    []*schema.Column{UserGiftsColumns[13]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -1702,12 +1704,33 @@ var (
 			{
 				Name:    "usergift_user_id",
 				Unique:  false,
-				Columns: []*schema.Column{UserGiftsColumns[11]},
+				Columns: []*schema.Column{UserGiftsColumns[13]},
 			},
 			{
 				Name:    "usergift_expires_at",
 				Unique:  false,
 				Columns: []*schema.Column{UserGiftsColumns[7]},
+			},
+			{
+				Name:    "usergift_user_id_group_id",
+				Unique:  false,
+				Columns: []*schema.Column{UserGiftsColumns[13], UserGiftsColumns[11]},
+			},
+			{
+				Name:    "usergift_group_id",
+				Unique:  false,
+				Columns: []*schema.Column{UserGiftsColumns[11]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "group_id IS NOT NULL",
+				},
+			},
+			{
+				Name:    "user_gifts_one_pin_per_user",
+				Unique:  true,
+				Columns: []*schema.Column{UserGiftsColumns[13]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "pinned",
+				},
 			},
 		},
 	}

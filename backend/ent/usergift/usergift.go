@@ -36,6 +36,10 @@ const (
 	FieldSourceRef = "source_ref"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldGroupID holds the string denoting the group_id field in the database.
+	FieldGroupID = "group_id"
+	// FieldPinned holds the string denoting the pinned field in the database.
+	FieldPinned = "pinned"
 	// EdgeUser holds the string denoting the user edge name in mutations.
 	EdgeUser = "user"
 	// Table holds the table name of the usergift in the database.
@@ -63,6 +67,8 @@ var Columns = []string{
 	FieldSource,
 	FieldSourceRef,
 	FieldStatus,
+	FieldGroupID,
+	FieldPinned,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -92,6 +98,8 @@ var (
 	DefaultStatus string
 	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	StatusValidator func(string) error
+	// DefaultPinned holds the default value on creation for the "pinned" field.
+	DefaultPinned bool
 )
 
 // OrderOption defines the ordering options for the UserGift queries.
@@ -155,6 +163,16 @@ func BySourceRef(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByGroupID orders the results by the group_id field.
+func ByGroupID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGroupID, opts...).ToFunc()
+}
+
+// ByPinned orders the results by the pinned field.
+func ByPinned(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPinned, opts...).ToFunc()
 }
 
 // ByUserField orders the results by user field.

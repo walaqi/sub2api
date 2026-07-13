@@ -597,7 +597,9 @@ func TestOpenAIGatewayService_Forward_ReturnErrorWhenOnlyWSv1Enabled(t *testing.
 }
 
 func TestNewOpenAIGatewayService_InitializesOpenAIWSResolver(t *testing.T) {
+	// simple 模式：本测试只验 WS 协议解析、不涉及计费，避开 standard 模式 giftEngine 硬校验。
 	cfg := &config.Config{}
+	cfg.RunMode = config.RunModeSimple
 	svc := NewOpenAIGatewayService(
 		nil,
 		nil,
@@ -620,6 +622,7 @@ func TestNewOpenAIGatewayService_InitializesOpenAIWSResolver(t *testing.T) {
 		nil,
 		nil,
 		nil, // userPlatformQuotaRepo
+		nil, // giftEngine
 	)
 
 	decision := svc.getOpenAIWSProtocolResolver().Resolve(nil)

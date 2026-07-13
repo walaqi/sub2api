@@ -24,6 +24,8 @@ func RegisterUserRoutes(
 		{
 			user.GET("/profile", h.User.GetProfile)
 			user.GET("/gifts", h.User.ListGifts)
+			user.POST("/gifts/:id/pin", h.User.PinGift)
+			user.DELETE("/gifts/:id/pin", h.User.UnpinGift)
 			user.PUT("/password", h.User.ChangePassword)
 			user.PUT("", h.User.UpdateProfile)
 			user.GET("/aff", h.User.GetAffiliate)

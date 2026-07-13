@@ -28,8 +28,8 @@
       <!-- Gift list -->
       <div v-else-if="gifts.length" class="space-y-3">
         <div
-          v-for="(gift, idx) in gifts"
-          :key="idx"
+          v-for="gift in gifts"
+          :key="gift.id ?? gift.source + gift.expires_at_unix_ms"
           class="card flex items-center justify-between p-4"
         >
           <div class="flex-1 space-y-1">
@@ -66,6 +66,43 @@
               <span v-else>{{ t('gifts.neverExpires') }}</span>
               <span>{{ t('gifts.remaining') }}: ${{ gift.remaining.toFixed(2) }}</span>
             </div>
+          </div>
+
+          <!-- 右侧：全局/分组 列 + 置顶按钮 -->
+          <div class="flex items-center gap-3 pl-3">
+            <!-- 全局用默认文字色（非灰，避免误认为 disabled）；分组带色 -->
+            <span
+              v-if="gift.is_global"
+              class="text-[11px] font-medium text-gray-800 dark:text-dark-100"
+            >
+              {{ t('gifts.scopeGlobal') }}
+            </span>
+            <span
+              v-else
+              class="rounded px-1.5 py-0.5 text-[11px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
+            >
+              {{ t('gifts.scopeGroup', { group: gift.group_name || `#${gift.group_id}` }) }}
+            </span>
+
+            <!-- 置顶按钮：仅对有 id 且未过期/未耗尽的行显示 -->
+            <template v-if="gift.id && isPinnable(gift)">
+              <button
+                v-if="gift.pinned"
+                :disabled="pinBusyId === gift.id"
+                class="rounded-md border border-primary-300 px-2 py-1 text-[11px] font-medium text-primary-700 hover:bg-primary-50 disabled:opacity-40 dark:border-primary-700 dark:text-primary-300 dark:hover:bg-primary-900/20"
+                @click="unpin(gift)"
+              >
+                {{ t('gifts.unpin') }}
+              </button>
+              <button
+                v-else
+                :disabled="pinBusyId === gift.id"
+                class="rounded-md border border-gray-300 px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-40 dark:border-dark-600 dark:text-dark-300 dark:hover:bg-dark-700"
+                @click="pin(gift)"
+              >
+                {{ t('gifts.pin') }}
+              </button>
+            </template>
           </div>
         </div>
 
@@ -106,6 +143,7 @@ import { apiClient } from '@/api/client'
 const { t } = useI18n()
 
 interface GiftItem {
+  id?: number
   remaining: number
   deduction_mode: 'priority' | 'ratio'
   ratio_recharge?: number | null
@@ -116,6 +154,10 @@ interface GiftItem {
   amount: number
   status: string
   created_at_unix_ms?: number | null
+  group_id?: number | null
+  group_name?: string
+  is_global: boolean
+  pinned: boolean
 }
 
 interface GiftListResponse {
@@ -130,6 +172,7 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = 20
 const activeTab = ref('active')
+const pinBusyId = ref<number | null>(null)
 
 const tabs = computed(() => [
   { value: 'active', label: t('gifts.filterActive') },
@@ -158,6 +201,39 @@ async function fetchGifts() {
 function switchTab(tab: string) {
   activeTab.value = tab
   page.value = 1
+}
+
+// 仅 active 且未过期/未耗尽的赠金可置顶。
+function isPinnable(gift: GiftItem): boolean {
+  return gift.status !== 'expired' && gift.status !== 'exhausted'
+}
+
+async function pin(gift: GiftItem) {
+  if (!gift.id) return
+  pinBusyId.value = gift.id
+  try {
+    await apiClient.post(`/user/gifts/${gift.id}/pin`)
+    // 置顶行须置顶展示：回到第 1 页并刷新（后端排序 pinned DESC）。
+    page.value = 1
+    await fetchGifts()
+  } catch (e) {
+    console.error('Failed to pin gift:', e)
+  } finally {
+    pinBusyId.value = null
+  }
+}
+
+async function unpin(gift: GiftItem) {
+  if (!gift.id) return
+  pinBusyId.value = gift.id
+  try {
+    await apiClient.delete(`/user/gifts/${gift.id}/pin`)
+    await fetchGifts()
+  } catch (e) {
+    console.error('Failed to unpin gift:', e)
+  } finally {
+    pinBusyId.value = null
+  }
 }
 
 function goPage(p: number) {
