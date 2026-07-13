@@ -141,6 +141,32 @@ func TestGiftEngine_PinRejectsExhausted(t *testing.T) {
 	require.ErrorIs(t, eng.PinGift(ctx, uid, g.ID), gift.ErrGiftNotPinnable)
 }
 
+// TestGiftEngine_ExhaustionClearsPin 验证：置顶赠金被扣至耗尽时，pinned 顺手清除（§3.10）。
+func TestGiftEngine_ExhaustionClearsPin(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	eng := gift.NewEngine(client, integrationDB)
+	uid := newGiftScopeUser(t, 0)
+
+	// 全局 priority 赠金 10，置顶。
+	g, err := eng.Grant(ctx, gift.GrantInput{UserID: uid, Amount: 10, Mode: gift.DeductionModePriority, Source: gift.SourceKeybind})
+	require.NoError(t, err)
+	require.NoError(t, eng.PinGift(ctx, uid, g.ID))
+
+	// 扣满 10 → 耗尽。
+	tx, err := integrationDB.BeginTx(ctx, nil)
+	require.NoError(t, err)
+	_, err = eng.AllocateAndDeduct(ctx, tx, uid, nil, 10)
+	require.NoError(t, err)
+	require.NoError(t, tx.Commit())
+
+	var status string
+	var pinned bool
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT status, pinned FROM user_gifts WHERE id=$1", g.ID).Scan(&status, &pinned))
+	require.Equal(t, "exhausted", status)
+	require.False(t, pinned, "exhausted gift must clear its pin flag")
+}
+
 // TestGroupDeleteCascade_ScopedGiftsGoGlobal 验证：DeleteCascade 删组后，绑该组的赠金转全局。
 func TestGroupDeleteCascade_ScopedGiftsGoGlobal(t *testing.T) {
 	ctx := context.Background()

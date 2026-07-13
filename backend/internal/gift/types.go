@@ -63,9 +63,11 @@ type GiftDisplayItem struct {
 	ExpiresAt     *time.Time
 	ExpiringSoon  bool
 	// GroupID / GroupName：赠金绑定分组的展示信息。GroupID==nil → 全局。
-	// 供 Profile 卡片渲染"全局 / 仅限分组 X"列（此展示面无置顶按钮，故不含 id/pinned）。
+	// 供 Profile 卡片渲染"全局 / 仅限分组 X"列（此展示面无置顶按钮，故不含 id）。
 	GroupID   *int64
 	GroupName string
+	// Pinned 仅用于排序维度⓪（置顶行居顶），使展示顺序与消费顺序一致；此展示面不渲染置顶按钮。
+	Pinned bool
 }
 
 // UserGift 赠金记录的对外快照（与 ent 实体解耦，便于跨包使用）。

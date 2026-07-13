@@ -96,6 +96,28 @@ func TestListActiveGiftsForDisplay_GroupFieldsAndOrdering(t *testing.T) {
 	require.Equal(t, "", items[1].GroupName)
 }
 
+// TestListActiveGiftsForDisplay_PinnedSortsFirst 验证置顶行在展示排序中居顶（维度⓪），
+// 与消费顺序一致——即使置顶的是 ratio、而用户还持有 priority。
+func TestListActiveGiftsForDisplay_PinnedSortsFirst(t *testing.T) {
+	eng, client, _ := newPreflightTestEngine(t)
+	ctx := context.Background()
+	uid := seedPreflightUser(t, client, 100)
+
+	// 普通 priority（默认会排在 ratio 前）+ 置顶 ratio。
+	seedGiftDirect(t, client, uid, 30, DeductionModePriority, nil)
+	pinnedID := seedGiftDirect(t, client, uid, 40, DeductionModeRatio, nil)
+	_, err := client.UserGift.UpdateOneID(pinnedID).SetPinned(true).Save(ctx)
+	require.NoError(t, err)
+
+	items, err := eng.ListActiveGiftsForDisplay(ctx, uid)
+	require.NoError(t, err)
+	require.Len(t, items, 2)
+	// 置顶的 ratio 尽管 mode 排在 priority 之后，仍因维度⓪居顶。
+	require.True(t, items[0].Pinned, "pinned gift must sort first regardless of mode")
+	require.Equal(t, DeductionModeRatio, items[0].Mode)
+	require.False(t, items[1].Pinned)
+}
+
 func seedGroupUnit(t *testing.T, client *dbent.Client, name string) int64 {
 	t.Helper()
 	gr, err := client.Group.Create().

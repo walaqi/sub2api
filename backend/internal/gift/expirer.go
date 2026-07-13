@@ -181,8 +181,9 @@ func (s *ExpirerService) expireForUser(ctx context.Context, userID int64) error 
 		return nil
 	}
 
+	// 过期时顺手清置顶（plan.md §3.10 陈旧置顶清理，仅 UI 整洁；正确性不依赖它）。
 	if _, err := tx.ExecContext(ctx, `
-		UPDATE user_gifts SET remaining = 0, status = 'expired', updated_at = NOW()
+		UPDATE user_gifts SET remaining = 0, status = 'expired', pinned = false, updated_at = NOW()
 		WHERE id = ANY($1)
 	`, pq.Array(ids)); err != nil {
 		return fmt.Errorf("expire gifts: %w", err)

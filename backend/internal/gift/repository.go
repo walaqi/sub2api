@@ -198,10 +198,13 @@ func (r *repository) applyDeductions(ctx context.Context, tx *sql.Tx, userID int
 			continue
 		}
 		deltaF, _ := delta.Float64()
+		// 耗尽时顺手清置顶（plan.md §3.10 陈旧置顶清理，仅 UI 整洁；正确性不依赖它，
+		// lockedSnapshot 的 remaining>0 谓词已把耗尽赠金排除出消费）。
 		if _, err := tx.ExecContext(ctx, `
 			UPDATE user_gifts SET
 				remaining = remaining - $1,
 				status = CASE WHEN remaining - $1 <= 0 THEN 'exhausted' ELSE status END,
+				pinned = CASE WHEN remaining - $1 <= 0 THEN false ELSE pinned END,
 				updated_at = NOW()
 			WHERE id = $2
 		`, deltaF, giftID); err != nil {
@@ -328,6 +331,7 @@ func (r *repository) listActiveGiftsForDisplay(ctx context.Context, userID int64
 		item := GiftDisplayItem{
 			Remaining: g.Remaining,
 			Mode:      DeductionMode(g.DeductionMode),
+			Pinned:    g.Pinned,
 		}
 		if g.RatioRecharge != nil {
 			v := *g.RatioRecharge
@@ -377,12 +381,16 @@ func (r *repository) resolveGroupNames(ctx context.Context, rows []*dbent.UserGi
 	return names, nil
 }
 
-// sortGiftDisplayItems 按消费顺序排序展示项：pinned 优先字段未在 GiftDisplayItem 暴露，
-// 此处按 (priority 先于 ratio) → (分组专属先于全局) → (ratio_recharge 升序) →
-// (到期升序) → 稳定顺序。置顶维度由分页查询的 SQL ORDER BY 负责（Profile 卡不含置顶）。
+// sortGiftDisplayItems 按消费顺序排序展示项，与 lockedSnapshot 对齐（plan.md §3.10）：
+// ⓪ pinned 置顶最前 → ① priority 先于 ratio → ② 分组专属先于全局 → ③ ratio_recharge 升序
+// → ④ 到期升序 → 稳定顺序。让 Profile 卡展示顺序与实际消费顺序一致。
 func sortGiftDisplayItems(items []GiftDisplayItem) {
 	sort.SliceStable(items, func(i, j int) bool {
 		a, b := items[i], items[j]
+		// ⓪ pinned 置顶最前
+		if a.Pinned != b.Pinned {
+			return a.Pinned
+		}
 		// ① priority 先于 ratio
 		if pa, pb := modeRank(a.Mode), modeRank(b.Mode); pa != pb {
 			return pa < pb
