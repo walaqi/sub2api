@@ -13,7 +13,13 @@ const decimalScale = 8
 type AllocateInput struct {
 	TotalCost    decimal.Decimal // 本次扣费总额
 	TotalBalance decimal.Decimal // users.balance 当前值
-	Gifts        []ActiveGift    // 用户当前所有 active 且未过期的赠金，已加锁读取
+	// Gifts 仅含"当前请求分组可用"的赠金（group_id IS NULL 或 == 请求组），
+	// 已由调用方按 (pinned DESC, mode, group, ratio, expiry, id) 预排序。
+	Gifts []ActiveGift
+	// IneligibleGiftRemaining 是"当前请求分组不可用"的赠金 remaining 之和
+	// （绑定了别的分组的赠金）。它不参与本次分摊，但必须从充值池里扣除，
+	// 否则会被误当成可花的真金。见 plan.md §3.3。
+	IneligibleGiftRemaining decimal.Decimal
 }
 
 // ActiveGift 参与分摊的赠金快照。
@@ -22,8 +28,32 @@ type ActiveGift struct {
 	Mode          DeductionMode
 	Remaining     decimal.Decimal
 	RatioRecharge decimal.Decimal // priority 模式忽略；ratio 模式必为正
+	// GroupID 绑定分组：非 nil 时仅限该分组消费；nil = 全局。用于 partitionByGroup 切分。
+	GroupID *int64
+	// Pinned 表示用户置顶了这笔赠金。置顶赠金在 Stage 0 无视 priority/ratio 分阶段
+	// 被最先消费（绝对第一）。至多一条（DB 部分唯一索引保证）。
+	Pinned bool
 	// SortKey 字段供 ratio 模式 tie-break：值小的先扣（消耗更快、对用户更划算）。
-	// 由调用方按 (ratio_recharge ASC, expires_at ASC, id ASC) 预排序后传入。
+	// 由调用方按 (pinned DESC, mode, group, ratio_recharge ASC, expires_at ASC, id ASC) 预排序后传入。
+}
+
+// partitionByGroup 把锁到的全部 active 赠金按当前请求分组切成两份：
+//   - eligible：group_id IS NULL 或 == reqGroupID 的赠金（保留传入顺序）；
+//   - ineligibleRemaining：其余（绑定别的分组）赠金的 remaining 之和。
+//
+// reqGroupID == nil（请求无分组）时，只有全局赠金 eligible，所有带分组的赠金归入 ineligible。
+// 纯函数，供 AllocateAndDeduct 在 lockedSnapshot 之后调用。
+func partitionByGroup(gifts []ActiveGift, reqGroupID *int64) (eligible []ActiveGift, ineligibleRemaining decimal.Decimal) {
+	ineligibleRemaining = decimal.Zero
+	for _, g := range gifts {
+		usable := g.GroupID == nil || (reqGroupID != nil && *g.GroupID == *reqGroupID)
+		if usable {
+			eligible = append(eligible, g)
+		} else {
+			ineligibleRemaining = ineligibleRemaining.Add(g.Remaining)
+		}
+	}
+	return eligible, ineligibleRemaining
 }
 
 // AllocateResult 分摊结果。
@@ -56,11 +86,20 @@ func Allocate(in AllocateInput) (AllocateResult, error) {
 		return res, nil
 	}
 
-	// 拆 priority / ratio 两组，保留入参顺序
+	// 拆 pinned / priority / ratio 三组，保留入参顺序。
+	// pinned 至多一条（DB 部分唯一索引保证）；取第一条置顶项交给 Stage 0，
+	// 并把它从 priority/ratio 组里排除，避免重复计数。
+	var pinned *ActiveGift
 	var priority, ratio []ActiveGift
 	totalActive := decimal.Zero
-	for _, g := range in.Gifts {
+	for i := range in.Gifts {
+		g := in.Gifts[i]
 		totalActive = totalActive.Add(g.Remaining)
+		if g.Pinned && pinned == nil {
+			gc := g
+			pinned = &gc
+			continue
+		}
 		switch g.Mode {
 		case DeductionModePriority:
 			priority = append(priority, g)
@@ -69,11 +108,33 @@ func Allocate(in AllocateInput) (AllocateResult, error) {
 		}
 	}
 
-	// 当前充值池 = total_balance - 所有 active 赠金 remaining 之和
-	rechargePool := in.TotalBalance.Sub(totalActive)
+	// 充值池 = total_balance − Σ(eligible active gifts) − Σ(ineligible gifts)
+	//        = total_balance − Σ(所有 active gifts) → 真·全局充值池。
+	// 若不减 IneligibleGiftRemaining，绑定别组的赠金会被误当可花真金而透支。
+	rechargePool := in.TotalBalance.Sub(totalActive).Sub(in.IneligibleGiftRemaining)
 	remaining := in.TotalCost
 
-	// Stage 1: priority
+	// Stage 0: pinned 赠金（绝对第一），按其自身 mode 处理。
+	// 分组不匹配的置顶赠金不在 in.Gifts（eligible 子集）里 → 天然被忽略。
+	if pinned != nil && remaining.Sign() > 0 {
+		switch pinned.Mode {
+		case DeductionModePriority:
+			take := decimalMin(pinned.Remaining, remaining)
+			if take.Sign() > 0 {
+				res.GiftDeltas[pinned.ID] = roundScale(take)
+				remaining = remaining.Sub(take)
+			}
+		case DeductionModeRatio:
+			giftPart, rechargePart, T := takeRatio(pinned, remaining, rechargePool)
+			if T.Sign() > 0 {
+				res.GiftDeltas[pinned.ID] = roundScale(giftPart)
+				rechargePool = rechargePool.Sub(rechargePart)
+				remaining = remaining.Sub(T)
+			}
+		}
+	}
+
+	// Stage 1: priority（已排除 pinned）
 	for i := range priority {
 		if remaining.Sign() <= 0 {
 			break
@@ -87,7 +148,7 @@ func Allocate(in AllocateInput) (AllocateResult, error) {
 		}
 	}
 
-	// Stage 2: ratio（按调用方传入顺序：ratio_recharge ASC）
+	// Stage 2: ratio（已排除 pinned；按调用方传入顺序：ratio_recharge ASC）
 	for i := range ratio {
 		if remaining.Sign() <= 0 {
 			break
@@ -96,36 +157,10 @@ func Allocate(in AllocateInput) (AllocateResult, error) {
 		if g.Remaining.Sign() <= 0 {
 			continue
 		}
-		r := g.RatioRecharge
-		if r.Sign() <= 0 {
-			// 防御：ratio 模式必须有正比例，否则跳过
-			continue
-		}
-
-		// 这一段使用 g 时：
-		// 每扣 1 单位充值池 → 同步扣 r 单位赠金。
-		// 设这一段总扣 T，则 gift_part = T·r/(1+r), recharge_part = T/(1+r)。
-		one := decimal.NewFromInt(1)
-		onePlusR := one.Add(r)
-
-		// 上限 1：g.Remaining 用尽时对应的 T
-		capByGift := g.Remaining.Mul(onePlusR).Div(r)
-		// 上限 2：rechargePool 在此步剩余可承担的 T（rechargePool 允许透支，但本算法在比例阶段
-		// 不主动透支：透支留给 stage 3）
-		var capByRecharge decimal.Decimal
-		if rechargePool.Sign() > 0 {
-			capByRecharge = rechargePool.Mul(onePlusR)
-		} else {
-			capByRecharge = decimal.Zero
-		}
-		// 上限 3：本次还需要扣的总额
-		T := decimalMin(remaining, decimalMin(capByGift, capByRecharge))
+		giftPart, rechargePart, T := takeRatio(g, remaining, rechargePool)
 		if T.Sign() <= 0 {
 			continue
 		}
-
-		giftPart := T.Mul(r).Div(onePlusR)
-		rechargePart := T.Sub(giftPart)
 
 		// 累加 g 的减量（同一笔 gift 在 ratio 阶段最多被处理一次，无需累加）
 		res.GiftDeltas[g.ID] = roundScale(giftPart)
@@ -155,6 +190,37 @@ func Allocate(in AllocateInput) (AllocateResult, error) {
 	res.RechargeDelta = roundScale(res.RechargeDelta)
 
 	return res, nil
+}
+
+// takeRatio 计算一笔 ratio 赠金在本步能承担的分摊：
+// 每扣 1 单位充值池 → 同步扣 r 单位赠金。设这一段总扣 T，
+// 则 gift_part = T·r/(1+r), recharge_part = T/(1+r)。
+// 受三个上限约束：① g.Remaining 用尽对应的 T；② rechargePool 可承担的 T
+// （比例阶段不主动透支，透支留给 Stage 3，故 rechargePool≤0 时休眠取 0）；
+// ③ 本次还需扣的 remaining。返回 (giftPart, rechargePart, T)。
+func takeRatio(g *ActiveGift, remaining, rechargePool decimal.Decimal) (giftPart, rechargePart, T decimal.Decimal) {
+	r := g.RatioRecharge
+	if r.Sign() <= 0 {
+		// 防御：ratio 模式必须有正比例，否则不扣。
+		return decimal.Zero, decimal.Zero, decimal.Zero
+	}
+	one := decimal.NewFromInt(1)
+	onePlusR := one.Add(r)
+
+	capByGift := g.Remaining.Mul(onePlusR).Div(r)
+	var capByRecharge decimal.Decimal
+	if rechargePool.Sign() > 0 {
+		capByRecharge = rechargePool.Mul(onePlusR)
+	} else {
+		capByRecharge = decimal.Zero
+	}
+	T = decimalMin(remaining, decimalMin(capByGift, capByRecharge))
+	if T.Sign() <= 0 {
+		return decimal.Zero, decimal.Zero, decimal.Zero
+	}
+	giftPart = T.Mul(r).Div(onePlusR)
+	rechargePart = T.Sub(giftPart)
+	return giftPart, rechargePart, T
 }
 
 // roundScale 把 decimal 截到固定精度（8 位），避免 Mul/Div 引入的尾数。

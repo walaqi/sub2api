@@ -28,7 +28,9 @@ type GrantedGift struct {
 // Phase 3 进一步把 api_key_id 一起传下来，由实现读表 A 决定 mode/ratio_recharge/expires_after_days。
 // 返回 *GrantedGift 让 service 层把赠金详情透传到前端；amount<=0 时返回 (nil, nil)。
 type UserBalanceUpdater interface {
-	GrantForBindKey(ctx context.Context, userID int64, amount float64, apiKeyID int64) (*GrantedGift, error)
+	// groupID 为池 key 携带的分组（nil=无分组）。非 nil 时发一笔绑该组的赠金
+	// （只能在该组消费）；Grant 内部在事务里锁 groups 行校验，组已删则落全局。
+	GrantForBindKey(ctx context.Context, userID int64, amount float64, apiKeyID int64, groupID *int64) (*GrantedGift, error)
 }
 
 // APIKeyAuthCacheInvalidator 与 service.APIKeyAuthCacheInvalidator 结构等价。
@@ -101,7 +103,7 @@ func NewEntUserBalanceUpdater(_ *ent.Client) UserBalanceUpdater {
 	return nil
 }
 
-func (u *giftEngineUpdater) GrantForBindKey(ctx context.Context, userID int64, amount float64, apiKeyID int64) (*GrantedGift, error) {
+func (u *giftEngineUpdater) GrantForBindKey(ctx context.Context, userID int64, amount float64, apiKeyID int64, groupID *int64) (*GrantedGift, error) {
 	if amount <= 0 {
 		return nil, nil
 	}
@@ -109,12 +111,14 @@ func (u *giftEngineUpdater) GrantForBindKey(ctx context.Context, userID int64, a
 		return nil, errors.New("giftEngineUpdater: engine is nil")
 	}
 
-	// 默认 priority、永不过期
+	// 默认 priority、永不过期。groupID 非 nil 时该赠金绑定分组（仅该组可消费）；
+	// Grant 内部在事务里锁 groups 行，若该组已删则落全局（group_id=NULL）。
 	input := gift.GrantInput{
-		UserID: userID,
-		Amount: amount,
-		Mode:   gift.DeductionModePriority,
-		Source: gift.SourceKeybind,
+		UserID:  userID,
+		Amount:  amount,
+		Mode:    gift.DeductionModePriority,
+		Source:  gift.SourceKeybind,
+		GroupID: groupID,
 	}
 	if ref := apiKeyRef(apiKeyID); ref != "" {
 		input.SourceRef = &ref

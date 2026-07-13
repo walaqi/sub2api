@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -136,7 +137,13 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 }
 
 // giftListItem 是 ListGifts 返回的单笔赠金 DTO（面向当前登录用户）。
+// 单一 DTO 用显式 JSON tag 收口两种响应形态（plan.md §3.8/D8）：
+//   - ID：gift id 恒为正，故 omitempty；分页行带正 id，legacy（Profile 卡）行 id=0 被省略。
+//   - Pinned：不 omitempty，恒输出；分页行 true/false，legacy 行恒 false（无害）。
+//   - IsGlobal：恒输出，前端据此在两个展示面统一渲染"全局 / 仅限分组"列。
+//     严格由 group_id==nil 推导，不看 group_name（cx-s2 实现注）。
 type giftListItem struct {
+	ID            int64    `json:"id,omitempty"`
 	Remaining     float64  `json:"remaining"`
 	DeductionMode string   `json:"deduction_mode"`
 	RatioRecharge *float64 `json:"ratio_recharge,omitempty"`
@@ -148,6 +155,11 @@ type giftListItem struct {
 	Amount          float64 `json:"amount,omitempty"`
 	Status          string  `json:"status,omitempty"`
 	CreatedAtUnixMs *int64  `json:"created_at_unix_ms,omitempty"`
+	// 分组 / 置顶展示字段。
+	GroupID   *int64 `json:"group_id,omitempty"`
+	GroupName string `json:"group_name,omitempty"`
+	IsGlobal  bool   `json:"is_global"`
+	Pinned    bool   `json:"pinned"`
 }
 
 // giftListResponse 是分页模式的响应。
@@ -221,6 +233,7 @@ func (h *UserHandler) ListGifts(c *gin.Context) {
 				displayStatus = string(gift.StatusExpired)
 			}
 			item := giftListItem{
+				ID:            g.ID,
 				Remaining:     g.Remaining,
 				DeductionMode: string(g.Mode),
 				RatioRecharge: g.RatioRecharge,
@@ -228,6 +241,10 @@ func (h *UserHandler) ListGifts(c *gin.Context) {
 				SourceRef:     derefStr(g.SourceRef),
 				Amount:        g.Amount,
 				Status:        displayStatus,
+				GroupID:       g.GroupID,
+				GroupName:     g.GroupName,
+				IsGlobal:      g.GroupID == nil,
+				Pinned:        g.Pinned,
 			}
 			if g.ExpiresAt != nil {
 				ms := g.ExpiresAt.UnixMilli()
@@ -256,6 +273,10 @@ func (h *UserHandler) ListGifts(c *gin.Context) {
 			DeductionMode: string(g.Mode),
 			RatioRecharge: g.RatioRecharge,
 			ExpiringSoon:  g.ExpiringSoon,
+			GroupID:       g.GroupID,
+			GroupName:     g.GroupName,
+			IsGlobal:      g.GroupID == nil,
+			// legacy（Profile 卡）分支无置顶按钮：id 省略、pinned 恒 false。
 		}
 		if g.ExpiresAt != nil {
 			ms := g.ExpiresAt.UnixMilli()
@@ -264,6 +285,60 @@ func (h *UserHandler) ListGifts(c *gin.Context) {
 		items = append(items, item)
 	}
 	response.Success(c, items)
+}
+
+// PinGift 置顶当前用户的一笔赠金（allocator Stage 0 最先消费）。
+// POST /api/v1/user/gifts/:id/pin
+// 一人至多一条置顶；目标须属于本人、active、未过期、未耗尽。
+func (h *UserHandler) PinGift(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	if h.giftEngine == nil {
+		response.BadRequest(c, "gift subsystem not available")
+		return
+	}
+	giftID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || giftID <= 0 {
+		response.BadRequest(c, "invalid gift id")
+		return
+	}
+	if err := h.giftEngine.PinGift(c.Request.Context(), subject.UserID, giftID); err != nil {
+		if errors.Is(err, gift.ErrGiftNotPinnable) {
+			response.BadRequest(c, "gift cannot be pinned (not found, expired, or exhausted)")
+			return
+		}
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"pinned": true})
+}
+
+// UnpinGift 取消当前用户某笔赠金的置顶。
+// DELETE /api/v1/user/gifts/:id/pin
+// 幂等：未置顶/非本人视为成功。
+func (h *UserHandler) UnpinGift(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	if h.giftEngine == nil {
+		response.BadRequest(c, "gift subsystem not available")
+		return
+	}
+	giftID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || giftID <= 0 {
+		response.BadRequest(c, "invalid gift id")
+		return
+	}
+	if err := h.giftEngine.UnpinGift(c.Request.Context(), subject.UserID, giftID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"pinned": false})
 }
 
 // ChangePassword handles changing user password

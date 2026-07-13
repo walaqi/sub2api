@@ -1120,6 +1120,10 @@ type DatabaseConfig struct {
 	// UserPlatformQuotaFlushBatchSize: flusher 单批最大条数
 	// 建议 ≤ 6000（单条 UPSERT 原子上限）
 	UserPlatformQuotaFlushBatchSize int `mapstructure:"user_platform_quota_flush_batch_size"`
+	// UsageBillingFingerprintV2Enabled: 计费幂等指纹是否写入 V2（含 group_id）。
+	// 两阶段发布：默认 false（写 V1），确认全体实例已升级到版本感知 reader 后再翻 true。
+	// 见 plan.md §3.6。reader 始终按存储行版本比对，与本开关无关。
+	UsageBillingFingerprintV2Enabled bool `mapstructure:"usage_billing_fingerprint_v2_enabled"`
 }
 
 func (d *DatabaseConfig) DSN() string {

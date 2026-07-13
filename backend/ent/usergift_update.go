@@ -200,6 +200,47 @@ func (_u *UserGiftUpdate) SetNillableStatus(v *string) *UserGiftUpdate {
 	return _u
 }
 
+// SetGroupID sets the "group_id" field.
+func (_u *UserGiftUpdate) SetGroupID(v int64) *UserGiftUpdate {
+	_u.mutation.ResetGroupID()
+	_u.mutation.SetGroupID(v)
+	return _u
+}
+
+// SetNillableGroupID sets the "group_id" field if the given value is not nil.
+func (_u *UserGiftUpdate) SetNillableGroupID(v *int64) *UserGiftUpdate {
+	if v != nil {
+		_u.SetGroupID(*v)
+	}
+	return _u
+}
+
+// AddGroupID adds value to the "group_id" field.
+func (_u *UserGiftUpdate) AddGroupID(v int64) *UserGiftUpdate {
+	_u.mutation.AddGroupID(v)
+	return _u
+}
+
+// ClearGroupID clears the value of the "group_id" field.
+func (_u *UserGiftUpdate) ClearGroupID() *UserGiftUpdate {
+	_u.mutation.ClearGroupID()
+	return _u
+}
+
+// SetPinned sets the "pinned" field.
+func (_u *UserGiftUpdate) SetPinned(v bool) *UserGiftUpdate {
+	_u.mutation.SetPinned(v)
+	return _u
+}
+
+// SetNillablePinned sets the "pinned" field if the given value is not nil.
+func (_u *UserGiftUpdate) SetNillablePinned(v *bool) *UserGiftUpdate {
+	if v != nil {
+		_u.SetPinned(*v)
+	}
+	return _u
+}
+
 // SetUser sets the "user" edge to the User entity.
 func (_u *UserGiftUpdate) SetUser(v *User) *UserGiftUpdate {
 	return _u.SetUserID(v.ID)
@@ -336,6 +377,18 @@ func (_u *UserGiftUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(usergift.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.GroupID(); ok {
+		_spec.SetField(usergift.FieldGroupID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedGroupID(); ok {
+		_spec.AddField(usergift.FieldGroupID, field.TypeInt64, value)
+	}
+	if _u.mutation.GroupIDCleared() {
+		_spec.ClearField(usergift.FieldGroupID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.Pinned(); ok {
+		_spec.SetField(usergift.FieldPinned, field.TypeBool, value)
 	}
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -557,6 +610,47 @@ func (_u *UserGiftUpdateOne) SetNillableStatus(v *string) *UserGiftUpdateOne {
 	return _u
 }
 
+// SetGroupID sets the "group_id" field.
+func (_u *UserGiftUpdateOne) SetGroupID(v int64) *UserGiftUpdateOne {
+	_u.mutation.ResetGroupID()
+	_u.mutation.SetGroupID(v)
+	return _u
+}
+
+// SetNillableGroupID sets the "group_id" field if the given value is not nil.
+func (_u *UserGiftUpdateOne) SetNillableGroupID(v *int64) *UserGiftUpdateOne {
+	if v != nil {
+		_u.SetGroupID(*v)
+	}
+	return _u
+}
+
+// AddGroupID adds value to the "group_id" field.
+func (_u *UserGiftUpdateOne) AddGroupID(v int64) *UserGiftUpdateOne {
+	_u.mutation.AddGroupID(v)
+	return _u
+}
+
+// ClearGroupID clears the value of the "group_id" field.
+func (_u *UserGiftUpdateOne) ClearGroupID() *UserGiftUpdateOne {
+	_u.mutation.ClearGroupID()
+	return _u
+}
+
+// SetPinned sets the "pinned" field.
+func (_u *UserGiftUpdateOne) SetPinned(v bool) *UserGiftUpdateOne {
+	_u.mutation.SetPinned(v)
+	return _u
+}
+
+// SetNillablePinned sets the "pinned" field if the given value is not nil.
+func (_u *UserGiftUpdateOne) SetNillablePinned(v *bool) *UserGiftUpdateOne {
+	if v != nil {
+		_u.SetPinned(*v)
+	}
+	return _u
+}
+
 // SetUser sets the "user" edge to the User entity.
 func (_u *UserGiftUpdateOne) SetUser(v *User) *UserGiftUpdateOne {
 	return _u.SetUserID(v.ID)
@@ -723,6 +817,18 @@ func (_u *UserGiftUpdateOne) sqlSave(ctx context.Context) (_node *UserGift, err 
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(usergift.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.GroupID(); ok {
+		_spec.SetField(usergift.FieldGroupID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedGroupID(); ok {
+		_spec.AddField(usergift.FieldGroupID, field.TypeInt64, value)
+	}
+	if _u.mutation.GroupIDCleared() {
+		_spec.ClearField(usergift.FieldGroupID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.Pinned(); ok {
+		_spec.SetField(usergift.FieldPinned, field.TypeBool, value)
 	}
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{

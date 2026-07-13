@@ -2084,6 +2084,10 @@ func init() {
 	usergift.DefaultStatus = usergiftDescStatus.Default.(string)
 	// usergift.StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	usergift.StatusValidator = usergiftDescStatus.Validators[0].(func(string) error)
+	// usergiftDescPinned is the schema descriptor for pinned field.
+	usergiftDescPinned := usergiftFields[10].Descriptor()
+	// usergift.DefaultPinned holds the default value on creation for the pinned field.
+	usergift.DefaultPinned = usergiftDescPinned.Default.(bool)
 	userplatformquotaMixin := schema.UserPlatformQuota{}.Mixin()
 	userplatformquotaMixinHooks1 := userplatformquotaMixin[1].Hooks()
 	userplatformquota.Hooks[0] = userplatformquotaMixinHooks1[0]

@@ -81,15 +81,19 @@ type AllocateBreakdown struct {
 //  1. 锁读 users + active gifts
 //  2. 调 Allocate 计算分摊（纯函数）
 //  3. 落库：UPDATE user_gifts × N + UPDATE users
-func (e *Engine) AllocateAndDeduct(ctx context.Context, tx *sql.Tx, userID int64, totalCost float64) (float64, error) {
-	newBalance, _, err := e.AllocateAndDeductWithBreakdown(ctx, tx, userID, totalCost)
+func (e *Engine) AllocateAndDeduct(ctx context.Context, tx *sql.Tx, userID int64, groupID *int64, totalCost float64) (float64, error) {
+	newBalance, _, err := e.AllocateAndDeductWithBreakdown(ctx, tx, userID, groupID, totalCost)
 	return newBalance, err
 }
 
 // AllocateAndDeductWithBreakdown 与 AllocateAndDeduct 等价，额外返回 GiftCost / RechargeCost 分摊明细。
 // 调用方（usage_billing_repo）把明细透传给 usage_log 持久化，前端用于"赠金扣减"展示。
+//
+// groupID 是本次请求的分组（来自 apiKey.GroupID，nil=无分组）。锁到用户的全部 active 赠金后，
+// 按 groupID 切成 eligible（group_id IS NULL 或 == groupID）与 ineligible 两份：
+// eligible 参与分摊，ineligibleRemaining 从充值池扣除以维持全局余额不变量。
 func (e *Engine) AllocateAndDeductWithBreakdown(
-	ctx context.Context, tx *sql.Tx, userID int64, totalCost float64,
+	ctx context.Context, tx *sql.Tx, userID int64, groupID *int64, totalCost float64,
 ) (float64, AllocateBreakdown, error) {
 	if tx == nil {
 		return 0, AllocateBreakdown{}, errors.New("gift.AllocateAndDeduct: tx is nil")
@@ -105,10 +109,12 @@ func (e *Engine) AllocateAndDeductWithBreakdown(
 		return 0, AllocateBreakdown{}, err
 	}
 
+	eligible, ineligibleRemaining := partitionByGroup(gifts, groupID)
 	res, err := Allocate(AllocateInput{
-		TotalCost:    cost,
-		TotalBalance: balance,
-		Gifts:        gifts,
+		TotalCost:               cost,
+		TotalBalance:            balance,
+		Gifts:                   eligible,
+		IneligibleGiftRemaining: ineligibleRemaining,
 	})
 	if err != nil {
 		return 0, AllocateBreakdown{}, fmt.Errorf("allocate: %w", err)
@@ -134,14 +140,15 @@ func (e *Engine) AllocateAndDeductWithBreakdown(
 
 // AllocateAndDeductSimple 内部开短事务执行扣费，不依赖外部 tx。
 // 仅用于 gateway_service.postUsageBilling legacy fallback 路径（无 dedup 保护）。
-func (e *Engine) AllocateAndDeductSimple(ctx context.Context, userID int64, totalCost float64) error {
+// groupID 为本次请求分组（apiKey.GroupID，nil=无分组），与主路径同源保证一致的赠金过滤。
+func (e *Engine) AllocateAndDeductSimple(ctx context.Context, userID int64, groupID *int64, totalCost float64) error {
 	tx, err := e.repo.sqlDB.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	if _, err := e.AllocateAndDeduct(ctx, tx, userID, totalCost); err != nil {
+	if _, err := e.AllocateAndDeduct(ctx, tx, userID, groupID, totalCost); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -203,11 +210,12 @@ func (e *Engine) GetGiftBalanceBreakdown(ctx context.Context, userID int64) (flo
 	return e.repo.giftBalanceBreakdown(ctx, userID, GiftExpiringSoonThreshold)
 }
 
-// HasActivePriorityGift 返回用户是否持有至少一笔 active 且未过期的 priority 赠金（remaining > 0）。
-// 供 billing preflight 使用：当 rechargePool ≤ 0 且无 active priority 赠金时拦截请求。
-// 只读、不加锁。
-func (e *Engine) HasActivePriorityGift(ctx context.Context, userID int64) (bool, error) {
-	return e.repo.hasActivePriorityGift(ctx, userID)
+// HasActivePriorityGift 返回用户是否持有至少一笔"当前请求分组可用"的 active 且未过期的
+// priority 赠金（remaining > 0）。可用 = group_id IS NULL（全局）或 == groupID（该组专属）。
+// 供 billing preflight 使用：当 rechargePool ≤ 0 且无可用 priority 赠金时拦截请求。
+// groupID 为本次请求分组（nil=无分组，此时只有全局赠金可用）。只读、不加锁。
+func (e *Engine) HasActivePriorityGift(ctx context.Context, userID int64, groupID *int64) (bool, error) {
+	return e.repo.hasActivePriorityGift(ctx, userID, groupID)
 }
 
 // ListActiveGiftsForDisplay 返回用户当前持有的所有有效赠金（status='active' 且未过期），
@@ -271,6 +279,26 @@ func (e *Engine) GetGiftByID(ctx context.Context, giftID int64) (*UserGift, erro
 
 // ErrGiftNotRevocable 表示尝试撤销一笔非 active 状态的赠金。
 var ErrGiftNotRevocable = errors.New("gift is not active and cannot be revoked")
+
+// ErrGiftNotPinnable 表示置顶目标不属于该用户、已过期或已耗尽（不可置顶）。
+var ErrGiftNotPinnable = errors.New("gift cannot be pinned (not owned, expired, or exhausted)")
+
+// PinGift 把用户某笔 active 且未过期的赠金置顶（allocator Stage 0 最先消费）。
+// 一人至多一条：置顶前先清掉旧置顶。目标不可置顶时返回 ErrGiftNotPinnable。
+func (e *Engine) PinGift(ctx context.Context, userID, giftID int64) error {
+	if userID <= 0 || giftID <= 0 {
+		return errors.New("PinGift: userID and giftID must be positive")
+	}
+	return e.repo.pinGift(ctx, userID, giftID)
+}
+
+// UnpinGift 取消用户某笔赠金的置顶。幂等（未置顶/非本人视为成功）。
+func (e *Engine) UnpinGift(ctx context.Context, userID, giftID int64) error {
+	if userID <= 0 || giftID <= 0 {
+		return errors.New("UnpinGift: userID and giftID must be positive")
+	}
+	return e.repo.unpinGift(ctx, userID, giftID)
+}
 
 // readBalance 在事务内读 users.balance（与 deductUsageBillingBalance 现有语义对齐：扣 0 时也返回当前值）。
 func (e *Engine) readBalance(ctx context.Context, tx *sql.Tx, userID int64) (float64, error) {

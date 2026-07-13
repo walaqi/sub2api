@@ -68,21 +68,22 @@ func (r *usageBillingRepository) Apply(ctx context.Context, cmd *service.UsageBi
 func (r *usageBillingRepository) claimUsageBillingKey(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand) (bool, error) {
 	var id int64
 	err := tx.QueryRowContext(ctx, `
-		INSERT INTO usage_billing_dedup (request_id, api_key_id, request_fingerprint)
-		VALUES ($1, $2, $3)
+		INSERT INTO usage_billing_dedup (request_id, api_key_id, request_fingerprint, fingerprint_version)
+		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 		RETURNING id
-	`, cmd.RequestID, cmd.APIKeyID, cmd.RequestFingerprint).Scan(&id)
+	`, cmd.RequestID, cmd.APIKeyID, cmd.RequestFingerprint, cmd.FingerprintVersion).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		var existingFingerprint string
+		var existingVersion int16
 		if err := tx.QueryRowContext(ctx, `
-			SELECT request_fingerprint
+			SELECT request_fingerprint, fingerprint_version
 			FROM usage_billing_dedup
 			WHERE request_id = $1 AND api_key_id = $2
-		`, cmd.RequestID, cmd.APIKeyID).Scan(&existingFingerprint); err != nil {
+		`, cmd.RequestID, cmd.APIKeyID).Scan(&existingFingerprint, &existingVersion); err != nil {
 			return false, err
 		}
-		if strings.TrimSpace(existingFingerprint) != strings.TrimSpace(cmd.RequestFingerprint) {
+		if !fingerprintMatches(cmd, existingFingerprint, existingVersion) {
 			return false, service.ErrUsageBillingRequestConflict
 		}
 		return false, nil
@@ -91,13 +92,14 @@ func (r *usageBillingRepository) claimUsageBillingKey(ctx context.Context, tx *s
 		return false, err
 	}
 	var archivedFingerprint string
+	var archivedVersion int16
 	err = tx.QueryRowContext(ctx, `
-		SELECT request_fingerprint
+		SELECT request_fingerprint, fingerprint_version
 		FROM usage_billing_dedup_archive
 		WHERE request_id = $1 AND api_key_id = $2
-	`, cmd.RequestID, cmd.APIKeyID).Scan(&archivedFingerprint)
+	`, cmd.RequestID, cmd.APIKeyID).Scan(&archivedFingerprint, &archivedVersion)
 	if err == nil {
-		if strings.TrimSpace(archivedFingerprint) != strings.TrimSpace(cmd.RequestFingerprint) {
+		if !fingerprintMatches(cmd, archivedFingerprint, archivedVersion) {
 			return false, service.ErrUsageBillingRequestConflict
 		}
 		return false, nil
@@ -106,6 +108,17 @@ func (r *usageBillingRepository) claimUsageBillingKey(ctx context.Context, tx *s
 		return false, err
 	}
 	return true, nil
+}
+
+// fingerprintMatches 用存储行标注的版本重算本命令的指纹再比对：
+// 存储行 version=1 → 用 V1 公式（不含 group_id）重算，与历史/滚动部署期旧实例写入的行兼容；
+// version=2 → 用 V2 公式（含 group_id）比对。避免"仅追加 group 段"导致存量 V1 行被误判冲突。
+func fingerprintMatches(cmd *service.UsageBillingCommand, storedFingerprint string, storedVersion int16) bool {
+	if storedVersion <= 0 {
+		storedVersion = service.UsageBillingFingerprintV1
+	}
+	expected := cmd.FingerprintForVersion(storedVersion)
+	return strings.TrimSpace(storedFingerprint) == strings.TrimSpace(expected)
 }
 
 func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand, result *service.UsageBillingApplyResult) error {
@@ -120,7 +133,7 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 		// 同时维护 user_gifts 子账本与 ratio 联动作废。
 		// users.balance 仍是单条 UPDATE，保持现有不变量与缓存层语义。
 		// breakdown 透传到 result，由 gateway_service 写入 usage_log.
-		newBalance, breakdown, err := r.giftEngine.AllocateAndDeductWithBreakdown(ctx, tx, cmd.UserID, cmd.BalanceCost)
+		newBalance, breakdown, err := r.giftEngine.AllocateAndDeductWithBreakdown(ctx, tx, cmd.UserID, cmd.GroupID, cmd.BalanceCost)
 		if err != nil {
 			return err
 		}
