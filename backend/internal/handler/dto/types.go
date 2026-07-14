@@ -496,9 +496,10 @@ type UsageLog struct {
 	ActualCost        float64 `json:"actual_cost"`
 	// GiftCost / RechargeCost: 本次扣费分摊到赠金 / 充值池的部分。
 	// 不变量：gift_cost + recharge_cost = actual_cost（订阅扣费下两者均为 0）。
-	GiftCost       float64 `json:"gift_cost"`
-	RechargeCost   float64 `json:"recharge_cost"`
-	RateMultiplier float64 `json:"rate_multiplier"`
+	GiftCost                  float64 `json:"gift_cost"`
+	RechargeCost              float64 `json:"recharge_cost"`
+	RateMultiplier            float64 `json:"rate_multiplier"`
+	LongContextBillingApplied bool    `json:"long_context_billing_applied"`
 
 	BillingType  int8   `json:"billing_type"`
 	RequestType  string `json:"request_type"`

@@ -1399,6 +1399,7 @@ export interface UsageLog {
   /** 本次扣费分摊到充值池的部分。 */
   recharge_cost?: number
   rate_multiplier: number
+  long_context_billing_applied: boolean
   billing_type: number
 
   request_type?: UsageRequestType

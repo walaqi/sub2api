@@ -597,6 +597,7 @@ func TestAPIContracts(t *testing.T) {
 						"gift_cost": 0,
 						"recharge_cost": 0,
 						"rate_multiplier": 1,
+						"long_context_billing_applied": false,
 						"billing_type": 0,
 							"stream": true,
 							"duration_ms": 100,
