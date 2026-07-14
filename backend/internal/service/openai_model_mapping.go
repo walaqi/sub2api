@@ -3,28 +3,34 @@ package service
 import "strings"
 
 // resolveOpenAIForwardModel 解析 OpenAI 兼容转发使用的模型。
-// defaultMappedModel 只服务于 /v1/messages 的 Claude 系列显式调度映射，
-// 不作为普通 OpenAI 请求的未知模型兜底。
-func resolveOpenAIForwardModel(account *Account, requestedModel, defaultMappedModel string) string {
-	billingModel, _ := resolveOpenAIForwardModelDetailed(account, requestedModel, defaultMappedModel)
+// messagesDispatchMappedModel 是调用方已为 /v1/messages 解析的显式调度结果；
+// 普通 OpenAI 请求必须传空，避免将分组配置作为通用模型兜底。
+func resolveOpenAIForwardModel(account *Account, requestedModel, messagesDispatchMappedModel string) string {
+	billingModel, _ := resolveOpenAIForwardModelDetailed(account, requestedModel, messagesDispatchMappedModel)
 	return billingModel
 }
 
 // resolveOpenAIForwardModelDetailed 与 resolveOpenAIForwardModel 相同，额外返回
 // explicitlyMapped：账号级 model_mapping 是否命中（精确或通配符）。命中时表示
 // 转发模型来自管理员显式配置，上游模型归一化据此尊重配置，不将未知 gpt-5* 目标
-// 兜底改写为 gpt-5.4。Claude 系列调度默认映射（defaultMappedModel）不视为显式映射。
-func resolveOpenAIForwardModelDetailed(account *Account, requestedModel, defaultMappedModel string) (billingModel string, explicitlyMapped bool) {
+// 兜底改写为 gpt-5.4。messages 调度映射（messagesDispatchMappedModel）不视为显式映射。
+//
+// messagesDispatchMappedModel 由调用方（handler）预解析：仅当 /v1/messages 调度
+// 真正命中（含 ExactModelMappings 精确映射，可映射到任意非 claude 家族目标）时非空，
+// 普通 OpenAI 请求传空。因此此处不再用 claudeMessagesDispatchFamily 二次门控，
+// 否则会错误丢弃 claude-* 之外的精确映射目标（#4179）。
+func resolveOpenAIForwardModelDetailed(account *Account, requestedModel, messagesDispatchMappedModel string) (billingModel string, explicitlyMapped bool) {
+	messagesDispatchMappedModel = strings.TrimSpace(messagesDispatchMappedModel)
 	if account == nil {
-		if defaultMappedModel != "" && claudeMessagesDispatchFamily(requestedModel) != "" {
-			return defaultMappedModel, false
+		if messagesDispatchMappedModel != "" {
+			return messagesDispatchMappedModel, false
 		}
 		return requestedModel, false
 	}
 
 	mappedModel, matched := account.ResolveMappedModel(requestedModel)
-	if !matched && defaultMappedModel != "" && claudeMessagesDispatchFamily(requestedModel) != "" {
-		return defaultMappedModel, false
+	if !matched && messagesDispatchMappedModel != "" {
+		return messagesDispatchMappedModel, false
 	}
 	return mappedModel, matched
 }
