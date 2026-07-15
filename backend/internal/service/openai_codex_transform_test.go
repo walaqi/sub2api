@@ -8,6 +8,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestCodexVersionConstantsInSync 版本契约测试：Codex CLI 版本号散落在四处常量，
+// 现有测试都用生产常量自身作为 expected，无法防止漏改其中一处。这里硬编码期望版本，
+// 任何一处未同步都会直接 fail，提醒开发者四处一起改。升级版本时同步更新本测试。
+func TestCodexVersionConstantsInSync(t *testing.T) {
+	const wantVersion = "0.144.4"
+
+	require.Equal(t, wantVersion, codexCLIVersion,
+		"codexCLIVersion (forwarded Version header) out of sync")
+	require.Equal(t, wantVersion, openAICodexProbeVersion,
+		"openAICodexProbeVersion (usage-probe Version header) out of sync")
+	require.Contains(t, codexCLIUserAgent, wantVersion,
+		"codexCLIUserAgent (forwarded User-Agent) out of sync")
+	require.Contains(t, DefaultOpenAICodexUserAgent, wantVersion,
+		"DefaultOpenAICodexUserAgent (fallback UA) out of sync")
+	// 回退 UA 形如 "codex-tui/<v> (...) (codex-tui; <v>)"，两处版本片段都应更新。
+	require.Equal(t, 2, strings.Count(DefaultOpenAICodexUserAgent, wantVersion),
+		"DefaultOpenAICodexUserAgent should carry the version in both segments")
+}
+
 func TestApplyCodexOAuthTransform_ToolContinuationPreservesInput(t *testing.T) {
 	// 续链场景：保留 item_reference 与 id，但不再强制 store=true。
 
