@@ -66,6 +66,7 @@ type Handlers struct {
 	ImageStudio      *ImageStudioHandler
 	RechargeDiscount *RechargeDiscountHandler
 	Referral         *ReferralHandler
+	AsyncImage       *AsyncImageHandler
 	BatchImage       *BatchImageHandler
 }
 

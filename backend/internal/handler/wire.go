@@ -131,6 +131,7 @@ func ProvideHandlers(
 	imageStudioHandler *ImageStudioHandler,
 	rechargeDiscountHandler *RechargeDiscountHandler,
 	referralHandler *ReferralHandler,
+	asyncImageHandler *AsyncImageHandler,
 	batchImageHandler *BatchImageHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
@@ -157,6 +158,7 @@ func ProvideHandlers(
 		ImageStudio:      imageStudioHandler,
 		RechargeDiscount: rechargeDiscountHandler,
 		Referral:         referralHandler,
+		AsyncImage:       asyncImageHandler,
 		BatchImage:       batchImageHandler,
 	}
 }
@@ -188,6 +190,7 @@ var ProviderSet = wire.NewSet(
 	NewImageStudioHandler,
 	ProvideRechargeDiscountHandler,
 	NewReferralHandler,
+	NewAsyncImageHandler,
 	NewBatchImageHandler,
 
 	// Admin handlers
