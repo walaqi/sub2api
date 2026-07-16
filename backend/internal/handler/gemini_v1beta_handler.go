@@ -211,8 +211,8 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 	pricingCtx, pricingAt := service.WithGatewayTokenRequestPricing(c.Request.Context())
 	c.Request = c.Request.WithContext(pricingCtx)
 
-	if decision := h.checkContentModeration(c, reqLog, apiKey, authSubject, service.ContentModerationProtocolGemini, modelName, body); decision != nil && decision.Blocked {
-		googleError(c, contentModerationStatus(decision), decision.Message)
+	if decision := h.checkSecurityAudit(c, reqLog, apiKey, authSubject, service.ContentModerationProtocolGemini, modelName, body); decision != nil && !decision.AllowNextStage {
+		googleSecurityAuditError(c, decision)
 		return
 	}
 

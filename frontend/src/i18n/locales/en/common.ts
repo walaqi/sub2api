@@ -207,6 +207,9 @@ export default {
     channelStatus: 'Channel Status',
     riskControl: 'Risk Control',
     abuseDetection: 'Multi-account',
+    securityAudit: 'Security Audit',
+    contentModeration: 'Content Moderation',
+    promptAudit: 'Prompt Audit',
     auditLogs: 'Audit Logs',
   },
 
