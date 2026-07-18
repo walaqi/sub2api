@@ -529,10 +529,6 @@ func normalizeCodexModelWithPolicy(model string, collapseUnknownGPT5 bool) strin
 	return model
 }
 
-func normalizeKnownCodexModel(model string) (string, bool) {
-	return normalizeKnownCodexModelWithPolicy(model, true)
-}
-
 func normalizeKnownCodexModelWithPolicy(model string, collapseUnknownGPT5 bool) (string, bool) {
 	model = strings.TrimSpace(model)
 	if model == "" {
