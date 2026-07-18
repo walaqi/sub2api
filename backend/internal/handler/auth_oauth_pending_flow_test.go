@@ -76,6 +76,62 @@ func TestSetOAuthPendingSessionCookieUsesProviderCompletionPathPrefix(t *testing
 	require.Equal(t, "/api/v1/auth/oauth", cookie.Path)
 }
 
+// TestOAuthPendingCookieMaxAgeNotShorterThanSessionTTL guards the invariant that
+// the pending-auth browser cookies never expire before the backing DB session.
+// If they did, a still-valid flow would lose its session token and fail with
+// PENDING_AUTH_SESSION_NOT_FOUND (the original bug this fixed).
+func TestOAuthPendingCookieMaxAgeNotShorterThanSessionTTL(t *testing.T) {
+	require.GreaterOrEqual(
+		t,
+		oauthPendingCookieMaxAgeSec,
+		int(service.DefaultPendingAuthTTL/time.Second),
+		"pending cookie MaxAge must be >= DB session TTL, otherwise the cookie dies while the session is still valid",
+	)
+}
+
+// TestRefreshOAuthPendingCookiesReissuesBothCookies verifies that a mid-flow
+// step re-sets both pending cookies with a fresh MaxAge so slow flows
+// (WeChat/DingTalk/LinuxDo email completion, verify-code round-trips) do not run
+// out the clock started at the OAuth callback.
+func TestRefreshOAuthPendingCookiesReissuesBothCookies(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	ginCtx, _ := gin.CreateTestContext(recorder)
+	ginCtx.Request = httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/pending/send-verify-code", nil)
+
+	refreshOAuthPendingCookies(ginCtx, &dbent.PendingAuthSession{
+		SessionToken:      "refresh-session-token",
+		BrowserSessionKey: "refresh-browser-key",
+	})
+
+	cookies := recorder.Result().Cookies()
+	sessionCookie := findCookie(cookies, oauthPendingSessionCookieName)
+	require.NotNil(t, sessionCookie)
+	require.Equal(t, oauthPendingCookieMaxAgeSec, sessionCookie.MaxAge)
+	require.Equal(t, encodeCookieValue("refresh-session-token"), sessionCookie.Value)
+
+	browserCookie := findCookie(cookies, oauthPendingBrowserCookieName)
+	require.NotNil(t, browserCookie)
+	require.Equal(t, oauthPendingCookieMaxAgeSec, browserCookie.MaxAge)
+	require.Equal(t, encodeCookieValue("refresh-browser-key"), browserCookie.Value)
+}
+
+// TestRefreshOAuthPendingCookiesSkipsBrowserCookieWhenKeyMissing ensures we do
+// not emit an empty browser cookie when the session has no browser key bound.
+func TestRefreshOAuthPendingCookiesSkipsBrowserCookieWhenKeyMissing(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	ginCtx, _ := gin.CreateTestContext(recorder)
+	ginCtx.Request = httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/pending/send-verify-code", nil)
+
+	refreshOAuthPendingCookies(ginCtx, &dbent.PendingAuthSession{
+		SessionToken:      "refresh-session-token",
+		BrowserSessionKey: "  ",
+	})
+
+	cookies := recorder.Result().Cookies()
+	require.NotNil(t, findCookie(cookies, oauthPendingSessionCookieName))
+	require.Nil(t, findCookie(cookies, oauthPendingBrowserCookieName))
+}
+
 func TestExchangePendingOAuthCompletionPreviewThenFinalizeAppliesAdoptionDecision(t *testing.T) {
 	handler, client := newOAuthPendingFlowTestHandler(t, false)
 	ctx := context.Background()
@@ -1429,6 +1485,12 @@ func TestSendPendingOAuthVerifyCodeExistingEmailReturnsBindLoginState(t *testing
 	require.NotNil(t, storedSession.TargetUserID)
 	require.Equal(t, existingUser.ID, *storedSession.TargetUserID)
 	require.Equal(t, "owner@example.com", storedSession.ResolvedEmail)
+
+	// Transitioning to the choice state keeps the flow alive: the pending
+	// cookies must be refreshed so the user can still submit from the choice UI.
+	sessionCookie := findCookie(recorder.Result().Cookies(), oauthPendingSessionCookieName)
+	require.NotNil(t, sessionCookie)
+	require.Equal(t, oauthPendingCookieMaxAgeSec, sessionCookie.MaxAge)
 }
 
 func TestCreateOIDCOAuthAccountBlocksBackendModeBeforeCreatingUser(t *testing.T) {

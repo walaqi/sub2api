@@ -33,12 +33,19 @@ const (
 	oauthPendingSessionCookiePath = "/api/v1/auth/oauth"
 	oauthPendingSessionCookieName = "oauth_pending_session"
 	oauthPromoCodeCookieName      = "oauth_promo_code"
-	oauthPendingCookieMaxAgeSec   = 10 * 60
 	oauthPendingChoiceStep        = "choose_account_action_required"
 
 	oauthCompletionResponseKey = "completion_response"
 	oauthPromoCodeStateKey     = "promo_code"
 )
+
+// oauthPendingCookieMaxAgeSec is the MaxAge (in seconds) for the pending-auth
+// browser cookies. It is derived from service.DefaultPendingAuthTTL so the
+// cookies never expire before the backing DB session, which would otherwise
+// strand a still-valid flow with PENDING_AUTH_SESSION_NOT_FOUND. Slow flows
+// (WeChat/DingTalk/LinuxDo email completion) also refresh these cookies on each
+// successful step so the clock does not run out mid-flow.
+const oauthPendingCookieMaxAgeSec = int(service.DefaultPendingAuthTTL / time.Second)
 
 var pendingOAuthCreateAccountPreCommitHook func(context.Context, *dbent.PendingAuthSession) error
 
@@ -161,6 +168,23 @@ func clearOAuthPendingSessionCookie(c *gin.Context, secure bool) {
 
 func readOAuthPendingSessionCookie(c *gin.Context) (string, error) {
 	return readCookieDecoded(c, oauthPendingSessionCookieName)
+}
+
+// refreshOAuthPendingCookies re-sets the pending-auth browser cookies with a
+// fresh MaxAge so multi-step flows (WeChat/DingTalk/LinuxDo email completion,
+// verify-code) do not lose their session token mid-flow. The cookie MaxAge is
+// derived from service.DefaultPendingAuthTTL but the clock starts at the
+// original callback; refreshing on each successful step keeps the cookie alive
+// as long as the user is actively progressing.
+func refreshOAuthPendingCookies(c *gin.Context, session *dbent.PendingAuthSession) {
+	if c == nil || session == nil {
+		return
+	}
+	secure := isRequestHTTPS(c)
+	setOAuthPendingSessionCookie(c, session.SessionToken, secure)
+	if browserSessionKey := strings.TrimSpace(session.BrowserSessionKey); browserSessionKey != "" {
+		setOAuthPendingBrowserCookie(c, browserSessionKey, secure)
+	}
 }
 
 func captureOAuthPromoCode(c *gin.Context, secure bool) {
@@ -592,6 +616,7 @@ func (h *AuthHandler) SendPendingOAuthVerifyCode(c *gin.Context) {
 			response.ErrorFrom(c, err)
 			return
 		}
+		refreshOAuthPendingCookies(c, session)
 		c.JSON(http.StatusOK, buildPendingOAuthSessionStatusPayload(session))
 		return
 	} else if err != nil && !errors.Is(err, service.ErrUserNotFound) {
@@ -604,6 +629,10 @@ func (h *AuthHandler) SendPendingOAuthVerifyCode(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+
+	// The user must switch to their inbox and come back to submit the code;
+	// refresh the pending cookies so the session token survives that round-trip.
+	refreshOAuthPendingCookies(c, session)
 
 	response.Success(c, SendVerifyCodeResponse{
 		Message:   "Verification code sent successfully",
@@ -1747,6 +1776,7 @@ func (h *AuthHandler) createPendingOAuthAccount(c *gin.Context, provider string)
 			response.ErrorFrom(c, err)
 			return
 		}
+		refreshOAuthPendingCookies(c, session)
 		c.JSON(http.StatusOK, buildPendingOAuthSessionStatusPayload(session))
 		return
 	}
@@ -1775,6 +1805,7 @@ func (h *AuthHandler) createPendingOAuthAccount(c *gin.Context, provider string)
 				response.ErrorFrom(c, err)
 				return
 			}
+			refreshOAuthPendingCookies(c, session)
 			c.JSON(http.StatusOK, buildPendingOAuthSessionStatusPayload(session))
 			return
 		}
