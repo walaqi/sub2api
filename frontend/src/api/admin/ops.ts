@@ -933,6 +933,7 @@ export interface OpsErrorLog {
   requested_model?: string
   upstream_model?: string
   request_type?: number | null
+  user_agent?: string
 }
 
 export interface OpsErrorDetail extends OpsErrorLog {
