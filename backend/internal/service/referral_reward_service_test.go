@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -67,8 +68,6 @@ type discountRepoForReferralStub struct {
 	discounts    []RechargeDiscountSummary
 	atTime       map[int64][]RechargeDiscountSummary
 	createdCalls []createDiscountCall
-	rechargeMin  float64
-	rechargeAt   *time.Time
 }
 
 type createDiscountCall struct {
@@ -111,20 +110,23 @@ func (r *discountRepoForReferralStub) QueryDiscountsForInheritanceAtTime(_ conte
 	}
 	return r.atTime[atTime.Unix()], nil
 }
-func (r *discountRepoForReferralStub) QueryDiscountsForEligibilityAfterRecharge(_ context.Context, _ int64, minAmount float64) ([]RechargeDiscountSummary, error) {
-	r.rechargeMin = minAmount
-	return r.discounts, nil
-}
-func (r *discountRepoForReferralStub) QueryDiscountsForEligibilityAfterRechargeAtTime(_ context.Context, _ int64, atTime time.Time, minAmount float64) ([]RechargeDiscountSummary, error) {
-	r.rechargeMin = minAmount
-	r.rechargeAt = &atTime
-	if r.atTime == nil {
-		return r.discounts, nil
-	}
-	return r.atTime[atTime.Unix()], nil
-}
 func (r *discountRepoForReferralStub) QueryOrderGiftBonus(_ context.Context, _ int64) (*OrderGiftBonus, error) {
 	return nil, nil
+}
+
+// inviterRechargeReaderStub 打桩 recharge 模式资格判定的累计充值读取。
+type inviterRechargeReaderStub struct {
+	byUser map[int64]float64
+	err    error
+	calls  []int64
+}
+
+func (r *inviterRechargeReaderStub) TotalRecharged(_ context.Context, userID int64) (float64, error) {
+	r.calls = append(r.calls, userID)
+	if r.err != nil {
+		return 0, r.err
+	}
+	return r.byUser[userID], nil
 }
 
 func (r *discountRepoForReferralStub) CreateDiscount(_ context.Context, in CreateRechargeDiscountInput) (int64, error) {
@@ -348,10 +350,16 @@ func TestHasInviterRewardEligibilityAtTime_UsesHistoricalQuery(t *testing.T) {
 	assert.False(t, svc.hasInviterRewardEligibilityAtTime(context.Background(), 1, time.Unix(2000, 0)))
 }
 
-func TestReferralEligibility_RechargeMode_UsesRechargeQuery(t *testing.T) {
-	repo := &discountRepoForReferralStub{discounts: []RechargeDiscountSummary{{ID: 1}}}
+func TestReferralEligibility_RechargeMode_UsesTotalRecharged(t *testing.T) {
+	// recharge 模式只看累计充值额，完全不查券表。
+	discountRepo := &discountRepoForReferralStub{discounts: []RechargeDiscountSummary{{ID: 1}}}
+	rechargeRepo := &inviterRechargeReaderStub{byUser: map[int64]float64{
+		1: 30.0, // >= 门槛 25.5 → 有资格
+		2: 10.0, // <  门槛 25.5 → 无资格
+	}}
 	svc := &ReferralRewardService{
-		discountRepo: repo,
+		discountRepo:   discountRepo,
+		rechargeReader: rechargeRepo,
 		settingService: &SettingService{settingRepo: &referralConfigSettingRepoStub{values: map[string]string{
 			SettingKeyReferralEligibilityGrantMode:   ReferralEligibilityGrantModeRecharge,
 			SettingKeyReferralEligibilityRechargeMin: "25.50",
@@ -359,46 +367,92 @@ func TestReferralEligibility_RechargeMode_UsesRechargeQuery(t *testing.T) {
 	}
 
 	assert.True(t, svc.hasInviterRewardEligibility(context.Background(), 1))
-	assert.Equal(t, 25.5, repo.rechargeMin)
+	assert.False(t, svc.hasInviterRewardEligibility(context.Background(), 2))
+	// 未查券表（继承查询不应被资格判定触发）。
+	assert.Empty(t, discountRepo.createdCalls)
 }
 
-func TestReferralEligibility_RechargeModeAtTime_UsesBoundAt(t *testing.T) {
-	boundAt := time.Unix(5000, 0)
-	repo := &discountRepoForReferralStub{
-		atTime: map[int64][]RechargeDiscountSummary{
-			boundAt.Unix(): {{ID: 1}},
-		},
-	}
+func TestReferralEligibility_RechargeMode_ZeroThresholdRequiresAnyRecharge(t *testing.T) {
+	// 门槛为 0：只要有过任意充值即算资格。
+	rechargeRepo := &inviterRechargeReaderStub{byUser: map[int64]float64{
+		1: 0.01,
+		2: 0,
+	}}
 	svc := &ReferralRewardService{
-		discountRepo: repo,
+		rechargeReader: rechargeRepo,
+		settingService: &SettingService{settingRepo: &referralConfigSettingRepoStub{values: map[string]string{
+			SettingKeyReferralEligibilityGrantMode:   ReferralEligibilityGrantModeRecharge,
+			SettingKeyReferralEligibilityRechargeMin: "0",
+		}}},
+	}
+
+	assert.True(t, svc.hasInviterRewardEligibility(context.Background(), 1))
+	assert.False(t, svc.hasInviterRewardEligibility(context.Background(), 2))
+}
+
+func TestReferralEligibility_RechargeMode_IgnoresBoundAt(t *testing.T) {
+	// recharge 模式下 atTime 被忽略（total_recharged 无历史时点台账），
+	// 无论传哪个绑定时间点，都读当前累计充值额判定。
+	rechargeRepo := &inviterRechargeReaderStub{byUser: map[int64]float64{1: 20.0}}
+	svc := &ReferralRewardService{
+		rechargeReader: rechargeRepo,
 		settingService: &SettingService{settingRepo: &referralConfigSettingRepoStub{values: map[string]string{
 			SettingKeyReferralEligibilityGrantMode:   ReferralEligibilityGrantModeRecharge,
 			SettingKeyReferralEligibilityRechargeMin: "10",
 		}}},
 	}
 
-	assert.True(t, svc.hasInviterRewardEligibilityAtTime(context.Background(), 1, boundAt))
-	require.NotNil(t, repo.rechargeAt)
-	assert.Equal(t, boundAt.Unix(), repo.rechargeAt.Unix())
-	assert.Equal(t, 10.0, repo.rechargeMin)
+	assert.True(t, svc.hasInviterRewardEligibilityAtTime(context.Background(), 1, time.Unix(5000, 0)))
+	assert.True(t, svc.hasInviterRewardEligibilityAtTime(context.Background(), 1, time.Unix(9999, 0)))
+	assert.Equal(t, []int64{1, 1}, rechargeRepo.calls)
 }
 
-func TestInheritDiscountFromInviter_RechargeModeRequiresEligibility(t *testing.T) {
+func TestReferralEligibility_RechargeMode_ReaderErrorFailsClosed(t *testing.T) {
+	rechargeRepo := &inviterRechargeReaderStub{err: errors.New("db down")}
+	svc := &ReferralRewardService{
+		rechargeReader: rechargeRepo,
+		settingService: &SettingService{settingRepo: &referralConfigSettingRepoStub{values: map[string]string{
+			SettingKeyReferralEligibilityGrantMode:   ReferralEligibilityGrantModeRecharge,
+			SettingKeyReferralEligibilityRechargeMin: "10",
+		}}},
+	}
+
+	// 读取失败 → fail closed（无资格），不误发奖励。
+	assert.False(t, svc.hasInviterRewardEligibility(context.Background(), 1))
+}
+
+func TestInheritDiscountFromInviter_AlwaysUsesDiscountTable(t *testing.T) {
+	// 折扣继承与资格获得方式无关：始终查邀请人名下的有效充值折扣券。
+	// recharge 模式下靠纯充值达标（无券）的邀请人，继承查询为空 → 空转。
 	boundAt := time.Unix(8000, 0)
 	repo := &discountRepoForReferralStub{
 		discounts: []RechargeDiscountSummary{{ID: 1, DiscountRate: 0.2, MaxDiscountableAmount: 100}},
-		atTime:    map[int64][]RechargeDiscountSummary{},
+		atTime:    map[int64][]RechargeDiscountSummary{}, // boundAt 时点无券
 	}
 	svc := &ReferralRewardService{
-		discountRepo: repo,
+		discountRepo:   repo,
+		rechargeReader: &inviterRechargeReaderStub{byUser: map[int64]float64{1: 999}},
 		settingService: &SettingService{settingRepo: &referralConfigSettingRepoStub{values: map[string]string{
 			SettingKeyReferralEligibilityGrantMode: ReferralEligibilityGrantModeRecharge,
 		}}},
 	}
 
+	// 无券 → 不继承（即便充值达标、有资格）。
 	err := svc.inheritDiscountFromInviter(context.Background(), 1, 2, boundAt)
 	assert.NoError(t, err)
 	assert.Empty(t, repo.createdCalls)
+
+	// 有券 → 继承。
+	repo2 := &discountRepoForReferralStub{
+		atTime: map[int64][]RechargeDiscountSummary{
+			boundAt.Unix(): {{ID: 1, DiscountRate: 0.2, MaxDiscountableAmount: 100}},
+		},
+	}
+	svc.discountRepo = repo2
+	err = svc.inheritDiscountFromInviter(context.Background(), 1, 2, boundAt)
+	assert.NoError(t, err)
+	require.Len(t, repo2.createdCalls, 1)
+	assert.Equal(t, "referral_inherit", repo2.createdCalls[0].Source)
 }
 
 func TestGetReferralRewardConfig_InviterGiftModeDefaultsPriority(t *testing.T) {

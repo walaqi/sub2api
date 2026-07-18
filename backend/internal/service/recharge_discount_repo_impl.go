@@ -297,64 +297,6 @@ ORDER BY discount_rate DESC, valid_until ASC NULLS LAST`, userID, atTime)
 	return scanRechargeDiscountSummaries(rows)
 }
 
-func (r *rechargeDiscountRepoImpl) QueryDiscountsForEligibilityAfterRecharge(ctx context.Context, userID int64, minAppliedAmount float64) ([]RechargeDiscountSummary, error) {
-	return r.queryDiscountsForEligibilityAfterRechargeAtTime(ctx, userID, time.Now(), minAppliedAmount)
-}
-
-func (r *rechargeDiscountRepoImpl) QueryDiscountsForEligibilityAfterRechargeAtTime(ctx context.Context, userID int64, atTime time.Time, minAppliedAmount float64) ([]RechargeDiscountSummary, error) {
-	return r.queryDiscountsForEligibilityAfterRechargeAtTime(ctx, userID, atTime, minAppliedAmount)
-}
-
-func (r *rechargeDiscountRepoImpl) queryDiscountsForEligibilityAfterRechargeAtTime(ctx context.Context, userID int64, atTime time.Time, minAppliedAmount float64) ([]RechargeDiscountSummary, error) {
-	if minAppliedAmount <= 0 {
-		rows, err := r.execer(ctx).QueryContext(ctx, `
-SELECT id, source, source_ref, discount_rate,
-       max_discountable_amount::double precision,
-       total_discounted::double precision,
-       valid_from, valid_until,
-       gift_deduction_mode, gift_ratio_recharge::double precision,
-       gift_expiry_mode, gift_expires_after_days
-FROM user_recharge_discounts d
-WHERE d.user_id = $1
-  AND d.valid_from <= $2
-  AND (d.valid_until IS NULL OR d.valid_until >= $2)
-  AND EXISTS (
-    SELECT 1
-    FROM recharge_discount_applications a
-    WHERE a.discount_id = d.id
-      AND a.created_at <= $2
-  )
-ORDER BY d.discount_rate DESC, d.valid_until ASC NULLS LAST`, userID, atTime)
-		if err != nil {
-			return nil, fmt.Errorf("query recharge eligibility discounts: %w", err)
-		}
-		defer func() { _ = rows.Close() }()
-		return scanRechargeDiscountSummaries(rows)
-	}
-
-	rows, err := r.execer(ctx).QueryContext(ctx, `
-SELECT d.id, d.source, d.source_ref, d.discount_rate,
-       d.max_discountable_amount::double precision,
-       d.total_discounted::double precision,
-       d.valid_from, d.valid_until,
-       d.gift_deduction_mode, d.gift_ratio_recharge::double precision,
-       d.gift_expiry_mode, d.gift_expires_after_days
-FROM user_recharge_discounts d
-JOIN recharge_discount_applications a ON a.discount_id = d.id
-WHERE d.user_id = $1
-  AND d.valid_from <= $2
-  AND (d.valid_until IS NULL OR d.valid_until >= $2)
-  AND a.created_at <= $2
-GROUP BY d.id
-HAVING SUM(a.applied_amount) >= $3
-ORDER BY d.discount_rate DESC, d.valid_until ASC NULLS LAST`, userID, atTime, minAppliedAmount)
-	if err != nil {
-		return nil, fmt.Errorf("query recharge eligibility discounts: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-	return scanRechargeDiscountSummaries(rows)
-}
-
 func scanRechargeDiscountSummaries(rows *sql.Rows) ([]RechargeDiscountSummary, error) {
 	var results []RechargeDiscountSummary
 	for rows.Next() {
