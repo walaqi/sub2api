@@ -1389,10 +1389,17 @@ const collectSelectionMetadata = (rows: Account[]) => {
 }
 
 const openBulkEditSelected = () => {
+  const platforms = [...selPlatforms.value]
+  if (platforms.length > 1) {
+    appStore.showError(
+      t('admin.accounts.bulkEdit.mixedPlatformBlocked', { platforms: platforms.join(', ') })
+    )
+    return
+  }
   bulkEditTarget.value = {
     mode: 'selected',
     accountIds: [...selIds.value],
-    selectedPlatforms: [...selPlatforms.value],
+    selectedPlatforms: platforms,
     selectedTypes: [...selTypes.value]
   }
   showBulkEdit.value = true
@@ -1402,6 +1409,12 @@ const openBulkEditFiltered = async () => {
   const filters = buildBulkEditFilterSnapshot()
   const preview = await adminAPI.accounts.list(1, 100, filters)
   const { selectedPlatforms, selectedTypes } = collectSelectionMetadata(preview.items)
+  if (selectedPlatforms.length > 1) {
+    appStore.showError(
+      t('admin.accounts.bulkEdit.mixedPlatformBlocked', { platforms: selectedPlatforms.join(', ') })
+    )
+    return
+  }
   bulkEditTarget.value = {
     mode: 'filtered',
     filters,

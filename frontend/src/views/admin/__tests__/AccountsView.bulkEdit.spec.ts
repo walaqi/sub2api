@@ -8,13 +8,15 @@ const {
   listWithEtag,
   getBatchTodayStats,
   getAllProxies,
-  getAllGroups
+  getAllGroups,
+  showError
 } = vi.hoisted(() => ({
   listAccounts: vi.fn(),
   listWithEtag: vi.fn(),
   getBatchTodayStats: vi.fn(),
   getAllProxies: vi.fn(),
-  getAllGroups: vi.fn()
+  getAllGroups: vi.fn(),
+  showError: vi.fn()
 }))
 
 vi.mock('@/api/admin', () => ({
@@ -39,7 +41,7 @@ vi.mock('@/api/admin', () => ({
 
 vi.mock('@/stores/app', () => ({
   useAppStore: () => ({
-    showError: vi.fn(),
+    showError,
     showSuccess: vi.fn(),
     showInfo: vi.fn()
   })
@@ -75,13 +77,52 @@ const DataTableStub = {
 
 const AccountBulkActionsBarStub = {
   props: ['selectedIds'],
-  emits: ['edit-filtered'],
-  template: '<button data-test="edit-filtered" @click="$emit(\'edit-filtered\')">edit filtered</button>'
+  emits: ['edit-filtered', 'edit-selected', 'select-page'],
+  template: `
+    <div>
+      <button data-test="edit-filtered" @click="$emit('edit-filtered')">edit filtered</button>
+      <button data-test="select-page" @click="$emit('select-page')">select page</button>
+      <button data-test="edit-selected" @click="$emit('edit-selected')">edit selected</button>
+    </div>
+  `
 }
 
 const BulkEditAccountModalStub = {
   props: ['show', 'target'],
   template: '<div data-test="bulk-edit-modal" :data-show="String(show)" :data-target-mode="target?.mode ?? \'\'"></div>'
+}
+
+const mountStubs = {
+  AppLayout: { template: '<div><slot /></div>' },
+  TablePageLayout: {
+    template: '<div><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>'
+  },
+  DataTable: DataTableStub,
+  Pagination: true,
+  ConfirmDialog: true,
+  AccountTableActions: { template: '<div><slot name="beforeCreate" /><slot name="after" /></div>' },
+  AccountTableFilters: { template: '<div></div>' },
+  AccountBulkActionsBar: AccountBulkActionsBarStub,
+  AccountActionMenu: true,
+  ImportDataModal: true,
+  ReAuthAccountModal: true,
+  AccountTestModal: true,
+  AccountStatsModal: true,
+  ScheduledTestsPanel: true,
+  SyncFromCrsModal: true,
+  TempUnschedStatusModal: true,
+  ErrorPassthroughRulesModal: true,
+  TLSFingerprintProfilesModal: true,
+  CreateAccountModal: true,
+  EditAccountModal: true,
+  BulkEditAccountModal: BulkEditAccountModalStub,
+  PlatformTypeBadge: true,
+  AccountCapacityCell: true,
+  AccountStatusIndicator: true,
+  AccountTodayStatsCell: true,
+  AccountGroupsCell: true,
+  AccountUsageCell: true,
+  Icon: true
 }
 
 describe('admin AccountsView bulk edit scope', () => {
@@ -93,6 +134,7 @@ describe('admin AccountsView bulk edit scope', () => {
     getBatchTodayStats.mockReset()
     getAllProxies.mockReset()
     getAllGroups.mockReset()
+    showError.mockReset()
 
     listAccounts.mockResolvedValue({
       items: [],
@@ -223,5 +265,76 @@ describe('admin AccountsView bulk edit scope', () => {
       label: 'admin.accounts.columns.createdAt',
       sortable: true
     })
+  })
+
+  it('blocks bulk edit of selected accounts when they span multiple platforms', async () => {
+    listAccounts.mockResolvedValue({
+      items: [
+        {
+          id: 1,
+          name: 'anthropic-account',
+          platform: 'anthropic',
+          type: 'oauth',
+          status: 'active',
+          schedulable: true,
+          created_at: '2026-03-07T10:00:00Z',
+          updated_at: '2026-03-07T10:00:00Z'
+        },
+        {
+          id: 2,
+          name: 'openai-account',
+          platform: 'openai',
+          type: 'apikey',
+          status: 'active',
+          schedulable: true,
+          created_at: '2026-03-07T10:00:00Z',
+          updated_at: '2026-03-07T10:00:00Z'
+        }
+      ],
+      total: 2,
+      page: 1,
+      page_size: 20,
+      pages: 1
+    })
+
+    const wrapper = mount(AccountsView, { global: { stubs: mountStubs } })
+    await flushPromises()
+
+    // Select all visible rows (both platforms), then attempt bulk edit.
+    await wrapper.get('[data-test="select-page"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-test="edit-selected"]').trigger('click')
+    await flushPromises()
+
+    expect(showError).toHaveBeenCalledWith('admin.accounts.bulkEdit.mixedPlatformBlocked')
+    expect(wrapper.get('[data-test="bulk-edit-modal"]').attributes('data-show')).toBe('false')
+  })
+
+  it('blocks bulk edit of filtered results when they span multiple platforms', async () => {
+    listAccounts.mockImplementation((page: number, pageSize: number) => {
+      // The filtered-preview fetch requests page 1 with a large page size.
+      if (pageSize === 100) {
+        return Promise.resolve({
+          items: [
+            { id: 1, name: 'a', platform: 'anthropic', type: 'oauth', status: 'active', schedulable: true, created_at: '2026-03-07T10:00:00Z', updated_at: '2026-03-07T10:00:00Z' },
+            { id: 2, name: 'b', platform: 'openai', type: 'apikey', status: 'active', schedulable: true, created_at: '2026-03-07T10:00:00Z', updated_at: '2026-03-07T10:00:00Z' }
+          ],
+          total: 2,
+          page: 1,
+          page_size: 100,
+          pages: 1
+        })
+      }
+      return Promise.resolve({ items: [], total: 0, page: 1, page_size: pageSize, pages: 0 })
+    })
+
+    const wrapper = mount(AccountsView, { global: { stubs: mountStubs } })
+    await flushPromises()
+
+    await wrapper.get('[data-test="edit-filtered"]').trigger('click')
+    await flushPromises()
+
+    expect(showError).toHaveBeenCalledWith('admin.accounts.bulkEdit.mixedPlatformBlocked')
+    expect(wrapper.get('[data-test="bulk-edit-modal"]').attributes('data-show')).toBe('false')
   })
 })
