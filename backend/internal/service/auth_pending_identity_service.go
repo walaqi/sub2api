@@ -33,8 +33,15 @@ var (
 	ErrPendingAuthBrowserMismatch = infraerrors.Unauthorized("PENDING_AUTH_BROWSER_MISMATCH", "pending auth completion code does not match this browser session")
 )
 
+// DefaultPendingAuthTTL is the lifetime of a pending auth session row in the
+// database. The browser cookies that reference the session must not expire
+// before this, otherwise the client loses the session token while the row is
+// still valid and the flow fails with PENDING_AUTH_SESSION_NOT_FOUND. Handlers
+// derive their cookie MaxAge from this value.
+const DefaultPendingAuthTTL = 15 * time.Minute
+
 const (
-	defaultPendingAuthTTL           = 15 * time.Minute
+	defaultPendingAuthTTL           = DefaultPendingAuthTTL
 	defaultPendingAuthCompletionTTL = 5 * time.Minute
 )
 

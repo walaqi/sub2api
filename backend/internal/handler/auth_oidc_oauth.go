@@ -653,6 +653,7 @@ func (h *AuthHandler) CompleteOIDCOAuthRegistration(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	} else if handled {
+		refreshOAuthPendingCookies(c, updatedSession)
 		c.JSON(http.StatusOK, buildPendingOAuthSessionStatusPayload(updatedSession))
 		return
 	} else {
