@@ -645,6 +645,57 @@ describe("admin SettingsView payment visible method controls", () => {
     );
   });
 
+  it("submits models_plaza_default_group_id and lists only public groups", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      models_plaza_enabled: true,
+      models_plaza_default_group_id: 11,
+    });
+    getGroups.mockResolvedValueOnce([
+      {
+        id: 10,
+        name: "pub-a",
+        platform: "anthropic",
+        rate_multiplier: 1,
+        is_exclusive: false,
+        status: "active",
+        subscription_type: "subscription",
+      },
+      {
+        id: 11,
+        name: "pub-b",
+        platform: "anthropic",
+        rate_multiplier: 2,
+        is_exclusive: false,
+        status: "active",
+        subscription_type: "subscription",
+      },
+      {
+        id: 20,
+        name: "exclusive",
+        platform: "anthropic",
+        rate_multiplier: 1,
+        is_exclusive: true,
+        status: "active",
+        subscription_type: "subscription",
+      },
+    ]);
+
+    const wrapper = mountView();
+
+    await flushPromises();
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledTimes(1);
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        models_plaza_enabled: true,
+        models_plaza_default_group_id: 11,
+      }),
+    );
+  });
+
   it("submits Claude OAuth system prompt injection gateway settings", async () => {
     const blocks = `[{"type":"text","text":"custom block","cache_control":true}]`;
     getSettings.mockResolvedValueOnce({

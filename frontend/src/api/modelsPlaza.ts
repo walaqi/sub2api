@@ -47,7 +47,7 @@ export interface ModelCatalog {
   models: CatalogModel[]
   groups: CatalogGroup[]
   recharge_multiplier: number
-  /** First default-subscription group that is public; 0 when none — frontend falls back to groups[0]. */
+  /** Admin-configured default group (models_plaza_default_group_id) when it is public; 0 when unset/stale — frontend falls back to groups[0]. */
   default_group_id: number
 }
 

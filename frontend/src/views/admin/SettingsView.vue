@@ -5605,6 +5605,28 @@
               </div>
               <Toggle v-model="form.models_plaza_enabled" />
             </div>
+
+            <div v-if="form.models_plaza_enabled" class="flex items-center justify-between">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.features.modelsPlaza.defaultGroup') }}
+                </label>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.modelsPlaza.defaultGroupHint') }}
+                </p>
+              </div>
+              <select
+                v-model.number="form.models_plaza_default_group_id"
+                class="input w-auto min-w-[200px]"
+              >
+                <option :value="0">
+                  {{ t('admin.settings.features.modelsPlaza.defaultGroupNone') }}
+                </option>
+                <option v-for="g in plazaPublicGroups" :key="g.id" :value="g.id">
+                  {{ g.name }} (×{{ g.rate_multiplier }})
+                </option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -7456,6 +7478,8 @@ const adminApiKeyMasked = ref("");
 const adminApiKeyOperating = ref(false);
 const newAdminApiKey = ref("");
 const subscriptionGroups = ref<AdminGroup[]>([]);
+// 模型广场默认分组候选：所有 active 的公开（非专属）分组，与后端广场可见性一致。
+const plazaPublicGroups = ref<AdminGroup[]>([]);
 
 // Overload Cooldown (529) 状态
 const overloadCooldownLoading = ref(true);
@@ -8185,8 +8209,9 @@ const form = reactive<SettingsForm>({
   channel_monitor_default_interval_seconds: 60,
   // Available Channels feature switch
   available_channels_enabled: false,
-  // Models Plaza feature switch
+  // Models Plaza feature switch + default group
   models_plaza_enabled: false,
+  models_plaza_default_group_id: 0,
   // Affiliate (邀请返利) feature switch
   affiliate_enabled: false,
   // Referral Reward (双向邀请赠金) feature switch + params
@@ -9012,8 +9037,12 @@ async function loadSubscriptionGroups() {
       (group) =>
         group.subscription_type === "subscription" && group.status === "active",
     );
+    plazaPublicGroups.value = groups.filter(
+      (group) => group.status === "active" && !group.is_exclusive,
+    );
   } catch (_error: unknown) {
     subscriptionGroups.value = [];
+    plazaPublicGroups.value = [];
   }
 }
 
@@ -9447,8 +9476,9 @@ async function saveSettings() {
         Number(form.channel_monitor_default_interval_seconds) || 60,
       // Available Channels feature switch
       available_channels_enabled: form.available_channels_enabled,
-      // Models Plaza feature switch
+      // Models Plaza feature switch + default group
       models_plaza_enabled: form.models_plaza_enabled,
+      models_plaza_default_group_id: Number(form.models_plaza_default_group_id) || 0,
       // Affiliate (邀请返利) feature switch
       affiliate_enabled: form.affiliate_enabled,
       referral_reward_enabled: form.referral_reward_enabled,

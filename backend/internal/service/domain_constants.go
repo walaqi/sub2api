@@ -384,6 +384,12 @@ const (
 	// and the sidebar entry is hidden. Defaults to false (opt-in feature).
 	SettingKeyModelsPlazaEnabled = "models_plaza_enabled"
 
+	// SettingKeyModelsPlazaDefaultGroupID is the public group whose rate_multiplier
+	// pre-selects the models-plaza price calculator. Replaces the former reliance on
+	// the default-subscription list. "0" (or a non-public/stale group) means the
+	// frontend falls back to the first public group. Defaults to "0".
+	SettingKeyModelsPlazaDefaultGroupID = "models_plaza_default_group_id"
+
 	// =========================
 	// Overload Cooldown (529)
 	// =========================

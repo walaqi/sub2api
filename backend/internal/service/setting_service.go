@@ -853,6 +853,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyChannelMonitorDefaultIntervalSeconds,
 		SettingKeyAvailableChannelsEnabled,
 		SettingKeyModelsPlazaEnabled,
+		SettingKeyModelsPlazaDefaultGroupID,
 		SettingKeyAffiliateEnabled,
 		SettingKeyReferralRewardEnabled,
 		SettingKeyRiskControlEnabled,
@@ -966,7 +967,8 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 
 		AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true",
 
-		ModelsPlazaEnabled: settings[SettingKeyModelsPlazaEnabled] == "true",
+		ModelsPlazaEnabled:        settings[SettingKeyModelsPlazaEnabled] == "true",
+		ModelsPlazaDefaultGroupID: parseModelsPlazaDefaultGroupID(settings[SettingKeyModelsPlazaDefaultGroupID]),
 
 		ImageStudioEnabled: s.cfg != nil && s.cfg.ImageStudio.Enabled,
 
@@ -1058,18 +1060,26 @@ func (s *SettingService) GetAvailableChannelsRuntime(ctx context.Context) Availa
 // consumed by the public models-plaza handler.
 type ModelsPlazaRuntime struct {
 	Enabled bool
+	// DefaultGroupID is the admin-configured public group that pre-selects the
+	// price calculator. 0 means unset — callers fall back to the first public group.
+	DefaultGroupID int64
 }
 
 // GetModelsPlazaRuntime reads the models-plaza feature switch directly from the
 // settings store. Fail-closed: on error returns Enabled=false, matching the
 // opt-in default (unknown ↔ disabled).
 func (s *SettingService) GetModelsPlazaRuntime(ctx context.Context) ModelsPlazaRuntime {
-	vals, err := s.settingRepo.GetMultiple(ctx, []string{SettingKeyModelsPlazaEnabled})
+	vals, err := s.settingRepo.GetMultiple(ctx, []string{
+		SettingKeyModelsPlazaEnabled,
+		SettingKeyModelsPlazaDefaultGroupID,
+	})
 	if err != nil {
 		return ModelsPlazaRuntime{Enabled: false}
 	}
+	defaultGroupID, _ := strconv.ParseInt(strings.TrimSpace(vals[SettingKeyModelsPlazaDefaultGroupID]), 10, 64)
 	return ModelsPlazaRuntime{
-		Enabled: vals[SettingKeyModelsPlazaEnabled] == "true",
+		Enabled:        vals[SettingKeyModelsPlazaEnabled] == "true",
+		DefaultGroupID: defaultGroupID,
 	}
 }
 
@@ -2018,8 +2028,9 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	// Available channels feature switch
 	updates[SettingKeyAvailableChannelsEnabled] = strconv.FormatBool(settings.AvailableChannelsEnabled)
 
-	// Models plaza feature switch
+	// Models plaza feature switch + default group
 	updates[SettingKeyModelsPlazaEnabled] = strconv.FormatBool(settings.ModelsPlazaEnabled)
+	updates[SettingKeyModelsPlazaDefaultGroupID] = strconv.FormatInt(settings.ModelsPlazaDefaultGroupID, 10)
 
 	// Affiliate (邀请返利) feature switch
 	updates[SettingKeyAffiliateEnabled] = strconv.FormatBool(settings.AffiliateEnabled)
@@ -3168,8 +3179,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		// Available channels feature (default disabled; opt-in)
 		SettingKeyAvailableChannelsEnabled: "false",
 
-		// Models plaza feature (default disabled; opt-in)
-		SettingKeyModelsPlazaEnabled: "false",
+		// Models plaza feature (default disabled; opt-in). Default group 0 = unset.
+		SettingKeyModelsPlazaEnabled:        "false",
+		SettingKeyModelsPlazaDefaultGroupID: "0",
 
 		// Affiliate (邀请返利) feature (default disabled; opt-in)
 		SettingKeyAffiliateEnabled: "false",
@@ -3691,6 +3703,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 
 	// Models plaza feature (default: disabled; strict true)
 	result.ModelsPlazaEnabled = settings[SettingKeyModelsPlazaEnabled] == "true"
+	result.ModelsPlazaDefaultGroupID = parseModelsPlazaDefaultGroupID(settings[SettingKeyModelsPlazaDefaultGroupID])
 
 	// Affiliate (邀请返利) feature (default: disabled; strict true)
 	result.AffiliateEnabled = settings[SettingKeyAffiliateEnabled] == "true"
@@ -3898,6 +3911,17 @@ func parseDefaultSubscriptions(raw string) []DefaultSubscriptionSetting {
 	}
 
 	return normalized
+}
+
+// parseModelsPlazaDefaultGroupID parses the models-plaza default group setting.
+// Empty/invalid/negative values collapse to 0 (unset → frontend falls back to
+// the first public group).
+func parseModelsPlazaDefaultGroupID(raw string) int64 {
+	v, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 64)
+	if err != nil || v < 0 {
+		return 0
+	}
+	return v
 }
 
 func parseProviderDefaultGrantSettings(settings map[string]string, keys authSourceDefaultKeySet) ProviderDefaultGrantSettings {

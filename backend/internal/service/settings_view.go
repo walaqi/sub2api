@@ -195,6 +195,8 @@ type SystemSettings struct {
 
 	// Models Plaza feature (public model catalog with pricing)
 	ModelsPlazaEnabled bool `json:"models_plaza_enabled"`
+	// ModelsPlazaDefaultGroupID pre-selects the plaza price calculator (0 = unset).
+	ModelsPlazaDefaultGroupID int64 `json:"models_plaza_default_group_id"`
 
 	// Claude Code version check
 	MinClaudeCodeVersion string
@@ -315,6 +317,8 @@ type PublicSettings struct {
 
 	// Models Plaza feature (user-facing model catalog with pricing)
 	ModelsPlazaEnabled bool `json:"models_plaza_enabled"`
+	// ModelsPlazaDefaultGroupID pre-selects the plaza price calculator (0 = unset).
+	ModelsPlazaDefaultGroupID int64 `json:"models_plaza_default_group_id"`
 
 	// Image Studio feature (同源嵌入的文生图子应用入口)。来源是 config 开关
 	// image_studio.enabled，非 DB 软开关，仅用于前端侧栏入口显隐。

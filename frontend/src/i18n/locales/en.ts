@@ -5667,6 +5667,9 @@ export default {
           configureLink: 'Configure model pricing in Channel Management > Channel Pricing',
           enabled: 'Enable Models Plaza',
           enabledHint: 'When off, the sidebar entry is hidden and the endpoint returns an empty catalog.',
+          defaultGroup: 'Default group',
+          defaultGroupHint: 'Initial group for the price calculator. Leave unset to default to the first public group. Only public (non-exclusive) groups are listed.',
+          defaultGroupNone: 'Unset (use first public group)',
         },
         riskControl: {
           title: 'Risk Control',

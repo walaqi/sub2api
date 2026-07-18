@@ -247,6 +247,8 @@ type SystemSettings struct {
 
 	// Models Plaza feature switch (user-facing model catalog view)
 	ModelsPlazaEnabled bool `json:"models_plaza_enabled"`
+	// Models Plaza default group for the price calculator (0 = unset)
+	ModelsPlazaDefaultGroupID int64 `json:"models_plaza_default_group_id"`
 
 	// 风控中心功能开关
 	RiskControlEnabled bool `json:"risk_control_enabled"`
