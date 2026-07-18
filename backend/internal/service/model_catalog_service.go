@@ -256,15 +256,19 @@ func (s *ModelCatalogService) buildCatalogModel(sm SupportedModel, rechargeMult 
 	return cm
 }
 
-// resolveDefaultGroupID 返回默认订阅列表中第一个落在公开分组里的分组 ID。
+// resolveDefaultGroupID 返回管理员在「系统设置 → 模型广场」配置的默认分组。
+// 该分组必须仍是公开分组才生效；未配置（0）或已失效/转专属时返回 0，
+// 由前端回退到第一个公开分组。不再依赖默认订阅列表。
 func (s *ModelCatalogService) resolveDefaultGroupID(ctx context.Context, publicGroups map[int64]CatalogGroup) int64 {
 	if s.settingService == nil {
 		return 0
 	}
-	for _, sub := range s.settingService.GetDefaultSubscriptions(ctx) {
-		if _, ok := publicGroups[sub.GroupID]; ok {
-			return sub.GroupID
-		}
+	configured := s.settingService.GetModelsPlazaRuntime(ctx).DefaultGroupID
+	if configured <= 0 {
+		return 0
+	}
+	if _, ok := publicGroups[configured]; ok {
+		return configured
 	}
 	return 0
 }

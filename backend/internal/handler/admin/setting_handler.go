@@ -301,7 +301,8 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 
 		AvailableChannelsEnabled: settings.AvailableChannelsEnabled,
 
-		ModelsPlazaEnabled: settings.ModelsPlazaEnabled,
+		ModelsPlazaEnabled:        settings.ModelsPlazaEnabled,
+		ModelsPlazaDefaultGroupID: settings.ModelsPlazaDefaultGroupID,
 
 		AffiliateEnabled: settings.AffiliateEnabled,
 
@@ -667,6 +668,8 @@ type UpdateSettingsRequest struct {
 
 	// Models Plaza feature switch (user-facing)
 	ModelsPlazaEnabled *bool `json:"models_plaza_enabled"`
+	// Models Plaza default group for the price calculator (0 = unset)
+	ModelsPlazaDefaultGroupID *int64 `json:"models_plaza_default_group_id"`
 
 	// Affiliate (邀请返利) feature switch
 	AffiliateEnabled *bool `json:"affiliate_enabled"`
@@ -1847,6 +1850,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.ModelsPlazaEnabled
 		}(),
+		ModelsPlazaDefaultGroupID: func() int64 {
+			if req.ModelsPlazaDefaultGroupID != nil {
+				return *req.ModelsPlazaDefaultGroupID
+			}
+			return previousSettings.ModelsPlazaDefaultGroupID
+		}(),
 		AffiliateEnabled: func() bool {
 			if req.AffiliateEnabled != nil {
 				return *req.AffiliateEnabled
@@ -2277,7 +2286,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 
 		AvailableChannelsEnabled: updatedSettings.AvailableChannelsEnabled,
 
-		ModelsPlazaEnabled: updatedSettings.ModelsPlazaEnabled,
+		ModelsPlazaEnabled:        updatedSettings.ModelsPlazaEnabled,
+		ModelsPlazaDefaultGroupID: updatedSettings.ModelsPlazaDefaultGroupID,
 
 		AffiliateEnabled: updatedSettings.AffiliateEnabled,
 
@@ -2785,6 +2795,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.ModelsPlazaEnabled != after.ModelsPlazaEnabled {
 		changed = append(changed, "models_plaza_enabled")
+	}
+	if before.ModelsPlazaDefaultGroupID != after.ModelsPlazaDefaultGroupID {
+		changed = append(changed, "models_plaza_default_group_id")
 	}
 	if before.AffiliateEnabled != after.AffiliateEnabled {
 		changed = append(changed, "affiliate_enabled")

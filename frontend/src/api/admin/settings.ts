@@ -615,8 +615,9 @@ export interface SystemSettings {
   // Available Channels feature switch
   available_channels_enabled: boolean;
 
-  // Models Plaza feature switch
+  // Models Plaza feature switch + default group for the price calculator (0 = unset)
   models_plaza_enabled: boolean;
+  models_plaza_default_group_id: number;
 
   // Affiliate (邀请返利) feature switch
   affiliate_enabled: boolean;
@@ -875,8 +876,9 @@ export interface UpdateSettingsRequest {
   // Available Channels feature switch
   available_channels_enabled?: boolean;
 
-  // Models Plaza feature switch
+  // Models Plaza feature switch + default group for the price calculator (0 = unset)
   models_plaza_enabled?: boolean;
+  models_plaza_default_group_id?: number;
 
   // Affiliate (邀请返利) feature switch
   affiliate_enabled?: boolean;

@@ -5826,6 +5826,9 @@ export default {
           configureLink: '前往 渠道管理 > 渠道定价 配置模型价格',
           enabled: '启用模型广场',
           enabledHint: '关闭后侧边栏入口隐藏，公开接口返回空目录。',
+          defaultGroup: '默认分组',
+          defaultGroupHint: '价格计算器的初始分组。留空则默认展示第一个公开分组。仅列公开（非专属）分组。',
+          defaultGroupNone: '不指定（用第一个公开分组）',
         },
         riskControl: {
           title: '风控中心',

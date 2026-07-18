@@ -214,3 +214,102 @@ func TestModelCatalog_DeriveModalitiesImageOutput(t *testing.T) {
 	require.Equal(t, []string{"text"}, in)
 	require.Contains(t, out, "image")
 }
+
+// catalogSettingRepo is a minimal SettingRepository whose GetMultiple returns the
+// configured values; other methods panic so accidental calls surface immediately.
+type catalogSettingRepo struct {
+	vals map[string]string
+}
+
+func (r *catalogSettingRepo) GetMultiple(_ context.Context, keys []string) (map[string]string, error) {
+	out := make(map[string]string, len(keys))
+	for _, k := range keys {
+		if v, ok := r.vals[k]; ok {
+			out[k] = v
+		}
+	}
+	return out, nil
+}
+func (r *catalogSettingRepo) GetValue(_ context.Context, _ string) (string, error) {
+	panic("catalogSettingRepo.GetValue not implemented")
+}
+func (r *catalogSettingRepo) Get(_ context.Context, _ string) (*Setting, error) {
+	panic("catalogSettingRepo.Get not implemented")
+}
+func (r *catalogSettingRepo) Set(_ context.Context, _, _ string) error {
+	panic("catalogSettingRepo.Set not implemented")
+}
+func (r *catalogSettingRepo) SetMultiple(_ context.Context, _ map[string]string) error {
+	panic("catalogSettingRepo.SetMultiple not implemented")
+}
+func (r *catalogSettingRepo) GetAll(_ context.Context) (map[string]string, error) {
+	panic("catalogSettingRepo.GetAll not implemented")
+}
+func (r *catalogSettingRepo) Delete(_ context.Context, _ string) error {
+	panic("catalogSettingRepo.Delete not implemented")
+}
+
+var _ SettingRepository = (*catalogSettingRepo)(nil)
+
+// newCatalogSettingService 构造一个仅用于广场默认分组解析的 SettingService，
+// 其 models_plaza_default_group_id 设为给定值。
+func newCatalogSettingService(defaultGroupID string) *SettingService {
+	return NewSettingService(
+		&catalogSettingRepo{vals: map[string]string{
+			SettingKeyModelsPlazaDefaultGroupID: defaultGroupID,
+		}},
+		nil,
+	)
+}
+
+func catalogTwoPublicGroups() ([]Channel, []Group) {
+	channels := []Channel{
+		catalogChannel(1, "chA", []int64{10, 11}, "anthropic", "claude-x",
+			&ChannelModelPricing{BillingMode: BillingModeToken, InputPrice: fp(1e-5)}),
+	}
+	groups := []Group{
+		{ID: 10, Name: "p1", Platform: "anthropic", RateMultiplier: 1, Status: StatusActive},
+		{ID: 11, Name: "p2", Platform: "anthropic", RateMultiplier: 2, Status: StatusActive},
+	}
+	return channels, groups
+}
+
+func TestModelCatalog_DefaultGroupFromAdminSetting(t *testing.T) {
+	channels, groups := catalogTwoPublicGroups()
+	chSvc := newCatalogChannelService(channels, groups, nil)
+	// 管理员把默认分组设为 11（公开分组）→ catalog.DefaultGroupID 命中 11。
+	svc := NewModelCatalogService(chSvc, nil, nil, newCatalogSettingService("11"))
+
+	cat, err := svc.GetCatalog(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, int64(11), cat.DefaultGroupID)
+}
+
+func TestModelCatalog_DefaultGroupUnsetFallsBackToZero(t *testing.T) {
+	channels, groups := catalogTwoPublicGroups()
+	chSvc := newCatalogChannelService(channels, groups, nil)
+	// 未配置（"0"）→ DefaultGroupID 为 0，由前端回退到第一个公开分组。
+	svc := NewModelCatalogService(chSvc, nil, nil, newCatalogSettingService("0"))
+
+	cat, err := svc.GetCatalog(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, int64(0), cat.DefaultGroupID)
+}
+
+func TestModelCatalog_DefaultGroupExclusiveOrStaleFallsBackToZero(t *testing.T) {
+	// 默认分组指向一个专属分组（不进广场 publicGroups）→ 视为失效，返回 0。
+	channels := []Channel{
+		catalogChannel(1, "chMixed", []int64{10, 20}, "anthropic", "claude-x",
+			&ChannelModelPricing{BillingMode: BillingModeToken, InputPrice: fp(1e-5)}),
+	}
+	groups := []Group{
+		{ID: 10, Name: "public", Platform: "anthropic", RateMultiplier: 1, IsExclusive: false, Status: StatusActive},
+		{ID: 20, Name: "exclusive", Platform: "anthropic", RateMultiplier: 1, IsExclusive: true, Status: StatusActive},
+	}
+	chSvc := newCatalogChannelService(channels, groups, nil)
+	svc := NewModelCatalogService(chSvc, nil, nil, newCatalogSettingService("20"))
+
+	cat, err := svc.GetCatalog(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, int64(0), cat.DefaultGroupID)
+}
