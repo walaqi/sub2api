@@ -530,6 +530,15 @@ func TestUsageLogRepositoryGetUserSpendingRanking(t *testing.T) {
 		WithArgs(start, end, 12).
 		WillReturnRows(rows)
 
+	// GetUserSpendingRanking 主查询后还会发两条聚合查询：
+	// 区间内新注册用户数、区间内活跃用户数。
+	mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM users WHERE created_at").
+		WithArgs(start, end).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(int64(7)))
+	mock.ExpectQuery("SELECT COUNT\\(DISTINCT user_id\\) FROM usage_logs WHERE created_at").
+		WithArgs(start, end).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(int64(3)))
+
 	got, err := repo.GetUserSpendingRanking(context.Background(), start, end, 12)
 	require.NoError(t, err)
 	require.Equal(t, &usagestats.UserSpendingRankingResponse{
@@ -541,6 +550,8 @@ func TestUsageLogRepositoryGetUserSpendingRanking(t *testing.T) {
 		TotalActualCost: 40.0,
 		TotalRequests:   30,
 		TotalTokens:     2600,
+		NewUsers:        7,
+		ActiveUsers:     3,
 	}, got)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
