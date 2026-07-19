@@ -44,7 +44,7 @@
 
 ### 3.1 邀请人的充值折扣终止
 
-**这是什么**：邀请人通过领取带权益的 Key（或在 recharge 模式下充值）获得的 `user_recharge_discounts` 折扣行，充值时按折扣率送赠金。
+**这是什么**：邀请人通过领取带权益的 Key 获得的 `user_recharge_discounts` 折扣行，充值时按折扣率送赠金。
 
 **终止条件（满足任一即不再生效）**：
 
@@ -100,26 +100,32 @@
 
 **这是什么**：判断一个用户"是否拥有超级邀请资格"（前端 `/referral` 页是否显示邀请链接、能否作为有效邀请人）。
 
-**判定逻辑**：`hasInviterRewardEligibility` = 用户名下**是否存在一条时间窗内的充值折扣行**（`valid_from<=NOW() AND (valid_until IS NULL OR valid_until>=NOW())`）。资格本身**没有独立的"资格有效期"字段**，它的有效期就等于底层那条折扣的 `valid_until`。
+**判定逻辑**：`hasInviterRewardEligibility` 按后台「资格获得方式」分两种模式，二者互斥、判定数据源不同：
 
-两种获得模式（后台「资格获得方式」）：
-- `bind_key_claim`（默认）：领取带权益 Key 即获得折扣 → 即有资格。
-- `recharge`：充值参与折扣、且累计本金达到 `EligibilityRechargeMinAmount` 后获得资格。
+- `bind_key_claim`（默认）：看用户名下**是否存在一条时间窗内的充值折扣行**（`valid_from<=NOW() AND (valid_until IS NULL OR valid_until>=NOW())`），即领取带权益 Key 后立即有资格（依赖领券）。此模式下资格**没有独立的"资格有效期"字段**，它的有效期就等于底层那条折扣的 `valid_until`。
+- `recharge`：只看邀请人**累计充值额 `users.total_recharged` 是否达到 `EligibilityRechargeMinAmount`**，与是否领券、有无折扣行**完全无关**。门槛为 0 时只要有过任意充值即算资格。此模式下资格不随折扣存亡变化，只随累计充值单调增长（`total_recharged` 是单调累加计数器，退款不减）。
+
+> **重要**：`recharge` 模式是「与赠金领券彻底解耦」的选项——邀请人无需领券、只要累计充值达标即成为超级邀请人。若要让超级邀请完全独立于领券活动，选此模式。
 
 **终止条件分两种情形：**
 
 #### 情形 A：全局开关**开启**时
 
-资格随**底层折扣的存亡**而定：
+资格终止条件**按模式不同**：
 
+`bind_key_claim` 模式——资格随**底层折扣的存亡**而定：
 - 名下**所有**折扣行都过期或额度用尽 → 查不到有效折扣 → **资格终止**，前端不再显示邀请链接和进度。
 - 只要还有**任意一条**时间窗内的折扣 → 资格保持。
 - 若有 `valid_until=NULL` 的永久折扣 → 资格永不因时间终止。
 
+`recharge` 模式——资格随**累计充值额**而定：
+- 只看 `users.total_recharged` 是否达到门槛，与折扣存亡无关。
+- `total_recharged` 单调递增（退款不减），因此**一旦达标即永久保持资格**，不会因折扣过期而终止。
+
 #### 情形 B：全局开关**关闭**时
 
 - 前端 `status.enabled=false`，`/referral` 整页显示「未开启」，**所有人**（邀请人和被邀请人）都看不到邀请链接、进度、奖励——从用户视角看，相当于资格被整体收起。
-- 但后端的资格判定值（`eligible`）**并不会被开关改写**——它仍按底层折扣计算，只是被 `enabled=false` 罩住不展示。
+- 但后端的资格判定值（`eligible`）**并不会被开关改写**——它仍按当前模式计算（`bind_key_claim` 看折扣、`recharge` 看累计充值），只是被 `enabled=false` 罩住不展示。
 - 重新开启后，资格立即按当时的折扣状态恢复显示，**无需任何迁移或补建**。
 
 > 总结资格终止：
@@ -149,8 +155,8 @@
 | 邀请人赠金有效期 | InviterExpiryDays | 30 天 | |
 | 达标消费门槛 | SpendThreshold | 10 | 被邀请人累计非订阅消费 |
 | 继承折扣有效期 | DiscountValidDays | 30 天 | 被邀请人继承折扣的窗口 |
-| 资格获得方式 | EligibilityGrantMode | bind_key_claim | / recharge |
-| 充值资格门槛 | EligibilityRechargeMinAmount | 0 | recharge 模式下累计本金门槛 |
+| 资格获得方式 | EligibilityGrantMode | bind_key_claim | bind_key_claim（看折扣/依赖领券）/ recharge（看累计充值/与领券无关） |
+| 充值资格门槛 | EligibilityRechargeMinAmount | 0 | recharge 模式下 `users.total_recharged` 门槛；0=有过任意充值即可 |
 
 ---
 
@@ -160,6 +166,7 @@
 - **想彻底停止某人的折扣**：因为折扣无状态列、无法"撤销"，只能等其 `valid_until` 自然到期或额度用尽。若需立即停止，须在数据库层手动调整该折扣行的 `valid_until`（属高风险数据操作，需谨慎并备份）。
 - **被邀请人反馈"注册赠金不见了"**：大概率是 2 天有效期已过（默认很短），属正常过期，可查 `user_gifts` 中该用户 `source='referral_invitee'` 行的 `status`/`expires_at` 确认。
 - **邀请人反馈"被邀请人消费了却没拿到奖励"**：依次排查 ① 被邀请人是否走订阅消费（不计达标）② 绑定时快照 `inviter_reward_eligible_at_bind` 是否为 false ③ 是否累计未达门槛 ④ 全局开关在达标时是否关闭。
+- **想让超级邀请与「赠金领券」活动彻底解耦（领券活动结束后也能长期运行）**：把「资格获得方式」切到 `recharge`，门槛按需填 `EligibilityRechargeMinAmount`。切换后资格改看邀请人累计充值额、不再依赖领券。**注意切换影响存量**：① 判定即时生效，此前靠领券拿资格但累计充值未达门槛的邀请人会**失去**资格（后续绑定不发奖，但已发的历史奖励不回收）；反之累计充值已达标的邀请人即便没券也**获得**资格。② 折扣继承始终以邀请人名下的有效折扣券为准，与模式无关——纯充值达标（无券）的邀请人，其被邀请人继承不到折扣，只拿注册赠金。③ 快照字段 `inviter_reward_eligible_at_bind` 只在绑定/懒补建那一刻按当时模式计算，不会追溯改写已有 tracker。
 
 ---
 

@@ -12,14 +12,49 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/gift"
 )
 
+// inviterRechargeReader 读取邀请人累计充值额（users.total_recharged），抽成接口便于单测打桩。
+type inviterRechargeReader interface {
+	TotalRecharged(ctx context.Context, userID int64) (float64, error)
+}
+
+// entInviterRechargeReader 通过 ent client 读取 users.total_recharged，tx 感知。
+type entInviterRechargeReader struct {
+	client *dbent.Client
+}
+
+func (r *entInviterRechargeReader) TotalRecharged(ctx context.Context, userID int64) (float64, error) {
+	if r == nil || r.client == nil {
+		return 0, nil
+	}
+	var execer interface {
+		QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	} = r.client
+	if tx := dbent.TxFromContext(ctx); tx != nil {
+		execer = tx.Client()
+	}
+	rows, err := execer.QueryContext(ctx, `SELECT total_recharged::double precision FROM users WHERE id = $1`, userID)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = rows.Close() }()
+	var total float64
+	if rows.Next() {
+		if err := rows.Scan(&total); err != nil {
+			return 0, err
+		}
+	}
+	return total, rows.Err()
+}
+
 // ReferralRewardService 实现双向邀请赠金逻辑。
 // 实现 InviterBoundHook 接口：被邀请人注册绑定邀请关系后触发。
 type ReferralRewardService struct {
 	entClient        *dbent.Client
 	giftEngine       *gift.Engine
 	settingService   *SettingService
-	discountRepo     RechargeDiscountRepo // 用于折扣继承
-	affiliateService *AffiliateService    // 用于 EnsureUserAffiliate（lazy 创建 aff_code）
+	discountRepo     RechargeDiscountRepo  // 用于折扣继承
+	rechargeReader   inviterRechargeReader // 用于 recharge 模式资格判定（读累计充值额）
+	affiliateService *AffiliateService     // 用于 EnsureUserAffiliate（lazy 创建 aff_code）
 }
 
 // NewReferralRewardService 构造 ReferralRewardService。
@@ -35,6 +70,7 @@ func NewReferralRewardService(
 		giftEngine:       giftEngine,
 		settingService:   settingService,
 		discountRepo:     discountRepo,
+		rechargeReader:   &entInviterRechargeReader{client: entClient},
 		affiliateService: affiliateService,
 	}
 }
@@ -416,12 +452,16 @@ FOR UPDATE`, inviterID, inviteeID)
 
 // inheritDiscountFromInviter 继承邀请人的最佳活跃充值折扣。
 // 使用邀请人的 max_discountable_amount（非 remaining）和可配置的 valid_days。
+//
+// 折扣继承始终以「邀请人名下的有效充值折扣券」为准，与资格获得方式无关：
+// recharge 模式下靠纯充值达标（无券）的邀请人，其被邀请人自然继承不到折扣
+// （查券为空即空转），即「有券才继承」。
 func (s *ReferralRewardService) inheritDiscountFromInviter(ctx context.Context, inviterID, inviteeID int64, boundAt time.Time) error {
 	if s.discountRepo == nil {
 		return nil
 	}
 
-	discounts, err := s.queryInviterDiscountsForReferralGrant(ctx, inviterID, &boundAt)
+	discounts, err := s.discountRepo.QueryDiscountsForInheritanceAtTime(ctx, inviterID, boundAt)
 	if err != nil || len(discounts) == 0 {
 		return err
 	}
@@ -460,75 +500,74 @@ func (s *ReferralRewardService) inheritDiscountFromInviter(ctx context.Context, 
 
 // hasInviterRewardEligibility 判断邀请人当前是否有超级邀请达标赠金资格。
 func (s *ReferralRewardService) hasInviterRewardEligibility(ctx context.Context, inviterID int64) bool {
-	discounts, err := s.queryInviterDiscountsForReferralGrant(ctx, inviterID, nil)
-	return err == nil && len(discounts) > 0
+	return s.hasInviterRewardEligibilityAtTime(ctx, inviterID, time.Time{})
 }
 
 // hasInviterRewardEligibilityAtTime 判断邀请人在指定绑定时间点是否有超级邀请达标赠金资格。
-func (s *ReferralRewardService) hasInviterRewardEligibilityAtTime(ctx context.Context, inviterID int64, atTime time.Time) bool {
-	discounts, err := s.queryInviterDiscountsForReferralGrant(ctx, inviterID, &atTime)
-	return err == nil && len(discounts) > 0
-}
-
-// eligibilityRechargeRemaining 计算 recharge 模式下用户还需累计充值多少（USD）才能获得超级邀请资格。
 //
-// 资格判定语义（见 QueryDiscountsForEligibilityAfterRecharge）：
-// 用户名下"单笔折扣"的累计 applied_amount 达到 minAmount 即算达标。
-// 因此缺口取所有有效折扣中「距门槛最近」的一档：remaining = minAmount - max(单折扣累计额)。
-// 过滤条件须与资格查询完全一致（折扣有效期 + a.created_at <= NOW()，排除未来 application），
-// 否则可能出现 eligible=false 但 remaining=0 的矛盾。
-// minAmount<=0 时资格只要求有一笔折扣充值、无金额门槛，无法用金额表达"还需"，返回 0。
-func (s *ReferralRewardService) eligibilityRechargeRemaining(ctx context.Context, userID int64, minAmount float64) float64 {
-	if minAmount <= 0 {
-		return 0
-	}
-	rows, err := s.execer(ctx).QueryContext(ctx, `
-SELECT COALESCE(MAX(applied_sum), 0) FROM (
-    SELECT SUM(a.applied_amount)::double precision AS applied_sum
-    FROM user_recharge_discounts d
-    JOIN recharge_discount_applications a ON a.discount_id = d.id
-    WHERE d.user_id = $1
-      AND d.valid_from <= NOW()
-      AND (d.valid_until IS NULL OR d.valid_until >= NOW())
-      AND a.created_at <= NOW()
-    GROUP BY d.id
-) t`, userID)
-	if err != nil {
-		return minAmount
-	}
-	defer func() { _ = rows.Close() }()
-	var best float64
-	if rows.Next() {
-		if err := rows.Scan(&best); err != nil {
-			return minAmount
-		}
-	}
-	remaining := minAmount - best
-	if remaining < 0 {
-		remaining = 0
-	}
-	return remaining
-}
-
-func (s *ReferralRewardService) queryInviterDiscountsForReferralGrant(ctx context.Context, inviterID int64, atTime *time.Time) ([]RechargeDiscountSummary, error) {
-	if s == nil || s.discountRepo == nil {
-		return nil, nil
-	}
+// 两种资格获得方式（referral_eligibility_grant_mode）：
+//   - recharge：只看邀请人累计充值额（users.total_recharged）是否达到门槛，
+//     与「赠金领券」完全无关。atTime 在此模式下被忽略——total_recharged 是单调
+//     累加计数器、无历史时点台账，而资格快照本就在 OnInviterBound（绑定后立即
+//     异步执行）时算，那一刻的 total_recharged 即绑定时点的值。
+//   - bind_key_claim（默认）：看邀请人名下是否有有效的充值折扣券（依赖领券）。
+//
+// atTime 为零值时表示「当前时点」（用于用户可见状态查询）。
+func (s *ReferralRewardService) hasInviterRewardEligibilityAtTime(ctx context.Context, inviterID int64, atTime time.Time) bool {
 	cfg := ReferralRewardConfig{EligibilityGrantMode: ReferralEligibilityGrantModeBindKeyClaim}
 	if s.settingService != nil {
 		cfg = s.settingService.GetReferralRewardConfig(ctx)
 	}
+
 	if cfg.EligibilityGrantMode == ReferralEligibilityGrantModeRecharge {
-		minAmount := normalizeReferralEligibilityRechargeMinAmount(cfg.EligibilityRechargeMinAmount)
-		if atTime != nil {
-			return s.discountRepo.QueryDiscountsForEligibilityAfterRechargeAtTime(ctx, inviterID, *atTime, minAmount)
+		if s.rechargeReader == nil {
+			return false
 		}
-		return s.discountRepo.QueryDiscountsForEligibilityAfterRecharge(ctx, inviterID, minAmount)
+		minAmount := normalizeReferralEligibilityRechargeMinAmount(cfg.EligibilityRechargeMinAmount)
+		total, err := s.rechargeReader.TotalRecharged(ctx, inviterID)
+		if err != nil {
+			return false
+		}
+		if minAmount <= 0 {
+			// 无金额门槛：只要有过任意充值即算资格。
+			return total > 0
+		}
+		return total >= minAmount
 	}
-	if atTime != nil {
-		return s.discountRepo.QueryDiscountsForInheritanceAtTime(ctx, inviterID, *atTime)
+
+	// bind_key_claim 模式：查有效充值折扣券（依赖领券）。
+	if s.discountRepo == nil {
+		return false
 	}
-	return s.discountRepo.QueryDiscountsForInheritance(ctx, inviterID)
+	var discounts []RechargeDiscountSummary
+	var err error
+	if atTime.IsZero() {
+		discounts, err = s.discountRepo.QueryDiscountsForInheritance(ctx, inviterID)
+	} else {
+		discounts, err = s.discountRepo.QueryDiscountsForInheritanceAtTime(ctx, inviterID, atTime)
+	}
+	return err == nil && len(discounts) > 0
+}
+
+// eligibilityRechargeRemaining 计算 recharge 模式下用户还需累计充值多少（USD）才能获得超级邀请资格。
+// 语义对齐 hasInviterRewardEligibilityAtTime 的 recharge 分支：remaining = minAmount - total_recharged。
+// minAmount<=0 时无金额门槛，返回 0。
+func (s *ReferralRewardService) eligibilityRechargeRemaining(ctx context.Context, userID int64, minAmount float64) float64 {
+	if minAmount <= 0 {
+		return 0
+	}
+	if s.rechargeReader == nil {
+		return minAmount
+	}
+	total, err := s.rechargeReader.TotalRecharged(ctx, userID)
+	if err != nil {
+		return minAmount
+	}
+	remaining := minAmount - total
+	if remaining < 0 {
+		remaining = 0
+	}
+	return remaining
 }
 
 func (s *ReferralRewardService) execer(ctx context.Context) interface {

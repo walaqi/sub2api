@@ -30,10 +30,6 @@ type RechargeDiscountRepo interface {
 	QueryDiscountsForInheritance(ctx context.Context, userID int64) ([]RechargeDiscountSummary, error)
 	// QueryDiscountsForInheritanceAtTime returns referral-inheritable discounts at a historical time.
 	QueryDiscountsForInheritanceAtTime(ctx context.Context, userID int64, atTime time.Time) ([]RechargeDiscountSummary, error)
-	// QueryDiscountsForEligibilityAfterRecharge returns discounts whose own applications satisfy referral eligibility.
-	QueryDiscountsForEligibilityAfterRecharge(ctx context.Context, userID int64, minAppliedAmount float64) ([]RechargeDiscountSummary, error)
-	// QueryDiscountsForEligibilityAfterRechargeAtTime returns recharge-qualified discounts at a historical time.
-	QueryDiscountsForEligibilityAfterRechargeAtTime(ctx context.Context, userID int64, atTime time.Time, minAppliedAmount float64) ([]RechargeDiscountSummary, error)
 	// CreateDiscount inserts a new discount record (idempotent via ON CONFLICT DO NOTHING).
 	CreateDiscount(ctx context.Context, in CreateRechargeDiscountInput) (int64, error)
 	// QueryOrderGiftBonus 按支付订单查该订单发放的充值折扣赠金（bonus_amount + 扣除模式）。
