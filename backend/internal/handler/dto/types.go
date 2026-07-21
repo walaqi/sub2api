@@ -148,6 +148,9 @@ type AdminGroup struct {
 	MessagesDispatchModelConfig domain.OpenAIMessagesDispatchModelConfig `json:"messages_dispatch_model_config"`
 	ModelsListConfig            domain.GroupModelsListConfig             `json:"models_list_config"`
 
+	// 分组按精确模型名的 5h USD 限额（模型名 -> USD 上限，空 = 不限；对所有用户含订阅生效）
+	Model5hLimits map[string]float64 `json:"model_5h_limits"`
+
 	// 支持的模型系列（仅 antigravity 平台使用）
 	SupportedModelScopes    []string       `json:"supported_model_scopes"`
 	AccountGroups           []AccountGroup `json:"account_groups,omitempty"`

@@ -36,6 +36,10 @@ var (
 	ErrUserPlatformDailyQuotaExhausted   = infraerrors.TooManyRequests("USER_PLATFORM_DAILY_QUOTA_EXHAUSTED", "Daily usage quota exhausted for this platform.")
 	ErrUserPlatformWeeklyQuotaExhausted  = infraerrors.TooManyRequests("USER_PLATFORM_WEEKLY_QUOTA_EXHAUSTED", "Weekly usage quota exhausted for this platform.")
 	ErrUserPlatformMonthlyQuotaExhausted = infraerrors.TooManyRequests("USER_PLATFORM_MONTHLY_QUOTA_EXHAUSTED", "Monthly usage quota exhausted for this platform.")
+
+	// group × model 5h quota（同样用 429 + Retry-After，语义与上面一致）。
+	// 分组为某模型配置的 5 小时 USD 限额耗尽时返回；对所有用户（含订阅）生效。
+	ErrGroupModelQuota5hExhausted = infraerrors.TooManyRequests("GROUP_MODEL_5H_QUOTA_EXHAUSTED", "5-hour usage quota exhausted for this model.")
 )
 
 // subscriptionCacheData 订阅缓存数据结构（内部使用）
@@ -143,6 +147,12 @@ type BillingCacheService struct {
 	// nil when gift engine is not wired; falls back to legacy balance-only check.
 	priorityGiftChecker priorityGiftChecker
 
+	// groupModelQuota5hCache / groupModelQuota5hRepo drive the per-user per-group
+	// per-model 5-hour USD quota. Both nil when the feature is not wired; preflight
+	// and accounting then skip the check entirely (与 suspectStore 同套路)。
+	groupModelQuota5hCache GroupModelQuota5hCache
+	groupModelQuota5hRepo  GroupModelQuota5hRepository
+
 	cacheWriteChan     chan cacheWriteTask
 	cacheWriteWg       sync.WaitGroup
 	cacheWriteStopOnce sync.Once
@@ -204,6 +214,28 @@ func (s *BillingCacheService) SetPriorityGiftChecker(checker priorityGiftChecker
 		return
 	}
 	s.priorityGiftChecker = checker
+}
+
+// SetGroupModelQuota5h wires the per-user per-group per-model 5-hour USD quota.
+// When both cache and repo are set, CheckBillingEligibility enforces the group's
+// per-model 5h limits (对所有用户，含订阅) and the billing path accumulates usage.
+// Wired post-construction to keep the DI graph acyclic. nil-safe: leaving either
+// dependency nil disables the feature (preflight/accounting short-circuit).
+func (s *BillingCacheService) SetGroupModelQuota5h(cache GroupModelQuota5hCache, repo GroupModelQuota5hRepository) {
+	if s == nil {
+		return
+	}
+	s.groupModelQuota5hCache = cache
+	s.groupModelQuota5hRepo = repo
+}
+
+// HasGroupModelQuota5h reports whether the group×model 5h quota feature is wired.
+// Exposed for DI regression tests (参考 SetPriorityGiftChecker 被 go generate 冲掉的事故)。
+func (s *BillingCacheService) HasGroupModelQuota5h() bool {
+	if s == nil {
+		return false
+	}
+	return s.groupModelQuota5hCache != nil && s.groupModelQuota5hRepo != nil
 }
 
 // HasPriorityGiftChecker reports whether a priority gift checker has been wired.
@@ -767,6 +799,55 @@ func (s *BillingCacheService) IncrementUserPlatformQuotaUsage(userID int64, plat
 	}
 }
 
+// HasGroupModel5hLimit 报告该分组是否为指定模型配置了 5h 限额（且功能已接线）。
+// 记账写入点守卫：未配限额则跳过 Redis + DB 写，消除无谓开销（与 HasUserPlatformQuotaLimit 同思路）。
+func (s *BillingCacheService) HasGroupModel5hLimit(group *Group, model string) bool {
+	if s == nil || s.groupModelQuota5hCache == nil || s.groupModelQuota5hRepo == nil {
+		return false
+	}
+	if group == nil || model == "" {
+		return false
+	}
+	_, ok := group.Model5hLimitFor(model)
+	return ok
+}
+
+// IncrementGroupModelQuota5hUsage 累加 (user, group, model) 的 5h 窗口用量。
+// Redis 同步累加（enforcement 权威，确保下次 preflight 立即可见），DB 由本方法内异步持久化
+// （Redis 失效后重启回填 + 审计）。调用方应先用 HasGroupModel5hLimit 守卫，仅对有限额的模型调用。
+// 失败仅记 ALERT log，不阻断主扣费流程。
+func (s *BillingCacheService) IncrementGroupModelQuota5hUsage(userID, groupID int64, model string, cost float64) {
+	if s == nil || s.groupModelQuota5hCache == nil || s.groupModelQuota5hRepo == nil {
+		return
+	}
+	if model == "" || cost <= 0 {
+		return
+	}
+	// Redis 同步累加（5h 窗口过期重置在 Lua 脚本内完成）。
+	ctx, cancel := context.WithTimeout(context.Background(), cacheWriteTimeout)
+	defer cancel()
+	if err := s.groupModelQuota5hCache.IncrGroupModelQuota5hUsageCache(ctx, userID, groupID, model, cost, groupModelQuota5hCacheTTL); err != nil {
+		logger.LegacyPrintf("service.billing_cache",
+			"ALERT: incr group model 5h quota cache failed user=%d group=%d model=%s cost=%f: %v",
+			userID, groupID, model, cost, err)
+	}
+	// DB 异步持久化：detached context + 短超时，独立于请求生命周期。
+	dbCtx, dbCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logger.LegacyPrintf("service.billing_cache", "ALERT: panic in group model 5h quota DB incr goroutine user=%d group=%d model=%s: %v", userID, groupID, model, r)
+			}
+		}()
+		defer dbCancel()
+		if err := s.groupModelQuota5hRepo.IncrementUsageWithReset(dbCtx, userID, groupID, model, cost, time.Now().UTC()); err != nil {
+			logger.LegacyPrintf("service.billing_cache",
+				"ALERT: incr group model 5h quota DB failed user=%d group=%d model=%s cost=%f: %v",
+				userID, groupID, model, cost, err)
+		}
+	}()
+}
+
 // ============================================
 // 统一检查方法
 // ============================================
@@ -775,13 +856,19 @@ func (s *BillingCacheService) IncrementUserPlatformQuotaUsage(userID int64, plat
 // 余额模式：检查缓存余额 > 0
 // 订阅模式：检查缓存用量未超过限额（Group限额从参数传入）
 // platform 为请求的目标平台（如 "anthropic"），传空串 "" 时跳过 user × platform quota 检查。
-func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user *User, apiKey *APIKey, group *Group, subscription *UserSubscription, platform string) error {
+func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user *User, apiKey *APIKey, group *Group, subscription *UserSubscription, platform string, model string) error {
 	// 简易模式：跳过所有计费检查
 	if s.cfg.RunMode == config.RunModeSimple {
 		return nil
 	}
 	if s.circuitBreaker != nil && !s.circuitBreaker.Allow() {
 		return ErrBillingServiceUnavailable
+	}
+
+	// group × model 5h 限额：放在订阅/余额分叉之前，对所有用户（含订阅）生效。
+	// 限额值配在 group.Model5hLimits 上；未配该模型时内部直接放行。
+	if err := s.checkGroupModelQuota5hEligibility(ctx, user, group, model); err != nil {
+		return err
 	}
 
 	// 判断计费模式
@@ -1214,6 +1301,110 @@ func circuitStateString(state billingCircuitBreakerState) string {
 	default:
 		return "unknown"
 	}
+}
+
+// checkGroupModelQuota5hEligibility 检查 (user, group, model) 的 5 小时 USD 限额。
+// 限额值取自 group.Model5hLimits[model]（精确匹配，未配置则放行）；用量取自 Redis（DB fallback）。
+// 对所有用户（含订阅）生效，因此不看计费模式。
+//
+// 短路放行条件（任一成立）：功能未接线 / group 为 nil / model 为空 / 该模型未配 5h 限额。
+// 流程（Redis-first / DB-fallback，与 checkUserPlatformQuotaEligibility 同思路）：
+//  1. 读 Redis：命中则按 5h 固定窗口判断是否过期（过期本地清零），usage >= limit 即拒绝。
+//  2. cache MISS → 查 DB 回填 entry 后再判断。
+//  3. Redis 故障 → fail-open，用 DB 数据做一次性检查，不回填。
+func (s *BillingCacheService) checkGroupModelQuota5hEligibility(
+	ctx context.Context,
+	user *User,
+	group *Group,
+	model string,
+) error {
+	// 功能未接线 / 缺少判定要素 → 放行。
+	if s == nil || s.groupModelQuota5hCache == nil || s.groupModelQuota5hRepo == nil {
+		return nil
+	}
+	if user == nil || group == nil || model == "" {
+		return nil
+	}
+	limit, ok := group.Model5hLimitFor(model)
+	if !ok {
+		// 该分组未为此模型配置 5h 限额 → 放行。
+		return nil
+	}
+
+	userID := user.ID
+	groupID := group.ID
+	now := time.Now()
+
+	// --- 1. 读 Redis ---
+	entry, hit, cacheErr := s.groupModelQuota5hCache.GetGroupModelQuota5hCache(ctx, userID, groupID, model)
+	if cacheErr == nil && hit && entry != nil {
+		usage := groupModelQuota5hEffectiveUsage(entry.UsageUSD, entry.WindowStart, now)
+		if usage >= limit {
+			return withWindowResetsMetadata(ErrGroupModelQuota5hExhausted, groupModelQuota5hNextReset(entry.WindowStart, now))
+		}
+		return nil
+	}
+
+	// --- 2/3. cache MISS 或 Redis 故障 → 查 DB ---
+	rec, dbErr := s.groupModelQuota5hRepo.GetUsage(ctx, userID, groupID, model)
+	if dbErr != nil {
+		// DB 也失败 → fail-open，不阻断业务（与 user×platform quota 同策略）。
+		logger.LegacyPrintf("service.billing_cache",
+			"Warning: load group model 5h quota failed user=%d group=%d model=%s: %v (fail-open)",
+			userID, groupID, model, dbErr)
+		return nil
+	}
+	if rec == nil {
+		// 无记录 → 用量为 0，放行（首次请求由记账路径建行）。
+		return nil
+	}
+
+	usage := groupModelQuota5hEffectiveUsage(rec.UsageUSD, &rec.WindowStart, now)
+
+	// Redis 命中失败但 DB 可用：回填 Redis（仅在 GET 未报错时；Redis 故障时不回填，避免注定失败的写）。
+	if cacheErr == nil {
+		windowStart := rec.WindowStart
+		refreshed := &GroupModelQuota5hCacheEntry{
+			UsageUSD:      usage,
+			WindowStart:   &windowStart,
+			SchemaVersion: GroupModelQuota5hCacheSchemaV1,
+		}
+		ttl := groupModelQuota5hCacheTTL
+		setCtx, setCancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		if setErr := s.groupModelQuota5hCache.SetGroupModelQuota5hCache(setCtx, userID, groupID, model, refreshed, ttl); setErr != nil {
+			logger.LegacyPrintf("service.billing_cache",
+				"Warning: refresh group model 5h quota cache failed user=%d group=%d model=%s: %v",
+				userID, groupID, model, setErr)
+		}
+		setCancel()
+	}
+
+	if usage >= limit {
+		return withWindowResetsMetadata(ErrGroupModelQuota5hExhausted, groupModelQuota5hNextReset(&rec.WindowStart, now))
+	}
+	return nil
+}
+
+// groupModelQuota5hCacheTTL 是 5h 配额 Redis entry 的 TTL。取窗口时长 + 1h 余量，
+// 确保跨窗口时旧 key 已可能自然过期，同时不因过短 TTL 频繁击穿 DB。
+const groupModelQuota5hCacheTTL = GroupModelQuota5hWindow + time.Hour
+
+// groupModelQuota5hEffectiveUsage 返回当前窗口的有效用量：若 windowStart 为 nil 或
+// 距 now 已满 5h（窗口过期），返回 0（新窗口从零开始）；否则返回原 usage。
+func groupModelQuota5hEffectiveUsage(usage float64, windowStart *time.Time, now time.Time) float64 {
+	if windowStart == nil || now.Sub(*windowStart) >= GroupModelQuota5hWindow {
+		return 0
+	}
+	return usage
+}
+
+// groupModelQuota5hNextReset 计算当前 5h 窗口的下次重置时刻（window_start + 5h）。
+// windowStart 为 nil 或已过期时退化为 now + 5h（下次请求会以 now 开新窗口）。
+func groupModelQuota5hNextReset(windowStart *time.Time, now time.Time) time.Time {
+	if windowStart == nil || now.Sub(*windowStart) >= GroupModelQuota5hWindow {
+		return now.Add(GroupModelQuota5hWindow)
+	}
+	return windowStart.Add(GroupModelQuota5hWindow)
 }
 
 // checkUserPlatformQuotaEligibility 在 standard 模式下检查 user × platform 日/周/月 quota。

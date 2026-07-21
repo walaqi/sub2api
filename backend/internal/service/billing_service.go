@@ -87,6 +87,51 @@ type BillingCache interface {
 	BatchGetUserPlatformQuotaCache(ctx context.Context, keys []UserPlatformQuotaKey) ([]*UserPlatformQuotaCacheEntry, error)
 }
 
+// GroupModelQuota5hCacheSchemaV1 标识 group×model 5h 配额 Redis entry 的当前版本。
+const GroupModelQuota5hCacheSchemaV1 = int64(1)
+
+// GroupModelQuota5hWindow 是「按模型 5 小时限额」的固定窗口时长。
+const GroupModelQuota5hWindow = 5 * time.Hour
+
+// GroupModelQuota5hCacheEntry 是 (user, group, model) 5h 配额 Redis hash 的反序列化结果。
+// 限额值不存在此处（配置在 group.Model5hLimits 上），本 entry 只承载运行时用量与窗口起点。
+type GroupModelQuota5hCacheEntry struct {
+	UsageUSD      float64
+	WindowStart   *time.Time
+	SchemaVersion int64
+}
+
+// GroupModelQuota5hRecord 是 (user, group, model) 5h 配额的持久化记录（DB 镜像）。
+type GroupModelQuota5hRecord struct {
+	UserID      int64
+	GroupID     int64
+	Model       string
+	UsageUSD    float64
+	WindowStart time.Time
+}
+
+// GroupModelQuota5hRepository 定义 (user, group, model) 5h 配额的持久化访问端口。
+// Redis 为 enforcement 权威，本仓库为持久化镜像（重启回填 + 审计）。
+type GroupModelQuota5hRepository interface {
+	// GetUsage 查询单条记录当前窗口用量；未找到返回 (nil, nil)。
+	GetUsage(ctx context.Context, userID, groupID int64, model string) (*GroupModelQuota5hRecord, error)
+	// IncrementUsageWithReset 原子累加 cost：5h 窗口过期（含记录不存在）则重置为 cost 并以 now 为新窗口起点，否则累加。
+	IncrementUsageWithReset(ctx context.Context, userID, groupID int64, model string, cost float64, now time.Time) error
+}
+
+// GroupModelQuota5hCache 定义 (user, group, model) 5h 配额的缓存操作。
+// 由 repository.billingCache 实现，作为 BillingCacheService 的可选依赖后置注入
+// （nil = 功能未接线，preflight/记账均短路跳过），与 suspectStore 同套路，
+// 因此无需改动 BillingCache 接口，现有 mock 不受影响。
+type GroupModelQuota5hCache interface {
+	// GetGroupModelQuota5hCache 读取当前窗口用量；key 不存在返回 (nil,false,nil)。
+	GetGroupModelQuota5hCache(ctx context.Context, userID, groupID int64, model string) (*GroupModelQuota5hCacheEntry, bool, error)
+	// SetGroupModelQuota5hCache 覆盖写入 entry（用于 DB 回填）。
+	SetGroupModelQuota5hCache(ctx context.Context, userID, groupID int64, model string, entry *GroupModelQuota5hCacheEntry, ttl time.Duration) error
+	// IncrGroupModelQuota5hUsageCache 原子累加用量：窗口过期（含 key 不存在）时重置为 cost 并以 now 为新窗口起点，否则累加。
+	IncrGroupModelQuota5hUsageCache(ctx context.Context, userID, groupID int64, model string, cost float64, ttl time.Duration) error
+}
+
 // ModelPricing 模型价格配置（per-token价格，与LiteLLM格式一致）
 type ModelPricing struct {
 	InputPricePerToken             float64 // 每token输入价格 (USD)

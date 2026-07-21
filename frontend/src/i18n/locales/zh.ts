@@ -2285,6 +2285,13 @@ export default {
 
     // Groups Management
     groups: {
+      model5hLimits: {
+        label: '按模型的 5 小时限额（USD）',
+        hint: 'JSON 对象，key 为精确模型名，value 为该模型在任意 5 小时窗口内的 USD 上限，如 {"claude-opus-4-8": 3.5}。对每个用户单独计量，且对所有用户（含订阅用户）生效。留空表示不限制。',
+        invalidJson: 'JSON 格式无效',
+        notObject: '必须是「模型名 -> USD 限额」的 JSON 对象',
+        valueNotPositive: '模型 "{key}" 的限额必须为正数（USD）',
+      },
       title: '分组管理',
       description: '管理 API 密钥分组和费率配置',
       searchGroups: '搜索分组...',

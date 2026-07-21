@@ -164,6 +164,14 @@ func (Group) Fields() []ent.Field {
 		field.Int("rpm_limit").
 			Default(0).
 			Comment("分组 RPM 上限，0 表示不限制；设置后接管该分组用户的限流"),
+
+		// 分组级「按精确模型名的 5 小时 USD 限额」(added by migration 178)
+		// key = 精确模型名（不支持通配），value = 该模型单个 5h 固定窗口内的 USD 上限。
+		// 空对象 = 该分组不设任何 5h 限额。对所有用户（含订阅）生效。
+		field.JSON("model_5h_limits", map[string]float64{}).
+			Default(map[string]float64{}).
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
+			Comment("分组按模型的 5h USD 限额：模型名 -> USD 上限，空 = 不限"),
 	}
 }
 

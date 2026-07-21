@@ -36,6 +36,19 @@ func newGroupRepositoryWithSQL(client *dbent.Client, sqlq sqlExecutor) *groupRep
 	return &groupRepository{client: client, sql: sqlq}
 }
 
+// normalizeModel5hLimits 归一化分组 5h 模型限额：nil 转为空 map，并丢弃非正值上限
+// （0/负值视为「未配置」，避免把 0 误存成「完全禁用」）。返回值可直接写入 jsonb 列。
+func normalizeModel5hLimits(in map[string]float64) map[string]float64 {
+	out := make(map[string]float64, len(in))
+	for model, limit := range in {
+		if model == "" || limit <= 0 {
+			continue
+		}
+		out[model] = limit
+	}
+	return out
+}
+
 func (r *groupRepository) Create(ctx context.Context, groupIn *service.Group) error {
 	builder := r.client.Group.Create().
 		SetName(groupIn.Name).
@@ -68,6 +81,9 @@ func (r *groupRepository) Create(ctx context.Context, groupIn *service.Group) er
 		SetMessagesDispatchModelConfig(groupIn.MessagesDispatchModelConfig).
 		SetModelsListConfig(groupIn.ModelsListConfig).
 		SetRpmLimit(groupIn.RPMLimit)
+
+	// 5h 模型限额（始终设置，nil/空 map 表示不限）
+	builder = builder.SetModel5hLimits(normalizeModel5hLimits(groupIn.Model5hLimits))
 
 	// 设置模型路由配置
 	if groupIn.ModelRouting != nil {
@@ -199,6 +215,9 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 
 	// 处理 SupportedModelScopes（始终设置，空数组表示不限制）
 	builder = builder.SetSupportedModelScopes(groupIn.SupportedModelScopes)
+
+	// 5h 模型限额（始终设置，nil/空 map 表示不限）
+	builder = builder.SetModel5hLimits(normalizeModel5hLimits(groupIn.Model5hLimits))
 
 	updated, err := builder.Save(ctx)
 	if err != nil {

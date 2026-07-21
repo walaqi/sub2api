@@ -605,6 +605,9 @@ export interface AdminGroup extends Group {
   messages_dispatch_model_config?: OpenAIMessagesDispatchModelConfig
   models_list_config?: ModelsListConfig
 
+  // 分组按精确模型名的 5h USD 限额（模型名 -> USD 上限，空 = 不限；对所有用户含订阅生效）
+  model_5h_limits?: Record<string, number> | null
+
   // 分组排序
   sort_order: number
 }
@@ -700,6 +703,7 @@ export interface CreateGroupRequest {
   model_routing?: Record<string, number[]> | null
   model_routing_enabled?: boolean
   rpm_limit?: number
+  model_5h_limits?: Record<string, number> | null
   require_oauth_only?: boolean
   require_privacy_set?: boolean
   // 从指定分组复制账号
@@ -735,6 +739,7 @@ export interface UpdateGroupRequest {
   model_routing?: Record<string, number[]> | null
   model_routing_enabled?: boolean
   rpm_limit?: number
+  model_5h_limits?: Record<string, number> | null
   require_oauth_only?: boolean
   require_privacy_set?: boolean
   copy_accounts_from_group_ids?: number[]

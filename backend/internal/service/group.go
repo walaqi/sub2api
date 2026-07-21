@@ -68,6 +68,11 @@ type Group struct {
 	// 一旦设置即接管该分组用户的限流（覆盖用户级 rpm_limit），可被 user-group rpm_override 进一步覆盖。
 	RPMLimit int
 
+	// Model5hLimits 分组级「按精确模型名的 5 小时 USD 限额」。
+	// key = 精确模型名（不支持通配），value = 该模型单个 5h 固定窗口内的 USD 上限。
+	// nil / 空 = 该分组不设任何 5h 限额。对所有用户（含订阅）生效。
+	Model5hLimits map[string]float64
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
@@ -95,6 +100,20 @@ func (g *Group) HasWeeklyLimit() bool {
 
 func (g *Group) HasMonthlyLimit() bool {
 	return g.MonthlyLimitUSD != nil && *g.MonthlyLimitUSD > 0
+}
+
+// Model5hLimitFor 返回该分组为精确模型名 model 配置的 5h USD 上限。
+// 返回 (limit, true) 表示已配置该模型的限额（limit>0 才有拦截意义，0/负值视为未配置）；
+// (0, false) 表示未配置，调用方应放行。仅精确匹配，不做通配。
+func (g *Group) Model5hLimitFor(model string) (float64, bool) {
+	if g == nil || len(g.Model5hLimits) == 0 || model == "" {
+		return 0, false
+	}
+	limit, ok := g.Model5hLimits[model]
+	if !ok || limit <= 0 {
+		return 0, false
+	}
+	return limit, true
 }
 
 // GetImagePrice 根据 image_size 返回对应的图片生成价格

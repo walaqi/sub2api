@@ -44,7 +44,7 @@ func TestProvideGiftEngine_WiresPriorityGiftChecker(t *testing.T) {
 	client := enttest.NewClient(t, enttest.WithOptions(dbent.Driver(drv)))
 	t.Cleanup(func() { _ = client.Close() })
 
-	billingCache := service.ProvideBillingCacheService(nil, nil, nil, nil, nil, nil, &config.Config{}, nil)
+	billingCache := service.ProvideBillingCacheService(nil, nil, nil, nil, nil, nil, &config.Config{}, nil, nil)
 	t.Cleanup(billingCache.Stop)
 
 	require.False(t, billingCache.HasPriorityGiftChecker(),

@@ -905,6 +905,10 @@ func init() {
 	groupDescRpmLimit := groupFields[31].Descriptor()
 	// group.DefaultRpmLimit holds the default value on creation for the rpm_limit field.
 	group.DefaultRpmLimit = groupDescRpmLimit.Default.(int)
+	// groupDescModel5hLimits is the schema descriptor for model_5h_limits field.
+	groupDescModel5hLimits := groupFields[32].Descriptor()
+	// group.DefaultModel5hLimits holds the default value on creation for the model_5h_limits field.
+	group.DefaultModel5hLimits = groupDescModel5hLimits.Default.(map[string]float64)
 	idempotencyrecordMixin := schema.IdempotencyRecord{}.Mixin()
 	idempotencyrecordMixinFields0 := idempotencyrecordMixin[0].Fields()
 	_ = idempotencyrecordMixinFields0

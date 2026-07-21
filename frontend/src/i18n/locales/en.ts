@@ -2232,6 +2232,13 @@ export default {
 
     // Groups
     groups: {
+      model5hLimits: {
+        label: 'Per-model 5-hour USD limit',
+        hint: 'JSON object mapping exact model name to a USD cap for any rolling 5-hour window, e.g. {"claude-opus-4-8": 3.5}. Applies per user to every user (including subscription users). Leave empty for no limit.',
+        invalidJson: 'Invalid JSON',
+        notObject: 'Must be a JSON object of model name to USD limit',
+        valueNotPositive: 'Limit for "{key}" must be a positive number (USD)',
+      },
       title: 'Group Management',
       description: 'Manage API key groups and rate multipliers',
       searchGroups: 'Search groups...',
