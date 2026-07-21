@@ -1226,6 +1226,9 @@ watch(openAIUsageRefreshKey, (nextKey, prevKey) => {
   if (!prevKey || nextKey === prevKey) return
   if (props.account.platform !== 'openai' || props.account.type !== 'oauth') return
 
+  // refresh key 变化意味着服务端账号数据已更新，缓存中的 usage 已陈旧：
+  // 先失效缓存再拉取，否则 loadUsage 会命中 TTL 内的旧缓存直接返回（与手动刷新路径对齐）。
+  _usageCache.delete(props.account.id)
   requestAutoLoad()
 })
 

@@ -495,14 +495,18 @@ const getRankingRowLabel = (item: RankingDisplayItem): string => {
   return getRankingUserLabel(item)
 }
 
-const formatCost = (value: number): string => {
-  if (value >= 1000) {
-    return (value / 1000).toFixed(2) + 'K'
-  } else if (value >= 1) {
-    return value.toFixed(2)
-  } else if (value >= 0.01) {
-    return value.toFixed(3)
+const formatCost = (value: number | null | undefined): string => {
+  const num = Number(value)
+  if (!Number.isFinite(num)) {
+    return '0.0000'
   }
-  return value.toFixed(4)
+  if (num >= 1000) {
+    return (num / 1000).toFixed(2) + 'K'
+  } else if (num >= 1) {
+    return num.toFixed(2)
+  } else if (num >= 0.01) {
+    return num.toFixed(3)
+  }
+  return num.toFixed(4)
 }
 </script>
