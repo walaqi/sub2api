@@ -53,6 +53,7 @@ func InitAuthRedis(cfg *config.Config) *redis.Client {
 func buildRedisOptions(cfg *config.Config) *redis.Options {
 	opts := &redis.Options{
 		Addr:         cfg.Redis.Address(),
+		Username:     cfg.Redis.Username,
 		Password:     cfg.Redis.Password,
 		DB:           cfg.Redis.DB,
 		DialTimeout:  time.Duration(cfg.Redis.DialTimeoutSeconds) * time.Second,  // 建连超时
