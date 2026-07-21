@@ -483,6 +483,11 @@ func ProvideSettingService(settingRepo SettingRepository, groupRepo GroupReposit
 }
 
 // ProvideBillingCacheService wires BillingCacheService with its RPM dependencies.
+//
+// group × model 5h 限额依赖在此 provider 内注入（SetGroupModelQuota5h），而非
+// wire_gen.go 的手工 setter，避免 go generate 冲掉（参考 SetPriorityGiftChecker 事故）。
+// cache 具体实现（repository.billingCache）同时满足 GroupModelQuota5hCache；类型断言失败
+// （如测试注入的裸 mock）则功能保持关闭，preflight/记账短路放行。
 func ProvideBillingCacheService(
 	cache BillingCache,
 	userRepo UserRepository,
@@ -492,8 +497,13 @@ func ProvideBillingCacheService(
 	rateRepo UserGroupRateRepository,
 	cfg *config.Config,
 	userPlatformQuotaRepo UserPlatformQuotaRepository,
+	groupModelQuota5hRepo GroupModelQuota5hRepository,
 ) *BillingCacheService {
-	return NewBillingCacheService(cache, userRepo, subRepo, apiKeyRepo, rpmCache, rateRepo, cfg, userPlatformQuotaRepo)
+	svc := NewBillingCacheService(cache, userRepo, subRepo, apiKeyRepo, rpmCache, rateRepo, cfg, userPlatformQuotaRepo)
+	if gmCache, ok := cache.(GroupModelQuota5hCache); ok && groupModelQuota5hRepo != nil {
+		svc.SetGroupModelQuota5h(gmCache, groupModelQuota5hRepo)
+	}
+	return svc
 }
 
 // ProvideAbuseDetectionService wires the read-only multi-account detection service.

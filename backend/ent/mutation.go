@@ -16023,6 +16023,7 @@ type GroupMutation struct {
 	models_list_config                      *domain.GroupModelsListConfig
 	rpm_limit                               *int
 	addrpm_limit                            *int
+	model_5h_limits                         *map[string]float64
 	clearedFields                           map[string]struct{}
 	api_keys                                map[int64]struct{}
 	removedapi_keys                         map[int64]struct{}
@@ -17831,6 +17832,42 @@ func (m *GroupMutation) ResetRpmLimit() {
 	m.addrpm_limit = nil
 }
 
+// SetModel5hLimits sets the "model_5h_limits" field.
+func (m *GroupMutation) SetModel5hLimits(value map[string]float64) {
+	m.model_5h_limits = &value
+}
+
+// Model5hLimits returns the value of the "model_5h_limits" field in the mutation.
+func (m *GroupMutation) Model5hLimits() (r map[string]float64, exists bool) {
+	v := m.model_5h_limits
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModel5hLimits returns the old "model_5h_limits" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldModel5hLimits(ctx context.Context) (v map[string]float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModel5hLimits is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModel5hLimits requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModel5hLimits: %w", err)
+	}
+	return oldValue.Model5hLimits, nil
+}
+
+// ResetModel5hLimits resets all changes to the "model_5h_limits" field.
+func (m *GroupMutation) ResetModel5hLimits() {
+	m.model_5h_limits = nil
+}
+
 // AddAPIKeyIDs adds the "api_keys" edge to the APIKey entity by ids.
 func (m *GroupMutation) AddAPIKeyIDs(ids ...int64) {
 	if m.api_keys == nil {
@@ -18189,7 +18226,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 35)
+	fields := make([]string, 0, 36)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -18295,6 +18332,9 @@ func (m *GroupMutation) Fields() []string {
 	if m.rpm_limit != nil {
 		fields = append(fields, group.FieldRpmLimit)
 	}
+	if m.model_5h_limits != nil {
+		fields = append(fields, group.FieldModel5hLimits)
+	}
 	return fields
 }
 
@@ -18373,6 +18413,8 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.ModelsListConfig()
 	case group.FieldRpmLimit:
 		return m.RpmLimit()
+	case group.FieldModel5hLimits:
+		return m.Model5hLimits()
 	}
 	return nil, false
 }
@@ -18452,6 +18494,8 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldModelsListConfig(ctx)
 	case group.FieldRpmLimit:
 		return m.OldRpmLimit(ctx)
+	case group.FieldModel5hLimits:
+		return m.OldModel5hLimits(ctx)
 	}
 	return nil, fmt.Errorf("unknown Group field %s", name)
 }
@@ -18705,6 +18749,13 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetRpmLimit(v)
+		return nil
+	case group.FieldModel5hLimits:
+		v, ok := value.(map[string]float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModel5hLimits(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Group field %s", name)
@@ -19087,6 +19138,9 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldRpmLimit:
 		m.ResetRpmLimit()
+		return nil
+	case group.FieldModel5hLimits:
+		m.ResetModel5hLimits()
 		return nil
 	}
 	return fmt.Errorf("unknown Group field %s", name)

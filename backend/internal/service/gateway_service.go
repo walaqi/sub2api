@@ -8828,6 +8828,11 @@ type postUsageBillingParams struct {
 	AccountRateMultiplier float64
 	APIKeyService         APIKeyQuotaUpdater
 	Platform              string // 来自 APIKey 关联 Group 的平台标识
+
+	// GroupModel5hGroup / GroupModel5hModel 用于 (user, group, model) 5h 限额记账。
+	// GroupModel5hGroup 为 nil 或 GroupModel5hModel 为空时跳过 5h 累加。
+	GroupModel5hGroup *Group
+	GroupModel5hModel string
 }
 
 // PlatformFromAPIKey 从 APIKey 关联的 Group 推导 platform 名称。
@@ -8940,6 +8945,15 @@ func postUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *bill
 				}
 			}
 			// flusher_enabled=true:不直写 DB，flusher 异步批量刷
+		}
+	}
+
+	// group × model 5h 限额累加（legacy 路径）：对所有用户（含订阅）生效，故不看 IsSubscriptionBill。
+	// 用 ActualCost（经分组倍率后的实际成本），与 preflight 的 USD 口径一致。
+	// HasGroupModel5hLimit 守卫：仅对配了该模型 5h 限额的分组写。
+	if cost.ActualCost > 0 && p.User != nil && p.GroupModel5hGroup != nil && p.GroupModel5hModel != "" {
+		if deps.billingCacheService.HasGroupModel5hLimit(p.GroupModel5hGroup, p.GroupModel5hModel) {
+			deps.billingCacheService.IncrementGroupModelQuota5hUsage(p.User.ID, p.GroupModel5hGroup.ID, p.GroupModel5hModel, cost.ActualCost)
 		}
 	}
 
@@ -9143,6 +9157,14 @@ func finalizePostUsageBilling(ctx context.Context, p *postUsageBillingParams, de
 
 	// Notification checks run async — all parameters are already captured,
 	// no dependency on the request context or upstream connection.
+	// group × model 5h 限额累加（主路径）：对所有用户（含订阅）生效，故不看 IsSubscriptionBill。
+	// Redis 同步累加 + DB 异步持久化在 IncrementGroupModelQuota5hUsage 内部完成。
+	if p.Cost.ActualCost > 0 && p.User != nil && p.GroupModel5hGroup != nil && p.GroupModel5hModel != "" {
+		if deps.billingCacheService.HasGroupModel5hLimit(p.GroupModel5hGroup, p.GroupModel5hModel) {
+			deps.billingCacheService.IncrementGroupModelQuota5hUsage(p.User.ID, p.GroupModel5hGroup.ID, p.GroupModel5hModel, p.Cost.ActualCost)
+		}
+	}
+
 	go notifyBalanceLow(p, deps, result)
 	go notifyAccountQuota(p, deps, result)
 }
@@ -9530,6 +9552,10 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 		AccountRateMultiplier: accountRateMultiplier,
 		APIKeyService:         input.APIKeyService,
 		Platform:              quotaPlatform,
+		// 5h 限额记账：用 requestedModel（渠道映射前的原始模型），与 handler preflight 传入的
+		// reqModel 同口径，保证 preflight 拦截与记账累加针对同一个 (group, model) key。
+		GroupModel5hGroup: apiKey.Group,
+		GroupModel5hModel: requestedModel,
 	}, s.billingDeps(), s.usageBillingRepo)
 
 	if billingErr != nil {

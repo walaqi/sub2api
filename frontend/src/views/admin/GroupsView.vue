@@ -509,6 +509,14 @@
           />
           <p class="input-hint">{{ t("admin.groups.form.rpmLimitHint") }}</p>
         </div>
+        <div>
+          <Model5hLimitsJsonEditor
+            v-model="createForm.model_5h_limits"
+            :label="t('admin.groups.model5hLimits.label')"
+            :hint="t('admin.groups.model5hLimits.hint')"
+            :rows="4"
+          />
+        </div>
         <div
           v-if="createForm.subscription_type !== 'subscription'"
           data-tour="group-form-exclusive"
@@ -1795,6 +1803,14 @@
           />
           <p class="input-hint">{{ t("admin.groups.form.rpmLimitHint") }}</p>
         </div>
+        <div>
+          <Model5hLimitsJsonEditor
+            v-model="editForm.model_5h_limits"
+            :label="t('admin.groups.model5hLimits.label')"
+            :hint="t('admin.groups.model5hLimits.hint')"
+            :rows="4"
+          />
+        </div>
         <div v-if="editForm.subscription_type !== 'subscription'">
           <div class="mb-1.5 flex items-center gap-1">
             <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -3057,6 +3073,7 @@ import Icon from "@/components/icons/Icon.vue";
 import GroupRateMultipliersModal from "@/components/admin/group/GroupRateMultipliersModal.vue";
 import GroupRPMOverridesModal from "@/components/admin/group/GroupRPMOverridesModal.vue";
 import GroupCapacityBadge from "@/components/common/GroupCapacityBadge.vue";
+import Model5hLimitsJsonEditor from "@/components/common/Model5hLimitsJsonEditor.vue";
 import { VueDraggable } from "vue-draggable-plus";
 import { createStableObjectKeyResolver } from "@/utils/stableObjectKey";
 import { useKeyedDebouncedSearch } from "@/composables/useKeyedDebouncedSearch";
@@ -3363,6 +3380,8 @@ const createForm = reactive({
   copy_accounts_from_group_ids: [] as number[],
   // 分组级 RPM 限制（每用户每分钟最大请求数；0 = 不限制）
   rpm_limit: 0 as number,
+  // 分组按精确模型名的 5h USD 限额（模型名 -> USD 上限；null/空 = 不限）
+  model_5h_limits: null as Record<string, number> | null,
 });
 
 // 简单账号类型（用于模型路由选择）
@@ -3695,6 +3714,8 @@ const editForm = reactive({
   copy_accounts_from_group_ids: [] as number[],
   // 分组级 RPM 限制（每用户每分钟最大请求数；0 = 不限制）
   rpm_limit: 0 as number,
+  // 分组按精确模型名的 5h USD 限额（模型名 -> USD 上限；null/空 = 不限）
+  model_5h_limits: null as Record<string, number> | null,
 });
 
 type ImagePricingFormState = {
@@ -4074,6 +4095,10 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.mcp_xml_inject = group.mcp_xml_inject ?? true;
   editForm.copy_accounts_from_group_ids = []; // 复制账号字段每次编辑时重置为空
   editForm.rpm_limit = group.rpm_limit ?? 0;
+  editForm.model_5h_limits =
+    group.model_5h_limits && Object.keys(group.model_5h_limits).length > 0
+      ? { ...group.model_5h_limits }
+      : null;
   resetModelsListState(editModelsListState, group.models_list_config);
   // 加载模型路由规则（异步加载账号名称）
   editModelRoutingRules.value = await convertApiFormatToRoutingRules(
@@ -4150,6 +4175,8 @@ const handleUpdateGroup = async () => {
     payload.image_rate_multiplier = normalizeImageRateMultiplier(
       payload.image_rate_multiplier,
     );
+    // 编辑态 null 表示「清空所有 5h 限额」→ 发空对象（后端 nil 指针=不改动，空 map=清空）。
+    payload.model_5h_limits = payload.model_5h_limits ?? {};
     await adminAPI.groups.update(editingGroup.value.id, payload);
     appStore.showSuccess(t("admin.groups.groupUpdated"));
     closeEditModal();

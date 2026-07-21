@@ -601,3 +601,128 @@ func (c *billingCache) BatchGetUserPlatformQuotaCache(ctx context.Context, keys 
 	}
 	return results, nil
 }
+
+// ============================================
+// group × model 5h quota 缓存
+//
+// 限额值不缓存于此（配置在 group.Model5hLimits 上）；本 hash 只承载运行时
+// usage_usd + window_start（unix 秒）+ schema_version。5h 固定窗口：window_start
+// 到 window_start+5h 为一个窗口，跨窗口时累加脚本把 usage 重置为本次 cost 并推进 window_start。
+// ============================================
+
+// groupModelQuota5hCacheKey 构造 Redis key。model 直接拼入 key；调用方保证 model 为精确模型名。
+func groupModelQuota5hCacheKey(userID, groupID int64, model string) string {
+	return fmt.Sprintf("billing:ugm5h:%d:%d:%s", userID, groupID, model)
+}
+
+func parseGroupModelQuota5hHash(m map[string]string) *service.GroupModelQuota5hCacheEntry {
+	if len(m) == 0 {
+		return nil
+	}
+	usage := 0.0
+	if s := m["usage"]; s != "" {
+		if f, err := strconv.ParseFloat(s, 64); err == nil {
+			usage = f
+		} else {
+			log.Printf("billing_cache: corrupt ugm5h usage field %q (using 0): %v", s, err)
+		}
+	}
+	var windowStart *time.Time
+	if s := m["window_start"]; s != "" {
+		if n, err := strconv.ParseInt(s, 10, 64); err == nil {
+			t := time.Unix(n, 0).UTC()
+			windowStart = &t
+		}
+	}
+	var schemaVersion int64
+	if s := m["schema_version"]; s != "" {
+		schemaVersion, _ = strconv.ParseInt(s, 10, 64)
+	}
+	return &service.GroupModelQuota5hCacheEntry{
+		UsageUSD:      usage,
+		WindowStart:   windowStart,
+		SchemaVersion: schemaVersion,
+	}
+}
+
+func (c *billingCache) GetGroupModelQuota5hCache(ctx context.Context, userID, groupID int64, model string) (*service.GroupModelQuota5hCacheEntry, bool, error) {
+	key := groupModelQuota5hCacheKey(userID, groupID, model)
+	m, err := c.rdb.HGetAll(ctx, key).Result()
+	if err != nil {
+		return nil, false, err
+	}
+	entry := parseGroupModelQuota5hHash(m)
+	if entry == nil {
+		return nil, false, nil
+	}
+	return entry, true, nil
+}
+
+func (c *billingCache) SetGroupModelQuota5hCache(ctx context.Context, userID, groupID int64, model string, entry *service.GroupModelQuota5hCacheEntry, ttl time.Duration) error {
+	if entry == nil {
+		return nil
+	}
+	key := groupModelQuota5hCacheKey(userID, groupID, model)
+	windowStart := ""
+	if entry.WindowStart != nil {
+		windowStart = strconv.FormatInt(entry.WindowStart.Unix(), 10)
+	}
+	pipe := c.rdb.TxPipeline()
+	pipe.HSet(ctx, key,
+		"usage", entry.UsageUSD,
+		"window_start", windowStart,
+		"schema_version", entry.SchemaVersion,
+	)
+	pipe.Expire(ctx, key, ttl)
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+// updateGroupModelQuota5hUsageScript 5h 固定窗口原子累加：
+//   - key 不存在 或 window 已过期（now - window_start >= 5h）→ 重置：usage=cost, window_start=now
+//   - 否则 → usage += cost（window_start 不变）
+//
+// 无 schema_version 守卫（不像 user_platform_quota 需兼容旧 entry）：本功能新建，entry 结构从一开始即 v1；
+// 缺 window_start 的异常 entry 按「过期」处理（重置），天然自愈。
+// KEYS[1] = hash key
+// ARGV[1] = cost (string float)
+// ARGV[2] = now (unix 秒)
+// ARGV[3] = window seconds (5h = 18000)
+// ARGV[4] = ttl seconds
+// ARGV[5] = schema_version
+const updateGroupModelQuota5hUsageScript = `
+local now = tonumber(ARGV[2])
+local ws = redis.call("HGET", KEYS[1], "window_start")
+local reset = false
+if ws == false or ws == "" then
+    reset = true
+else
+    if (now - tonumber(ws)) >= tonumber(ARGV[3]) then
+        reset = true
+    end
+end
+if reset then
+    redis.call("HSET", KEYS[1], "usage", ARGV[1], "window_start", ARGV[2], "schema_version", ARGV[5])
+else
+    redis.call("HINCRBYFLOAT", KEYS[1], "usage", ARGV[1])
+    redis.call("HSET", KEYS[1], "schema_version", ARGV[5])
+end
+redis.call("EXPIRE", KEYS[1], ARGV[4])
+return 1
+`
+
+func (c *billingCache) IncrGroupModelQuota5hUsageCache(ctx context.Context, userID, groupID int64, model string, cost float64, ttl time.Duration) error {
+	now := time.Now().Unix()
+	_, err := c.rdb.Eval(ctx, updateGroupModelQuota5hUsageScript,
+		[]string{groupModelQuota5hCacheKey(userID, groupID, model)},
+		strconv.FormatFloat(cost, 'f', -1, 64),
+		now,
+		int(service.GroupModelQuota5hWindow.Seconds()),
+		int(ttl.Seconds()),
+		service.GroupModelQuota5hCacheSchemaV1,
+	).Result()
+	if err != nil && !errors.Is(err, redis.Nil) {
+		return err
+	}
+	return nil
+}
