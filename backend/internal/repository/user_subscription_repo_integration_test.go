@@ -23,6 +23,9 @@ type UserSubscriptionRepoSuite struct {
 
 func (s *UserSubscriptionRepoSuite) SetupTest() {
 	s.ctx = context.Background()
+	// 事务隔离救不了 DB 级唯一索引 users_email_unique_active：兄弟 suite 泄漏的已提交
+	// 用户会让本 suite 事务内 insert 固定邮箱时撞唯一约束。开事务前先重置到干净基线。
+	resetUsersAndGroups(s.T())
 	tx := testEntTx(s.T())
 	s.client = tx.Client()
 	s.repo = NewUserSubscriptionRepository(s.client).(*userSubscriptionRepository)
