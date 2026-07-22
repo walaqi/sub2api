@@ -62,6 +62,22 @@ func appendRawUsageLogModelWhereCondition(conditions []string, args []any, model
 	return conditions, args
 }
 
+// appendUsageLogModelWhereCondition matches the Model filter against the model
+// dimension named by source (requested/upstream/mapping) so admin list/stats
+// filtering lines up with the displayed model dimension. An empty source
+// preserves the historical raw usage_logs.model semantics.
+func appendUsageLogModelWhereCondition(conditions []string, args []any, model string, source string) ([]string, []any) {
+	if strings.TrimSpace(source) == "" {
+		return appendRawUsageLogModelWhereCondition(conditions, args, model)
+	}
+	if strings.TrimSpace(model) == "" {
+		return conditions, args
+	}
+	conditions = append(conditions, fmt.Sprintf("%s = $%d", resolveModelDimensionExpression(source), len(args)+1))
+	args = append(args, model)
+	return conditions, args
+}
+
 func appendUsageLogBillingModeWhereCondition(conditions []string, args []any, billingMode string) ([]string, []any) {
 	mode := strings.TrimSpace(billingMode)
 	if mode == "" {
