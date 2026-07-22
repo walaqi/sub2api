@@ -12,6 +12,7 @@ import (
 
 type OpenAIMessagesDispatchModelConfig = domain.OpenAIMessagesDispatchModelConfig
 type GroupModelsListConfig = domain.GroupModelsListConfig
+type ReasoningEffortMapping = domain.ReasoningEffortMapping
 
 type Group struct {
 	ID             int64
@@ -93,6 +94,11 @@ type Group struct {
 	// key = 精确模型名（不支持通配），value = 该模型单个 5h 固定窗口内的 USD 上限。
 	// nil / 空 = 该分组不设任何 5h 限额。对所有用户（含订阅）生效。
 	Model5hLimits map[string]float64
+	// MaxReasoningEffort limits the effective OpenAI/Codex reasoning effort.
+	// Empty means unlimited; supported values are minimal/low/medium/high/xhigh/max.
+	MaxReasoningEffort string
+	// ReasoningEffortMappings rewrites explicit request values before applying the ceiling.
+	ReasoningEffortMappings []ReasoningEffortMapping
 
 	CreatedAt time.Time
 	UpdatedAt time.Time
