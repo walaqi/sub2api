@@ -269,6 +269,29 @@ func testRedis(t *testing.T) *redisclient.Client {
 	return rdb
 }
 
+// resetUsersAndGroups 把 users、groups 及所有经外键引用它们的表清空，并重新播下
+// 默认分组。集成测试共享同一个数据库实例，凡是断言 users/groups 全局状态的 suite，
+// 都必须从一个不受兄弟 suite 影响的干净基线开始——那些 suite 用非事务的 testEntClient
+// 提交行后不回滚，会残留到本 suite。
+//
+// 这里刻意用 TRUNCATE ... CASCADE 而非手写 DELETE 清单：CASCADE 沿每一条外键清理，
+// 与其 ON DELETE 动作无关，因此不会被 NO ACTION / RESTRICT 的外键挡住。历史上
+// user_gifts(NO ACTION) 与 usage_cleanup_tasks(RESTRICT) 正是挡住了 `DELETE FROM users`，
+// 而调用处又静默吞掉了错误(`_, _ =`)，导致连本该删的行都没删掉、跨 suite 泄漏放大。
+// 将来任何新表加上指向 users/groups 的外键，这里也无需再维护删除顺序。
+func resetUsersAndGroups(t *testing.T) {
+	t.Helper()
+	ctx := context.Background()
+
+	_, err := integrationDB.ExecContext(ctx, "TRUNCATE TABLE users, groups RESTART IDENTITY CASCADE")
+	require.NoError(t, err, "truncate users and groups")
+
+	// 重新播下被 TRUNCATE 清掉的默认分组（对齐 migration 008，id 从 1 起）。
+	_, err = integrationDB.ExecContext(ctx,
+		"INSERT INTO groups (name, description, created_at, updated_at) VALUES ('default', 'Default group', NOW(), NOW())")
+	require.NoError(t, err, "re-seed default group")
+}
+
 func assertTTLWithin(t *testing.T, ttl time.Duration, min, max time.Duration) {
 	t.Helper()
 	require.GreaterOrEqual(t, ttl, min, "ttl should be >= min")

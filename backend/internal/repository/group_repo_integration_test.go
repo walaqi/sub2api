@@ -37,6 +37,9 @@ func (s *forbidSQLExecutor) QueryContext(ctx context.Context, query string, args
 
 func (s *GroupRepoSuite) SetupTest() {
 	s.ctx = context.Background()
+	// 本 suite 虽在事务内隔离，但 ListActiveByPlatform 等按 READ COMMITTED 读到的是
+	// 已提交的行——兄弟 suite 泄漏的 groups 会被计入。必须在开事务前重置到干净基线。
+	resetUsersAndGroups(s.T())
 	tx := testEntTx(s.T())
 	s.tx = tx
 	s.repo = newGroupRepositoryWithSQL(tx.Client(), tx)

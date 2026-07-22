@@ -22,7 +22,14 @@ func setupReferralIntegrationDB(t *testing.T) (*dbent.Client, *sql.DB) {
 	t.Helper()
 	sqlDB, err := sql.Open("postgres", testDSN)
 	require.NoError(t, err)
-	require.NoError(t, sqlDB.Ping())
+	// 本包无 testcontainers harness，直连外部 PG（本地 5432）。CI 等无 PG 环境
+	// 下应跳过而非失败——这些用例覆盖并发返利/赠金逻辑，需真实 PG 才有意义。
+	pingCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := sqlDB.PingContext(pingCtx); err != nil {
+		_ = sqlDB.Close()
+		t.Skipf("integration DB unavailable at %s, skipping: %v", testDSN, err)
+	}
 
 	client, err := dbent.Open("postgres", testDSN)
 	require.NoError(t, err)
