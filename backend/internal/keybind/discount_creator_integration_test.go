@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,7 +17,25 @@ import (
 
 const integrationDSN = "host=localhost port=5432 user=sub2api password=sub2api dbname=sub2api sslmode=disable"
 
+// skipIfNoIntegrationDB 在外部 PG 不可用时跳过测试。本包无 testcontainers harness，
+// 直连外部 PG（本地 5432）；CI 等无 PG 环境应跳过而非失败。
+func skipIfNoIntegrationDB(t *testing.T) {
+	t.Helper()
+	db, err := sql.Open("postgres", integrationDSN)
+	if err != nil {
+		t.Skipf("integration DB unavailable, skipping: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
+		_ = db.Close()
+		t.Skipf("integration DB unavailable at %s, skipping: %v", integrationDSN, err)
+	}
+	_ = db.Close()
+}
+
 func TestIntegration_CreateBindKeyDiscount_Rate10_Succeeds(t *testing.T) {
+	skipIfNoIntegrationDB(t)
 	client, err := dbent.Open("postgres", integrationDSN)
 	require.NoError(t, err)
 	defer func() { _ = client.Close() }()
@@ -34,6 +53,7 @@ func TestIntegration_CreateBindKeyDiscount_Rate10_Succeeds(t *testing.T) {
 }
 
 func TestIntegration_CreateBindKeyDiscount_Rate10_5_Rejected(t *testing.T) {
+	skipIfNoIntegrationDB(t)
 	client, err := dbent.Open("postgres", integrationDSN)
 	require.NoError(t, err)
 	defer func() { _ = client.Close() }()
@@ -48,6 +68,7 @@ func TestIntegration_CreateBindKeyDiscount_Rate10_5_Rejected(t *testing.T) {
 }
 
 func TestIntegration_CreateBindKeyDiscount_Rate5_Succeeds(t *testing.T) {
+	skipIfNoIntegrationDB(t)
 	client, err := dbent.Open("postgres", integrationDSN)
 	require.NoError(t, err)
 	defer func() { _ = client.Close() }()
@@ -65,6 +86,7 @@ func TestIntegration_CreateBindKeyDiscount_Rate5_Succeeds(t *testing.T) {
 }
 
 func TestIntegration_CreateBindKeyDiscount_PersistsGiftExpiryNever(t *testing.T) {
+	skipIfNoIntegrationDB(t)
 	client, err := dbent.Open("postgres", integrationDSN)
 	require.NoError(t, err)
 	defer func() { _ = client.Close() }()
