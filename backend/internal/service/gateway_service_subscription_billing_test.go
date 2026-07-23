@@ -83,3 +83,23 @@ func TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier(t *testing.T
 		})
 	}
 }
+
+func TestBuildUsageBillingCommand_CompositeKeepsAPIKeyGroupForGiftScope(t *testing.T) {
+	t.Parallel()
+
+	compositeGroupID := int64(91)
+	p := &postUsageBillingParams{
+		Cost:    &CostBreakdown{TotalCost: 1, ActualCost: 1},
+		User:    &User{ID: 1},
+		APIKey:  &APIKey{ID: 2, GroupID: &compositeGroupID, Group: &Group{ID: compositeGroupID, Platform: PlatformComposite}},
+		Account: &Account{ID: 3, Platform: PlatformOpenAI},
+	}
+
+	cmd := buildUsageBillingCommand("req-composite-gift-scope", nil, p, UsageBillingFingerprintV2)
+	if cmd == nil || cmd.GroupID == nil {
+		t.Fatal("buildUsageBillingCommand did not preserve a group scope")
+	}
+	if *cmd.GroupID != compositeGroupID {
+		t.Fatalf("GroupID = %d, want composite group %d", *cmd.GroupID, compositeGroupID)
+	}
+}

@@ -714,6 +714,7 @@ var ProviderSet = wire.NewSet(
 	wire.Bind(new(imageGroupLister), new(*APIKeyService)),
 	ProvideAuthCacheInvalidationWorker,
 	NewGroupService,
+	NewCompositeRouteResolver,
 	NewAccountService,
 	NewProxyService,
 	ProvideRedeemService,

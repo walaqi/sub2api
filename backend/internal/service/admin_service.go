@@ -52,6 +52,11 @@ type AdminService interface {
 	RecoverDuplicateGroup(ctx context.Context, id int64, actorScope, operationKey string) (*Group, error)
 	UpdateGroup(ctx context.Context, id int64, input *UpdateGroupInput) (*Group, error)
 	DeleteGroup(ctx context.Context, id int64) error
+	ListCompositeRoutes(ctx context.Context, groupID int64) ([]CompositeModelRoute, error)
+	CreateCompositeRoute(ctx context.Context, groupID int64, input CompositeRouteInput) (*CompositeModelRoute, error)
+	UpdateCompositeRoute(ctx context.Context, groupID, routeID int64, input CompositeRouteInput) (*CompositeModelRoute, error)
+	DeleteCompositeRoute(ctx context.Context, groupID, routeID int64) error
+	PreviewCompositeRoute(ctx context.Context, groupID int64, input CompositeRoutePreviewRequest) (*CompositeRouteDecision, error)
 	GetGroupAPIKeys(ctx context.Context, groupID int64, page, pageSize int) ([]APIKey, int64, error)
 	GetGroupRateMultipliers(ctx context.Context, groupID int64) ([]UserGroupRateEntry, error)
 	ClearGroupRateMultipliers(ctx context.Context, groupID int64) error
@@ -661,7 +666,9 @@ type adminServiceImpl struct {
 	notificationEmailService accountDisabledNotifier
 	// affiliateService is optional; when set (and the affiliate_admin_recharge
 	// setting is enabled) admin balance top-ups accrue an invite rebate.
-	affiliateService adminRechargeAffiliateAccruer
+	affiliateService   adminRechargeAffiliateAccruer
+	compositeRouteRepo CompositeModelRouteRepository
+	compositeResolver  *CompositeRouteResolver
 }
 
 // accountDisabledNotifier is the subset of NotificationEmailService used to
@@ -701,6 +708,8 @@ func NewAdminService(
 	runtimeBlocker AccountRuntimeBlocker,
 	notificationEmailService *NotificationEmailService,
 	affiliateService *AffiliateService,
+	compositeRouteRepo CompositeModelRouteRepository,
+	compositeResolver *CompositeRouteResolver,
 ) AdminService {
 	return &adminServiceImpl{
 		userRepo:                 userRepo,
@@ -725,6 +734,8 @@ func NewAdminService(
 		runtimeBlocker:           runtimeBlocker,
 		notificationEmailService: notificationEmailService,
 		affiliateService:         affiliateService,
+		compositeRouteRepo:       compositeRouteRepo,
+		compositeResolver:        compositeResolver,
 	}
 }
 

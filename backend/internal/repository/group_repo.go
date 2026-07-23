@@ -411,6 +411,10 @@ func (r *groupRepository) Delete(ctx context.Context, id int64) error {
 		return err
 	}
 
+	if _, err := exec.ExecContext(ctx, "UPDATE composite_model_routes SET deleted_at = NOW() WHERE group_id = $1 AND deleted_at IS NULL", id); err != nil {
+		return err
+	}
+
 	if _, err := txClient.Group.Delete().Where(group.IDEQ(id)).Exec(ctx); err != nil {
 		return translatePersistenceError(err, service.ErrGroupNotFound, nil)
 	}
@@ -903,7 +907,17 @@ func (r *groupRepository) DeleteCascade(ctx context.Context, id int64) ([]int64,
 		return nil, err
 	}
 
-	// 4. Soft-delete group itself.
+	// 4. Unbind gifts so deleting a group cannot strand group-scoped balance.
+	if _, err := exec.ExecContext(ctx, "UPDATE user_gifts SET group_id = NULL, updated_at = NOW() WHERE group_id = $1", id); err != nil {
+		return nil, err
+	}
+
+	// 5. Soft-delete composite model routes owned by this group.
+	if _, err := exec.ExecContext(ctx, "UPDATE composite_model_routes SET deleted_at = NOW() WHERE group_id = $1 AND deleted_at IS NULL", id); err != nil {
+		return nil, err
+	}
+
+	// 6. Soft-delete group itself.
 	if _, err := txClient.Group.Delete().Where(group.IDEQ(id)).Exec(ctx); err != nil {
 		return nil, err
 	}
