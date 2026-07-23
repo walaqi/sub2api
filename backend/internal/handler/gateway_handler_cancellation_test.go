@@ -42,6 +42,7 @@ func TestGatewayHandlerPreCancelledCompatibleRequestsDoNotSelectAccount(t *testi
 	gatewayService := service.NewGatewayService(
 		nil, &fakeGroupRepo{group: group}, nil, nil, nil, nil, nil, nil, nil,
 		schedulerSnapshot, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, // userPlatformQuotaRepo
 		nil, // giftEngine (fork)
 	)
 	cfg := &config.Config{RunMode: config.RunModeSimple}
