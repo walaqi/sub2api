@@ -68,6 +68,15 @@ func ensureTestUser(t *testing.T, db *sql.DB, userID int64) {
 	}
 }
 
+// setTotalRecharged 直接设置 users.total_recharged（USD）。
+// recharge 模式资格判定读的正是这一列（见 referral_reward_service.go 的
+// entInviterRechargeReader），与折扣券/领券完全解耦（PR#63）。
+func setTotalRecharged(t *testing.T, db *sql.DB, userID int64, amount float64) {
+	t.Helper()
+	_, err := db.Exec(`UPDATE users SET total_recharged = $2 WHERE id = $1`, userID, amount)
+	require.NoError(t, err)
+}
+
 func ensureAffiliateRelation(t *testing.T, db *sql.DB, inviteeID, inviterID int64) {
 	t.Helper()
 	_, err := db.Exec(`INSERT INTO user_affiliates (user_id, inviter_id, aff_code, aff_count, aff_quota, aff_history_quota)
@@ -97,37 +106,6 @@ ON CONFLICT (user_id, source, source_ref) DO UPDATE SET
     valid_from = EXCLUDED.valid_from,
     valid_until = EXCLUDED.valid_until`,
 		userID, sourceRef, maxAmount, totalDiscounted, validFrom, validUntil)
-	require.NoError(t, err)
-}
-
-// insertDiscountWithApplication 建一笔当前有效的折扣并挂一条 application（applied_amount），
-// 供充值达标资格/剩余充值额测试用。返回折扣 id。
-func insertDiscountWithApplication(t *testing.T, db *sql.DB, userID int64, sourceRef string, appliedAmount float64, orderID int64) int64 {
-	t.Helper()
-	var discountID int64
-	err := db.QueryRow(`
-INSERT INTO user_recharge_discounts (user_id, source, source_ref, discount_rate, max_discountable_amount, total_discounted, valid_from, valid_until)
-VALUES ($1, 'bind_key', $2, 0.1, 100000, 0, NOW() - INTERVAL '1 hour', NOW() + INTERVAL '30 days')
-ON CONFLICT (user_id, source, source_ref) DO UPDATE SET updated_at = NOW()
-RETURNING id`, userID, sourceRef).Scan(&discountID)
-	require.NoError(t, err)
-
-	_, err = db.Exec(`
-INSERT INTO recharge_discount_applications (user_id, discount_id, payment_order_id, applied_amount, bonus_amount, discount_rate_snapshot)
-VALUES ($1, $2, $3, $4, 0, 0.1)
-ON CONFLICT (payment_order_id) DO NOTHING`, userID, discountID, orderID, appliedAmount)
-	require.NoError(t, err)
-	return discountID
-}
-
-// addFutureApplication 给已有折扣挂一条 created_at 在未来的 application。
-// 资格判定按 created_at <= NOW() 过滤，remaining 计算须与之一致——未来 application 不应计入。
-func addFutureApplication(t *testing.T, db *sql.DB, userID, discountID, orderID int64, appliedAmount float64) {
-	t.Helper()
-	_, err := db.Exec(`
-INSERT INTO recharge_discount_applications (user_id, discount_id, payment_order_id, applied_amount, bonus_amount, discount_rate_snapshot, created_at)
-VALUES ($1, $2, $3, $4, 0, 0.1, NOW() + INTERVAL '1 day')
-ON CONFLICT (payment_order_id) DO NOTHING`, userID, discountID, orderID, appliedAmount)
 	require.NoError(t, err)
 }
 
@@ -1031,7 +1009,8 @@ func TestIntegration_Referral_OnInviterBound_ConcurrentReplay_OneInviteeGift(t *
 
 // ==========================================================================
 // Test 12: GetReferralStatus — recharge 模式下 EligibilityRechargeRemaining
-// 语义：单笔折扣累计 applied_amount 达门槛即算资格，"还需"取距门槛最近的缺口。
+// 语义（PR#63）：recharge 资格纯看 users.total_recharged >= 门槛，与折扣券无关。
+// remaining = 门槛 - total_recharged，随充值单调递减，达标后归 0。
 // ==========================================================================
 
 func TestIntegration_Referral_GetReferralStatus_RechargeRemaining(t *testing.T) {
@@ -1043,21 +1022,21 @@ func TestIntegration_Referral_GetReferralStatus_RechargeRemaining(t *testing.T) 
 	userID := int64(800050)
 	ensureTestUser(t, db, userID)
 
-	// 尚无任何折扣充值 → 未达标，还需全额 100
+	// 尚无任何充值 → 未达标，还需全额 100
 	status, err := svc.GetReferralStatus(ctx, userID)
 	require.NoError(t, err)
 	assert.False(t, status.Eligible)
 	assert.InDelta(t, 100.0, status.EligibilityRechargeRemaining, 0.001)
 
-	// 一笔折扣累计充值 40 → 还需 60
-	insertDiscountWithApplication(t, db, userID, "order_a", 40, 900050)
+	// 累计充值 40 → 还需 60
+	setTotalRecharged(t, db, userID, 40)
 	status, err = svc.GetReferralStatus(ctx, userID)
 	require.NoError(t, err)
 	assert.False(t, status.Eligible)
 	assert.InDelta(t, 60.0, status.EligibilityRechargeRemaining, 0.001)
 
-	// 同一折扣再充 70（累计 110 ≥ 100）→ 达标，remaining 归 0
-	insertDiscountWithApplication(t, db, userID, "order_a", 70, 900051)
+	// 再充到累计 110（≥ 100）→ 达标，remaining 归 0
+	setTotalRecharged(t, db, userID, 110)
 	status, err = svc.GetReferralStatus(ctx, userID)
 	require.NoError(t, err)
 	assert.True(t, status.Eligible)
@@ -1065,11 +1044,11 @@ func TestIntegration_Referral_GetReferralStatus_RechargeRemaining(t *testing.T) 
 }
 
 // ==========================================================================
-// Test 13: GetReferralStatus — 达标缺口取"距门槛最近"的单笔折扣（多折扣分散不叠加）
-// 两笔折扣各 40，不合并；缺口 = 100 - 40 = 60，而非 100 - 80。
+// Test 13: GetReferralStatus — total_recharged 恰好等于门槛即达标（边界）
+// 边界语义：total_recharged >= 门槛（含等于）→ eligible=true、remaining=0。
 // ==========================================================================
 
-func TestIntegration_Referral_GetReferralStatus_RechargeRemaining_PerDiscountMax(t *testing.T) {
+func TestIntegration_Referral_GetReferralStatus_RechargeRemaining_ExactThreshold(t *testing.T) {
 	client, db := setupReferralIntegrationDB(t)
 	svc := buildReferralServiceRecharge(t, client, db, "100")
 	ctx := context.Background()
@@ -1077,24 +1056,27 @@ func TestIntegration_Referral_GetReferralStatus_RechargeRemaining_PerDiscountMax
 	userID := int64(800051)
 	ensureTestUser(t, db, userID)
 
-	// 两笔独立折扣各累计 40（分散在不同折扣，不合并计算）
-	insertDiscountWithApplication(t, db, userID, "spread_a", 40, 900052)
-	insertDiscountWithApplication(t, db, userID, "spread_b", 40, 900053)
-
+	// 差一点点：99.99 < 100 → 未达标，remaining ≈ 0.01
+	setTotalRecharged(t, db, userID, 99.99)
 	status, err := svc.GetReferralStatus(ctx, userID)
 	require.NoError(t, err)
-	assert.False(t, status.Eligible, "单笔折扣均未达门槛 → 未达标")
-	// 缺口取距门槛最近的一档：100 - max(40,40) = 60
-	assert.InDelta(t, 60.0, status.EligibilityRechargeRemaining, 0.001)
+	assert.False(t, status.Eligible, "低于门槛 → 未达标")
+	assert.InDelta(t, 0.01, status.EligibilityRechargeRemaining, 0.001)
+
+	// 恰好等于门槛：100 >= 100 → 达标，remaining 归 0
+	setTotalRecharged(t, db, userID, 100)
+	status, err = svc.GetReferralStatus(ctx, userID)
+	require.NoError(t, err)
+	assert.True(t, status.Eligible, "恰好等于门槛 → 达标")
+	assert.InDelta(t, 0.0, status.EligibilityRechargeRemaining, 0.001)
 }
 
 // ==========================================================================
-// Test 14: GetReferralStatus — remaining 排除未来 application，与资格判定一致
-// 资格查询按 a.created_at <= NOW() 过滤；remaining 不能把未来 application 计进去，
-// 否则会出现 eligible=false 但 remaining=0 的矛盾。
+// Test 14: GetReferralStatus — 超额充值 remaining 夹到 0，不为负
+// eligibilityRechargeRemaining 对 minAmount - total_recharged < 0 的情况钳到 0。
 // ==========================================================================
 
-func TestIntegration_Referral_GetReferralStatus_RechargeRemaining_ExcludesFuture(t *testing.T) {
+func TestIntegration_Referral_GetReferralStatus_RechargeRemaining_OvershootClampsToZero(t *testing.T) {
 	client, db := setupReferralIntegrationDB(t)
 	svc := buildReferralServiceRecharge(t, client, db, "100")
 	ctx := context.Background()
@@ -1102,13 +1084,11 @@ func TestIntegration_Referral_GetReferralStatus_RechargeRemaining_ExcludesFuture
 	userID := int64(800052)
 	ensureTestUser(t, db, userID)
 
-	// 当前有效充值 40 + 一笔未来 application 70（若误计则 110 ≥ 100 会误判达标/remaining=0）
-	discountID := insertDiscountWithApplication(t, db, userID, "future_case", 40, 900054)
-	addFutureApplication(t, db, userID, discountID, 900055, 70)
-
+	// 大幅超额：500 >> 100 → 达标，remaining 钳到 0（不为负）
+	setTotalRecharged(t, db, userID, 500)
 	status, err := svc.GetReferralStatus(ctx, userID)
 	require.NoError(t, err)
-	assert.False(t, status.Eligible, "未来 application 不计入资格 → 仍未达标")
-	// 只计当前的 40：remaining = 100 - 40 = 60（未来 70 被排除）
-	assert.InDelta(t, 60.0, status.EligibilityRechargeRemaining, 0.001)
+	assert.True(t, status.Eligible)
+	assert.InDelta(t, 0.0, status.EligibilityRechargeRemaining, 0.001)
+	assert.GreaterOrEqual(t, status.EligibilityRechargeRemaining, 0.0, "remaining 不应为负")
 }
