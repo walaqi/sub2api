@@ -23,6 +23,12 @@ func updateSettingsCodexStatus(t *testing.T, body map[string]any) int {
 	svc := service.NewSettingService(repo, &config.Config{Default: config.DefaultConfig{UserConcurrency: 5}})
 	handler := NewSettingHandler(svc, nil, nil, nil, nil, nil, nil)
 
+	// fork 特有守卫：default subscription list 不能为空，否则 UpdateSettings 在 codex
+	// 校验之前即返回 400（DEFAULT_SUBSCRIPTIONS_EMPTY）。补一条以放行到 codex 校验。
+	if _, ok := body["default_subscriptions"]; !ok {
+		body["default_subscriptions"] = baseRequiredDefaultSubscriptions()
+	}
+
 	raw, err := json.Marshal(body)
 	require.NoError(t, err)
 	rec := httptest.NewRecorder()
