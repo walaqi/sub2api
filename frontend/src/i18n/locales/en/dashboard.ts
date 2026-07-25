@@ -320,6 +320,7 @@ export default {
     stream: 'Stream',
     sync: 'Sync',
     cyber: 'Cyber',
+    live: 'Live',
     unknown: 'Unknown',
     in: 'In',
     out: 'Out',
