@@ -98,6 +98,7 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			sqlmock.AnyArg(), // billing_tier
 			sqlmock.AnyArg(), // billing_mode
 			sqlmock.AnyArg(), // account_stats_cost
+			sqlmock.AnyArg(), // session_id
 			createdAt,
 			sqlmock.AnyArg(), // device_id
 			sqlmock.AnyArg(), // client_fingerprint
@@ -191,6 +192,7 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			sqlmock.AnyArg(), // billing_tier
 			sqlmock.AnyArg(), // billing_mode
 			sqlmock.AnyArg(), // account_stats_cost
+			sqlmock.AnyArg(), // session_id
 			createdAt,
 			sqlmock.AnyArg(), // device_id
 			sqlmock.AnyArg(), // client_fingerprint
@@ -731,6 +733,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			sql.NullString{},
 			sql.NullFloat64{},
+			sql.NullString{},
 			now,
 			sql.NullString{Valid: true, String: "device-abc"}, // device_id
 			sql.NullString{Valid: true, String: "fp-abc123"},  // client_fingerprint
@@ -813,6 +816,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},  // billing_tier
 			sql.NullString{},  // billing_mode
 			sql.NullFloat64{}, // account_stats_cost
+			sql.NullString{},  // session_id
 			now,
 			sql.NullString{}, // device_id
 			sql.NullString{}, // client_fingerprint
@@ -873,6 +877,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},  // billing_tier
 			sql.NullString{},  // billing_mode
 			sql.NullFloat64{}, // account_stats_cost
+			sql.NullString{},  // session_id
 			now,
 			sql.NullString{}, // device_id
 			sql.NullString{}, // client_fingerprint
@@ -933,6 +938,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},  // billing_tier
 			sql.NullString{},  // billing_mode
 			sql.NullFloat64{}, // account_stats_cost
+			sql.NullString{},  // session_id
 			now,
 			sql.NullString{}, // device_id
 			sql.NullString{}, // client_fingerprint

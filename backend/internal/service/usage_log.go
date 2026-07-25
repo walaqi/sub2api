@@ -169,6 +169,9 @@ type UsageLog struct {
 	FirstTokenMs *int
 	UserAgent    *string
 	IPAddress    *string
+	// SessionID is the explicit client-provided request correlation identifier.
+	// It is never derived from prompt_cache_key or request content.
+	SessionID *string
 	// DeviceID is the client-reported terminal identifier extracted from Claude Code's
 	// metadata.user_id. Nil for non-Claude-Code traffic or when not parseable. It is a
 	// high-precision but spoofable signal for multi-account/same-terminal abuse detection.

@@ -672,6 +672,7 @@ func usageLogFromServiceUser(l *service.UsageLog) UsageLog {
 		ImageSizeBreakdown:        l.ImageSizeBreakdown,
 		MediaType:                 l.MediaType,
 		UserAgent:                 l.UserAgent,
+		SessionID:                 l.SessionID,
 		CacheTTLOverridden:        l.CacheTTLOverridden,
 		BillingMode:               l.BillingMode,
 		CreatedAt:                 l.CreatedAt,
