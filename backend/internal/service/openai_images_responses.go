@@ -565,12 +565,14 @@ func collectOpenAIImagesFromResponsesBody(body []byte) ([]openAIResponsesImageRe
 		return nil, 0, nil, openAIResponsesImageResult{}, false, collectErr
 	}
 	if len(finalResults) > 0 {
+		reconcileOpenAIResponsesImageResultSizes(finalResults, &finalMeta)
 		return finalResults, createdAt, usageRaw, finalMeta, true, nil
 	}
 
 	if len(fallbackResults) > 0 {
 		firstMeta := fallbackResults[0]
 		mergeOpenAIResponsesImageMeta(&firstMeta, responseMeta)
+		reconcileOpenAIResponsesImageResultSizes(fallbackResults, &firstMeta)
 		return fallbackResults, createdAt, usageRaw, firstMeta, foundFinal, nil
 	}
 	return nil, createdAt, usageRaw, openAIResponsesImageResult{}, foundFinal, nil
@@ -994,10 +996,16 @@ func (s *OpenAIGatewayService) handleOpenAIImagesOAuthNonStreamingResponse(
 			item := gjson.GetBytes(data, "item")
 			if item.Exists() {
 				outputItems = append(outputItems, item)
-				if item.Get("type").String() == "image_generation_call" &&
-					strings.TrimSpace(item.Get("result").String()) != "" {
+				result := strings.TrimSpace(item.Get("result").String())
+				if item.Get("type").String() == "image_generation_call" && result != "" {
 					imageCount++
-					if sz := strings.TrimSpace(item.Get("size").String()); sz != "" {
+					// #4284：优先用解码后的真实尺寸做计费档位，回退到上游报告的 size。
+					// 输出仍走 Responses passthrough（assembleOpenAIResponsesFromSSE），不改客户端可见字节。
+					sz := detectOpenAIImageResultSize(result)
+					if sz == "" {
+						sz = strings.TrimSpace(item.Get("size").String())
+					}
+					if sz != "" {
 						imageSizes = append(imageSizes, sz)
 					}
 				}
@@ -1047,10 +1055,17 @@ func (s *OpenAIGatewayService) handleOpenAIImagesOAuthStreamingResponse(
 			switch gjson.Get(payload, "type").String() {
 			case "response.output_item.done":
 				item := gjson.Get(payload, "item")
-				if item.Get("type").String() == "image_generation_call" &&
-					strings.TrimSpace(item.Get("result").String()) != "" {
+				result := strings.TrimSpace(item.Get("result").String())
+				if item.Get("type").String() == "image_generation_call" && result != "" {
 					imageCount++
-					if sz := strings.TrimSpace(item.Get("size").String()); sz != "" {
+					// #4284：ChatGPT OAuth 可能把请求尺寸归一化成 "auto"，
+					// 解码后的图片字节才是计费档位的权威来源。优先用真实尺寸，
+					// 回退到上游报告的 size。（透传给客户端的原始 SSE 行不变。）
+					sz := detectOpenAIImageResultSize(result)
+					if sz == "" {
+						sz = strings.TrimSpace(item.Get("size").String())
+					}
+					if sz != "" {
 						imageSizes = append(imageSizes, sz)
 					}
 				}
@@ -1064,7 +1079,6 @@ func (s *OpenAIGatewayService) handleOpenAIImagesOAuthStreamingResponse(
 			ms := int(time.Since(startTime).Milliseconds())
 			firstTokenMs = &ms
 		}
-
 		lineStr := string(line)
 		if payload, ok := extractOpenAISSEDataLine(lineStr); ok {
 			dataAccum = append(dataAccum, payload)
