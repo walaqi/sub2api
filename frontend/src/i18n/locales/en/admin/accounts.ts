@@ -1224,6 +1224,7 @@ export default {
         claude: 'Claude',
         grokRequests: 'Req',
         grokTokens: 'Tok',
+        grokFreeQuota24hHint: 'Estimated from local token usage over the rolling 24-hour window (2M limit)',
         grokWeeklyUsage: 'Weekly {percent}%',
         grokUnknown: 'Grok quota is unknown until the first upstream response includes xAI rate-limit headers.',
         grokRetryAfter: 'Retry after {time}',
