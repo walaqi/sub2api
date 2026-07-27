@@ -87,6 +87,16 @@ func (s *SettingService) IsReferralRewardEnabled(ctx context.Context) bool {
 	return value == "true"
 }
 
+// IsAffiliateAdminRechargeEnabled reports whether admin balance
+// deposits should participate in the affiliate rebate program.
+func (s *SettingService) IsAffiliateAdminRechargeEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyAffiliateAdminRechargeEnabled)
+	if err != nil {
+		return AdminRechargeRebateEnabledDefault
+	}
+	return value == "true"
+}
+
 // ReferralRewardConfig 返回双向邀请赠金的可配置参数。
 type ReferralRewardConfig struct {
 	InviteeAmount                float64

@@ -126,6 +126,48 @@ type defaultSubGroupReaderStub struct {
 	calls []int64
 }
 
+func TestSettingService_AffiliateAdminRechargeSetting(t *testing.T) {
+	t.Run("missing value defaults to disabled", func(t *testing.T) {
+		svc := NewSettingService(&settingGetAllRepoStub{values: map[string]string{}}, &config.Config{})
+
+		settings, err := svc.GetAllSettings(context.Background())
+		require.NoError(t, err)
+		require.False(t, settings.AdminRechargeRebateEnabled)
+	})
+
+	t.Run("explicit value is parsed", func(t *testing.T) {
+		svc := NewSettingService(&settingGetAllRepoStub{values: map[string]string{
+			SettingKeyAffiliateAdminRechargeEnabled: "true",
+		}}, &config.Config{})
+
+		settings, err := svc.GetAllSettings(context.Background())
+		require.NoError(t, err)
+		require.True(t, settings.AdminRechargeRebateEnabled)
+	})
+
+	t.Run("value is persisted", func(t *testing.T) {
+		repo := &settingUpdateRepoStub{}
+		groupReader := &defaultSubGroupReaderStub{
+			byID: map[int64]*Group{
+				11: {ID: 11, SubscriptionType: SubscriptionTypeSubscription},
+			},
+		}
+		svc := NewSettingService(repo, &config.Config{})
+		// Fork requires a non-empty DefaultSubscriptions list (DEFAULT_SUBSCRIPTIONS_EMPTY guard);
+		// supply a valid one so UpdateSettings reaches the affiliate-recharge persistence path.
+		svc.SetDefaultSubscriptionGroupReader(groupReader)
+
+		err := svc.UpdateSettings(context.Background(), &SystemSettings{
+			AdminRechargeRebateEnabled: true,
+			DefaultSubscriptions: []DefaultSubscriptionSetting{
+				{GroupID: 11, ValidityDays: 30},
+			},
+		})
+		require.NoError(t, err)
+		require.Equal(t, "true", repo.updates[SettingKeyAffiliateAdminRechargeEnabled])
+	})
+}
+
 func (s *defaultSubGroupReaderStub) GetByID(ctx context.Context, id int64) (*Group, error) {
 	s.calls = append(s.calls, id)
 	if err, ok := s.errBy[id]; ok {

@@ -627,6 +627,9 @@ type adminServiceImpl struct {
 	// each disabled user an account-disabled notification. Typed as an interface
 	// so tests can inject a fake without a real SMTP stack.
 	notificationEmailService accountDisabledNotifier
+	// affiliateService is optional; when set (and the affiliate_admin_recharge
+	// setting is enabled) admin balance top-ups accrue an invite rebate.
+	affiliateService adminRechargeAffiliateAccruer
 }
 
 // accountDisabledNotifier is the subset of NotificationEmailService used to
@@ -634,6 +637,10 @@ type adminServiceImpl struct {
 // satisfies it.
 type accountDisabledNotifier interface {
 	Send(ctx context.Context, input NotificationEmailSendInput) error
+}
+
+type adminRechargeAffiliateAccruer interface {
+	AccrueInviteRebate(ctx context.Context, inviteeUserID int64, baseRechargeAmount float64) (float64, error)
 }
 
 type userGroupRateBatchReader interface {
@@ -661,6 +668,7 @@ func NewAdminService(
 	privacyClientFactory PrivacyClientFactory,
 	runtimeBlocker AccountRuntimeBlocker,
 	notificationEmailService *NotificationEmailService,
+	affiliateService *AffiliateService,
 ) AdminService {
 	return &adminServiceImpl{
 		userRepo:                 userRepo,
@@ -683,6 +691,7 @@ func NewAdminService(
 		privacyClientFactory:     privacyClientFactory,
 		runtimeBlocker:           runtimeBlocker,
 		notificationEmailService: notificationEmailService,
+		affiliateService:         affiliateService,
 	}
 }
 

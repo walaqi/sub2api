@@ -152,6 +152,7 @@ type SystemSettings struct {
 	AffiliateRebateFreezeHours             int
 	AffiliateRebateDurationDays            int
 	AffiliateRebatePerInviteeCap           float64
+	AdminRechargeRebateEnabled             bool
 	ReferralRewardEnabled                  bool
 	ReferralInviteeAmount                  float64
 	ReferralInviteeExpiryDays              int

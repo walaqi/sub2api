@@ -33,6 +33,7 @@ const (
 	AffiliateRebateDurationDaysDefault  = 0     // 0 = 永久有效
 	AffiliateRebateDurationDaysMax      = 3650  // ~10 年
 	AffiliateRebatePerInviteeCapDefault = 0.0   // 0 = 无上限
+	AdminRechargeRebateEnabledDefault   = false // 管理员充值默认不产生返利
 )
 
 // Platform constants
@@ -139,6 +140,7 @@ const (
 	SettingKeyAffiliateRebateFreezeHours       = "affiliate_rebate_freeze_hours"        // 返利冻结期（小时，0=不冻结）
 	SettingKeyAffiliateRebateDurationDays      = "affiliate_rebate_duration_days"       // 返利有效期（天，0=永久）
 	SettingKeyAffiliateRebatePerInviteeCap     = "affiliate_rebate_per_invitee_cap"     // 单人返利上限（0=无上限）
+	SettingKeyAffiliateAdminRechargeEnabled    = "affiliate_admin_recharge_enabled"     // 管理员充值是否产生返利
 	SettingKeyReferralRewardEnabled            = "referral_reward_enabled"              // 双向邀请赠金总开关（独立于 affiliate_enabled）
 	SettingKeyReferralInviteeAmount            = "referral_invitee_amount"              // 被邀请人注册赠金金额 (USD, 默认 10)
 	SettingKeyReferralInviteeExpiryDays        = "referral_invitee_expiry_days"         // 被邀请人赠金过期天数 (默认 2)
