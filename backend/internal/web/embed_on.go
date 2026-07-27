@@ -309,6 +309,7 @@ func shouldBypassEmbeddedFrontend(path string) bool {
 		strings.HasPrefix(trimmed, "/setup/") ||
 		strings.HasPrefix(trimmed, "/internal/") ||
 		trimmed == "/health" ||
+		trimmed == "/models" ||
 		trimmed == "/responses" ||
 		strings.HasPrefix(trimmed, "/responses/") ||
 		trimmed == "/alpha/search" ||
