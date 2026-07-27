@@ -396,6 +396,10 @@ const (
 	// frontend falls back to the first public group. Defaults to "0".
 	SettingKeyModelsPlazaDefaultGroupID = "models_plaza_default_group_id"
 
+	// SettingKeyUpstreamBillingProbeSettings stores the global enable switch and interval
+	// for probing remote Sub2API API-key billing metadata.
+	SettingKeyUpstreamBillingProbeSettings = "upstream_billing_probe_settings"
+
 	// =========================
 	// Overload Cooldown (529)
 	// =========================

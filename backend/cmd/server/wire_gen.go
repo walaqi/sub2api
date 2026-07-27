@@ -263,7 +263,8 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	complianceHandler := admin.NewComplianceHandler(settingService)
 	refundAssessmentService := service.NewRefundAssessmentService(client, engine, userRepository)
 	refundAssessmentHandler := admin.NewRefundAssessmentHandler(refundAssessmentService)
-	adminHandlers := handler.ProvideAdminHandlers(dashboardHandler, adminUserHandler, groupHandler, accountHandler, adminAnnouncementHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, geminiOAuthHandler, antigravityOAuthHandler, grokOAuthHandler, proxyHandler, adminRedeemHandler, promoHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, tlsFingerprintProfileHandler, adminAPIKeyHandler, scheduledTestHandler, channelHandler, channelMonitorHandler, channelMonitorRequestTemplateHandler, contentModerationHandler, paymentHandler, affiliateHandler, giftOpsHandler, abuseHandler, complianceHandler, refundAssessmentHandler)
+	upstreamBillingProbeService := service.ProvideUpstreamBillingProbeService(accountRepository, accountTestService, settingService, leaderLockCache, db)
+	adminHandlers := handler.ProvideAdminHandlers(dashboardHandler, adminUserHandler, groupHandler, accountHandler, adminAnnouncementHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, geminiOAuthHandler, antigravityOAuthHandler, grokOAuthHandler, proxyHandler, adminRedeemHandler, promoHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, tlsFingerprintProfileHandler, adminAPIKeyHandler, scheduledTestHandler, channelHandler, channelMonitorHandler, channelMonitorRequestTemplateHandler, contentModerationHandler, paymentHandler, affiliateHandler, giftOpsHandler, abuseHandler, complianceHandler, refundAssessmentHandler, upstreamBillingProbeService)
 	usageRecordWorkerPool := service.NewUsageRecordWorkerPool(configConfig)
 	userMsgQueueCache := repository.NewUserMsgQueueCache(redisClient)
 	userMessageQueueService := service.ProvideUserMessageQueueService(userMsgQueueCache, rpmCache, configConfig)
@@ -305,7 +306,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	channelMonitorRunner := service.ProvideChannelMonitorRunner(channelMonitorService, settingService)
 	expirerService := server.ProvideGiftExpirerService(db)
 	userPlatformQuotaUsageFlusher := service.ProvideUserPlatformQuotaUsageFlusher(configConfig, billingCache, serviceUserPlatformQuotaRepository, timingWheelService)
-	v := provideCleanup(client, redisClient, authRedisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, schedulerSnapshotService, tokenRefreshService, accountExpiryService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService, channelMonitorRunner, expirerService, userPlatformQuotaUsageFlusher)
+	v := provideCleanup(client, redisClient, authRedisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, schedulerSnapshotService, tokenRefreshService, accountExpiryService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService, channelMonitorRunner, expirerService, userPlatformQuotaUsageFlusher, upstreamBillingProbeService)
 	application := &Application{
 		Server:  httpServer,
 		Cleanup: v,
@@ -365,6 +366,7 @@ func provideCleanup(
 	channelMonitorRunner *service.ChannelMonitorRunner,
 	giftExpirer *gift.ExpirerService,
 	quotaFlusher *service.UserPlatformQuotaUsageFlusher,
+	upstreamBillingProbe *service.UpstreamBillingProbeService,
 ) func() {
 	return func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -535,6 +537,12 @@ func provideCleanup(
 			{"UserPlatformQuotaUsageFlusher", func() error {
 				if quotaFlusher != nil {
 					quotaFlusher.Stop()
+				}
+				return nil
+			}},
+			{"UpstreamBillingProbeService", func() error {
+				if upstreamBillingProbe != nil {
+					upstreamBillingProbe.Stop()
 				}
 				return nil
 			}},
