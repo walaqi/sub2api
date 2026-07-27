@@ -1601,6 +1601,9 @@ func (r *stubUserRepo) GetEmailContactsByIDs(context.Context, []int64) (map[int6
 func (r *stubUserRepo) BatchUpdateStatus(context.Context, []int64, string) (int, error) {
 	return 0, nil
 }
+func (r *stubUserRepo) BatchUpdateLimits(context.Context, []int64, *int, *int) (int, error) {
+	return 0, nil
+}
 
 func (r *stubUserRepo) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	return false, errors.New("not implemented")

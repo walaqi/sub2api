@@ -24,6 +24,7 @@ type AdminService interface {
 	// skipped (reported in SkippedIDs) and the auth cache is invalidated for each
 	// affected user so a disable takes effect immediately on the API Key path.
 	BulkUpdateUsers(ctx context.Context, input *BulkUpdateUsersInput) (*BulkUpdateUsersResult, error)
+	BatchUpdateLimits(ctx context.Context, userIDs []int64, concurrency, rpmLimit *int) (int, error)
 	GetUserAPIKeys(ctx context.Context, userID int64, page, pageSize int, sortBy, sortOrder string) ([]APIKey, int64, error)
 	GetUserUsageStats(ctx context.Context, userID int64, period string) (any, error)
 	GetUserRPMStatus(ctx context.Context, userID int64) (*UserRPMStatus, error)
