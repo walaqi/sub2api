@@ -255,6 +255,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		OutputTokens:        result.Usage.OutputTokens,
 		CacheCreationTokens: result.Usage.CacheCreationInputTokens,
 		CacheReadTokens:     result.Usage.CacheReadInputTokens,
+		ImageInputTokens:    result.Usage.ImageInputTokens,
 		ImageOutputTokens:   result.Usage.ImageOutputTokens,
 		ImageCount:          result.ImageCount,
 		ImageSize:           optionalTrimmedStringPtr(result.ImageSize),
@@ -272,6 +273,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	}
 	if cost != nil {
 		usageLog.InputCost = cost.InputCost
+		usageLog.ImageInputCost = cost.ImageInputCost
 		usageLog.OutputCost = cost.OutputCost
 		usageLog.ImageOutputCost = cost.ImageOutputCost
 		usageLog.CacheCreationCost = cost.CacheCreationCost
