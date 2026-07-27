@@ -45,6 +45,7 @@ func ProvideAdminHandlers(
 	abuseHandler *admin.AbuseHandler,
 	complianceHandler *admin.ComplianceHandler,
 	refundAssessmentHandler *admin.RefundAssessmentHandler,
+	auditLogHandler *admin.AuditLogHandler,
 	upstreamBillingProbe *service.UpstreamBillingProbeService,
 ) *AdminHandlers {
 	accountHandler.SetUpstreamBillingProbeService(upstreamBillingProbe)
@@ -84,6 +85,7 @@ func ProvideAdminHandlers(
 		Abuse:                  abuseHandler,
 		Compliance:             complianceHandler,
 		RefundAssessment:       refundAssessmentHandler,
+		AuditLog:               auditLogHandler,
 	}
 }
 
@@ -220,6 +222,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewAbuseHandler,
 	admin.NewComplianceHandler,
 	admin.NewRefundAssessmentHandler,
+	admin.NewAuditLogHandler,
 
 	// AdminHandlers and Handlers constructors
 	ProvideAdminHandlers,

@@ -41,6 +41,7 @@ type AdminHandlers struct {
 	Abuse                  *admin.AbuseHandler
 	Compliance             *admin.ComplianceHandler
 	RefundAssessment       *admin.RefundAssessmentHandler
+	AuditLog               *admin.AuditLogHandler
 }
 
 // Handlers contains all HTTP handlers
