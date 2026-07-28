@@ -104,10 +104,10 @@ export const FeatureFlags = {
     mode: 'opt-in',
     label: 'Available Channels',
   }),
-  modelsPlaza: defineFlag({
-    key: 'models_plaza_enabled',
+  modelPlaza: defineFlag({
+    key: 'model_plaza_enabled',
     mode: 'opt-in',
-    label: 'Models Plaza',
+    label: 'Model Plaza',
   }),
   imageStudio: defineFlag({
     key: 'image_studio_enabled',

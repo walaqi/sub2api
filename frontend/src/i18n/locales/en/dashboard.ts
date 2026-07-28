@@ -512,73 +512,6 @@ export default {
     }
   },
 
-  modelsPlaza: {
-    title: 'Models Plaza',
-    description: 'Browse all supported models, capabilities and pricing',
-    searchPlaceholder: 'Search models or platforms...',
-    empty: 'No models to display',
-    refresh: 'Refresh',
-    viewCard: 'Card view',
-    viewTable: 'List view',
-    allPlatforms: 'All platforms',
-    group: 'Group',
-    groupHint: 'Switch group to recompute recharge price by its rate multiplier',
-    noGroup: 'No groups available',
-    standardPrice: 'Standard',
-    rechargePrice: 'Recharge',
-    contextLength: 'Context window',
-    maxOutput: 'Max output',
-    capabilities: 'Capabilities',
-    modalities: 'Modalities',
-    inputModalities: 'Input',
-    outputModalities: 'Output',
-    noPricing: 'No pricing configured',
-    tokensUnit: 'tokens',
-    columns: {
-      model: 'Model',
-      standardPrice: 'Standard',
-      rechargePrice: 'Recharge',
-      platform: 'Platform'
-    },
-    price: {
-      input: 'Input',
-      output: 'Output',
-      cacheRead: 'Cache read',
-      cacheWrite: 'Cache write',
-      perRequest: 'Per request',
-      imageOutput: 'Image output',
-      unitPerMillion: '/ 1M tokens',
-      unitPerRequest: '/ request',
-      free: 'Free',
-      dash: '-'
-    },
-    billingMode: {
-      token: 'Per Token',
-      per_request: 'Per Request',
-      image: 'Per Image'
-    },
-    capability: {
-      function_calling: 'Function Calling',
-      vision: 'Vision',
-      prompt_caching: 'Prompt Caching',
-      reasoning: 'Reasoning',
-      response_schema: 'Structured Output',
-      tool_choice: 'Tool Choice',
-      web_search: 'Web Search',
-      pdf_input: 'PDF Input',
-      computer_use: 'Computer Use',
-      assistant_prefill: 'Assistant Prefill',
-      audio_input: 'Audio Input',
-      audio_output: 'Audio Output'
-    },
-    modality: {
-      text: 'Text',
-      image: 'Image',
-      audio: 'Audio',
-      file: 'File'
-    }
-  },
-
   imageStudio: {
     title: 'Image Studio',
     description: 'Open the standalone image generation studio',
@@ -587,6 +520,54 @@ export default {
     failed: 'Could not open Image Studio, please retry.',
     retry: 'Retry',
     back: 'Back',
+  },
+
+  // Model Plaza (public group/model pricing showcase)
+  modelPlaza: {
+    title: 'Model Plaza',
+    description: 'Browse available models and pricing by group',
+    loading: 'Loading...',
+    empty: 'No groups to display',
+    loadFailed: 'Failed to load model plaza',
+    noSearchResult: 'No matching models',
+    anonymousHint: 'Sign in to see your exclusive groups and personal rates',
+    filters: {
+      platformLabel: 'Platform',
+      groupLabel: 'Group',
+      rateLabel: 'Rate',
+      modelLabel: 'Model',
+      searchPlaceholder: 'Search models',
+      all: 'All'
+    },
+    badges: {
+      exclusive: 'Exclusive',
+      subscription: 'Subscription'
+    },
+    detail: {
+      noModels: 'No models configured for this group',
+      noPricing: 'Pricing not configured',
+      peakNote: 'Peak hours {window}: billing rate ×{multiplier}'
+    },
+    table: {
+      model: 'Model',
+      input: 'Input',
+      output: 'Output',
+      cache: 'Cache',
+      cacheWrite: 'Write',
+      cacheRead: 'Read',
+      paidPrice: 'Your Price (Discounted)',
+      officialPrice: 'Official Price',
+      rate: 'Rate',
+      unitPerMillion: '$ / 1M tokens',
+      perUnitRequest: '/ request',
+      perUnitImage: '/ image',
+      perRequest: 'Per request',
+      perImage: 'Per image'
+    },
+    nav: {
+      login: 'Sign In',
+      backToDashboard: 'Back to Console'
+    }
   },
 
   affiliate: {

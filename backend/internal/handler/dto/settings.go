@@ -291,10 +291,10 @@ type SystemSettings struct {
 	// Available Channels feature switch (user-facing aggregate view)
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
 
-	// Models Plaza feature switch (user-facing model catalog view)
-	ModelsPlazaEnabled bool `json:"models_plaza_enabled"`
-	// Models Plaza default group for the price calculator (0 = unset)
-	ModelsPlazaDefaultGroupID int64 `json:"models_plaza_default_group_id"`
+	// Model Plaza feature (public group/model pricing showcase)
+	ModelPlazaEnabled     bool   `json:"model_plaza_enabled"`
+	ModelPlazaRequireAuth bool   `json:"model_plaza_require_auth"`
+	ModelPlazaDescription string `json:"model_plaza_description"`
 
 	// 风控中心功能开关
 	RiskControlEnabled bool `json:"risk_control_enabled"`
@@ -397,7 +397,8 @@ type PublicSettings struct {
 
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
 
-	ModelsPlazaEnabled bool `json:"models_plaza_enabled"`
+	ModelPlazaEnabled     bool `json:"model_plaza_enabled"`
+	ModelPlazaRequireAuth bool `json:"model_plaza_require_auth"`
 
 	ImageStudioEnabled bool `json:"image_studio_enabled"`
 

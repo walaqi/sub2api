@@ -398,9 +398,10 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	// Available channels feature switch
 	updates[SettingKeyAvailableChannelsEnabled] = strconv.FormatBool(settings.AvailableChannelsEnabled)
 
-	// Models plaza feature switch + default group
-	updates[SettingKeyModelsPlazaEnabled] = strconv.FormatBool(settings.ModelsPlazaEnabled)
-	updates[SettingKeyModelsPlazaDefaultGroupID] = strconv.FormatInt(settings.ModelsPlazaDefaultGroupID, 10)
+	// Model plaza feature switches + description
+	updates[SettingKeyModelPlazaEnabled] = strconv.FormatBool(settings.ModelPlazaEnabled)
+	updates[SettingKeyModelPlazaRequireAuth] = strconv.FormatBool(settings.ModelPlazaRequireAuth)
+	updates[SettingKeyModelPlazaDescription] = settings.ModelPlazaDescription
 
 	// Affiliate (邀请返利) feature switch
 	updates[SettingKeyAffiliateEnabled] = strconv.FormatBool(settings.AffiliateEnabled)

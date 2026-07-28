@@ -190,9 +190,10 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		// Available channels feature (default disabled; opt-in)
 		SettingKeyAvailableChannelsEnabled: "false",
 
-		// Models plaza feature (default disabled; opt-in). Default group 0 = unset.
-		SettingKeyModelsPlazaEnabled:        "false",
-		SettingKeyModelsPlazaDefaultGroupID: "0",
+		// Model plaza feature (default disabled; opt-in, public unless require_auth)
+		SettingKeyModelPlazaEnabled:     "false",
+		SettingKeyModelPlazaRequireAuth: "false",
+		SettingKeyModelPlazaDescription: "",
 
 		// Affiliate (邀请返利) feature (default disabled; opt-in)
 		SettingKeyAffiliateEnabled:              "false",
@@ -772,9 +773,10 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	// Available channels feature (default: disabled; strict true)
 	result.AvailableChannelsEnabled = settings[SettingKeyAvailableChannelsEnabled] == "true"
 
-	// Models plaza feature (default: disabled; strict true)
-	result.ModelsPlazaEnabled = settings[SettingKeyModelsPlazaEnabled] == "true"
-	result.ModelsPlazaDefaultGroupID = parseModelsPlazaDefaultGroupID(settings[SettingKeyModelsPlazaDefaultGroupID])
+	// Model plaza feature (default: disabled; strict true)
+	result.ModelPlazaEnabled = settings[SettingKeyModelPlazaEnabled] == "true"
+	result.ModelPlazaRequireAuth = settings[SettingKeyModelPlazaRequireAuth] == "true"
+	result.ModelPlazaDescription = settings[SettingKeyModelPlazaDescription]
 
 	// Affiliate (邀请返利) feature (default: disabled; strict true)
 	result.AffiliateEnabled = settings[SettingKeyAffiliateEnabled] == "true"
@@ -1156,17 +1158,6 @@ func parseDefaultSubscriptions(raw string) []DefaultSubscriptionSetting {
 	}
 
 	return normalized
-}
-
-// parseModelsPlazaDefaultGroupID parses the models-plaza default group setting.
-// Empty/invalid/negative values collapse to 0 (unset → frontend falls back to
-// the first public group).
-func parseModelsPlazaDefaultGroupID(raw string) int64 {
-	v, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 64)
-	if err != nil || v < 0 {
-		return 0
-	}
-	return v
 }
 
 func parseProviderDefaultGrantSettings(settings map[string]string, keys authSourceDefaultKeySet) ProviderDefaultGrantSettings {

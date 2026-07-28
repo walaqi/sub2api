@@ -99,7 +99,8 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 
 		AvailableChannelsEnabled: settings.AvailableChannelsEnabled,
 
-		ModelsPlazaEnabled: settings.ModelsPlazaEnabled,
+		ModelPlazaEnabled:     settings.ModelPlazaEnabled,
+		ModelPlazaRequireAuth: settings.ModelPlazaRequireAuth,
 
 		ImageStudioEnabled: settings.ImageStudioEnabled,
 

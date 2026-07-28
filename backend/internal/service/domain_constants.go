@@ -401,16 +401,19 @@ const (
 	// sidebar entry is hidden. Defaults to false (opt-in feature).
 	SettingKeyAvailableChannelsEnabled = "available_channels_enabled"
 
-	// SettingKeyModelsPlazaEnabled is a DB-backed soft switch for the "Models Plaza"
-	// public model catalog view. When false: the public endpoint returns an empty list
-	// and the sidebar entry is hidden. Defaults to false (opt-in feature).
-	SettingKeyModelsPlazaEnabled = "models_plaza_enabled"
+	// SettingKeyModelPlazaEnabled is a DB-backed soft switch for the Model Plaza page
+	// (public group/model pricing showcase). When false: the plaza endpoint returns 404
+	// and the header entry is hidden. Defaults to false (opt-in feature).
+	SettingKeyModelPlazaEnabled = "model_plaza_enabled"
 
-	// SettingKeyModelsPlazaDefaultGroupID is the public group whose rate_multiplier
-	// pre-selects the models-plaza price calculator. Replaces the former reliance on
-	// the default-subscription list. "0" (or a non-public/stale group) means the
-	// frontend falls back to the first public group. Defaults to "0".
-	SettingKeyModelsPlazaDefaultGroupID = "models_plaza_default_group_id"
+	// SettingKeyModelPlazaRequireAuth controls whether the Model Plaza page requires a
+	// logged-in user. When false the page is public and anonymous visitors see only
+	// non-exclusive groups.
+	SettingKeyModelPlazaRequireAuth = "model_plaza_require_auth"
+
+	// SettingKeyModelPlazaDescription stores the Markdown blurb rendered at the top of
+	// the Model Plaza page (global pricing notes, exchange rate, promotions, ...).
+	SettingKeyModelPlazaDescription = "model_plaza_description"
 
 	// SettingKeyUpstreamBillingProbeSettings stores the global enable switch and interval
 	// for probing remote Sub2API API-key billing metadata.

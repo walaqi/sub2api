@@ -199,10 +199,10 @@ type SystemSettings struct {
 	// Available Channels feature (user-facing aggregate view)
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
 
-	// Models Plaza feature (public model catalog with pricing)
-	ModelsPlazaEnabled bool `json:"models_plaza_enabled"`
-	// ModelsPlazaDefaultGroupID pre-selects the plaza price calculator (0 = unset).
-	ModelsPlazaDefaultGroupID int64 `json:"models_plaza_default_group_id"`
+	// Model Plaza feature (public group/model pricing showcase)
+	ModelPlazaEnabled     bool   `json:"model_plaza_enabled"`
+	ModelPlazaRequireAuth bool   `json:"model_plaza_require_auth"`
+	ModelPlazaDescription string `json:"model_plaza_description"`
 
 	// Claude Code version check
 	MinClaudeCodeVersion string
@@ -354,10 +354,9 @@ type PublicSettings struct {
 	// Available Channels feature (user-facing aggregate view)
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
 
-	// Models Plaza feature (user-facing model catalog with pricing)
-	ModelsPlazaEnabled bool `json:"models_plaza_enabled"`
-	// ModelsPlazaDefaultGroupID pre-selects the plaza price calculator (0 = unset).
-	ModelsPlazaDefaultGroupID int64 `json:"models_plaza_default_group_id"`
+	// Model Plaza feature (public group/model pricing showcase)
+	ModelPlazaEnabled     bool `json:"model_plaza_enabled"`
+	ModelPlazaRequireAuth bool `json:"model_plaza_require_auth"`
 
 	// Image Studio feature (同源嵌入的文生图子应用入口)。来源是 config 开关
 	// image_studio.enabled，非 DB 软开关，仅用于前端侧栏入口显隐。

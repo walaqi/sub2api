@@ -221,8 +221,8 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyChannelMonitorEnabled,
 		SettingKeyChannelMonitorDefaultIntervalSeconds,
 		SettingKeyAvailableChannelsEnabled,
-		SettingKeyModelsPlazaEnabled,
-		SettingKeyModelsPlazaDefaultGroupID,
+		SettingKeyModelPlazaEnabled,
+		SettingKeyModelPlazaRequireAuth,
 		SettingKeyAffiliateEnabled,
 		SettingKeyReferralRewardEnabled,
 		SettingKeyRiskControlEnabled,
@@ -337,8 +337,8 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 
 		AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true",
 
-		ModelsPlazaEnabled:        settings[SettingKeyModelsPlazaEnabled] == "true",
-		ModelsPlazaDefaultGroupID: parseModelsPlazaDefaultGroupID(settings[SettingKeyModelsPlazaDefaultGroupID]),
+		ModelPlazaEnabled:     settings[SettingKeyModelPlazaEnabled] == "true",
+		ModelPlazaRequireAuth: settings[SettingKeyModelPlazaRequireAuth] == "true",
 
 		ImageStudioEnabled: s.cfg != nil && s.cfg.ImageStudio.Enabled,
 
@@ -426,30 +426,30 @@ func (s *SettingService) GetAvailableChannelsRuntime(ctx context.Context) Availa
 	}
 }
 
-// ModelsPlazaRuntime is the lightweight view of the models-plaza feature switch
-// consumed by the public models-plaza handler.
-type ModelsPlazaRuntime struct {
-	Enabled bool
-	// DefaultGroupID is the admin-configured public group that pre-selects the
-	// price calculator. 0 means unset — callers fall back to the first public group.
-	DefaultGroupID int64
+// ModelPlazaRuntime is the lightweight view of the model-plaza feature consumed
+// by the public plaza handler.
+type ModelPlazaRuntime struct {
+	Enabled     bool
+	RequireAuth bool
+	Description string
 }
 
-// GetModelsPlazaRuntime reads the models-plaza feature switch directly from the
+// GetModelPlazaRuntime reads the model-plaza feature switches directly from the
 // settings store. Fail-closed: on error returns Enabled=false, matching the
 // opt-in default (unknown ↔ disabled).
-func (s *SettingService) GetModelsPlazaRuntime(ctx context.Context) ModelsPlazaRuntime {
+func (s *SettingService) GetModelPlazaRuntime(ctx context.Context) ModelPlazaRuntime {
 	vals, err := s.settingRepo.GetMultiple(ctx, []string{
-		SettingKeyModelsPlazaEnabled,
-		SettingKeyModelsPlazaDefaultGroupID,
+		SettingKeyModelPlazaEnabled,
+		SettingKeyModelPlazaRequireAuth,
+		SettingKeyModelPlazaDescription,
 	})
 	if err != nil {
-		return ModelsPlazaRuntime{Enabled: false}
+		return ModelPlazaRuntime{Enabled: false}
 	}
-	defaultGroupID, _ := strconv.ParseInt(strings.TrimSpace(vals[SettingKeyModelsPlazaDefaultGroupID]), 10, 64)
-	return ModelsPlazaRuntime{
-		Enabled:        vals[SettingKeyModelsPlazaEnabled] == "true",
-		DefaultGroupID: defaultGroupID,
+	return ModelPlazaRuntime{
+		Enabled:     vals[SettingKeyModelPlazaEnabled] == "true",
+		RequireAuth: vals[SettingKeyModelPlazaRequireAuth] == "true",
+		Description: vals[SettingKeyModelPlazaDescription],
 	}
 }
 
@@ -534,7 +534,8 @@ type PublicSettingsInjectionPayload struct {
 	ChannelMonitorEnabled                bool `json:"channel_monitor_enabled"`
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
 	AvailableChannelsEnabled             bool `json:"available_channels_enabled"`
-	ModelsPlazaEnabled                   bool `json:"models_plaza_enabled"`
+	ModelPlazaEnabled                    bool `json:"model_plaza_enabled"`
+	ModelPlazaRequireAuth                bool `json:"model_plaza_require_auth"`
 	ImageStudioEnabled                   bool `json:"image_studio_enabled"`
 	AffiliateEnabled                     bool `json:"affiliate_enabled"`
 	ReferralRewardEnabled                bool `json:"referral_reward_enabled"`
@@ -603,7 +604,8 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ChannelMonitorEnabled:                settings.ChannelMonitorEnabled,
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
-		ModelsPlazaEnabled:                   settings.ModelsPlazaEnabled,
+		ModelPlazaEnabled:                    settings.ModelPlazaEnabled,
+		ModelPlazaRequireAuth:                settings.ModelPlazaRequireAuth,
 		ImageStudioEnabled:                   settings.ImageStudioEnabled,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
 		ReferralRewardEnabled:                settings.ReferralRewardEnabled,

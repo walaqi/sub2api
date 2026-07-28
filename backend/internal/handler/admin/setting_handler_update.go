@@ -313,10 +313,10 @@ type UpdateSettingsRequest struct {
 	// Available Channels feature switch (user-facing)
 	AvailableChannelsEnabled *bool `json:"available_channels_enabled"`
 
-	// Models Plaza feature switch (user-facing)
-	ModelsPlazaEnabled *bool `json:"models_plaza_enabled"`
-	// Models Plaza default group for the price calculator (0 = unset)
-	ModelsPlazaDefaultGroupID *int64 `json:"models_plaza_default_group_id"`
+	// Model Plaza feature switches + description
+	ModelPlazaEnabled     *bool   `json:"model_plaza_enabled"`
+	ModelPlazaRequireAuth *bool   `json:"model_plaza_require_auth"`
+	ModelPlazaDescription *string `json:"model_plaza_description"`
 
 	// Affiliate (邀请返利) feature switch
 	AffiliateEnabled *bool `json:"affiliate_enabled"`
@@ -1711,17 +1711,23 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.AvailableChannelsEnabled
 		}(),
-		ModelsPlazaEnabled: func() bool {
-			if req.ModelsPlazaEnabled != nil {
-				return *req.ModelsPlazaEnabled
+		ModelPlazaEnabled: func() bool {
+			if req.ModelPlazaEnabled != nil {
+				return *req.ModelPlazaEnabled
 			}
-			return previousSettings.ModelsPlazaEnabled
+			return previousSettings.ModelPlazaEnabled
 		}(),
-		ModelsPlazaDefaultGroupID: func() int64 {
-			if req.ModelsPlazaDefaultGroupID != nil {
-				return *req.ModelsPlazaDefaultGroupID
+		ModelPlazaRequireAuth: func() bool {
+			if req.ModelPlazaRequireAuth != nil {
+				return *req.ModelPlazaRequireAuth
 			}
-			return previousSettings.ModelsPlazaDefaultGroupID
+			return previousSettings.ModelPlazaRequireAuth
+		}(),
+		ModelPlazaDescription: func() string {
+			if req.ModelPlazaDescription != nil {
+				return *req.ModelPlazaDescription
+			}
+			return previousSettings.ModelPlazaDescription
 		}(),
 		AffiliateEnabled: func() bool {
 			if req.AffiliateEnabled != nil {
@@ -2202,8 +2208,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 
 		AvailableChannelsEnabled: updatedSettings.AvailableChannelsEnabled,
 
-		ModelsPlazaEnabled:        updatedSettings.ModelsPlazaEnabled,
-		ModelsPlazaDefaultGroupID: updatedSettings.ModelsPlazaDefaultGroupID,
+		ModelPlazaEnabled:     updatedSettings.ModelPlazaEnabled,
+		ModelPlazaRequireAuth: updatedSettings.ModelPlazaRequireAuth,
+		ModelPlazaDescription: updatedSettings.ModelPlazaDescription,
 
 		AffiliateEnabled: updatedSettings.AffiliateEnabled,
 

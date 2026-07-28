@@ -168,7 +168,7 @@ export default {
     groups: 'Groups',
     channels: 'Channels',
     availableChannels: 'Available Channels',
-    modelsPlaza: 'Models Plaza',
+    modelPlaza: 'Model Plaza',
     imageStudio: 'Image Studio',
     subscriptions: 'Subscriptions',
     accounts: 'Accounts',

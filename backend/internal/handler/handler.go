@@ -63,7 +63,7 @@ type Handlers struct {
 	Payment          *PaymentHandler
 	PaymentWebhook   *PaymentWebhookHandler
 	AvailableChannel *AvailableChannelHandler
-	ModelsPlaza      *ModelsPlazaHandler
+	ModelPlaza       *ModelPlazaHandler
 	ImageStudio      *ImageStudioHandler
 	RechargeDiscount *RechargeDiscountHandler
 	Referral         *ReferralHandler

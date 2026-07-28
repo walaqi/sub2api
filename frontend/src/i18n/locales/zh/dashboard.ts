@@ -517,73 +517,6 @@ export default {
     }
   },
 
-  modelsPlaza: {
-    title: '模型广场',
-    description: '浏览平台支持的全部模型、能力与价格',
-    searchPlaceholder: '搜索模型或平台...',
-    empty: '暂无可展示的模型',
-    refresh: '刷新',
-    viewCard: '卡片视图',
-    viewTable: '列表视图',
-    allPlatforms: '全部平台',
-    group: '分组',
-    groupHint: '切换分组以按该分组费率重新计算充值价',
-    noGroup: '无可选分组',
-    standardPrice: '标准价',
-    rechargePrice: '充值价',
-    contextLength: '上下文窗口',
-    maxOutput: '最大输出',
-    capabilities: '能力',
-    modalities: '模态',
-    inputModalities: '输入',
-    outputModalities: '输出',
-    noPricing: '未配置定价',
-    tokensUnit: 'tokens',
-    columns: {
-      model: '模型',
-      standardPrice: '标准价',
-      rechargePrice: '充值价',
-      platform: '平台'
-    },
-    price: {
-      input: '输入',
-      output: '输出',
-      cacheRead: '缓存读取',
-      cacheWrite: '缓存写入',
-      perRequest: '每次请求',
-      imageOutput: '图片输出',
-      unitPerMillion: '/ 1M token',
-      unitPerRequest: '/ 次',
-      free: '免费',
-      dash: '-'
-    },
-    billingMode: {
-      token: '按 Token',
-      per_request: '按次',
-      image: '按图片'
-    },
-    capability: {
-      function_calling: '函数调用',
-      vision: '视觉',
-      prompt_caching: '提示缓存',
-      reasoning: '推理',
-      response_schema: '结构化输出',
-      tool_choice: '工具选择',
-      web_search: '联网搜索',
-      pdf_input: 'PDF 输入',
-      computer_use: '计算机操作',
-      assistant_prefill: '助手预填',
-      audio_input: '音频输入',
-      audio_output: '音频输出'
-    },
-    modality: {
-      text: '文本',
-      image: '图片',
-      audio: '音频',
-      file: '文件'
-    }
-  },
-
   imageStudio: {
     title: '图片工作台',
     description: '进入独立的图片生成工作台',
@@ -592,6 +525,54 @@ export default {
     failed: '无法进入图片工作台，请重试。',
     retry: '重试',
     back: '返回',
+  },
+
+  // Model Plaza (public group/model pricing showcase)
+  modelPlaza: {
+    title: '模型广场',
+    description: '按分组浏览可用模型与价格',
+    loading: '加载中...',
+    empty: '暂无可展示的分组',
+    loadFailed: '加载模型广场失败',
+    noSearchResult: '没有匹配的模型',
+    anonymousHint: '登录后可查看你的专属分组与专属倍率',
+    filters: {
+      platformLabel: '平台',
+      groupLabel: '分组',
+      rateLabel: '倍率',
+      modelLabel: '模型',
+      searchPlaceholder: '搜索模型名称',
+      all: '全部'
+    },
+    badges: {
+      exclusive: '专属分组',
+      subscription: '订阅'
+    },
+    detail: {
+      noModels: '该分组暂未配置模型',
+      noPricing: '未配置定价',
+      peakNote: '高峰时段 {window} 计费倍率 ×{multiplier}'
+    },
+    table: {
+      model: '模型',
+      input: '输入',
+      output: '输出',
+      cache: '缓存',
+      cacheWrite: '写入',
+      cacheRead: '读取',
+      paidPrice: '实付价格(折后)',
+      officialPrice: '官方价格',
+      rate: '折扣倍率',
+      unitPerMillion: '$ / 1M token',
+      perUnitRequest: '/ 次',
+      perUnitImage: '/ 张',
+      perRequest: '按次计费',
+      perImage: '按图片计费'
+    },
+    nav: {
+      login: '登录',
+      backToDashboard: '回到后台'
+    }
   },
 
   affiliate: {

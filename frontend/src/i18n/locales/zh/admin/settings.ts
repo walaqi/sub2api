@@ -30,15 +30,15 @@ export default {
           enabled: '启用可用渠道',
           enabledHint: '关闭后用户端侧边栏入口隐藏，接口返回空数组。',
         },
-        modelsPlaza: {
+        modelPlaza: {
           title: '模型广场',
-          description: '面向所有访客（含未登录）展示平台支持的模型、能力与标准价/充值价聚合视图。默认关闭。',
-          configureLink: '前往 渠道管理 > 渠道定价 配置模型价格',
+          description: '以分组为单位向访客展示可用模型与价格的公开页面。默认关闭。',
           enabled: '启用模型广场',
-          enabledHint: '关闭后侧边栏入口隐藏，公开接口返回空目录。',
-          defaultGroup: '默认分组',
-          defaultGroupHint: '价格计算器的初始分组。留空则默认展示第一个公开分组。仅列公开（非专属）分组。',
-          defaultGroupNone: '不指定（用第一个公开分组）',
+          enabledHint: '开启后顶栏显示入口，页面可通过 /model-plaza 独立访问。',
+          requireAuth: '需要登录才可访问',
+          requireAuthHint: '开启后未登录访问将跳转登录页；关闭则公开可见，匿名访客仅展示非专属分组。',
+          priceDescription: '价格说明（Markdown）',
+          priceDescriptionHint: '展示在模型广场页面顶部，可用于说明计费规则、汇率、优惠活动等。',
         },
         riskControl: {
           title: '风控中心',
