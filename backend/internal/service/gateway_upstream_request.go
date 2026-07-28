@@ -21,6 +21,7 @@ import (
 // originModelHeaderValue 为预计算好的 X-Origin-Model-Id 注入值：非空即注入，空则不注入。
 // 触发判定由调用方（Forward）完成——只有那里能区分"账号映射改变了模型"与"仅渠道映射"。
 func (s *GatewayService) buildUpstreamRequest(ctx context.Context, c *gin.Context, account *Account, body []byte, token, tokenType, modelID, originModelHeaderValue string, reqStream bool, mimicClaudeCode bool) (*http.Request, []byte, error) {
+	body = stripDeferredToolCacheControl(body)
 	if account.Platform == PlatformAnthropic && account.Type == AccountTypeServiceAccount {
 		req, err := s.buildUpstreamRequestAnthropicVertex(ctx, c, account, body, token, modelID, reqStream)
 		return req, body, err
