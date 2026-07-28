@@ -329,13 +329,6 @@ func isOpenAICompatibleAPIKeyRequest(c *gin.Context) bool {
 	return false
 }
 
-func isAsyncImageTaskRead(method, path string) bool {
-	if method != http.MethodGet {
-		return false
-	}
-	return strings.HasPrefix(path, "/v1/images/tasks/") || strings.HasPrefix(path, "/images/tasks/")
-}
-
 // GetAPIKeyFromContext 从上下文中获取API key
 func GetAPIKeyFromContext(c *gin.Context) (*service.APIKey, bool) {
 	value, exists := c.Get(string(ContextKeyAPIKey))
