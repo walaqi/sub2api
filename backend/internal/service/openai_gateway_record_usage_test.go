@@ -183,6 +183,14 @@ func giftDeducterFromUserRepo(userRepo UserRepository) giftBalanceDeducter {
 	return &recordUsageGiftDeductStub{}
 }
 
+func (s *openAIRecordUsageUserRepoStub) AdjustBalance(context.Context, int64, float64) (BalanceChange, error) {
+	panic("unexpected AdjustBalance call")
+}
+
+func (s *openAIRecordUsageUserRepoStub) SetBalance(context.Context, int64, float64) (BalanceChange, error) {
+	panic("unexpected SetBalance call")
+}
+
 type openAIRecordUsageSubRepoStub struct {
 	UserSubscriptionRepository
 
