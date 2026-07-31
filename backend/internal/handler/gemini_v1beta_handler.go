@@ -31,6 +31,14 @@ import (
 // 匹配格式: /Users/xxx/.gemini/tmp/[64位十六进制哈希]
 var geminiCLITmpDirRegex = regexp.MustCompile(`/\.gemini/tmp/([A-Fa-f0-9]{64})`)
 
+func resolveSafeGeminiUpstreamModel(ctx context.Context, requestedModel string) (string, bool) {
+	model := strings.TrimSpace(requestedModel)
+	if resolvedModel, ok := service.ResolvedUpstreamModelFromContext(ctx); ok {
+		model = resolvedModel
+	}
+	return model, service.IsSafeGeminiModelPathSegment(model)
+}
+
 // GeminiV1BetaListModels proxies:
 // GET /v1beta/models
 func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
@@ -93,13 +101,17 @@ func (h *GatewayHandler) GeminiV1BetaGetModel(c *gin.Context) {
 		return
 	}
 
-	modelName := strings.TrimSpace(c.Param("model"))
-	if modelName == "" {
+	requestedModel := strings.TrimSpace(c.Param("model"))
+	if requestedModel == "" {
 		googleError(c, http.StatusBadRequest, "Missing model in URL")
 		return
 	}
-	if resolvedModel, ok := service.ResolvedUpstreamModelFromContext(c.Request.Context()); ok && strings.TrimSpace(resolvedModel) != "" {
-		modelName = strings.TrimSpace(resolvedModel)
+	// 校验最终会拼入上游 URL 的模型，而不是复合路由的公开别名。公开别名可包含
+	// 路由前缀（如 openrouter/gemini-pro），但解析后的上游模型必须是安全片段。
+	modelName, ok := resolveSafeGeminiUpstreamModel(c.Request.Context(), requestedModel)
+	if !ok {
+		googleError(c, http.StatusBadRequest, "Invalid model in URL")
+		return
 	}
 
 	// 强制 antigravity 模式：返回 antigravity 模型信息
@@ -164,13 +176,17 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		}
 	}
 
-	modelName, action, err := parseGeminiModelAction(strings.TrimPrefix(c.Param("modelAction"), "/"))
+	requestedModel, action, err := parseGeminiModelAction(strings.TrimPrefix(c.Param("modelAction"), "/"))
 	if err != nil {
 		googleError(c, http.StatusNotFound, err.Error())
 		return
 	}
-	if resolvedModel, ok := service.ResolvedUpstreamModelFromContext(c.Request.Context()); ok && strings.TrimSpace(resolvedModel) != "" {
-		modelName = strings.TrimSpace(resolvedModel)
+	// 校验最终会拼入上游 URL 的模型，而不是复合路由的公开别名。公开别名可包含
+	// 路由前缀（如 openrouter/gemini-pro），但解析后的上游模型必须是安全片段。
+	modelName, ok := resolveSafeGeminiUpstreamModel(c.Request.Context(), requestedModel)
+	if !ok {
+		googleError(c, http.StatusBadRequest, "Invalid model in URL")
+		return
 	}
 
 	stream := action == "streamGenerateContent"

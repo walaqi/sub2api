@@ -3,12 +3,39 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/stretchr/testify/require"
 )
+
+func TestResolveSafeGeminiUpstreamModelUsesResolvedCompositeTarget(t *testing.T) {
+	ctx := service.WithCompositeRouteDecision(context.Background(), service.CompositeRouteDecision{
+		Matched:        true,
+		PublicModel:    "openrouter/gemini-pro",
+		UpstreamModel:  "gemini-2.5-pro",
+		TargetPlatform: service.PlatformGemini,
+	})
+
+	model, ok := resolveSafeGeminiUpstreamModel(ctx, "openrouter/gemini-pro")
+	require.True(t, ok)
+	require.Equal(t, "gemini-2.5-pro", model)
+}
+
+func TestResolveSafeGeminiUpstreamModelRejectsUnsafeConcreteTarget(t *testing.T) {
+	ctx := service.WithCompositeRouteDecision(context.Background(), service.CompositeRouteDecision{
+		Matched:        true,
+		PublicModel:    "safe-alias",
+		UpstreamModel:  "../admin",
+		TargetPlatform: service.PlatformGemini,
+	})
+
+	model, ok := resolveSafeGeminiUpstreamModel(ctx, "safe-alias")
+	require.False(t, ok)
+	require.Equal(t, "../admin", model)
+}
 
 // TestGeminiV1BetaHandler_PlatformRoutingInvariant 文档化并验证 Handler 层的平台路由逻辑不变量
 // 该测试确保 gemini 和 antigravity 平台的路由逻辑符合预期

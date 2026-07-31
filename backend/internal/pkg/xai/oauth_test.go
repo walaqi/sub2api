@@ -146,6 +146,17 @@ func TestBuildGrokMediaURLs(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestBuildVideoURLRejectsUnsafeRequestID(t *testing.T) {
+	for _, requestID := range []string{".", "..", "bad\x00id", "bad\rid", "bad\nid"} {
+		t.Run(requestID, func(t *testing.T) {
+			_, err := BuildVideoURLWithValidator("https://api.x.ai/v1", requestID, func(raw string) (string, error) {
+				return raw, nil
+			})
+			require.ErrorContains(t, err, "invalid request id")
+		})
+	}
+}
+
 func TestValidateXAIURLsRejectUntrustedOAuthAndUnsafeBaseURLsByDefault(t *testing.T) {
 	_, err := ValidateOAuthEndpointURL("https://auth.example.test/oauth2/token")
 	require.Error(t, err)
