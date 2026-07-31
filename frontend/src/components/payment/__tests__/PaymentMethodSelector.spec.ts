@@ -15,6 +15,34 @@ function methodFactory(overrides: Partial<PaymentMethodOption> = {}): PaymentMet
 }
 
 describe('PaymentMethodSelector custom EasyPay channel rendering', () => {
+  it('wraps large custom method collections without letting labels widen the selector', () => {
+    const methods = Array.from({ length: 12 }, (_, index) =>
+      methodFactory({
+        type: `custom_${index}`,
+        label: `CUSTOM_PAYMENT_METHOD_${index}`,
+        icon_url: `https://cdn.example/custom-${index}.png`,
+      }),
+    )
+
+    const wrapper = mount(PaymentMethodSelector, {
+      props: {
+        selected: 'custom_0',
+        methods,
+      },
+    })
+
+    const grid = wrapper.get('[data-testid="payment-method-grid"]')
+    expect(grid.classes()).toEqual(expect.arrayContaining(['grid', 'sm:grid-cols-3', 'lg:grid-cols-4']))
+    expect(grid.classes()).not.toContain('sm:flex')
+
+    const buttons = wrapper.findAll('button')
+    expect(buttons).toHaveLength(methods.length)
+    expect(buttons.every(button => button.classes().includes('min-w-0'))).toBe(true)
+    expect(buttons.every((button, index) => button.attributes('title') === methods[index].label)).toBe(true)
+    expect(wrapper.findAll('[data-testid="payment-method-label"]').every(label => label.classes().includes('truncate'))).toBe(true)
+    expect(wrapper.find('img').attributes('src')).toBe(methods[0].icon_url)
+  })
+
   it('uses admin-defined label and icon_url over the fallback', () => {
     const wrapper = mount(PaymentMethodSelector, {
       props: {
