@@ -12,8 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Check Caddy deployment policy
-        run: /bin/sh deploy/test-caddyfile-cache.sh
+      - name: Check deployment policies
+        run: |
+          /bin/sh deploy/tests/docker-compose-security-test.sh
+          /bin/sh deploy/test-caddyfile-cache.sh
 
   test:
     runs-on: ubuntu-latest
