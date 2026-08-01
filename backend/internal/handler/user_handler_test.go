@@ -102,6 +102,9 @@ func (s *userHandlerRepoStub) GetEmailContactsByIDs(context.Context, []int64) (m
 func (s *userHandlerRepoStub) BatchUpdateStatus(context.Context, []int64, string) (int, error) {
 	return 0, nil
 }
+func (s *userHandlerRepoStub) BatchUpdateLimits(context.Context, []int64, *int, *int) (int, error) {
+	return 0, nil
+}
 func (s *userHandlerRepoStub) ExistsByEmail(context.Context, string) (bool, error) { return false, nil }
 func (s *userHandlerRepoStub) RemoveGroupFromAllowedGroups(context.Context, int64) (int64, error) {
 	return 0, nil

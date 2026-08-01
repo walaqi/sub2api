@@ -22,11 +22,11 @@
               </div>
               <div class="flex justify-between">
                 <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.amount') }}</span>
-                <span class="font-medium text-gray-900 dark:text-white">{{ paidOrder.order_type === 'balance' ? '$' + paidOrder.amount.toFixed(2) : formatGatewayAmount(paidOrder.amount) }}</span>
+                <span class="font-medium text-gray-900 dark:text-white">{{ creditedAmountSymbol }}{{ paidOrder.amount.toFixed(2) }}</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.payAmount') }}</span>
-                <span class="font-medium text-gray-900 dark:text-white">{{ formatGatewayAmount(paidOrder.pay_amount) }}</span>
+                <span class="font-medium text-gray-900 dark:text-white">{{ formatGatewayAmount(paidOrder.pay_amount, paidOrder.currency) }}</span>
               </div>
               <div v-if="giftBonusText" class="flex justify-between">
                 <span class="text-gray-500 dark:text-gray-400">{{ giftBonusLabel }}</span>
@@ -133,7 +133,7 @@ import { useAppStore } from '@/stores'
 import { paymentAPI } from '@/api/payment'
 import { extractI18nErrorMessage } from '@/utils/apiError'
 import { getPaymentPopupFeatures } from '@/components/payment/providerConfig'
-import { formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
+import { currencySymbol, formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
 import { resolveGiftBonusDisplay } from '@/components/payment/giftBonus'
 import type { PaymentOrder } from '@/types/payment'
 import Icon from '@/components/icons/Icon.vue'
@@ -166,6 +166,7 @@ const remainingSeconds = ref(0)
 const cancelling = ref(false)
 const paidOrder = ref<PaymentOrder | null>(null)
 const paymentCurrency = computed(() => normalizePaymentCurrency(props.currency))
+const creditedAmountSymbol = currencySymbol('USD')
 const localeCode = computed(() => {
   const raw = i18n.locale as unknown
   if (typeof raw === 'string') return raw
@@ -219,8 +220,8 @@ const countdownDisplay = computed(() => {
   return m.toString().padStart(2, '0') + ':' + s.toString().padStart(2, '0')
 })
 
-function formatGatewayAmount(value: number): string {
-  return formatPaymentAmount(value, paymentCurrency.value, localeCode.value)
+function formatGatewayAmount(value: number, currency?: string | null): string {
+  return formatPaymentAmount(value, currency || paymentCurrency.value, localeCode.value)
 }
 
 // 充值折扣赠金展示（命中折扣时显示「赠金(扣除模式) $金额」）。
@@ -279,22 +280,33 @@ async function tryRecoverPendingOrder(order: PaymentOrder): Promise<PaymentOrder
   }
 }
 
+let pollInFlight = false
 async function pollStatus() {
   if (!props.orderId || outcome.value) return
-  let order = await paymentStore.pollOrderStatus(props.orderId)
-  if (!order) return
-  order = await tryRecoverPendingOrder(order)
-  if (isSuccessStatus(order.status)) {
-    cleanup()
-    paidOrder.value = order
-    setOutcome('success')
-    emit('success')
-  } else if (order.status === 'CANCELLED') {
-    cleanup()
-    setOutcome('cancelled')
-  } else if (order.status === 'EXPIRED' || order.status === 'FAILED') {
-    cleanup()
-    setOutcome('expired')
+  // 防重入：接口（含 verifyOrder 二次确认）响应慢于 3 秒轮询间隔时避免并发重叠请求。
+  if (pollInFlight) return
+  pollInFlight = true
+  try {
+    let order = await paymentStore.pollOrderStatus(props.orderId)
+    if (!order) return
+    // 已进入终态则不再处理迟到的响应。
+    if (outcome.value) return
+    order = await tryRecoverPendingOrder(order)
+    if (outcome.value) return
+    if (isSuccessStatus(order.status)) {
+      cleanup()
+      paidOrder.value = order
+      setOutcome('success')
+      emit('success')
+    } else if (order.status === 'CANCELLED') {
+      cleanup()
+      setOutcome('cancelled')
+    } else if (order.status === 'EXPIRED' || order.status === 'FAILED') {
+      cleanup()
+      setOutcome('expired')
+    }
+  } finally {
+    pollInFlight = false
   }
 }
 

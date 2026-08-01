@@ -67,7 +67,9 @@ var ProviderSet = wire.NewSet(
 	NewUserRepository,
 	NewAPIKeyRepository,
 	NewGroupRepository,
+	NewAdminGroupRepository,
 	NewAccountRepository,
+	NewAdminAccountRepository,
 	NewScheduledTestPlanRepository,   // 定时测试计划仓储
 	NewScheduledTestResultRepository, // 定时测试结果仓储
 	NewProxyRepository,
@@ -82,6 +84,7 @@ var ProviderSet = wire.NewSet(
 	NewDashboardAggregationRepository,
 	NewSettingRepository,
 	NewOpsRepository,
+	NewAuditLogRepository,
 	NewUserSubscriptionRepository,
 	NewUserAttributeDefinitionRepository,
 	NewUserAttributeValueRepository,
@@ -120,6 +123,7 @@ var ProviderSet = wire.NewSet(
 	NewLeaderLockCache,
 	ProvideSchedulerCache,
 	NewSchedulerOutboxRepository,
+	NewAuthCacheInvalidationOutboxRepository,
 	NewProxyLatencyCache,
 	NewTotpCache,
 	NewRefreshTokenCache,
@@ -143,6 +147,7 @@ var ProviderSet = wire.NewSet(
 	NewClaudeOAuthClient,
 	NewHTTPUpstream,
 	NewOpenAIOAuthClient,
+	NewGrokOAuthClient,
 	NewGeminiOAuthClient,
 	NewGeminiCliCodeAssistClient,
 	NewGeminiDriveClient,

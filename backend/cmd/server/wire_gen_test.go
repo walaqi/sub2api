@@ -59,6 +59,10 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		&service.OpsCleanupService{},
 		&service.OpsScheduledReportService{},
 		opsSystemLogSinkSvc,
+		nil, // opsService
+		nil, // opsIngressRejectAggregator
+		nil, // apiKeyService
+		nil, // authCacheInvalidationWorker
 		schedulerSnapshotSvc,
 		tokenRefreshSvc,
 		accountExpirySvc,
@@ -75,6 +79,7 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		openAIOAuthSvc,
 		geminiOAuthSvc,
 		antigravityOAuthSvc,
+		nil, // grokOAuth
 		nil, // openAIGateway
 		nil, // scheduledTestRunner
 		nil, // backupSvc
@@ -82,6 +87,8 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		nil, // channelMonitorRunner
 		nil, // giftExpirer
 		nil, // quotaFlusher
+		nil, // upstreamBillingProbe
+		nil, // auditLog
 	)
 
 	require.NotPanics(t, func() {

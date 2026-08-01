@@ -21,6 +21,7 @@ func ProvideAdminHandlers(
 	openaiOAuthHandler *admin.OpenAIOAuthHandler,
 	geminiOAuthHandler *admin.GeminiOAuthHandler,
 	antigravityOAuthHandler *admin.AntigravityOAuthHandler,
+	grokOAuthHandler *admin.GrokOAuthHandler,
 	proxyHandler *admin.ProxyHandler,
 	redeemHandler *admin.RedeemHandler,
 	promoHandler *admin.PromoHandler,
@@ -44,7 +45,10 @@ func ProvideAdminHandlers(
 	abuseHandler *admin.AbuseHandler,
 	complianceHandler *admin.ComplianceHandler,
 	refundAssessmentHandler *admin.RefundAssessmentHandler,
+	auditLogHandler *admin.AuditLogHandler,
+	upstreamBillingProbe *service.UpstreamBillingProbeService,
 ) *AdminHandlers {
+	accountHandler.SetUpstreamBillingProbeService(upstreamBillingProbe)
 	return &AdminHandlers{
 		Dashboard:              dashboardHandler,
 		User:                   userHandler,
@@ -57,6 +61,7 @@ func ProvideAdminHandlers(
 		OpenAIOAuth:            openaiOAuthHandler,
 		GeminiOAuth:            geminiOAuthHandler,
 		AntigravityOAuth:       antigravityOAuthHandler,
+		GrokOAuth:              grokOAuthHandler,
 		Proxy:                  proxyHandler,
 		Redeem:                 redeemHandler,
 		Promo:                  promoHandler,
@@ -80,6 +85,7 @@ func ProvideAdminHandlers(
 		Abuse:                  abuseHandler,
 		Compliance:             complianceHandler,
 		RefundAssessment:       refundAssessmentHandler,
+		AuditLog:               auditLogHandler,
 	}
 }
 
@@ -96,9 +102,10 @@ func ProvideSettingHandler(settingService *service.SettingService, buildInfo Bui
 }
 
 // ProvideAdminSettingHandler creates admin.SettingHandler with notification template APIs.
-func ProvideAdminSettingHandler(settingService *service.SettingService, emailService *service.EmailService, turnstileService *service.TurnstileService, opsService *service.OpsService, paymentConfigService *service.PaymentConfigService, paymentService *service.PaymentService, userAttributeService *service.UserAttributeService, notificationEmailService *service.NotificationEmailService) *admin.SettingHandler {
+func ProvideAdminSettingHandler(settingService *service.SettingService, emailService *service.EmailService, turnstileService *service.TurnstileService, opsService *service.OpsService, paymentConfigService *service.PaymentConfigService, paymentService *service.PaymentService, userAttributeService *service.UserAttributeService, notificationEmailService *service.NotificationEmailService, totpService *service.TotpService, userService *service.UserService) *admin.SettingHandler {
 	h := admin.NewSettingHandler(settingService, emailService, turnstileService, opsService, paymentConfigService, paymentService, userAttributeService)
 	h.SetNotificationEmailService(notificationEmailService)
+	h.SetStepUpDeps(totpService, userService)
 	return h
 }
 
@@ -184,7 +191,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewDashboardHandler,
 	admin.NewUserHandler,
 	admin.NewGroupHandler,
-	admin.NewAccountHandler,
+	admin.ProvideAccountHandler,
 	admin.NewAnnouncementHandler,
 	admin.NewDataManagementHandler,
 	admin.NewBackupHandler,
@@ -192,6 +199,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewOpenAIOAuthHandler,
 	admin.NewGeminiOAuthHandler,
 	admin.NewAntigravityOAuthHandler,
+	admin.NewGrokOAuthHandler,
 	admin.NewProxyHandler,
 	admin.NewRedeemHandler,
 	admin.NewPromoHandler,
@@ -215,6 +223,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewAbuseHandler,
 	admin.NewComplianceHandler,
 	admin.NewRefundAssessmentHandler,
+	admin.NewAuditLogHandler,
 
 	// AdminHandlers and Handlers constructors
 	ProvideAdminHandlers,

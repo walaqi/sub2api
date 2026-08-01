@@ -249,6 +249,9 @@ func (r *contentModerationTestUserRepo) BatchSetConcurrency(ctx context.Context,
 func (r *contentModerationTestUserRepo) BatchAddConcurrency(ctx context.Context, userIDs []int64, delta int) (int, error) {
 	panic("unexpected BatchAddConcurrency call")
 }
+func (r *contentModerationTestUserRepo) BatchUpdateLimits(ctx context.Context, userIDs []int64, concurrency, rpmLimit *int) (int, error) {
+	panic("unexpected BatchUpdateLimits call")
+}
 
 func (r *contentModerationTestUserRepo) GetRolesByIDs(ctx context.Context, userIDs []int64) (map[int64]string, error) {
 	panic("unexpected GetRolesByIDs call")
@@ -497,6 +500,7 @@ func TestContentModerationCheck_PreBlockKeywordHitSkipsUpstreamCall(t *testing.T
 	require.True(t, logs[0].Flagged)
 	require.Equal(t, ContentModerationActionKeywordBlock, logs[0].Action)
 	require.Equal(t, contentModerationKeywordCategory, logs[0].HighestCategory)
+	require.Equal(t, "secret-token", logs[0].MatchedKeyword, "blocked log must record which keyword was hit")
 }
 
 func TestContentModerationCheck_KeywordsIgnoredInObserveMode(t *testing.T) {

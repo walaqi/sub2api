@@ -361,7 +361,9 @@ func (h *OpsHandler) ListRequestErrorUpstreamErrors(c *gin.Context) {
 		filter.EndTime = &endTime
 	}
 	filter.View = "all"
-	filter.Phase = "upstream"
+	filter.ErrorPhasesAny = []string{"upstream", "account_auth"}
+	// Provider-health list includes recovered inference and credential rows.
+	filter.IncludeRecoveredUpstream = true
 	filter.Owner = "provider"
 	filter.Source = strings.TrimSpace(c.Query("error_source"))
 	filter.Query = strings.TrimSpace(c.Query("q"))
@@ -441,7 +443,9 @@ func (h *OpsHandler) ListUpstreamErrors(c *gin.Context) {
 	}
 
 	filter.View = parseOpsViewParam(c)
-	filter.Phase = "upstream"
+	filter.ErrorPhasesAny = []string{"upstream", "account_auth"}
+	// Provider-health list includes recovered inference and credential rows.
+	filter.IncludeRecoveredUpstream = true
 	filter.Owner = "provider"
 	filter.Source = strings.TrimSpace(c.Query("error_source"))
 	filter.Query = strings.TrimSpace(c.Query("q"))

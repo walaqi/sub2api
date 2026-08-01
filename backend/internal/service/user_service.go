@@ -122,6 +122,7 @@ type UserRepository interface {
 	GetEmailContactsByIDs(ctx context.Context, userIDs []int64) (map[int64]UserEmailContact, error)
 	// BatchUpdateStatus sets status for the given ids and returns affected row count.
 	BatchUpdateStatus(ctx context.Context, userIDs []int64, status string) (int, error)
+	BatchUpdateLimits(ctx context.Context, userIDs []int64, concurrency, rpmLimit *int) (int, error)
 	ExistsByEmail(ctx context.Context, email string) (bool, error)
 	RemoveGroupFromAllowedGroups(ctx context.Context, groupID int64) (int64, error)
 	// AddGroupToAllowedGroups 将指定分组增量添加到用户的 allowed_groups（幂等，冲突忽略）
@@ -135,6 +136,14 @@ type UserRepository interface {
 	UpdateTotpSecret(ctx context.Context, userID int64, encryptedSecret *string) error
 	EnableTotp(ctx context.Context, userID int64) error
 	DisableTotp(ctx context.Context, userID int64) error
+}
+
+// RedeemUserAdjustmentRepository provides the atomic, floor-at-zero updates
+// used by negative-value redeem codes. It is intentionally narrower than
+// UserRepository because normal usage billing is allowed to overdraw.
+type RedeemUserAdjustmentRepository interface {
+	ApplyRedeemBalanceAdjustment(ctx context.Context, id int64, delta float64) error
+	ApplyRedeemConcurrencyAdjustment(ctx context.Context, id int64, delta int) error
 }
 
 type UserAuthIdentityRecord struct {

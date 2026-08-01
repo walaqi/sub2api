@@ -35,7 +35,7 @@ services:
       - "${BIND_HOST:-0.0.0.0}:${SERVER_PORT:-8080}:8080"
     volumes:
       # Local directory mapping for easy migration
-      - ./data:/app/data
+      - ./data:/app/data:Z
       # Optional: Mount custom config.yaml (uncomment and create the file first)
       # Copy config.example.yaml to config.yaml, modify it, then uncomment:
       # - ./config.yaml:/app/data/config.yaml
@@ -51,6 +51,7 @@ services:
       - SERVER_HOST=0.0.0.0
       - SERVER_PORT=8080
       - SERVER_MODE=${SERVER_MODE:-release}
+      - ENABLE_SERVER_TIMING=${ENABLE_SERVER_TIMING:-false}
       - RUN_MODE=${RUN_MODE:-standard}
 
       # =======================================================================
@@ -72,6 +73,7 @@ services:
       # =======================================================================
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - REDIS_USERNAME=${REDIS_USERNAME:-}
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - REDIS_DB=${REDIS_DB:-0}
       - REDIS_POOL_SIZE=${REDIS_POOL_SIZE:-1024}
@@ -93,6 +95,11 @@ services:
       # Generate a secure secret: openssl rand -hex 32
       - JWT_SECRET=${JWT_SECRET:-}
       - JWT_EXPIRE_HOUR=${JWT_EXPIRE_HOUR:-24}
+
+      # =======================================================================
+      # Setup Configuration
+      # =======================================================================
+      - SETUP_MIGRATION_TIMEOUT_SECONDS=${SETUP_MIGRATION_TIMEOUT_SECONDS:-0}
 
       # =======================================================================
       # TOTP (2FA) Configuration
@@ -192,7 +199,7 @@ services:
         hard: 100000
     volumes:
       # Local directory mapping for easy migration
-      - ./postgres_data:/var/lib/postgresql/data
+      - ./postgres_data:/var/lib/postgresql/data:Z
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-sub2api}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
@@ -223,13 +230,17 @@ services:
         hard: 100000
     volumes:
       # Local directory mapping for easy migration
-      - ./redis_data:/data
+      - ./redis_data:/data:Z
+    # The command is one quoted script for the inner `sh -c`. Compose keeps
+    # the newlines inside the quoted string, so every line needs a trailing
+    # `\` — without it, `redis-server` on the first line runs with no flags
+    # at all, and the --save/--appendonly/--appendfsync lines are never read.
     command: >
         sh -c '
-          redis-server
-          --save 60 1
-          --appendonly yes
-          --appendfsync everysec
+          redis-server \
+          --save 60 1 \
+          --appendonly yes \
+          --appendfsync everysec \
           ${REDIS_PASSWORD:+--requirepass "$REDIS_PASSWORD"}'
     environment:
       - TZ=${TZ:-Asia/Shanghai}

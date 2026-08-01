@@ -80,6 +80,10 @@ func provideCleanup(
 	opsCleanup *service.OpsCleanupService,
 	opsScheduledReport *service.OpsScheduledReportService,
 	opsSystemLogSink *service.OpsSystemLogSink,
+	opsService *service.OpsService,
+	opsIngressReject *service.OpsIngressRejectAggregator,
+	apiKeyService *service.APIKeyService,
+	authCacheInvalidationWorker *service.AuthCacheInvalidationWorker,
 	schedulerSnapshot *service.SchedulerSnapshotService,
 	tokenRefresh *service.TokenRefreshService,
 	accountExpiry *service.AccountExpiryService,
@@ -96,6 +100,7 @@ func provideCleanup(
 	openaiOAuth *service.OpenAIOAuthService,
 	geminiOAuth *service.GeminiOAuthService,
 	antigravityOAuth *service.AntigravityOAuthService,
+	grokOAuth *service.GrokOAuthService,
 	openAIGateway *service.OpenAIGatewayService,
 	scheduledTestRunner *service.ScheduledTestRunnerService,
 	backupSvc *service.BackupService,
@@ -103,6 +108,8 @@ func provideCleanup(
 	channelMonitorRunner *service.ChannelMonitorRunner,
 	giftExpirer *gift.ExpirerService,
 	quotaFlusher *service.UserPlatformQuotaUsageFlusher,
+	upstreamBillingProbe *service.UpstreamBillingProbeService,
+	auditLog *service.AuditLogService,
 ) func() {
 	return func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -115,6 +122,30 @@ func provideCleanup(
 
 		// 应用层清理步骤可并行执行，基础设施资源（Redis/Ent）最后按顺序关闭。
 		parallelSteps := []cleanupStep{
+			{"OpsIngressRejectAggregator", func() error {
+				if opsIngressReject != nil {
+					opsIngressReject.Stop()
+				}
+				return nil
+			}},
+			{"AuthCacheInvalidationWorker", func() error {
+				if authCacheInvalidationWorker != nil {
+					authCacheInvalidationWorker.Stop()
+				}
+				return nil
+			}},
+			{"AuthCacheInvalidationSubscriber", func() error {
+				if apiKeyService != nil {
+					apiKeyService.StopAuthCacheInvalidationSubscriber()
+				}
+				return nil
+			}},
+			{"OpsRuntimeSettingsRefresh", func() error {
+				if opsService != nil {
+					opsService.StopRuntimeSettingsRefresh()
+				}
+				return nil
+			}},
 			{"OpsScheduledReportService", func() error {
 				if opsScheduledReport != nil {
 					opsScheduledReport.Stop()
@@ -130,6 +161,12 @@ func provideCleanup(
 			{"OpsSystemLogSink", func() error {
 				if opsSystemLogSink != nil {
 					opsSystemLogSink.Stop()
+				}
+				return nil
+			}},
+			{"AuditLogService", func() error {
+				if auditLog != nil {
+					auditLog.Stop()
 				}
 				return nil
 			}},
@@ -225,6 +262,12 @@ func provideCleanup(
 				antigravityOAuth.Stop()
 				return nil
 			}},
+			{"GrokOAuthService", func() error {
+				if grokOAuth != nil {
+					grokOAuth.Stop()
+				}
+				return nil
+			}},
 			{"OpenAIWSPool", func() error {
 				if openAIGateway != nil {
 					openAIGateway.CloseOpenAIWSPool()
@@ -268,6 +311,12 @@ func provideCleanup(
 			{"UserPlatformQuotaUsageFlusher", func() error {
 				if quotaFlusher != nil {
 					quotaFlusher.Stop()
+				}
+				return nil
+			}},
+			{"UpstreamBillingProbeService", func() error {
+				if upstreamBillingProbe != nil {
+					upstreamBillingProbe.Stop()
 				}
 				return nil
 			}},

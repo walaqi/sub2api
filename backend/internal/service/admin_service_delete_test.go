@@ -142,6 +142,9 @@ func (s *userRepoStub) GetEmailContactsByIDs(context.Context, []int64) (map[int6
 func (s *userRepoStub) BatchUpdateStatus(context.Context, []int64, string) (int, error) {
 	return 0, nil
 }
+func (s *userRepoStub) BatchUpdateLimits(context.Context, []int64, *int, *int) (int, error) {
+	return 0, nil
+}
 
 func (s *userRepoStub) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	if s.existsErr != nil {

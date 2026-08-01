@@ -1,6 +1,8 @@
-# Sub2API
-
 <div align="center">
+
+<img src="assets/logo.svg" alt="Sub2API Logo" width="128" />
+
+# Sub2API
 
 [![Go](https://img.shields.io/badge/Go-1.25.7-00ADD8.svg)](https://golang.org/)
 [![Vue](https://img.shields.io/badge/Vue-3.4+-4FC08D.svg)](https://vuejs.org/)
@@ -429,7 +431,8 @@ pnpm run build
 
 # 4. 编译后端（嵌入前端）
 cd ../backend
-go build -tags embed -o sub2api ./cmd/server
+VERSION="$(./scripts/resolve-version.sh)"
+go build -tags embed -ldflags="-X main.Version=${VERSION}" -o sub2api ./cmd/server
 
 # 5. 创建配置文件
 cp ../deploy/config.example.yaml ./config.yaml
@@ -508,8 +511,17 @@ gateway:
 - `security.response_headers.enabled` 可启用可配置响应头过滤（关闭时使用默认白名单）
 - `security.csp` 配置 Content-Security-Policy
 - `billing.circuit_breaker` 计费异常时 fail-closed
-- `server.trusted_proxies` 启用可信代理解析 X-Forwarded-For
+- `security.trust_forwarded_ip_for_api_key_acl` 控制旧版原始转发头接管（默认关闭，仅在信任边缘代理时才开启）；关闭时严格使用 `server.trusted_proxies`，其中只应填写直接连接 Sub2API 的精确代理 CIDR
+- `security.forwarded_client_ip_headers` 最多配置 16 个第三方 CDN 客户端 IP 请求头；仅在旧版接管开启时按顺序优先于内置请求头解析
 - `turnstile.required` 在 release 模式强制启用 Turnstile
+
+自定义客户端 IP 请求头可通过 YAML 配置，也可使用逗号分隔的环境变量：
+
+```bash
+SECURITY_FORWARDED_CLIENT_IP_HEADERS=True-Client-IP,X-CDN-Client-IP
+```
+
+请求头名称会经过合法性校验、规范化和大小写无关去重。管理员可在安全设置中动态更新列表，无需重启；新安装会持久化 YAML/环境变量默认值，旧安装缺少数据库字段时会自动回填。关闭旧版接管后，自定义头和内置原始转发头均被忽略，只使用 `server.trusted_proxies`。开启接管时必须限制源站仅允许 CDN/代理访问，并确保边缘代理覆盖所有受信客户端 IP 请求头。
 
 **网关防御纵深建议（重点）**
 
@@ -558,6 +570,25 @@ Invalid base URL: invalid url scheme: http
 - 阻断私网/回环/链路本地地址
 - 强制仅允许 TLS 出站
 - 在反向代理层移除敏感响应头
+
+#### ⚠️ 重要：创建管理员账号
+
+初始管理员账号**只能通过 setup 向导创建**（首次启动时访问 `http://<host>:8080`）。`config.yaml` 中的 `default.admin_email` / `default.admin_password` 字段**不会被用来创建管理员**——它们只是出于历史原因保留在模板里。
+
+由于上面第 5 步预先创建了 `config.yaml`，**setup 向导在首次启动时会被跳过**：服务检测到 config 已存在，会直接进入正常模式，此时 `users` 表为空，首次登录会返回 `invalid email or password`。
+
+**创建管理员的两种方式：**
+
+1. **推荐——让向导自动生成 `config.yaml`：** 跳过上面的第 5 步（不要执行 `cp`）。直接运行 `./sub2api`，访问 `http://localhost:8080`，向导会引导你完成数据库、Redis 和管理员账号配置，并自动写出 `config.yaml`。
+
+2. **如果你已经创建了 `config.yaml`：** 首次启动前先把它临时移走以触发向导，完成后再恢复：
+   ```bash
+   mv config.yaml config.yaml.bak
+   ./sub2api        # 向导在 http://localhost:8080 启动，并生成新的 config.yaml
+   # 向导完成后 Ctrl+C 停服，再恢复你的配置：
+   mv config.yaml.bak config.yaml
+   ./sub2api        # 重启进入正常模式，用刚创建的管理员登录
+   ```
 
 ```bash
 # 6. 运行应用

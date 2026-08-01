@@ -58,6 +58,8 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			log.CacheCreation1hTokens,
 			log.ImageOutputTokens,
 			log.ImageOutputCost,
+			log.ImageInputTokens,
+			log.ImageInputCost,
 			log.InputCost,
 			log.OutputCost,
 			log.CacheCreationCost,
@@ -82,11 +84,15 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			sqlmock.AnyArg(), // image_output_size
 			sqlmock.AnyArg(), // image_size_source
 			sqlmock.AnyArg(), // image_size_breakdown
+			sqlmock.AnyArg(), // video_count
+			sqlmock.AnyArg(), // video_resolution
+			sqlmock.AnyArg(), // video_duration_seconds
 			sqlmock.AnyArg(), // service_tier
 			sqlmock.AnyArg(), // reasoning_effort
 			sqlmock.AnyArg(), // inbound_endpoint
 			sqlmock.AnyArg(), // upstream_endpoint
 			log.CacheTTLOverridden,
+			log.LongContextBillingApplied,
 			sqlmock.AnyArg(), // channel_id
 			sqlmock.AnyArg(), // model_mapping_chain
 			sqlmock.AnyArg(), // billing_tier
@@ -145,6 +151,8 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			log.CacheCreation1hTokens,
 			log.ImageOutputTokens,
 			log.ImageOutputCost,
+			log.ImageInputTokens,
+			log.ImageInputCost,
 			log.InputCost,
 			log.OutputCost,
 			log.CacheCreationCost,
@@ -169,11 +177,15 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			sqlmock.AnyArg(), // image_output_size
 			sqlmock.AnyArg(), // image_size_source
 			sqlmock.AnyArg(), // image_size_breakdown
+			sqlmock.AnyArg(), // video_count
+			sqlmock.AnyArg(), // video_resolution
+			sqlmock.AnyArg(), // video_duration_seconds
 			serviceTier,
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			log.CacheTTLOverridden,
+			log.LongContextBillingApplied,
 			sqlmock.AnyArg(), // channel_id
 			sqlmock.AnyArg(), // model_mapping_chain
 			sqlmock.AnyArg(), // billing_tier
@@ -267,11 +279,11 @@ func TestPrepareUsageLogInsert_PersistsImageSizeMetadata(t *testing.T) {
 		CreatedAt:          time.Date(2025, 1, 6, 12, 0, 0, 0, time.UTC),
 	})
 
-	require.Equal(t, sql.NullString{String: imageSize, Valid: true}, prepared.args[36])
-	require.Equal(t, sql.NullString{String: inputSize, Valid: true}, prepared.args[37])
-	require.Equal(t, sql.NullString{String: outputSize, Valid: true}, prepared.args[38])
-	require.Equal(t, sql.NullString{String: source, Valid: true}, prepared.args[39])
-	breakdownJSON, ok := prepared.args[40].(string)
+	require.Equal(t, sql.NullString{String: imageSize, Valid: true}, prepared.args[38])
+	require.Equal(t, sql.NullString{String: inputSize, Valid: true}, prepared.args[39])
+	require.Equal(t, sql.NullString{String: outputSize, Valid: true}, prepared.args[40])
+	require.Equal(t, sql.NullString{String: source, Valid: true}, prepared.args[41])
+	breakdownJSON, ok := prepared.args[42].(string)
 	require.True(t, ok)
 	require.JSONEq(t, `{"1K":1,"4K":1}`, breakdownJSON)
 }
@@ -289,9 +301,14 @@ func TestAppendUsageLogBillingModeWhereCondition(t *testing.T) {
 		wantCondition string
 	}{
 		{
-			name:          "image includes legacy image rows",
+			name:          "image includes explicit image and legacy image rows",
 			billingMode:   string(service.BillingModeImage),
-			wantCondition: "(billing_mode = $1 OR COALESCE(image_count, 0) > 0)",
+			wantCondition: "(billing_mode = $1 OR ((billing_mode IS NULL OR billing_mode = '') AND COALESCE(image_count, 0) > 0))",
+		},
+		{
+			name:          "video remains exact",
+			billingMode:   string(service.BillingModeVideo),
+			wantCondition: "billing_mode = $1",
 		},
 		{
 			name:          "token includes legacy non-image rows",
@@ -387,6 +404,28 @@ func TestUsageLogRepositoryGetModelStatsWithFiltersRequestTypePriority(t *testin
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestUsageLogRepositoryGetUserModelStatsUsesRequestedModel(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := start.Add(24 * time.Hour)
+
+	mock.ExpectQuery("(?s)SELECT\\s+COALESCE\\(NULLIF\\(TRIM\\(requested_model\\), ''\\), model\\) as model,.*WHERE created_at >= \\$1 AND created_at < \\$2\\s+AND user_id = \\$3.*GROUP BY COALESCE\\(NULLIF\\(TRIM\\(requested_model\\), ''\\), model\\) ORDER BY total_tokens DESC").
+		WithArgs(start, end, int64(7)).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"model", "requests", "input_tokens", "output_tokens",
+			"cache_creation_tokens", "cache_read_tokens", "total_tokens",
+			"cost", "actual_cost", "account_cost",
+		}).AddRow("gpt-5.5", int64(2), int64(10), int64(20), int64(0), int64(0), int64(30), 0.1, 0.08, 0.07))
+
+	stats, err := repo.GetUserModelStats(context.Background(), 7, start, end)
+	require.NoError(t, err)
+	require.Len(t, stats, 1)
+	require.Equal(t, "gpt-5.5", stats[0].Model)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestUsageLogRepositoryGetStatsWithFiltersRequestTypePriority(t *testing.T) {
 	db, mock := newSQLMock(t)
 	repo := &usageLogRepository{sql: db}
@@ -405,11 +444,13 @@ func TestUsageLogRepositoryGetStatsWithFiltersRequestTypePriority(t *testing.T) 
 			"total_input_tokens",
 			"total_output_tokens",
 			"total_cache_tokens",
+			"total_cache_creation_tokens",
+			"total_cache_read_tokens",
 			"total_cost",
 			"total_actual_cost",
 			"total_account_cost",
 			"avg_duration_ms",
-		}).AddRow(int64(1), int64(2), int64(3), int64(4), 1.2, 1.0, 1.2, 20.0))
+		}).AddRow(int64(1), int64(2), int64(3), int64(4), int64(1), int64(3), 1.2, 1.0, 1.2, 20.0))
 	mock.ExpectQuery("SELECT COALESCE\\(NULLIF\\(TRIM\\(inbound_endpoint\\), ''\\), 'unknown'\\) AS endpoint").
 		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), requestType).
 		WillReturnRows(sqlmock.NewRows([]string{"endpoint", "requests", "total_tokens", "cost", "actual_cost"}))
@@ -497,9 +538,10 @@ func TestUsageLogRepositoryGetStatsWithFiltersAlwaysReturnsAccountCost(t *testin
 	mock.ExpectQuery("FROM usage_logs").
 		WillReturnRows(sqlmock.NewRows([]string{
 			"total_requests", "total_input_tokens", "total_output_tokens",
-			"total_cache_tokens", "total_cost", "total_actual_cost",
+			"total_cache_tokens", "total_cache_creation_tokens", "total_cache_read_tokens",
+			"total_cost", "total_actual_cost",
 			"total_account_cost", "avg_duration_ms",
-		}).AddRow(int64(50), int64(1000), int64(2000), int64(100), 15.0, 12.5, 11.0, 100.0))
+		}).AddRow(int64(50), int64(1000), int64(2000), int64(100), int64(60), int64(40), 15.0, 12.5, 11.0, 100.0))
 	mock.ExpectQuery("SELECT COALESCE\\(NULLIF\\(TRIM\\(inbound_endpoint\\)").
 		WillReturnRows(sqlmock.NewRows([]string{"endpoint", "requests", "total_tokens", "cost", "actual_cost"}))
 	mock.ExpectQuery("SELECT COALESCE\\(NULLIF\\(TRIM\\(upstream_endpoint\\)").
@@ -632,6 +674,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullInt64{},
 			0, 0, 0, 0, 0, 0,
 			0, 0.0, // image_output_tokens, image_output_cost
+			0, 0.0, // image_input_tokens, image_input_cost
 			0.0, 0.0, 0.0, 0.0, 0.8, 0.8,
 			0.0, 0.0, // gift_cost, recharge_cost
 			1.0,
@@ -650,10 +693,14 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{Valid: true, String: "3840x2160"},
 			sql.NullString{Valid: true, String: "output"},
 			sql.NullString{Valid: true, String: `{"4K":2}`},
+			0,                // video_count
+			sql.NullString{}, // video_resolution
+			sql.NullInt64{},  // video_duration_seconds
 			sql.NullString{},
 			sql.NullString{},
 			sql.NullString{},
 			sql.NullString{},
+			false,
 			false,
 			sql.NullInt64{},
 			sql.NullString{},
@@ -702,6 +749,8 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			6,                 // cache_creation_1h_tokens
 			0,                 // image_output_tokens
 			0.0,               // image_output_cost
+			0,                 // image_input_tokens
+			0.0,               // image_input_cost
 			0.1,               // input_cost
 			0.2,               // output_cost
 			0.3,               // cache_creation_cost
@@ -726,10 +775,14 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{}, // image_output_size
 			sql.NullString{}, // image_size_source
 			sql.NullString{}, // image_size_breakdown
+			0,                // video_count
+			sql.NullString{}, // video_resolution
+			sql.NullInt64{},  // video_duration_seconds
 			sql.NullString{Valid: true, String: "priority"},
 			sql.NullString{},
 			sql.NullString{},
 			sql.NullString{},
+			false,
 			false,
 			sql.NullInt64{},   // channel_id
 			sql.NullString{},  // model_mapping_chain
@@ -763,6 +816,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullInt64{},
 			1, 2, 3, 4, 5, 6,
 			0, 0.0, // image_output_tokens, image_output_cost
+			0, 0.0, // image_input_tokens, image_input_cost
 			0.1, 0.2, 0.3, 0.4, 1.0, 0.9,
 			0.0, 0.0, // gift_cost, recharge_cost
 			1.0,
@@ -781,10 +835,14 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{}, // image_output_size
 			sql.NullString{}, // image_size_source
 			sql.NullString{}, // image_size_breakdown
+			0,                // video_count
+			sql.NullString{}, // video_resolution
+			sql.NullInt64{},  // video_duration_seconds
 			sql.NullString{Valid: true, String: "flex"},
 			sql.NullString{},
 			sql.NullString{},
 			sql.NullString{},
+			false,
 			false,
 			sql.NullInt64{},   // channel_id
 			sql.NullString{},  // model_mapping_chain
@@ -818,6 +876,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullInt64{},
 			1, 2, 3, 4, 5, 6,
 			0, 0.0, // image_output_tokens, image_output_cost
+			0, 0.0, // image_input_tokens, image_input_cost
 			0.1, 0.2, 0.3, 0.4, 1.0, 0.9,
 			0.0, 0.0, // gift_cost, recharge_cost
 			1.0,
@@ -836,10 +895,14 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{}, // image_output_size
 			sql.NullString{}, // image_size_source
 			sql.NullString{}, // image_size_breakdown
+			0,                // video_count
+			sql.NullString{}, // video_resolution
+			sql.NullInt64{},  // video_duration_seconds
 			sql.NullString{Valid: true, String: "priority"},
 			sql.NullString{},
 			sql.NullString{},
 			sql.NullString{},
+			false,
 			false,
 			sql.NullInt64{},   // channel_id
 			sql.NullString{},  // model_mapping_chain

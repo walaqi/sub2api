@@ -174,6 +174,42 @@ func TestAdminService_CreateGroup_WithImagePricing(t *testing.T) {
 	require.InDelta(t, 0.30, *repo.created.ImagePrice4K, 0.0001)
 }
 
+func TestAdminService_CreateGroup_WithVideoPricing(t *testing.T) {
+	repo := &groupRepoStubForAdmin{}
+	svc := &adminServiceImpl{groupRepo: repo}
+
+	price480P := 0.08
+	price720P := 0.12
+	price1080P := 0.18
+	videoMultiplier := 0.75
+
+	input := &CreateGroupInput{
+		Name:                 "grok-video",
+		Description:          "Grok video group",
+		Platform:             PlatformGrok,
+		RateMultiplier:       1.0,
+		VideoRateIndependent: true,
+		VideoRateMultiplier:  &videoMultiplier,
+		VideoPrice480P:       &price480P,
+		VideoPrice720P:       &price720P,
+		VideoPrice1080P:      &price1080P,
+	}
+
+	group, err := svc.CreateGroup(context.Background(), input)
+	require.NoError(t, err)
+	require.NotNil(t, group)
+
+	require.NotNil(t, repo.created)
+	require.True(t, repo.created.VideoRateIndependent)
+	require.InDelta(t, 0.75, repo.created.VideoRateMultiplier, 1e-12)
+	require.NotNil(t, repo.created.VideoPrice480P)
+	require.NotNil(t, repo.created.VideoPrice720P)
+	require.NotNil(t, repo.created.VideoPrice1080P)
+	require.InDelta(t, 0.08, *repo.created.VideoPrice480P, 0.0001)
+	require.InDelta(t, 0.12, *repo.created.VideoPrice720P, 0.0001)
+	require.InDelta(t, 0.18, *repo.created.VideoPrice1080P, 0.0001)
+}
+
 // TestAdminService_CreateGroup_NilImagePricing 测试 ImagePrice 为 nil 时正常创建
 func TestAdminService_CreateGroup_NilImagePricing(t *testing.T) {
 	repo := &groupRepoStubForAdmin{}
@@ -196,6 +232,40 @@ func TestAdminService_CreateGroup_NilImagePricing(t *testing.T) {
 	require.Nil(t, repo.created.ImagePrice1K)
 	require.Nil(t, repo.created.ImagePrice2K)
 	require.Nil(t, repo.created.ImagePrice4K)
+}
+
+func TestAdminService_CreateGroup_DefaultsGrokMediaGenerationEnabled(t *testing.T) {
+	repo := &groupRepoStubForAdmin{}
+	svc := &adminServiceImpl{groupRepo: repo}
+
+	group, err := svc.CreateGroup(context.Background(), &CreateGroupInput{
+		Name:           "grok-media",
+		Description:    "Grok media group",
+		Platform:       PlatformGrok,
+		RateMultiplier: 1.0,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, group)
+	require.NotNil(t, repo.created)
+	require.True(t, repo.created.AllowImageGeneration)
+	require.True(t, group.AllowImageGeneration)
+}
+
+func TestAdminService_CreateGroup_PreservesNonGrokImageGenerationDisabled(t *testing.T) {
+	repo := &groupRepoStubForAdmin{}
+	svc := &adminServiceImpl{groupRepo: repo}
+
+	group, err := svc.CreateGroup(context.Background(), &CreateGroupInput{
+		Name:           "anthropic-text",
+		Description:    "Anthropic text group",
+		Platform:       PlatformAnthropic,
+		RateMultiplier: 1.0,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, group)
+	require.NotNil(t, repo.created)
+	require.False(t, repo.created.AllowImageGeneration)
+	require.False(t, group.AllowImageGeneration)
 }
 
 // TestAdminService_UpdateGroup_WithImagePricing 测试更新分组时 ImagePrice 字段正确更新
@@ -231,6 +301,42 @@ func TestAdminService_UpdateGroup_WithImagePricing(t *testing.T) {
 	require.InDelta(t, 0.12, *repo.updated.ImagePrice1K, 0.0001)
 	require.InDelta(t, 0.18, *repo.updated.ImagePrice2K, 0.0001)
 	require.InDelta(t, 0.36, *repo.updated.ImagePrice4K, 0.0001)
+}
+
+func TestAdminService_UpdateGroup_WithVideoPricing(t *testing.T) {
+	existingGroup := &Group{
+		ID:       1,
+		Name:     "existing-grok",
+		Platform: PlatformGrok,
+		Status:   StatusActive,
+	}
+	repo := &groupRepoStubForAdmin{getByID: existingGroup}
+	svc := &adminServiceImpl{groupRepo: repo}
+
+	price480P := 0.09
+	price720P := 0.13
+	price1080P := 0.19
+	videoMultiplier := 0.6
+	independent := true
+
+	input := &UpdateGroupInput{
+		VideoRateIndependent: &independent,
+		VideoRateMultiplier:  &videoMultiplier,
+		VideoPrice480P:       &price480P,
+		VideoPrice720P:       &price720P,
+		VideoPrice1080P:      &price1080P,
+	}
+
+	group, err := svc.UpdateGroup(context.Background(), 1, input)
+	require.NoError(t, err)
+	require.NotNil(t, group)
+
+	require.NotNil(t, repo.updated)
+	require.True(t, repo.updated.VideoRateIndependent)
+	require.InDelta(t, 0.6, repo.updated.VideoRateMultiplier, 1e-12)
+	require.InDelta(t, 0.09, *repo.updated.VideoPrice480P, 0.0001)
+	require.InDelta(t, 0.13, *repo.updated.VideoPrice720P, 0.0001)
+	require.InDelta(t, 0.19, *repo.updated.VideoPrice1080P, 0.0001)
 }
 
 // TestAdminService_UpdateGroup_PartialImagePricing 测试仅更新部分 ImagePrice 字段
@@ -350,6 +456,25 @@ func TestAdminService_UpdateGroup_RejectsNegativeImageRateMultiplier(t *testing.
 	require.Nil(t, repo.updated)
 }
 
+func TestAdminService_UpdateGroup_RejectsNegativeVideoRateMultiplier(t *testing.T) {
+	existingGroup := &Group{
+		ID:                  1,
+		Name:                "existing-group",
+		Platform:            PlatformGrok,
+		Status:              StatusActive,
+		VideoRateMultiplier: 1,
+	}
+	repo := &groupRepoStubForAdmin{getByID: existingGroup}
+	svc := &adminServiceImpl{groupRepo: repo}
+	negative := -0.1
+
+	_, err := svc.UpdateGroup(context.Background(), 1, &UpdateGroupInput{
+		VideoRateMultiplier: &negative,
+	})
+	require.Error(t, err)
+	require.Nil(t, repo.updated)
+}
+
 func TestAdminService_UpdateGroup_InvalidatesAuthCacheOnRPMLimitChange(t *testing.T) {
 	existingGroup := &Group{
 		ID:       1,
@@ -373,6 +498,127 @@ func TestAdminService_UpdateGroup_InvalidatesAuthCacheOnRPMLimitChange(t *testin
 	require.NotNil(t, group)
 	require.Equal(t, 60, repo.updated.RPMLimit)
 	require.Equal(t, []int64{1}, invalidator.groupIDs, "分组 RPMLimit 写入 auth snapshot，变更后必须失效 API Key 认证缓存")
+}
+
+func TestAdminService_UpdateGroup_ReasoningEffortMappingsTriState(t *testing.T) {
+	tests := []struct {
+		name  string
+		input *UpdateGroupInput
+		want  []ReasoningEffortMapping
+	}{
+		{
+			name:  "nil preserves existing mappings",
+			input: &UpdateGroupInput{},
+			want:  []ReasoningEffortMapping{{From: "max", To: "xhigh"}},
+		},
+		{
+			name: "empty array clears mappings",
+			input: func() *UpdateGroupInput {
+				empty := []ReasoningEffortMapping{}
+				return &UpdateGroupInput{ReasoningEffortMappings: &empty}
+			}(),
+			want: []ReasoningEffortMapping{},
+		},
+		{
+			name: "non empty array replaces and canonicalizes mappings",
+			input: func() *UpdateGroupInput {
+				replacement := []ReasoningEffortMapping{{From: " X-HIGH ", To: " high "}}
+				return &UpdateGroupInput{ReasoningEffortMappings: &replacement}
+			}(),
+			want: []ReasoningEffortMapping{{From: "xhigh", To: "high"}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			existing := &Group{
+				ID:                      1,
+				Name:                    "openai-group",
+				Platform:                PlatformOpenAI,
+				Status:                  StatusActive,
+				ReasoningEffortMappings: []ReasoningEffortMapping{{From: "max", To: "xhigh"}},
+			}
+			repo := &groupRepoStubForAdmin{getByID: existing}
+			svc := &adminServiceImpl{groupRepo: repo}
+
+			_, err := svc.UpdateGroup(context.Background(), existing.ID, tt.input)
+
+			require.NoError(t, err)
+			require.Equal(t, tt.want, repo.updated.ReasoningEffortMappings)
+		})
+	}
+}
+
+func TestAdminService_UpdateGroup_RejectsInvalidReasoningEffortMappings(t *testing.T) {
+	existing := &Group{
+		ID:               1,
+		Name:             "openai",
+		Platform:         PlatformOpenAI,
+		SubscriptionType: SubscriptionTypeStandard,
+		RateMultiplier:   1,
+		Status:           StatusActive,
+	}
+	repo := &groupRepoStubForInvalidRequestFallback{groups: map[int64]*Group{existing.ID: existing}}
+	svc := &adminServiceImpl{groupRepo: repo}
+	invalid := []ReasoningEffortMapping{
+		{From: "max", To: "xhigh"},
+		{From: " MAX ", To: "high"},
+	}
+
+	_, err := svc.UpdateGroup(context.Background(), existing.ID, &UpdateGroupInput{
+		ReasoningEffortMappings: &invalid,
+	})
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "duplicate reasoning effort mapping source")
+	require.Nil(t, repo.updated)
+}
+
+func TestAdminService_UpdateGroup_ClearsReasoningPolicyForUnsupportedPlatform(t *testing.T) {
+	existing := &Group{
+		ID:                      1,
+		Name:                    "openai-group",
+		Platform:                PlatformOpenAI,
+		Status:                  StatusActive,
+		MaxReasoningEffort:      "medium",
+		ReasoningEffortMappings: []ReasoningEffortMapping{{From: "max", To: "xhigh"}},
+	}
+	repo := &groupRepoStubForAdmin{getByID: existing}
+	svc := &adminServiceImpl{groupRepo: repo}
+
+	_, err := svc.UpdateGroup(context.Background(), existing.ID, &UpdateGroupInput{Platform: PlatformAnthropic})
+
+	require.NoError(t, err)
+	require.Empty(t, repo.updated.MaxReasoningEffort)
+	require.Empty(t, repo.updated.ReasoningEffortMappings)
+}
+
+func TestAdminService_UpdateGroup_ClearsPeakRateWhenChangingToStandard(t *testing.T) {
+	existingGroup := &Group{
+		ID:                 1,
+		Name:               "existing-group",
+		Platform:           PlatformOpenAI,
+		Status:             StatusActive,
+		SubscriptionType:   SubscriptionTypeSubscription,
+		PeakRateEnabled:    true,
+		PeakStart:          "14:00",
+		PeakEnd:            "18:00",
+		PeakRateMultiplier: 3,
+	}
+	repo := &groupRepoStubForAdmin{getByID: existingGroup}
+	svc := &adminServiceImpl{groupRepo: repo}
+
+	group, err := svc.UpdateGroup(context.Background(), 1, &UpdateGroupInput{
+		SubscriptionType: SubscriptionTypeStandard,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, group)
+	require.NotNil(t, repo.updated)
+	require.Equal(t, SubscriptionTypeStandard, repo.updated.SubscriptionType)
+	require.False(t, repo.updated.PeakRateEnabled)
+	require.Equal(t, "", repo.updated.PeakStart)
+	require.Equal(t, "", repo.updated.PeakEnd)
+	require.Equal(t, 1.0, repo.updated.PeakRateMultiplier)
 }
 
 func TestAdminService_CreateGroup_NormalizesMessagesDispatchModelConfig(t *testing.T) {

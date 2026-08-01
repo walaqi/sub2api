@@ -4,6 +4,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestDecideAdminBootstrap(t *testing.T) {
@@ -70,6 +71,22 @@ func TestSetupDefaultAdminConcurrency(t *testing.T) {
 	})
 }
 
+func TestSetupMigrationTimeout(t *testing.T) {
+	t.Run("uses default timeout when unset", func(t *testing.T) {
+		cfg := &SetupConfig{}
+		if got := cfg.migrationTimeout(); got != 60*time.Second {
+			t.Fatalf("migrationTimeout()=%s, want 60s", got)
+		}
+	})
+
+	t.Run("uses configured timeout", func(t *testing.T) {
+		cfg := &SetupConfig{MigrationTimeoutSeconds: 300}
+		if got := cfg.migrationTimeout(); got != 300*time.Second {
+			t.Fatalf("migrationTimeout()=%s, want 300s", got)
+		}
+	})
+}
+
 func TestWriteConfigFileKeepsDefaultUserConcurrency(t *testing.T) {
 	t.Setenv("RUN_MODE", "simple")
 	t.Setenv("DATA_DIR", t.TempDir())
@@ -85,6 +102,29 @@ func TestWriteConfigFileKeepsDefaultUserConcurrency(t *testing.T) {
 
 	if !strings.Contains(string(data), "user_concurrency: 5") {
 		t.Fatalf("config missing default user concurrency, got:\n%s", string(data))
+	}
+}
+
+func TestWriteConfigFileIncludesRedisUsername(t *testing.T) {
+	t.Setenv("DATA_DIR", t.TempDir())
+
+	if err := writeConfigFile(&SetupConfig{
+		Redis: RedisConfig{
+			Host:     "redis",
+			Port:     6379,
+			Username: "app-user",
+		},
+	}); err != nil {
+		t.Fatalf("writeConfigFile() error = %v", err)
+	}
+
+	data, err := os.ReadFile(GetConfigFilePath())
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+
+	if !strings.Contains(string(data), "username: app-user") {
+		t.Fatalf("config missing Redis username, got:\n%s", string(data))
 	}
 }
 

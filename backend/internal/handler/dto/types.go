@@ -65,11 +65,14 @@ type APIKey struct {
 	IPWhitelist []string   `json:"ip_whitelist"`
 	IPBlacklist []string   `json:"ip_blacklist"`
 	LastUsedAt  *time.Time `json:"last_used_at"`
+	LastUsedIP  *string    `json:"last_used_ip"`
 	Quota       float64    `json:"quota"`      // Quota limit in USD (0 = unlimited)
 	QuotaUsed   float64    `json:"quota_used"` // Used quota amount in USD
 	ExpiresAt   *time.Time `json:"expires_at"` // Expiration time (nil = never expires)
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
+	// CurrentConcurrency is the real-time active request count for this API key.
+	CurrentConcurrency int `json:"current_concurrency"`
 
 	// Rate limit fields
 	RateLimit5h   float64    `json:"rate_limit_5h"`
@@ -104,12 +107,24 @@ type Group struct {
 	MonthlyLimitUSD  *float64 `json:"monthly_limit_usd"`
 
 	// 图片生成计费配置（仅 antigravity 平台使用）
-	AllowImageGeneration bool     `json:"allow_image_generation"`
-	ImageRateIndependent bool     `json:"image_rate_independent"`
-	ImageRateMultiplier  float64  `json:"image_rate_multiplier"`
-	ImagePrice1K         *float64 `json:"image_price_1k"`
-	ImagePrice2K         *float64 `json:"image_price_2k"`
-	ImagePrice4K         *float64 `json:"image_price_4k"`
+	AllowImageGeneration bool    `json:"allow_image_generation"`
+	ImageRateIndependent bool    `json:"image_rate_independent"`
+	ImageRateMultiplier  float64 `json:"image_rate_multiplier"`
+	VideoRateIndependent bool    `json:"video_rate_independent"`
+	VideoRateMultiplier  float64 `json:"video_rate_multiplier"`
+	// 高峰时段倍率配置
+	PeakRateEnabled    bool     `json:"peak_rate_enabled"`
+	PeakStart          string   `json:"peak_start"`
+	PeakEnd            string   `json:"peak_end"`
+	PeakRateMultiplier float64  `json:"peak_rate_multiplier"`
+	ImagePrice1K       *float64 `json:"image_price_1k"`
+	ImagePrice2K       *float64 `json:"image_price_2k"`
+	ImagePrice4K       *float64 `json:"image_price_4k"`
+	VideoPrice480P     *float64 `json:"video_price_480p"`
+	VideoPrice720P     *float64 `json:"video_price_720p"`
+	VideoPrice1080P    *float64 `json:"video_price_1080p"`
+	// Codex alpha/search 网页搜索单次价格（USD/次）；null 表示使用默认价 0.01
+	WebSearchPricePerCall *float64 `json:"web_search_price_per_call"`
 
 	// Claude Code 客户端限制
 	ClaudeCodeOnly  bool   `json:"claude_code_only"`
@@ -126,6 +141,10 @@ type Group struct {
 
 	// RPMLimit 分组级每分钟请求数上限（0 = 不限制），设置后覆盖用户级 rpm_limit。
 	RPMLimit int `json:"rpm_limit"`
+	// MaxReasoningEffort OpenAI/Codex 请求的推理强度上限，空字符串表示不限制。
+	MaxReasoningEffort string `json:"max_reasoning_effort"`
+	// ReasoningEffortMappings OpenAI/Codex 推理强度精确映射。
+	ReasoningEffortMappings []domain.ReasoningEffortMapping `json:"reasoning_effort_mappings"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -262,6 +281,17 @@ type Account struct {
 	QuotaNotifyWeeklyThreshold *float64 `json:"quota_notify_weekly_threshold,omitempty"`
 	QuotaNotifyTotalEnabled    *bool    `json:"quota_notify_total_enabled,omitempty"`
 	QuotaNotifyTotalThreshold  *float64 `json:"quota_notify_total_threshold,omitempty"`
+
+	// 影子账号关系（spark 维度影子）
+	ParentAccountID *int64 `json:"parent_account_id,omitempty"`
+	QuotaDimension  string `json:"quota_dimension,omitempty"`
+
+	// 影子账号回填的母账号信息（仅影子非空，源自母账号 Credentials/Extra）
+	ParentEmail                 string `json:"parent_email,omitempty"`
+	ParentPlanType              string `json:"parent_plan_type,omitempty"`
+	ParentPrivacyMode           string `json:"parent_privacy_mode,omitempty"`
+	ParentSubscriptionExpiresAt string `json:"parent_subscription_expires_at,omitempty"`
+	ParentChatGPTAccountID      string `json:"parent_chatgpt_account_id,omitempty"`
 
 	Proxy         *Proxy         `json:"proxy,omitempty"`
 	AccountGroups []AccountGroup `json:"account_groups,omitempty"`
@@ -470,9 +500,10 @@ type UsageLog struct {
 	ActualCost        float64 `json:"actual_cost"`
 	// GiftCost / RechargeCost: 本次扣费分摊到赠金 / 充值池的部分。
 	// 不变量：gift_cost + recharge_cost = actual_cost（订阅扣费下两者均为 0）。
-	GiftCost       float64 `json:"gift_cost"`
-	RechargeCost   float64 `json:"recharge_cost"`
-	RateMultiplier float64 `json:"rate_multiplier"`
+	GiftCost                  float64 `json:"gift_cost"`
+	RechargeCost              float64 `json:"recharge_cost"`
+	RateMultiplier            float64 `json:"rate_multiplier"`
+	LongContextBillingApplied bool    `json:"long_context_billing_applied"`
 
 	BillingType  int8   `json:"billing_type"`
 	RequestType  string `json:"request_type"`
@@ -486,6 +517,8 @@ type UsageLog struct {
 	ImageSize          *string        `json:"image_size"`
 	ImageInputSize     *string        `json:"image_input_size"`
 	ImageOutputSize    *string        `json:"image_output_size"`
+	ImageInputTokens   int            `json:"image_input_tokens"`
+	ImageInputCost     float64        `json:"image_input_cost"`
 	ImageOutputTokens  int            `json:"image_output_tokens"`
 	ImageOutputCost    float64        `json:"image_output_cost"`
 	ImageSizeSource    *string        `json:"image_size_source"`
@@ -595,8 +628,9 @@ type UserSubscription struct {
 	WeeklyUsageUSD  float64 `json:"weekly_usage_usd"`
 	MonthlyUsageUSD float64 `json:"monthly_usage_usd"`
 
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+	RevokedAt *time.Time `json:"revoked_at,omitempty"`
 
 	User  *User  `json:"user,omitempty"`
 	Group *Group `json:"group,omitempty"`

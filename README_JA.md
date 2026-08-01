@@ -1,6 +1,8 @@
-# Sub2API
-
 <div align="center">
+
+<img src="assets/logo.svg" alt="Sub2API Logo" width="128" />
+
+# Sub2API
 
 [![Go](https://img.shields.io/badge/Go-1.25.7-00ADD8.svg)](https://golang.org/)
 [![Vue](https://img.shields.io/badge/Vue-3.4+-4FC08D.svg)](https://vuejs.org/)
@@ -417,7 +419,8 @@ pnpm run build
 
 # 4. フロントエンドを組み込んだバックエンドをビルド
 cd ../backend
-go build -tags embed -o sub2api ./cmd/server
+VERSION="$(./scripts/resolve-version.sh)"
+go build -tags embed -ldflags="-X main.Version=${VERSION}" -o sub2api ./cmd/server
 
 # 5. 設定ファイルを作成
 cp ../deploy/config.example.yaml ./config.yaml
@@ -475,8 +478,17 @@ default:
 - `security.response_headers.enabled` - 設定可能なレスポンスヘッダーフィルタリングを有効化（無効時はデフォルトの許可リストを使用）
 - `security.csp` - Content-Security-Policy ヘッダーの制御
 - `billing.circuit_breaker` - 課金エラー時にフェイルクローズ
-- `server.trusted_proxies` - X-Forwarded-For パースの有効化
+- `security.trust_forwarded_ip_for_api_key_acl` - 従来の生転送ヘッダーによる上書きを制御（既定で無効。エッジプロキシを信頼できる場合のみ有効化）。無効時は `server.trusted_proxies` を厳格に使用し、Sub2API に直接接続するプロキシの正確な CIDR のみを指定
+- `security.forwarded_client_ip_headers` - サードパーティ CDN のクライアント IP ヘッダーを最大 16 個指定。従来モードが有効な場合のみ、設定順で組み込みヘッダーより先に評価
 - `turnstile.required` - リリースモードでの Turnstile 必須化
+
+カスタムクライアント IP ヘッダーは YAML またはカンマ区切りの環境変数で設定できます:
+
+```bash
+SECURITY_FORWARDED_CLIENT_IP_HEADERS=True-Client-IP,X-CDN-Client-IP
+```
+
+ヘッダー名は検証、正規化、大小文字を区別しない重複排除が行われます。管理画面のセキュリティ設定から再起動せずに更新でき、新規インストールでは YAML/環境変数の既定値を保存し、既存環境ではデータベース値がない場合に補完します。従来モードを無効にするとカスタムおよび組み込みの生転送ヘッダーはすべて無視され、`server.trusted_proxies` のみを使用します。有効にする場合はオリジンへの接続元を CDN/プロキシに制限し、エッジで信頼する全クライアント IP ヘッダーを上書きしてください。
 
 **⚠️ セキュリティ警告: HTTP URL 設定**
 
@@ -517,6 +529,25 @@ URL バリデーションまたはレスポンスヘッダーフィルタリン�
 - プライベート/ループバック/リンクローカル範囲をブロック
 - TLS のみのアウトバウンドトラフィックを強制
 - プロキシで機密性の高い上流レスポンスヘッダーを除去
+
+#### ⚠️ 重要：管理者アカウントの作成
+
+初期管理者アカウントは**セットアップウィザード経由でのみ作成**されます（初回起動時に `http://<host>:8080` にアクセス）。`config.yaml` の `default.admin_email` / `default.admin_password` フィールドは**管理者作成には使われません**。テンプレートに残っているのは歴史的経緯によるものです。
+
+上記ステップ 5 で事前に `config.yaml` を作成しているため、**初回起動時にセットアップウィザードはスキップされます**。サーバーは既存の config を検出して通常モードで直接起動し、この時点では `users` テーブルが空のため、初回ログインは `invalid email or password` を返します。
+
+**管理者アカウントを作成する 2 つの方法:**
+
+1. **推奨 — ウィザードに `config.yaml` を自動生成させる:** 上記ステップ 5 をスキップします（`cp` を実行しない）。`./sub2api` を直接起動し、`http://localhost:8080` にアクセスすると、セットアップウィザードがデータベース・Redis・管理者アカウントの設定を案内し、`config.yaml` を自動生成します。
+
+2. **すでに `config.yaml` を作成してしまった場合:** 初回起動前に一時的に退避してウィザードを発生させ、完了後に戻します:
+   ```bash
+   mv config.yaml config.yaml.bak
+   ./sub2api        # ウィザードが http://localhost:8080 で起動し、新しい config.yaml を生成します
+   # ウィザード完了後、Ctrl+C でサーバーを停止し、設定を復元します:
+   mv config.yaml.bak config.yaml
+   ./sub2api        # 通常モードで再起動し、作成した管理者でログインします
+   ```
 
 ```bash
 # 6. アプリケーションを実行
