@@ -887,12 +887,63 @@ func (s *UsageLogRepoSuite) TestGetUserDashboardStats() {
 	apiKey := mustCreateApiKey(s.T(), s.client, &service.APIKey{UserID: user.ID, Key: "sk-userdash", Name: "k"})
 	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-userdash"})
 
-	s.createUsageLog(user, apiKey, account, 10, 20, 0.5, time.Now())
+	// 今日一条日志，带赠金/充值扣费明细（GiftCost + RechargeCost = ActualCost）。
+	_, err := s.repo.Create(s.ctx, &service.UsageLog{
+		UserID:       user.ID,
+		APIKeyID:     apiKey.ID,
+		AccountID:    account.ID,
+		RequestID:    uuid.New().String(),
+		Model:        "claude-3",
+		InputTokens:  10,
+		OutputTokens: 20,
+		TotalCost:    0.5,
+		ActualCost:   0.5,
+		GiftCost:     0.3,
+		RechargeCost: 0.2,
+		CreatedAt:    time.Now(),
+	})
+	s.Require().NoError(err)
 
 	stats, err := s.repo.GetUserDashboardStats(s.ctx, user.ID)
 	s.Require().NoError(err, "GetUserDashboardStats")
 	s.Require().Equal(int64(1), stats.TotalAPIKeys)
 	s.Require().Equal(int64(1), stats.TotalRequests)
+	// 回归保护：SELECT 列必须与 Scan 目标数一致（含 gift/recharge cost）。
+	s.Require().InEpsilon(0.3, stats.TotalGiftCost, 0.0001)
+	s.Require().InEpsilon(0.2, stats.TotalRechargeCost, 0.0001)
+	s.Require().InEpsilon(0.3, stats.TodayGiftCost, 0.0001)
+	s.Require().InEpsilon(0.2, stats.TodayRechargeCost, 0.0001)
+}
+
+func (s *UsageLogRepoSuite) TestGetAPIKeyDashboardStats() {
+	user := mustCreateUser(s.T(), s.client, &service.User{Email: "keydash@test.com"})
+	apiKey := mustCreateApiKey(s.T(), s.client, &service.APIKey{UserID: user.ID, Key: "sk-keydash", Name: "k"})
+	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-keydash"})
+
+	_, err := s.repo.Create(s.ctx, &service.UsageLog{
+		UserID:       user.ID,
+		APIKeyID:     apiKey.ID,
+		AccountID:    account.ID,
+		RequestID:    uuid.New().String(),
+		Model:        "claude-3",
+		InputTokens:  10,
+		OutputTokens: 20,
+		TotalCost:    0.5,
+		ActualCost:   0.5,
+		GiftCost:     0.3,
+		RechargeCost: 0.2,
+		CreatedAt:    time.Now(),
+	})
+	s.Require().NoError(err)
+
+	stats, err := s.repo.GetAPIKeyDashboardStats(s.ctx, apiKey.ID)
+	s.Require().NoError(err, "GetAPIKeyDashboardStats")
+	s.Require().Equal(int64(1), stats.TotalRequests)
+	// 回归保护：SELECT 列必须与 Scan 目标数一致（含 gift/recharge cost）。
+	s.Require().InEpsilon(0.3, stats.TotalGiftCost, 0.0001)
+	s.Require().InEpsilon(0.2, stats.TotalRechargeCost, 0.0001)
+	s.Require().InEpsilon(0.3, stats.TodayGiftCost, 0.0001)
+	s.Require().InEpsilon(0.2, stats.TodayRechargeCost, 0.0001)
 }
 
 // --- GetAccountTodayStats ---
