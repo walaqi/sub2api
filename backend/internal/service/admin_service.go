@@ -384,6 +384,8 @@ type UpdateAccountInput struct {
 	GroupIDs              *[]int64
 	ExpiresAt             *int64
 	AutoPauseOnExpired    *bool
+	ProbeEnabled          *bool
+	RateSyncEnabled       *bool
 	SkipMixedChannelCheck bool // 跳过混合渠道检查（用户已确认风险）
 }
 
@@ -647,6 +649,7 @@ type adminServiceImpl struct {
 	groupDuplicateRepo   GroupDuplicateRepository
 	accountRepo          AccountRepository
 	accountDuplicateRepo AccountDuplicateRepository
+	accountBillingRepo   AccountBillingSettingsRepository
 	proxyRepo            ProxyRepository
 	apiKeyRepo           APIKeyRepository
 	redeemCodeRepo       RedeemCodeRepository
@@ -719,6 +722,7 @@ func NewAdminService(
 		groupDuplicateRepo:       groupRepo,
 		accountRepo:              accountRepo,
 		accountDuplicateRepo:     accountRepo,
+		accountBillingRepo:       accountRepo,
 		proxyRepo:                proxyRepo,
 		apiKeyRepo:               apiKeyRepo,
 		redeemCodeRepo:           redeemCodeRepo,
