@@ -946,6 +946,61 @@ func (s *UsageLogRepoSuite) TestGetAPIKeyDashboardStats() {
 	s.Require().InEpsilon(0.2, stats.TodayRechargeCost, 0.0001)
 }
 
+// --- Aggregated stats (User / APIKey / Account / Model) ---
+
+// TestAggregatedStatsGiftRechargeScan 回归保护：四个 *StatsAggregated 查询的
+// SELECT 列必须与 Scan 目标数一致（含 gift/recharge cost），否则会出现
+// "expected N destination arguments in Scan" 崩溃。
+func (s *UsageLogRepoSuite) TestAggregatedStatsGiftRechargeScan() {
+	user := mustCreateUser(s.T(), s.client, &service.User{Email: "aggstats@test.com"})
+	apiKey := mustCreateApiKey(s.T(), s.client, &service.APIKey{UserID: user.ID, Key: "sk-aggstats", Name: "k"})
+	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-aggstats"})
+
+	now := time.Now()
+	_, err := s.repo.Create(s.ctx, &service.UsageLog{
+		UserID:       user.ID,
+		APIKeyID:     apiKey.ID,
+		AccountID:    account.ID,
+		RequestID:    uuid.New().String(),
+		Model:        "claude-3",
+		InputTokens:  10,
+		OutputTokens: 20,
+		TotalCost:    0.5,
+		ActualCost:   0.5,
+		GiftCost:     0.3,
+		RechargeCost: 0.2,
+		CreatedAt:    now,
+	})
+	s.Require().NoError(err)
+
+	start := now.Add(-time.Hour)
+	end := now.Add(time.Hour)
+
+	userStats, err := s.repo.GetUserStatsAggregated(s.ctx, user.ID, start, end)
+	s.Require().NoError(err, "GetUserStatsAggregated")
+	s.Require().Equal(int64(1), userStats.TotalRequests)
+	s.Require().InEpsilon(0.3, userStats.TotalGiftCost, 0.0001)
+	s.Require().InEpsilon(0.2, userStats.TotalRechargeCost, 0.0001)
+
+	keyStats, err := s.repo.GetAPIKeyStatsAggregated(s.ctx, apiKey.ID, start, end)
+	s.Require().NoError(err, "GetAPIKeyStatsAggregated")
+	s.Require().Equal(int64(1), keyStats.TotalRequests)
+	s.Require().InEpsilon(0.3, keyStats.TotalGiftCost, 0.0001)
+	s.Require().InEpsilon(0.2, keyStats.TotalRechargeCost, 0.0001)
+
+	acctStats, err := s.repo.GetAccountStatsAggregated(s.ctx, account.ID, start, end)
+	s.Require().NoError(err, "GetAccountStatsAggregated")
+	s.Require().Equal(int64(1), acctStats.TotalRequests)
+	s.Require().InEpsilon(0.3, acctStats.TotalGiftCost, 0.0001)
+	s.Require().InEpsilon(0.2, acctStats.TotalRechargeCost, 0.0001)
+
+	modelStats, err := s.repo.GetModelStatsAggregated(s.ctx, "claude-3", start, end)
+	s.Require().NoError(err, "GetModelStatsAggregated")
+	s.Require().Equal(int64(1), modelStats.TotalRequests)
+	s.Require().InEpsilon(0.3, modelStats.TotalGiftCost, 0.0001)
+	s.Require().InEpsilon(0.2, modelStats.TotalRechargeCost, 0.0001)
+}
+
 // --- GetAccountTodayStats ---
 
 func (s *UsageLogRepoSuite) TestGetAccountTodayStats() {
