@@ -42,6 +42,45 @@ func ProvideEmailQueueService(emailService *EmailService) *EmailQueueService {
 	return NewEmailQueueService(emailService, defaultEmailQueueWorkers, defaultEmailQueueBufferSize)
 }
 
+// ProvideAuthService wires the optional captcha providers into AuthService while
+// keeping NewAuthService's public constructor compatible with existing tests.
+func ProvideAuthService(
+	entClient *dbent.Client,
+	userRepo UserRepository,
+	redeemRepo RedeemCodeRepository,
+	refreshTokenCache RefreshTokenCache,
+	cfg *config.Config,
+	settingService *SettingService,
+	emailService *EmailService,
+	turnstileService *TurnstileService,
+	tencentCaptchaService *TencentCaptchaService,
+	emailQueueService *EmailQueueService,
+	promoService *PromoService,
+	defaultSubAssigner DefaultSubscriptionAssigner,
+	affiliateService *AffiliateService,
+	giftEngine *gift.Engine,
+	userPlatformQuotaRepo UserPlatformQuotaRepository,
+) *AuthService {
+	svc := NewAuthService(
+		entClient,
+		userRepo,
+		redeemRepo,
+		refreshTokenCache,
+		cfg,
+		settingService,
+		emailService,
+		turnstileService,
+		emailQueueService,
+		promoService,
+		defaultSubAssigner,
+		affiliateService,
+		giftEngine,
+		userPlatformQuotaRepo,
+	)
+	svc.SetTencentCaptchaService(tencentCaptchaService)
+	return svc
+}
+
 // ProvideOAuthRefreshAPI creates OAuthRefreshAPI with the default lock TTL.
 func ProvideOAuthRefreshAPI(accountRepo AccountRepository, tokenCache GeminiTokenCache) *OAuthRefreshAPI {
 	return NewOAuthRefreshAPI(accountRepo, tokenCache)
@@ -723,7 +762,7 @@ func ProvideAPIKeyService(
 // ProviderSet is the Wire provider set for all services
 var ProviderSet = wire.NewSet(
 	// Core services
-	NewAuthService,
+	ProvideAuthService,
 	NewPasskeyService,
 	NewUserService,
 	ProvideAPIKeyService,
@@ -794,6 +833,7 @@ var ProviderSet = wire.NewSet(
 	NewNotificationEmailService,
 	ProvideEmailQueueService,
 	NewTurnstileService,
+	NewTencentCaptchaService,
 	NewSubscriptionService,
 	wire.Bind(new(DefaultSubscriptionAssigner), new(*SubscriptionService)),
 	ProvideConcurrencyService,
