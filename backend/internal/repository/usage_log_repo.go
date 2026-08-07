@@ -81,23 +81,41 @@ func appendUsageLogModelWhereCondition(conditions []string, args []any, model st
 }
 
 func appendUsageLogBillingModeWhereCondition(conditions []string, args []any, billingMode string) ([]string, []any) {
+	return appendUsageLogBillingModeWhereConditionWithAlias(conditions, args, billingMode, "")
+}
+
+func appendUsageLogBillingModeWhereConditionWithAlias(conditions []string, args []any, billingMode string, alias string) ([]string, []any) {
 	mode := strings.TrimSpace(billingMode)
 	if mode == "" {
 		return conditions, args
 	}
+	column := func(name string) string {
+		if alias == "" {
+			return name
+		}
+		return alias + "." + name
+	}
 	placeholder := fmt.Sprintf("$%d", len(args)+1)
 	switch service.BillingMode(mode) {
 	case service.BillingModeImage:
-		conditions = append(conditions, fmt.Sprintf("(billing_mode = %s OR ((billing_mode IS NULL OR billing_mode = '') AND COALESCE(image_count, 0) > 0))", placeholder))
+		conditions = append(conditions, fmt.Sprintf("(%s = %s OR ((%s IS NULL OR %s = '') AND COALESCE(%s, 0) > 0))", column("billing_mode"), placeholder, column("billing_mode"), column("billing_mode"), column("image_count")))
 	case service.BillingModeVideo:
-		conditions = append(conditions, fmt.Sprintf("billing_mode = %s", placeholder))
+		conditions = append(conditions, fmt.Sprintf("%s = %s", column("billing_mode"), placeholder))
 	case service.BillingModeToken:
-		conditions = append(conditions, fmt.Sprintf("(billing_mode = %s OR ((billing_mode IS NULL OR billing_mode = '') AND COALESCE(image_count, 0) <= 0))", placeholder))
+		conditions = append(conditions, fmt.Sprintf("(%s = %s OR ((%s IS NULL OR %s = '') AND COALESCE(%s, 0) <= 0))", column("billing_mode"), placeholder, column("billing_mode"), column("billing_mode"), column("image_count")))
 	default:
-		conditions = append(conditions, fmt.Sprintf("billing_mode = %s", placeholder))
+		conditions = append(conditions, fmt.Sprintf("%s = %s", column("billing_mode"), placeholder))
 	}
 	args = append(args, mode)
 	return conditions, args
+}
+
+func appendUsageLogBillingModeQueryFilter(query string, args []any, billingMode string, alias string) (string, []any) {
+	conditions, args := appendUsageLogBillingModeWhereConditionWithAlias(nil, args, billingMode, alias)
+	if len(conditions) == 0 {
+		return query, args
+	}
+	return query + " AND " + conditions[0], args
 }
 
 // appendRawUsageLogModelQueryFilter keeps direct model filters on the raw model column for backward
@@ -108,6 +126,18 @@ func appendRawUsageLogModelQueryFilter(query string, args []any, model string) (
 		return query, args
 	}
 	query += fmt.Sprintf(" AND %s = $%d", rawUsageLogModelColumn, len(args)+1)
+	args = append(args, model)
+	return query, args
+}
+
+func appendUsageLogModelQueryFilter(query string, args []any, model string, source string) (string, []any) {
+	if strings.TrimSpace(source) == "" {
+		return appendRawUsageLogModelQueryFilter(query, args, model)
+	}
+	if strings.TrimSpace(model) == "" {
+		return query, args
+	}
+	query += fmt.Sprintf(" AND %s = $%d", resolveModelDimensionExpression(source), len(args)+1)
 	args = append(args, model)
 	return query, args
 }
