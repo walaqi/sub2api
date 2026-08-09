@@ -1516,6 +1516,66 @@ func TestCreateOIDCOAuthAccountExistingEmailNormalizesLegacySpacingAndCase(t *te
 	require.Equal(t, "owner@example.com", storedSession.ResolvedEmail)
 }
 
+func TestCreateOIDCOAuthAccountRejectsSecondEmailOutsideRegistrationSuffixWhitelist(t *testing.T) {
+	handler, client := newOAuthPendingFlowTestHandlerWithDependencies(t, oauthPendingFlowTestHandlerOptions{
+		emailVerifyEnabled: true,
+		emailCache: &oauthPendingFlowEmailCacheStub{
+			verificationCodes: map[string]*service.VerificationCodeData{
+				"foo@gmail.com": {
+					Code:      "135790",
+					CreatedAt: time.Now().UTC(),
+					ExpiresAt: time.Now().UTC().Add(15 * time.Minute),
+				},
+			},
+		},
+		settingValues: map[string]string{
+			service.SettingKeyRegistrationEmailSuffixWhitelist: `["@qq.com"]`,
+		},
+	})
+	ctx := context.Background()
+	_, err := client.User.Create().
+		SetEmail("existing@gmail.com").
+		SetUsername("existing-gmail-user").
+		SetPasswordHash("hash").
+		SetRole(service.RoleUser).
+		SetStatus(service.StatusActive).
+		Save(ctx)
+	require.NoError(t, err)
+
+	session, err := client.PendingAuthSession.Create().
+		SetSessionToken("suffix-whitelist-session-token").
+		SetIntent("login").
+		SetProviderType("oidc").
+		SetProviderKey("https://issuer.example").
+		SetProviderSubject("oidc-suffix-whitelist-123").
+		SetBrowserSessionKey("suffix-whitelist-browser-session-key").
+		SetUpstreamIdentityClaims(map[string]any{
+			"username": "oidc_user",
+		}).
+		SetExpiresAt(time.Now().UTC().Add(10 * time.Minute)).
+		Save(ctx)
+	require.NoError(t, err)
+
+	body := bytes.NewBufferString(`{"email":"foo@gmail.com","verify_code":"135790","password":"secret-123"}`)
+	recorder := httptest.NewRecorder()
+	ginCtx, _ := gin.CreateTestContext(recorder)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/oidc/create-account", body)
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: oauthPendingSessionCookieName, Value: encodeCookieValue(session.SessionToken)})
+	req.AddCookie(&http.Cookie{Name: oauthPendingBrowserCookieName, Value: encodeCookieValue("suffix-whitelist-browser-session-key")})
+	ginCtx.Request = req
+
+	handler.CreateOIDCOAuthAccount(ginCtx)
+
+	require.Equal(t, http.StatusBadRequest, recorder.Code)
+	payload := decodeJSONBody(t, recorder)
+	require.Equal(t, "EMAIL_DOMAIN_REGISTRATION_LIMIT", payload["reason"])
+
+	count, err := client.User.Query().Where(dbuser.EmailEQ("foo@gmail.com")).Count(ctx)
+	require.NoError(t, err)
+	require.Zero(t, count)
+}
+
 func TestSendPendingOAuthVerifyCodeExistingEmailReturnsBindLoginState(t *testing.T) {
 	handler, client := newOAuthPendingFlowTestHandlerWithEmailVerification(t, false, "owner@example.com", "135790")
 	ctx := context.Background()
@@ -3044,6 +3104,8 @@ type oauthPendingFlowUserRepo struct {
 	options oauthPendingFlowUserRepoOptions
 }
 
+var _ service.RegistrationEmailDomainRepository = (*oauthPendingFlowUserRepo)(nil)
+
 type oauthPendingFlowUserRepoOptions struct {
 	rejectDeleteWhileAuthIdentityExists bool
 }
@@ -3084,6 +3146,35 @@ func (r *oauthPendingFlowUserRepo) CreateWithEmailAliasGuard(ctx context.Context
 		return service.ErrEmailExists
 	}
 	return r.Create(ctx, user)
+}
+
+func (r *oauthPendingFlowUserRepo) CountUsersByEmailDomain(ctx context.Context, domain string) (int, error) {
+	domain = service.NormalizeRegistrationEmailDomain(domain)
+	if domain == "" {
+		return 0, nil
+	}
+	emails, err := r.client.User.Query().Select(dbuser.FieldEmail).Strings(ctx)
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	for _, email := range emails {
+		if service.RegistrationEmailDomain(email) == domain {
+			count++
+		}
+	}
+	return count, nil
+}
+
+func (r *oauthPendingFlowUserRepo) CreateWithEmailAliasGuardAndDomainLimit(ctx context.Context, user *service.User, domain string) error {
+	count, err := r.CountUsersByEmailDomain(ctx, domain)
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		return service.ErrEmailDomainRegistrationLimit
+	}
+	return r.CreateWithEmailAliasGuard(ctx, user)
 }
 
 func (r *oauthPendingFlowUserRepo) GetByID(ctx context.Context, id int64) (*service.User, error) {
