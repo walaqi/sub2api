@@ -372,6 +372,10 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		ChannelMonitorEnabled:                settings.ChannelMonitorEnabled,
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 
+		GrokDefaultTextModel:           settings.GrokDefaultTextModel,
+		GrokCrossClientModelMapEnabled: settings.GrokCrossClientModelMapEnabled,
+		GrokDefaultBaseURLMode:         settings.GrokDefaultBaseURLMode,
+
 		AvailableChannelsEnabled: settings.AvailableChannelsEnabled,
 
 		ModelPlazaEnabled:     settings.ModelPlazaEnabled,
@@ -395,7 +399,8 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		ReferralInviterRewardQuotaRechargeStep: settings.ReferralInviterRewardQuotaRechargeStep,
 		ReferralInviterRewardQuotaPerBatch:     settings.ReferralInviterRewardQuotaPerBatch,
 
-		AllowUserViewErrorRequests: settings.AllowUserViewErrorRequests,
+		AccountSchedulingThresholds: settings.AccountSchedulingThresholds,
+		AllowUserViewErrorRequests:  settings.AllowUserViewErrorRequests,
 	}
 
 	// OpenAI fast policy (stored under a dedicated setting key)
