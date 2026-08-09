@@ -140,30 +140,33 @@ const DingTalkConnectSyntheticEmailDomain = "@dingtalk-connect.invalid"
 // Setting keys
 const (
 	// 注册设置
-	SettingKeyRegistrationEnabled              = "registration_enabled"                 // 是否开放注册
-	SettingKeyEmailVerifyEnabled               = "email_verify_enabled"                 // 是否开启邮件验证
-	SettingKeyRegistrationEmailSuffixWhitelist = "registration_email_suffix_whitelist"  // 注册邮箱后缀白名单（JSON 数组）
-	SettingKeyPromoCodeEnabled                 = "promo_code_enabled"                   // 是否启用优惠码功能
-	SettingKeyPasswordResetEnabled             = "password_reset_enabled"               // 是否启用忘记密码功能（需要先开启邮件验证）
-	SettingKeyFrontendURL                      = "frontend_url"                         // 前端基础URL，用于生成邮件中的重置密码链接
-	SettingKeyInvitationCodeEnabled            = "invitation_code_enabled"              // 是否启用邀请码注册
-	SettingKeyAffiliateEnabled                 = "affiliate_enabled"                    // 邀请返利功能总开关
-	SettingKeyAffiliateRebateRate              = "affiliate_rebate_rate"                // 邀请返利比例（百分比，0-100）
-	SettingKeyAffiliateRebateFreezeHours       = "affiliate_rebate_freeze_hours"        // 返利冻结期（小时，0=不冻结）
-	SettingKeyAffiliateRebateDurationDays      = "affiliate_rebate_duration_days"       // 返利有效期（天，0=永久）
-	SettingKeyAffiliateRebatePerInviteeCap     = "affiliate_rebate_per_invitee_cap"     // 单人返利上限（0=无上限）
-	SettingKeyAffiliateAdminRechargeEnabled    = "affiliate_admin_recharge_enabled"     // 管理员充值是否产生返利
-	SettingKeyReferralRewardEnabled            = "referral_reward_enabled"              // 双向邀请赠金总开关（独立于 affiliate_enabled）
-	SettingKeyReferralInviteeAmount            = "referral_invitee_amount"              // 被邀请人注册赠金金额 (USD, 默认 10)
-	SettingKeyReferralInviteeExpiryDays        = "referral_invitee_expiry_days"         // 被邀请人赠金过期天数 (默认 2)
-	SettingKeyReferralInviterAmount            = "referral_inviter_amount"              // 邀请人达标赠金金额 (USD, 默认 10)
-	SettingKeyReferralInviterExpiryDays        = "referral_inviter_expiry_days"         // 邀请人赠金过期天数 (默认 30)
-	SettingKeyReferralInviterGiftMode          = "referral_inviter_gift_mode"           // 邀请人达标赠金扣除模式：priority | ratio
-	SettingKeyReferralInviterGiftRatioRecharge = "referral_inviter_gift_ratio_recharge" // 邀请人达标赠金比例扣除参数
-	SettingKeyReferralSpendThreshold           = "referral_spend_threshold"             // 被邀请人消费达标阈值 (USD, 默认 10)
-	SettingKeyReferralDiscountValidDays        = "referral_discount_valid_days"         // 裂变继承折扣有效天数 (默认 30)
-	SettingKeyReferralEligibilityGrantMode     = "referral_eligibility_grant_mode"      // 超级邀请资格获得方式：bind_key_claim | recharge
-	SettingKeyReferralEligibilityRechargeMin   = "referral_eligibility_recharge_min_amount"
+	SettingKeyRegistrationEnabled              = "registration_enabled"                // 是否开放注册
+	SettingKeyEmailVerifyEnabled               = "email_verify_enabled"                // 是否开启邮件验证
+	SettingKeyRegistrationEmailSuffixWhitelist = "registration_email_suffix_whitelist" // 注册邮箱后缀白名单（JSON 数组）
+	// 白名单非空时，是否放行非白名单域名按主域名限量注册（每域名 1 个账户）。
+	// 默认 false：非白名单域名直接拒绝（白名单严格模式）。
+	SettingKeyRegistrationEmailDomainQuotaEnabled = "registration_email_domain_quota_enabled"
+	SettingKeyPromoCodeEnabled                    = "promo_code_enabled"                   // 是否启用优惠码功能
+	SettingKeyPasswordResetEnabled                = "password_reset_enabled"               // 是否启用忘记密码功能（需要先开启邮件验证）
+	SettingKeyFrontendURL                         = "frontend_url"                         // 前端基础URL，用于生成邮件中的重置密码链接
+	SettingKeyInvitationCodeEnabled               = "invitation_code_enabled"              // 是否启用邀请码注册
+	SettingKeyAffiliateEnabled                    = "affiliate_enabled"                    // 邀请返利功能总开关
+	SettingKeyAffiliateRebateRate                 = "affiliate_rebate_rate"                // 邀请返利比例（百分比，0-100）
+	SettingKeyAffiliateRebateFreezeHours          = "affiliate_rebate_freeze_hours"        // 返利冻结期（小时，0=不冻结）
+	SettingKeyAffiliateRebateDurationDays         = "affiliate_rebate_duration_days"       // 返利有效期（天，0=永久）
+	SettingKeyAffiliateRebatePerInviteeCap        = "affiliate_rebate_per_invitee_cap"     // 单人返利上限（0=无上限）
+	SettingKeyAffiliateAdminRechargeEnabled       = "affiliate_admin_recharge_enabled"     // 管理员充值是否产生返利
+	SettingKeyReferralRewardEnabled               = "referral_reward_enabled"              // 双向邀请赠金总开关（独立于 affiliate_enabled）
+	SettingKeyReferralInviteeAmount               = "referral_invitee_amount"              // 被邀请人注册赠金金额 (USD, 默认 10)
+	SettingKeyReferralInviteeExpiryDays           = "referral_invitee_expiry_days"         // 被邀请人赠金过期天数 (默认 2)
+	SettingKeyReferralInviterAmount               = "referral_inviter_amount"              // 邀请人达标赠金金额 (USD, 默认 10)
+	SettingKeyReferralInviterExpiryDays           = "referral_inviter_expiry_days"         // 邀请人赠金过期天数 (默认 30)
+	SettingKeyReferralInviterGiftMode             = "referral_inviter_gift_mode"           // 邀请人达标赠金扣除模式：priority | ratio
+	SettingKeyReferralInviterGiftRatioRecharge    = "referral_inviter_gift_ratio_recharge" // 邀请人达标赠金比例扣除参数
+	SettingKeyReferralSpendThreshold              = "referral_spend_threshold"             // 被邀请人消费达标阈值 (USD, 默认 10)
+	SettingKeyReferralDiscountValidDays           = "referral_discount_valid_days"         // 裂变继承折扣有效天数 (默认 30)
+	SettingKeyReferralEligibilityGrantMode        = "referral_eligibility_grant_mode"      // 超级邀请资格获得方式：bind_key_claim | recharge
+	SettingKeyReferralEligibilityRechargeMin      = "referral_eligibility_recharge_min_amount"
 	// 邀请人达标奖励发放次数配额：每充值 recharge_step USD 获得 per_batch 次领取机会
 	SettingKeyReferralInviterRewardQuotaEnabled      = "referral_inviter_reward_quota_enabled"       // 配额总开关（默认 false=无限发放，行为不变）
 	SettingKeyReferralInviterRewardQuotaRechargeStep = "referral_inviter_reward_quota_recharge_step" // 每档充值额 (USD, 默认 50)

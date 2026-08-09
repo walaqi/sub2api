@@ -160,10 +160,13 @@ export default {
         emailVerificationHint: 'Require email verification for new registrations',
         emailSuffixWhitelist: 'Email Domain Whitelist',
         emailSuffixWhitelistHint:
-          "Emails from allowlist domains can register without a quota. When the allowlist is not empty, every other registrable domain can register one account. Empty the allowlist to remove the quota for all domains (for example, {'@'}qq.com, {'@'}gmail.com, *.edu.cn).",
+          "Only email addresses from the specified domains can register; leave empty for no restriction (for example, {'@'}qq.com, {'@'}gmail.com, *.edu.cn)",
         emailSuffixWhitelistPlaceholder: "{'@'}example.com, *.edu.cn",
         emailSuffixWhitelistInputHint:
-          "Empty the allowlist to remove the registration quota. Use *.edu.cn to trust edu.cn and its subdomains. Advanced: use re:<pattern>#<label> to trust whole-email matches; the pattern must start with ^ and end with $, e.g. re:^\\d+{'@'}qq\\.com$#Digits-only QQ mail (press Enter to add).",
+          "Leave empty for no restriction. Use *.edu.cn to trust edu.cn and its subdomains. Advanced: use re:<pattern>#<label> to trust whole-email matches; the pattern must start with ^ and end with $, e.g. re:^\\d+{'@'}qq\\.com$#Digits-only QQ mail (press Enter to add).",
+        emailDomainQuota: 'Non-allowlist Domain Quota',
+        emailDomainQuotaHint:
+          'When enabled and the allowlist is not empty, every other registrable domain can register one account. When disabled, non-allowlist domains are rejected. Has no effect while the allowlist is empty',
         promoCode: 'Promo Code',
         promoCodeHint: 'Allow users to use promo codes during registration',
         invitationCode: 'Invitation Code Registration',
