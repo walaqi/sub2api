@@ -499,6 +499,30 @@ func TestUsageLogRepositoryGetModelStatsAccountCostColumn(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestUsageLogRepositoryGetModelStatsPreservesActualCostWithAccountFilter(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := start.Add(24 * time.Hour)
+	accountID := int64(42)
+
+	mock.ExpectQuery(`(?s)COALESCE\(SUM\(actual_cost\), 0\) as actual_cost,\s+COALESCE\(SUM\(COALESCE\(account_stats_cost, total_cost\) \* COALESCE\(account_rate_multiplier, 1\)\), 0\) as account_cost.*AND account_id = \$3`).
+		WithArgs(start, end, accountID).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"model", "requests", "input_tokens", "output_tokens",
+			"cache_creation_tokens", "cache_read_tokens", "total_tokens",
+			"cost", "actual_cost", "account_cost",
+		}).AddRow("claude-opus-5", int64(54), int64(100), int64(200), int64(0), int64(0), int64(300), 29.86, 23.89, 29.86))
+
+	results, err := repo.GetModelStatsWithFilters(context.Background(), start, end, 0, 0, accountID, 0, nil, nil, nil)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Equal(t, 23.89, results[0].ActualCost)
+	require.Equal(t, 29.86, results[0].AccountCost)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestUsageLogRepositoryGetGroupStatsAccountCostColumn(t *testing.T) {
 	db, mock := newSQLMock(t)
 	repo := &usageLogRepository{sql: db}
