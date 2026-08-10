@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"crypto/sha256"
 	"net/http"
 	"strings"
 
@@ -11,6 +12,17 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
+
+const contentModerationWSTurnContextKey = "sub2api.content_moderation.ws_turn"
+const contentModerationWSDedupeContextKey = "sub2api.content_moderation.ws_dedupe"
+
+type contentModerationWSDedupeEntry struct {
+	turn     int
+	protocol string
+	model    string
+	bodyHash [sha256.Size]byte
+	decision service.ContentModerationDecision
+}
 
 func (h *GatewayHandler) checkContentModeration(c *gin.Context, reqLog *zap.Logger, apiKey *service.APIKey, subject middleware2.AuthSubject, protocol string, model string, body []byte) *service.ContentModerationDecision {
 	if h == nil || h.contentModerationService == nil {
@@ -57,6 +69,9 @@ func runContentModeration(c *gin.Context, reqLog *zap.Logger, svc *service.Conte
 		return nil
 	}
 	input := buildContentModerationInput(c, apiKey, subject, protocol, model, body)
+	if decision := cachedContentModerationWSDecision(c, input, body); decision != nil {
+		return decision
+	}
 	if reqLog != nil {
 		reqLog.Info("content_moderation.gateway_check_start",
 			zap.String("request_id", input.RequestID),
@@ -91,7 +106,49 @@ func runContentModeration(c *gin.Context, reqLog *zap.Logger, svc *service.Conte
 			zap.Float64("highest_score", decision.HighestScore),
 		)
 	}
+	cacheContentModerationWSDecision(c, input, body, decision)
 	return decision
+}
+
+func cachedContentModerationWSDecision(c *gin.Context, input service.ContentModerationCheckInput, body []byte) *service.ContentModerationDecision {
+	turn, ok := contentModerationWSTurn(c)
+	if !ok {
+		return nil
+	}
+	cached, exists := c.Get(contentModerationWSDedupeContextKey)
+	if !exists {
+		return nil
+	}
+	entry, ok := cached.(contentModerationWSDedupeEntry)
+	if !ok || entry.turn != turn || entry.protocol != input.Protocol || entry.model != input.Model || entry.bodyHash != sha256.Sum256(body) {
+		return nil
+	}
+	decision := entry.decision
+	return &decision
+}
+
+func cacheContentModerationWSDecision(c *gin.Context, input service.ContentModerationCheckInput, body []byte, decision *service.ContentModerationDecision) {
+	turn, ok := contentModerationWSTurn(c)
+	if !ok || !contentModerationDecisionIsPureAllow(decision) {
+		return
+	}
+	c.Set(contentModerationWSDedupeContextKey, contentModerationWSDedupeEntry{
+		turn: turn, protocol: input.Protocol, model: input.Model, bodyHash: sha256.Sum256(body), decision: *decision,
+	})
+}
+
+func contentModerationWSTurn(c *gin.Context) (int, bool) {
+	turn, exists := c.Get(contentModerationWSTurnContextKey)
+	if !exists {
+		return 0, false
+	}
+	turnNo, ok := turn.(int)
+	return turnNo, ok
+}
+
+func contentModerationDecisionIsPureAllow(decision *service.ContentModerationDecision) bool {
+	return decision != nil && decision.Allowed && !decision.Blocked && !decision.Flagged &&
+		decision.Action == service.ContentModerationActionAllow
 }
 
 func buildContentModerationInput(c *gin.Context, apiKey *service.APIKey, subject middleware2.AuthSubject, protocol string, model string, body []byte) service.ContentModerationCheckInput {
