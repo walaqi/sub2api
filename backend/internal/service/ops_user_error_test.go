@@ -5,8 +5,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/require"
 )
 
 func TestMapUserErrorCategory(t *testing.T) {
@@ -132,7 +130,9 @@ func TestToUserErrorRequestDetail_WhitelistAndRedacts(t *testing.T) {
 	}
 
 	out := ToUserErrorRequestDetail(src)
-	require.NotNil(t, out)
+	if out == nil {
+		t.Fatal("expected non-nil detail")
+	}
 
 	// 基础字段正确映射
 	if out.ID != 999 {
