@@ -70,23 +70,10 @@ func runContentModeration(c *gin.Context, reqLog *zap.Logger, svc *service.Conte
 	}
 	input := buildContentModerationInput(c, apiKey, subject, protocol, model, body)
 	if decision := cachedContentModerationWSDecision(c, input, body); decision != nil {
+		logContentModerationDone(reqLog, input, decision, true)
 		return decision
 	}
-	if reqLog != nil {
-		reqLog.Info("content_moderation.gateway_check_start",
-			zap.String("request_id", input.RequestID),
-			zap.Int64("user_id", input.UserID),
-			zap.Int64("api_key_id", input.APIKeyID),
-			zap.String("api_key_name", input.APIKeyName),
-			zap.Int64p("group_id", input.GroupID),
-			zap.String("group_name", input.GroupName),
-			zap.String("endpoint", input.Endpoint),
-			zap.String("provider", input.Provider),
-			zap.String("protocol", input.Protocol),
-			zap.String("model", input.Model),
-			zap.Int("body_bytes", len(body)),
-		)
-	}
+	logContentModerationStart(reqLog, input, len(body))
 	decision, err := svc.Check(c.Request.Context(), input)
 	if err != nil {
 		if reqLog != nil {
@@ -94,20 +81,46 @@ func runContentModeration(c *gin.Context, reqLog *zap.Logger, svc *service.Conte
 		}
 		return nil
 	}
-	if reqLog != nil && decision != nil {
-		reqLog.Info("content_moderation.gateway_check_done",
-			zap.String("request_id", input.RequestID),
-			zap.Bool("allowed", decision.Allowed),
-			zap.Bool("blocked", decision.Blocked),
-			zap.Bool("flagged", decision.Flagged),
-			zap.String("action", decision.Action),
-			zap.Int("status_code", decision.StatusCode),
-			zap.String("highest_category", decision.HighestCategory),
-			zap.Float64("highest_score", decision.HighestScore),
-		)
-	}
+	logContentModerationDone(reqLog, input, decision, false)
 	cacheContentModerationWSDecision(c, input, body, decision)
 	return decision
+}
+
+func logContentModerationStart(reqLog *zap.Logger, input service.ContentModerationCheckInput, bodyBytes int) {
+	if reqLog == nil {
+		return
+	}
+	reqLog.Info("content_moderation.gateway_check_start",
+		zap.String("request_id", input.RequestID),
+		zap.Int64("user_id", input.UserID),
+		zap.Int64("api_key_id", input.APIKeyID),
+		zap.String("api_key_name", input.APIKeyName),
+		zap.Int64p("group_id", input.GroupID),
+		zap.String("group_name", input.GroupName),
+		zap.String("endpoint", input.Endpoint),
+		zap.String("provider", input.Provider),
+		zap.String("protocol", input.Protocol),
+		zap.String("model", input.Model),
+		zap.Int("body_bytes", bodyBytes),
+		zap.Bool("cached", false),
+	)
+}
+
+func logContentModerationDone(reqLog *zap.Logger, input service.ContentModerationCheckInput, decision *service.ContentModerationDecision, cached bool) {
+	if reqLog == nil || decision == nil {
+		return
+	}
+	reqLog.Info("content_moderation.gateway_check_done",
+		zap.String("request_id", input.RequestID),
+		zap.Bool("allowed", decision.Allowed),
+		zap.Bool("blocked", decision.Blocked),
+		zap.Bool("flagged", decision.Flagged),
+		zap.String("action", decision.Action),
+		zap.Int("status_code", decision.StatusCode),
+		zap.String("highest_category", decision.HighestCategory),
+		zap.Float64("highest_score", decision.HighestScore),
+		zap.Bool("cached", cached),
+	)
 }
 
 func cachedContentModerationWSDecision(c *gin.Context, input service.ContentModerationCheckInput, body []byte) *service.ContentModerationDecision {
