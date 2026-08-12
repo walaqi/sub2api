@@ -257,6 +257,29 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			}
 			normalized = next
 		}
+		if account.IsOpenAIOAuth() {
+			var clientHeaders http.Header
+			if c != nil && c.Request != nil {
+				clientHeaders = c.Request.Header
+			}
+			fingerprintIDs := resolveCodexFingerprintIDsFromRequest(account, clientHeaders)
+			if fingerprintIDs != nil {
+				payloadMap := make(map[string]any)
+				if err := json.Unmarshal(normalized, &payloadMap); err != nil {
+					return openAIWSClientPayload{}, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "invalid websocket request payload", err)
+				}
+				if applyCodexFingerprintClientMetadata(payloadMap, fingerprintIDs) {
+					rebuilt, marshalErr := json.Marshal(payloadMap)
+					if marshalErr != nil {
+						return openAIWSClientPayload{}, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "invalid websocket request payload", marshalErr)
+					}
+					normalized = rebuilt
+				}
+				if c != nil {
+					c.Set(codexFingerprintIDsContextKey, fingerprintIDs)
+				}
+			}
+		}
 		if account.IsOpenAIOAuth() && isOpenAIResponsesLiteWebSocketPayload(normalized) {
 			litePayload, _, liteErr := normalizeOpenAIResponsesLiteToolsPayload(normalized)
 			if liteErr != nil {

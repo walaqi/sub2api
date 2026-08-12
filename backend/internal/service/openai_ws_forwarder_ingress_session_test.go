@@ -1224,7 +1224,9 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_PassthroughHeade
 		t.Fatal("等待 passthrough websocket 结束超时")
 	}
 
-	require.Equal(t, isolateOpenAISessionID(0, "pcache_passthrough"), captureDialer.lastHeaders.Get("session_id"))
+	convergedSessionID := resolveConvergedSessionID(account)
+	require.Equal(t, convergedSessionID, captureDialer.lastHeaders.Get("session_id"))
+	require.Equal(t, resolveConvergedInstallationID(account), captureDialer.lastHeaders.Get("x-codex-installation-id"))
 	require.Equal(t, "turn-state-1", captureDialer.lastHeaders.Get(openAIWSTurnStateHeader))
 	require.Equal(t, "turn-meta-1", captureDialer.lastHeaders.Get(openAIWSTurnMetadataHeader))
 	require.Len(t, upstreamConn.writes, 1)
@@ -1235,6 +1237,9 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_PassthroughHeade
 	require.Equal(t, "collaboration", gjson.Get(forwarded, "tool_choice.name").String())
 	require.Equal(t, "medium", gjson.Get(forwarded, "reasoning.effort").String())
 	require.Equal(t, "all_turns", gjson.Get(forwarded, "reasoning.context").String())
+	require.Equal(t, convergedSessionID, gjson.Get(forwarded, "client_metadata.session_id").String())
+	require.Equal(t, convergedSessionID, gjson.Get(forwarded, "client_metadata.thread_id").String())
+	require.Equal(t, captureDialer.lastHeaders.Get("x-codex-window-id"), gjson.Get(forwarded, "client_metadata.x-codex-window-id").String())
 }
 
 func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_HTTPBridgeModeRelaysHTTPStream(t *testing.T) {

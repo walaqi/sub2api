@@ -765,6 +765,21 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		return NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, blocked.Message, blocked)
 	}
 	firstClientMessage = updatedFirst
+	var clientHeaders http.Header
+	if c != nil && c.Request != nil {
+		clientHeaders = c.Request.Header
+	}
+	firstFingerprintIDs := resolveCodexFingerprintIDsFromRequest(account, clientHeaders)
+	if firstFingerprintIDs != nil {
+		updatedMessage, fingerprintErr := applyCodexFingerprintClientMetadataToJSON(firstClientMessage, firstFingerprintIDs)
+		if fingerprintErr != nil {
+			return NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "invalid websocket request payload", fingerprintErr)
+		}
+		firstClientMessage = updatedMessage
+		if c != nil {
+			c.Set(codexFingerprintIDsContextKey, firstFingerprintIDs)
+		}
+	}
 
 	// 在 policy filter 之后再提取 service_tier / reasoning_effort 用于
 	// usage 上报：filter
@@ -977,6 +992,14 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 				if hooks != nil && (hooks.MaxReasoningEffort != "" || len(hooks.ReasoningEffortMappings) > 0) {
 					if capped, changed := ApplyOpenAIReasoningEffortPolicy(payload, hooks.MaxReasoningEffort, hooks.ReasoningEffortMappings); changed {
 						payload = capped
+					}
+				}
+				fingerprintIDs := resolveCodexFingerprintIDsFromRequest(account, clientHeaders)
+				if fingerprintIDs != nil {
+					var fingerprintErr error
+					payload, fingerprintErr = applyCodexFingerprintClientMetadataToJSON(payload, fingerprintIDs)
+					if fingerprintErr != nil {
+						return payload, nil, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "invalid websocket request payload", fingerprintErr)
 					}
 				}
 			}

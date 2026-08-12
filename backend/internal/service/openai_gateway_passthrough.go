@@ -356,6 +356,32 @@ func (s *OpenAIGatewayService) buildUpstreamRequestOpenAIPassthrough(
 	}
 	targetURL = appendOpenAIResponsesRequestPathSuffix(targetURL, openAIResponsesRequestPathSuffix(c))
 
+	var fingerprintIDs *codexFingerprintIDs
+	if account.Type == AccountTypeOAuth && !isOpenAIResponsesCompactPath(c) {
+		if c != nil {
+			if cached, ok := c.Get(codexFingerprintIDsContextKey); ok {
+				fingerprintIDs, _ = cached.(*codexFingerprintIDs)
+			}
+		}
+		if fingerprintIDs == nil {
+			var clientHeaders http.Header
+			if c != nil && c.Request != nil {
+				clientHeaders = c.Request.Header
+			}
+			fingerprintIDs = resolveCodexFingerprintIDsFromRequest(account, clientHeaders)
+			if c != nil && fingerprintIDs != nil {
+				c.Set(codexFingerprintIDsContextKey, fingerprintIDs)
+			}
+		}
+		if fingerprintIDs != nil {
+			var err error
+			body, err = applyCodexFingerprintClientMetadataToJSON(body, fingerprintIDs)
+			if err != nil {
+				return nil, fmt.Errorf("decode passthrough body for codex fingerprint: %w", err)
+			}
+		}
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
@@ -450,6 +476,7 @@ func (s *OpenAIGatewayService) buildUpstreamRequestOpenAIPassthrough(
 	// 终态收口：透传路径的 OAuth 与非透传完全一致，同样强制统一出站身份
 	// （User-Agent / originator / version 同源自洽），客户端自报身份不会到达上游。
 	if account.Type == AccountTypeOAuth {
+		applyCodexFingerprintHeaders(req.Header, fingerprintIDs)
 		enforceCodexIdentityHeadersWithUA(req.Header, s.codexIdentityOverrideUA(account))
 	}
 
