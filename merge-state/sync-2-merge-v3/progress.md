@@ -6,14 +6,14 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 203
-- Awaiting user: 1
-- Merged: 19
+- Awaiting user: 0
+- Merged: 20
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 36
-- Next commit: `37ed639d1e696daf1e3266aae3c172e837a53842`
-- Last action: index 36 `37ed639d1e` assessed high risk because Claude Opus 5/4.8 fallback pricing changes ActualCost feeding gift allocation and super-invite spend tracking; awaiting merge|skip
-- Active queue commit: `37ed639d1e696daf1e3266aae3c172e837a53842` (index 36, high risk, awaiting merge|skip)
+- Next index: 37
+- Next commit: `95cc6ee2c06bb3cc72dd506bc14b6856c2777248`
+- Last action: user-approved high-risk Claude Opus 5/4.8 pricing, Bedrock and PostCSS update `37ed639d1e` merged as `3672c5700`; full Go and independent full integration passed, frontend retained only known baseline exceptions
+- Active queue commit: `95cc6ee2c06bb3cc72dd506bc14b6856c2777248` (index 37, under assessment)
 
 ## High-risk verification notes
 
@@ -34,3 +34,4 @@
 - `2c76506e0`: user-approved high-risk mobile Alipay precreate deep link merged as `ee0c619c1`. Its pre-Jul-22 second-parent dependencies were mapped as prerequisites `d6bb88f6c` and `100e93ef8` without adding queue items or regressing current EasyPay UI. Only official Alipay instances can opt into precreate; app launch failure falls back to a dynamic QR and pending orders are actively verified. Main's gift bonus success display, payment amount validation, duplicate-notification idempotency, recharge fulfillment and invite rebate path remain intact. Upstream migration 186 was moved to 205. Full Go and integration tests passed; frontend lint/typecheck passed; Vitest passed 1273/1275 with only the two baseline rollback-timeout failures; golangci-lint retained only the three baseline G704 findings.
 - `3f03c93bc`: user-approved high-risk Ollama Cloud usage subsystem merged as `fc9a93df7`. Wire was regenerated from the combined handwritten graph, retaining main's gift ops, abuse detection, refund assessment, gift expirer and separate auth Redis while adding the Ollama lifecycle service. Focused backend, repository integration and 70 frontend tests passed. Full Go passed on an independent rerun after one parallel suite timing failure; full integration passed; frontend lint/typecheck passed; Vitest passed 1286/1288 with only the two baseline rollback-timeout failures; golangci-lint retained only the three baseline G704 findings.
 - `2faa0891e`: pre-approved high-risk Ollama security hardening merged as `0c88221f2`. Session-setting request bodies are omitted from audit persistence and bare session fields are redacted; unchanged credentials no longer clear Ollama or upstream billing snapshots, while actual identity changes still invalidate them. Main's removed prompt-audit routes/tests were not restored. Focused unit and PostgreSQL integration tests passed; full Go passed on an independent rerun after the same parallel suite timing failure; full integration passed; frontend lint/typecheck passed; Vitest passed 1286/1288 with only the two baseline rollback-timeout failures; golangci-lint retained only the three baseline G704 findings.
+- `37ed639d1e`: user-approved high-risk Claude Opus 5/4.8 pricing, Bedrock support and PostCSS update merged as `3672c5700`. Opus 5/4.8 now use $5/$25 per MTok fallback pricing instead of legacy Opus $15/$75; corrected ActualCost continues through main's gift allocator and super-invite tracker without changing deduction semantics. The old package-level PostCSS override was adapted into main's complete workspace override set, retaining the fixed pnpm version and resolving PostCSS 8.5.19. Focused pricing, gateway billing, gift and referral tests passed; full Go and independent full integration passed; frontend lint/typecheck passed; Vitest passed 1286/1288 with only the two baseline rollback-timeout failures; golangci-lint retained only the three baseline G704 findings.
