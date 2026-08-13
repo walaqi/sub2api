@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 191
-- Awaiting user: 0
+- Pending: 190
+- Awaiting user: 1
 - Merged: 32
 - Skipped: 0
 - Failed/blocked: 0
 - Next index: 49
 - Next commit: `bb0c38306f5a663b9e4dd652446cc43e242d1372`
-- Last action: user-approved high-risk ChatGPT Live/Frameless gateway `43d4bae24` merged as `461a114db` and adapted to main safeguards in `784bbed5a`; full Go and integration tests passed
-- Active queue commit: none
+- Last action: high-risk Ollama request-driven usage refresh `bb0c38306` assessed and paused for user decision; it hooks shared upstream paths and replaces periodic due selection with activity debounce/max-wait SQL
+- Active queue commit: `bb0c38306f5a663b9e4dd652446cc43e242d1372` (index 49, awaiting `merge|skip`)
 
 ## High-risk verification notes
 
