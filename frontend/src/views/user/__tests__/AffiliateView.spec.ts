@@ -3,14 +3,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import AffiliateView from '../AffiliateView.vue'
 
-const { copyToClipboard, getAffiliateDetail } = vi.hoisted(() => ({
+const { copyToClipboard, getAffiliateDetail, getReferralStatus } = vi.hoisted(() => ({
   copyToClipboard: vi.fn(),
   getAffiliateDetail: vi.fn(),
+  getReferralStatus: vi.fn(),
 }))
 
 vi.mock('@/api/user', () => ({
   default: {
     getAffiliateDetail,
+    getReferralStatus,
     transferAffiliateQuota: vi.fn(),
   },
 }))
@@ -48,6 +50,7 @@ describe('AffiliateView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     copyToClipboard.mockResolvedValue(true)
+    getReferralStatus.mockResolvedValue(null)
     getAffiliateDetail.mockResolvedValue({
       user_id: 1,
       aff_code: affiliateCode,
