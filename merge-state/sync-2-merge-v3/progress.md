@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 168
+- Pending: 167
 - Awaiting user: 0
-- Merged: 55
+- Merged: 56
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 72
-- Next commit: `de6b189a6bb0a648d8439a76cfe19b5fed0820c4`
-- Last action: medium-risk partial settings update preservation fix `a74e11c26` auto-merged as `29ea9270b`; focused handler and service tests passed
+- Next index: 73
+- Next commit: `ad34f8915260808e9ea3760be8fd1535e586f88d`
+- Last action: medium-risk dependency security update `de6b189a6` auto-merged as `92a7dea94`; complete Go tests passed
 - Active queue commit: none
 
 ## High-risk verification notes
