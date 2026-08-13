@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 210
-- Awaiting user: 1
-- Merged: 13
+- Pending: 209
+- Awaiting user: 0
+- Merged: 14
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 30
-- Next commit: `2c76506e072af3aa1a853ef7da71fec7a9ad60d7`
-- Last action: high-risk mobile Alipay precreate deep link `2c76506e0` assessed; awaiting user merge|skip decision
-- Active queue commit: `2c76506e072af3aa1a853ef7da71fec7a9ad60d7` (index 30, high risk, awaiting merge|skip)
+- Next index: 31
+- Next commit: `3f03c93bc698ee6cc4a826e0ea50bc46a64c40cc`
+- Last action: user-approved high-risk mobile Alipay precreate deep link `2c76506e0` merged as `ee0c619c1` after two mapped prerequisites; full backend and integration tests passed; frontend retained only two baseline failures; lint retained only three baseline G704 findings
+- Active queue commit: none
 
 ## High-risk verification notes
 
@@ -31,3 +31,4 @@
 - `ba88cc239`: user-approved high-risk billing correction merged as `130e06bfd`. Composite public aliases now use the concrete forwarded model unless explicitly channel-priced, preventing zero or family-fallback misbilling. The corrected ActualCost continues through main's gift/recharge allocator and super-invite spend tracker; focused regression confirms the composite API-key group remains the gift scope. Full Go and integration tests passed; frontend lint/typecheck passed; Vitest retained only the two confirmed rollback-timeout baseline failures; golangci-lint retained only the same three baseline G704 findings.
 - `09b1309c9`: user-approved high-risk channel-pricing normalization merged as `e9e94e03e`. Claude dot/hyphen model spellings now resolve to the same custom channel price; corrected ActualCost continues through main's gift/recharge allocator and super-invite spend tracker without changing gift group scope. Focused pricing, composite billing and gift-scope tests passed; full Go and integration tests passed; frontend lint/typecheck passed; Vitest retained only the two confirmed rollback-timeout baseline failures; golangci-lint retained only the same three baseline G704 findings.
 - `6aeea70ee`: user-approved high-risk proxy stream circuit merged as `014260108`. Two post-output incomplete OpenAI Responses SSE streams within the configured window quarantine every account sharing the proxy ID until TTL expiry; client cancellations and successful terminal events do not count. The circuit only affects subsequent scheduling and leaves main's usage recording, gift/recharge allocation and super-invite spend tracking unchanged. Full Go and integration tests passed; frontend lint/typecheck passed; Vitest retained only the two confirmed rollback-timeout baseline failures; golangci-lint retained only the same three baseline G704 findings.
+- `2c76506e0`: user-approved high-risk mobile Alipay precreate deep link merged as `ee0c619c1`. Its pre-Jul-22 second-parent dependencies were mapped as prerequisites `d6bb88f6c` and `100e93ef8` without adding queue items or regressing current EasyPay UI. Only official Alipay instances can opt into precreate; app launch failure falls back to a dynamic QR and pending orders are actively verified. Main's gift bonus success display, payment amount validation, duplicate-notification idempotency, recharge fulfillment and invite rebate path remain intact. Upstream migration 186 was moved to 205. Full Go and integration tests passed; frontend lint/typecheck passed; Vitest passed 1273/1275 with only the two baseline rollback-timeout failures; golangci-lint retained only the three baseline G704 findings.
