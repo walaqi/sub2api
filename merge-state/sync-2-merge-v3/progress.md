@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 158
-- Awaiting user: 0
-- Merged: 65
+- Pending: 156
+- Awaiting user: 1
+- Merged: 66
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 82
-- Next commit: `d95f6b98cea1b81d6fba9408a4d7b9fbead4e3a0`
-- Last action: low-risk VERSION synchronization `59ce11c78` merged as `e633765fc`; server version is 0.1.166
-- Active queue commit: none
+- Next index: 83
+- Next commit: `1aeacf4d412d41d91a01a458c29a0f25db9d5eea`
+- Last action: medium-risk authentic Anthropic message IDs `d95f6b98c` merged as `7062ab8c0` and focused tests passed; prompt-audit recovery `1aeacf4d4` assessed high risk and awaits merge|skip
+- Active queue commit: `1aeacf4d412d41d91a01a458c29a0f25db9d5eea` (awaiting user decision; recommendation: skip)
 
 ## High-risk verification notes
 
