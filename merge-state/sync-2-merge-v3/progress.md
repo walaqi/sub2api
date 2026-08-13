@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 192
-- Awaiting user: 0
+- Pending: 191
+- Awaiting user: 1
 - Merged: 31
 - Skipped: 0
 - Failed/blocked: 0
 - Next index: 48
 - Next commit: `43d4bae2464387817560a1aeb0b023cd0c9b22ee`
-- Last action: medium-risk announcement Markdown styling and admin preview `b99ea955d9` auto-merged as `4c8dad109`; nested-modal scroll locking adapted in `fcc332f1f`; focused tests, ESLint and typecheck passed, while full Vitest retained only the two recorded rollback-timeout baseline failures
-- Active queue commit: `43d4bae2464387817560a1aeb0b023cd0c9b22ee` (index 48, under assessment)
+- Last action: high-risk ChatGPT Live/Frameless gateway `43d4bae24` assessed and paused for user decision; it modifies shared concurrency and group surfaces, has migration-number collisions, and logs zero-cost usage without main gift/referral billing effects
+- Active queue commit: `43d4bae2464387817560a1aeb0b023cd0c9b22ee` (index 48, awaiting `merge|skip`)
 
 ## High-risk verification notes
 
