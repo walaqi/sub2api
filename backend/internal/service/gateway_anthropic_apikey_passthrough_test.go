@@ -1929,6 +1929,8 @@ func TestForwardAsChatCompletions_OriginModelHeaderNotInjectedWhenSwitchOff(t *t
 	require.NotNil(t, upstream.lastReq)
 	require.Empty(t, getHeaderRaw(upstream.lastReq.Header, originModelIDHeader),
 		"开关关闭 → 即使有映射也不注入 X-Origin-Model-Id")
+}
+
 func TestGatewayService_AnthropicAPIKeyPassthrough_TransportErrorRecordsOllamaActivity(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	deferred := NewDeferredService(nil, nil, time.Second)
