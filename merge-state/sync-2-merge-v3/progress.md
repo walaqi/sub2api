@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 198
-- Awaiting user: 0
+- Pending: 197
+- Awaiting user: 1
 - Merged: 25
 - Skipped: 0
 - Failed/blocked: 0
 - Next index: 42
 - Next commit: `6d956bdc20f0d8c38275d4d77b628a8ff776711c`
-- Last action: medium-risk OpenAI API-key Responses item-ID sanitization `333acde7d` auto-merged as `925e8de05`; focused unit-tagged forwarding, allocation and Codex filtering tests passed
-- Active queue commit: `6d956bdc20f0d8c38275d4d77b628a8ff776711c` (index 42, under assessment)
+- Last action: high-risk session-ID persistence `6d956bdc2` assessed and paused for user merge|skip decision; migration 187 conflicts with main and must become 206 if merged
+- Active queue commit: `6d956bdc20f0d8c38275d4d77b628a8ff776711c` (index 42, awaiting user decision)
 
 ## High-risk verification notes
 
