@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { PAYMENT_CURRENCY_OPTIONS, PROVIDER_CONFIG_FIELDS } from '@/components/payment/providerConfig'
+import {
+  PAYMENT_CURRENCY_OPTIONS,
+  PROVIDER_CONFIG_FIELDS,
+  isBuiltInAlipayMethod,
+  isBuiltInWxpayMethod,
+} from '@/components/payment/providerConfig'
 
 function findField(providerKey: string, key: string) {
   const fields = PROVIDER_CONFIG_FIELDS[providerKey] || []
@@ -48,5 +53,19 @@ describe('PROVIDER_CONFIG_FIELDS.stripe', () => {
     expect(currency?.defaultValue).toBe('CNY')
     expect(currency?.hintKey).toBe('admin.settings.payment.field_paymentCurrencyHint')
     expect(currency?.options).toBe(PAYMENT_CURRENCY_OPTIONS)
+  })
+})
+
+describe('built-in payment method matching', () => {
+  it('matches only official Alipay method names', () => {
+    expect(isBuiltInAlipayMethod('alipay')).toBe(true)
+    expect(isBuiltInAlipayMethod('alipay_direct')).toBe(true)
+    expect(isBuiltInAlipayMethod('custom_alipay')).toBe(false)
+  })
+
+  it('matches only official WeChat Pay method names', () => {
+    expect(isBuiltInWxpayMethod('wxpay')).toBe(true)
+    expect(isBuiltInWxpayMethod('wxpay_direct')).toBe(true)
+    expect(isBuiltInWxpayMethod('custom_wxpay')).toBe(false)
   })
 })
