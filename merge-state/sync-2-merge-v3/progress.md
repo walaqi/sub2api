@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 201
+- Pending: 200
 - Awaiting user: 0
-- Merged: 22
+- Merged: 23
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 39
-- Next commit: `a9866f03dbbd69cba68b50c26f12f498369c92b2`
-- Last action: low-risk image diagnostics `0e39e21fa` auto-merged as `e90a02f7c`; deleted upstream test coverage was adapted in `f482e0849`, and focused handler tests passed
-- Active queue commit: `a9866f03dbbd69cba68b50c26f12f498369c92b2` (index 39, under assessment)
+- Next index: 40
+- Next commit: `9994eaa70f0867d36245d91e68157a76c020f756`
+- Last action: medium-risk affiliate mobile copy controls `a9866f03d` auto-merged as `d38083505`; main's super-referral UI was retained, its status API was added to the test fixture in `da3d261b7`, and focused Vitest/ESLint passed
+- Active queue commit: `9994eaa70f0867d36245d91e68157a76c020f756` (index 40, under assessment)
 
 ## High-risk verification notes
 
