@@ -12,8 +12,8 @@
 - Failed/blocked: 0
 - Next index: 20
 - Next commit: `3e5d4af411977b0b14860ac5796831c02b0fb1be`
-- Last action: prerequisites `9f5b57fc9` and `44ab690a` merged as `eccfc09db` and `9c57d3da8`; gift-safe batch holds covered by `edaa4e7ff`; complete integration and frontend gates passed
-- Active prerequisite: `65ff800362dc0c2b20c5f14ca78dbf3d02a1af23` (high risk; batch image billing, state-machine and queue hardening)
+- Last action: prerequisite `65ff8003` merged as `526b62445`; complete integration/frontend gates and all Go tests passed, with only the known baseline G704 lint exception
+- Active prerequisite: `09729ba54c9b799c728996b3e8202c00a0e6e86b` (high risk; final object-storage async image implementation)
 
 ## High-risk verification notes
 
@@ -24,3 +24,4 @@
 - Frontend ESLint, `vue-tsc`, and critical Vitest: passed (6 files, 97 tests).
 - `make test`: Go tests pass; lint stops only on three baseline gosec G704 findings in unchanged `internal/pkg/servertiming/http.go` and `internal/server/middleware/openai_fast_policy_forwarding_test.go`.
 - The fixed localhost service-test database predated the batch image migrations and lacked `users.frozen_balance`; the idempotent `160_add_user_frozen_balance.sql` was applied to that local test database before rerunning. The repository integration harness independently proved the full migration set from a clean database.
+- `65ff8003`: preserved recharge-only gift-safe holds while adding phantom-release protection, atomic queue/state transitions, settlement retry exhaustion, hold/discount validation, and image-only token-pricing fail-closed behavior. Its `admin_service.go` increment was mapped to main's split `admin_group.go` implementation.
