@@ -110,6 +110,21 @@ describe('AnnouncementPopup', () => {
     wrapper.unmount()
   })
 
+  it('restores an existing body scroll lock after preview closes', async () => {
+    document.body.style.overflow = 'hidden'
+    const wrapper = mount(AnnouncementPopup, {
+      props: {
+        announcement,
+        preview: true,
+      },
+    })
+
+    await wrapper.setProps({ announcement: null })
+    expect(document.body.style.overflow).toBe('hidden')
+    wrapper.unmount()
+    expect(document.body.style.overflow).toBe('hidden')
+  })
+
   it('keeps the existing user popup dismissal behavior', async () => {
     const store = useAnnouncementStore()
     store.currentPopup = announcement

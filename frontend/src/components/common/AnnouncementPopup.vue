@@ -113,6 +113,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const announcementStore = useAnnouncementStore()
+const bodyOverflowBeforePreview = props.preview ? document.body.style.overflow : ''
 const displayedAnnouncement = computed(() => (
   props.preview ? props.announcement : announcementStore.currentPopup
 ))
@@ -137,14 +138,19 @@ function handleDismiss() {
   announcementStore.dismissPopup()
 }
 
-// Manage body overflow — only set, never unset (bell component handles restore)
+function restoreBodyOverflowAfterPreview() {
+  document.body.style.overflow = bodyOverflowBeforePreview
+}
+
+// The bell owns overflow restoration for user popups. Preview instances restore
+// the value they replaced so an underlying popup or modal remains locked.
 watch(
   displayedAnnouncement,
   (popup) => {
     if (popup) {
       document.body.style.overflow = 'hidden'
     } else if (props.preview) {
-      document.body.style.overflow = ''
+      restoreBodyOverflowAfterPreview()
     }
   },
   { immediate: true },
@@ -152,7 +158,7 @@ watch(
 
 onBeforeUnmount(() => {
   if (props.preview) {
-    document.body.style.overflow = ''
+    restoreBodyOverflowAfterPreview()
   }
 })
 </script>
