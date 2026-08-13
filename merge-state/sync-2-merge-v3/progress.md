@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 219
+- Pending: 218
 - Awaiting user: 0
-- Merged: 4
+- Merged: 5
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 21
-- Next commit: `90c4f50a5ed5073ab5149803968eb0f326c26c38`
-- Last action: high-risk composite-groups commit `3e5d4af4` merged as `cc77d5ab9` after prerequisite completion and full conflict adaptation
+- Next index: 22
+- Next commit: `ba88cc239cdbe689bc5785dd36238caf6ecb14ef`
+- Last action: low-risk admin plan response fix `90c4f50a` merged as `cd82d478a`; focused backend test passed
 - Active queue commit: none
 
 ## High-risk verification notes
