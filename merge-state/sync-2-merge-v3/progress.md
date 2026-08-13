@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 175
+- Pending: 174
 - Awaiting user: 0
-- Merged: 48
+- Merged: 49
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 65
-- Next commit: `ece95170919cc450cf874f1d35c9f92672c028b9`
-- Last action: low-risk admin usage request-id filter `4cc88e27b` merged as `2ed6c642a`; focused admin handler and repository SQL tests plus main-specific gift/device/IP field checks passed
+- Next index: 66
+- Next commit: `91a2281c7a2ce250c4b0a9ee9ee04d76a7e273e0`
+- Last action: medium-risk explicit CONFIG_FILE support `ece951709` merged as `71394c635`; full config package, setup/server tests and diff checks passed
 - Active queue commit: none
 
 ## High-risk verification notes
