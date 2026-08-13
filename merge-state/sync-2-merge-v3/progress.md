@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 220
+- Pending: 219
 - Awaiting user: 0
-- Merged: 3
+- Merged: 4
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 20
-- Next commit: `3e5d4af411977b0b14860ac5796831c02b0fb1be`
-- Last action: prerequisite `bfabfe60` auto-merged as `5354fd9f9`; environment/admin dynamic object-storage configuration tests passed; all five prerequisites for index 20 are complete
-- Active queue commit: `3e5d4af411977b0b14860ac5796831c02b0fb1be` (high risk, user decision: merge)
+- Next index: 21
+- Next commit: `90c4f50a5ed5073ab5149803968eb0f326c26c38`
+- Last action: high-risk composite-groups commit `3e5d4af4` merged as `cc77d5ab9` after prerequisite completion and full conflict adaptation
+- Active queue commit: none
 
 ## High-risk verification notes
 
@@ -27,3 +27,4 @@
 - `65ff8003`: preserved recharge-only gift-safe holds while adding phantom-release protection, atomic queue/state transitions, settlement retry exhaustion, hold/discount validation, and image-only token-pricing fail-closed behavior. Its `admin_service.go` increment was mapped to main's split `admin_group.go` implementation.
 - `09729ba5`: merged the final post-revert implementation from its three-commit second-parent chain (`1fb942dd`, `e5e94d1`, `0eb6e21`), including task persistence, polling routes and S3-compatible result offload. Existing batch image, gift/referral, Image Studio and risk-control wiring were retained. Default URL downloads now use resolved-IP validation and reject private hosts; focused service lint reports zero issues.
 - `bfabfe60`: added reachable environment keys and admin-managed, immediately reloadable image-storage settings with backup-S3 reuse and step-up protection; focused backend and frontend gates passed.
+- `3e5d4af4`: merged the complete composite-groups implementation, including migration, Ent model, resolver, admin API/UI, provider-aware routing and usage attribution. Main-specific gift deletion semantics, group-scoped gift billing, affiliate/notification dependencies, client-error throttling, batch/async image routes, Image Studio and websearch wiring were retained. Added a regression asserting that an OpenAI target account still bills gifts against the composite API-key group. `go test ./...` passed; integration packages passed (the service package passed on isolated rerun after one suite-level timing failure); frontend ESLint and typecheck passed. Full Vitest had 1253/1255 passing, with two unchanged baseline rollback-timeout argument assertions failing. `make test` stopped only on the same three baseline G704 findings.
