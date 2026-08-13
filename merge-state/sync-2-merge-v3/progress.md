@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 164
+- Pending: 163
 - Awaiting user: 0
-- Merged: 59
+- Merged: 60
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 76
-- Next commit: `95590b553069dca9a53a7dcec0cc0ebd6ce89cc3`
-- Last action: medium-risk OpenAI cross-mode reasoning failover fix `b765a7f9f` auto-merged as `ff0dcfe8b`; focused handler and sanitizer tests passed
+- Next index: 77
+- Next commit: `ab73bc0c77c8ab4b0269e958106de65c8a942cd5`
+- Last action: medium-risk Responses-Anthropic tool compatibility `95590b553` auto-merged as `2a02bf613`; focused protocol, usage and gift-cost tests passed
 - Active queue commit: none
 
 ## High-risk verification notes
