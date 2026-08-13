@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 211
-- Awaiting user: 1
-- Merged: 12
+- Pending: 210
+- Awaiting user: 0
+- Merged: 13
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 29
-- Next commit: `6aeea70ee008825604ac3293ca0f216e951795d1`
-- Last action: high-risk OpenAI proxy stream quarantine `6aeea70ee` assessed; awaiting user merge|skip decision
-- Active queue commit: `6aeea70ee008825604ac3293ca0f216e951795d1` (index 29, high risk, awaiting merge|skip)
+- Next index: 30
+- Next commit: `2c76506e072af3aa1a853ef7da71fec7a9ad60d7`
+- Last action: user-approved high-risk OpenAI proxy stream quarantine `6aeea70ee` merged as `014260108`; full backend and integration tests passed; frontend retained only two baseline failures; lint retained only three baseline G704 findings
+- Active queue commit: none
 
 ## High-risk verification notes
 
@@ -30,3 +30,4 @@
 - `3e5d4af4`: merged the complete composite-groups implementation, including migration, Ent model, resolver, admin API/UI, provider-aware routing and usage attribution. Main-specific gift deletion semantics, group-scoped gift billing, affiliate/notification dependencies, client-error throttling, batch/async image routes, Image Studio and websearch wiring were retained. Added a regression asserting that an OpenAI target account still bills gifts against the composite API-key group. `go test ./...` passed; integration packages passed (the service package passed on isolated rerun after one suite-level timing failure); frontend ESLint and typecheck passed. Full Vitest had 1253/1255 passing, with two unchanged baseline rollback-timeout argument assertions failing. `make test` stopped only on the same three baseline G704 findings.
 - `ba88cc239`: user-approved high-risk billing correction merged as `130e06bfd`. Composite public aliases now use the concrete forwarded model unless explicitly channel-priced, preventing zero or family-fallback misbilling. The corrected ActualCost continues through main's gift/recharge allocator and super-invite spend tracker; focused regression confirms the composite API-key group remains the gift scope. Full Go and integration tests passed; frontend lint/typecheck passed; Vitest retained only the two confirmed rollback-timeout baseline failures; golangci-lint retained only the same three baseline G704 findings.
 - `09b1309c9`: user-approved high-risk channel-pricing normalization merged as `e9e94e03e`. Claude dot/hyphen model spellings now resolve to the same custom channel price; corrected ActualCost continues through main's gift/recharge allocator and super-invite spend tracker without changing gift group scope. Focused pricing, composite billing and gift-scope tests passed; full Go and integration tests passed; frontend lint/typecheck passed; Vitest retained only the two confirmed rollback-timeout baseline failures; golangci-lint retained only the same three baseline G704 findings.
+- `6aeea70ee`: user-approved high-risk proxy stream circuit merged as `014260108`. Two post-output incomplete OpenAI Responses SSE streams within the configured window quarantine every account sharing the proxy ID until TTL expiry; client cancellations and successful terminal events do not count. The circuit only affects subsequent scheduling and leaves main's usage recording, gift/recharge allocation and super-invite spend tracking unchanged. Full Go and integration tests passed; frontend lint/typecheck passed; Vitest retained only the two confirmed rollback-timeout baseline failures; golangci-lint retained only the same three baseline G704 findings.
