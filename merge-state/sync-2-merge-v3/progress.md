@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 195
+- Pending: 194
 - Awaiting user: 0
-- Merged: 28
+- Merged: 29
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 45
-- Next commit: `3176cdee1731bd7b15123eee47b891122f5de060`
-- Last action: medium-risk OpenAI pool same-account retry preservation `a29a62112` auto-merged as `64c351073`; focused unit-tagged pool/non-pool runtime-block tests passed
-- Active queue commit: `3176cdee1731bd7b15123eee47b891122f5de060` (index 45, under assessment)
+- Next index: 46
+- Next commit: `e6a3030bebb8f28f129fdf46d89835ae2df29a64`
+- Last action: low-risk Grok orphan tool_choice cleanup `3176cdee1` auto-merged as `aaf3fbf57`; focused six-case sanitizer test passed
+- Active queue commit: `e6a3030bebb8f28f129fdf46d89835ae2df29a64` (index 46, under assessment)
 
 ## High-risk verification notes
 
