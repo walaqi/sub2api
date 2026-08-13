@@ -6,14 +6,14 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 180
-- Awaiting user: 0
+- Awaiting user: 1
 - Merged: 43
 - Skipped: 0
 - Failed/blocked: 0
 - Next index: 60
 - Next commit: `eb6e3d1f1d9d886234aa1db0d3c72a749af95e6c`
-- Last action: Caddy SSE compression fix `a93bfb662` merged as `7df259955`; adaptation `d727fc10d` retained its executable policy check while excluding source-CI references to the out-of-scope pre-Jul-22 Apple Container feature; Caddy policy and shell syntax checks passed
-- Active queue commit: none
+- Last action: assessed `eb6e3d1f1` as high risk because per-turn WebSocket model mapping changes billing-model selection before gift/recharge allocation and super-invite spend tracking; waiting for user merge|skip
+- Active queue commit: `eb6e3d1f1d9d886234aa1db0d3c72a749af95e6c` (awaiting user decision)
 
 ## High-risk verification notes
 
