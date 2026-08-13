@@ -112,6 +112,77 @@ func TestUsageBillingRepositoryApply_FlagsGiftEngineOverdraft(t *testing.T) {
 	require.InDelta(t, 10, *result.RechargeCost, 0.000001)
 }
 
+func TestUsageBillingRepositoryReserveBatchImageBalance_UsesRechargePoolOnly(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	eng := gift.NewEngine(client, integrationDB)
+	repo := NewUsageBillingRepository(client, integrationDB, eng)
+
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("batch-hold-gift-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      5,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID: user.ID,
+		Key:    "sk-batch-hold-gift-" + uuid.NewString(),
+		Name:   "batch-hold-gift",
+	})
+	granted, err := eng.Grant(ctx, gift.GrantInput{
+		UserID: user.ID,
+		Amount: 10,
+		Mode:   gift.DeductionModePriority,
+		Source: gift.SourceKeybind,
+	})
+	require.NoError(t, err)
+
+	_, err = repo.ReserveBatchImageBalance(ctx, &service.BatchImageBalanceHoldCommand{
+		RequestID:  "batch_image_hold:" + uuid.NewString(),
+		APIKeyID:   apiKey.ID,
+		UserID:     user.ID,
+		BatchID:    uuid.NewString(),
+		HoldAmount: 6,
+	})
+	require.ErrorIs(t, err, service.ErrBatchImageInsufficientBalance)
+
+	var balance, frozen, remaining float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT balance, frozen_balance FROM users WHERE id = $1", user.ID).Scan(&balance, &frozen))
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT remaining FROM user_gifts WHERE id = $1", granted.ID).Scan(&remaining))
+	require.InDelta(t, 15, balance, 0.000001)
+	require.InDelta(t, 0, frozen, 0.000001)
+	require.InDelta(t, 10, remaining, 0.000001)
+
+	batchID := uuid.NewString()
+	holdResult, err := repo.ReserveBatchImageBalance(ctx, &service.BatchImageBalanceHoldCommand{
+		RequestID:  "batch_image_hold:" + batchID,
+		APIKeyID:   apiKey.ID,
+		UserID:     user.ID,
+		BatchID:    batchID,
+		HoldAmount: 4,
+	})
+	require.NoError(t, err)
+	require.True(t, holdResult.Applied)
+	require.NotNil(t, holdResult.NewBalance)
+	require.NotNil(t, holdResult.FrozenBalance)
+	require.InDelta(t, 11, *holdResult.NewBalance, 0.000001)
+	require.InDelta(t, 4, *holdResult.FrozenBalance, 0.000001)
+
+	releaseResult, err := repo.ReleaseBatchImageBalance(ctx, &service.BatchImageBalanceHoldCommand{
+		RequestID:  "batch_image_release:" + batchID,
+		APIKeyID:   apiKey.ID,
+		UserID:     user.ID,
+		BatchID:    batchID,
+		HoldAmount: 4,
+	})
+	require.NoError(t, err)
+	require.True(t, releaseResult.Applied)
+	require.InDelta(t, 15, *releaseResult.NewBalance, 0.000001)
+	require.InDelta(t, 0, *releaseResult.FrozenBalance, 0.000001)
+
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT remaining FROM user_gifts WHERE id = $1", granted.ID).Scan(&remaining))
+	require.InDelta(t, 10, remaining, 0.000001)
+}
+
 func TestUsageBillingRepositoryApply_DeduplicatesSubscriptionBilling(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)
