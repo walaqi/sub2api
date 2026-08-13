@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 203
+- Pending: 202
 - Awaiting user: 0
-- Merged: 20
+- Merged: 21
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 37
-- Next commit: `95cc6ee2c06bb3cc72dd506bc14b6856c2777248`
-- Last action: user-approved high-risk Claude Opus 5/4.8 pricing, Bedrock and PostCSS update `37ed639d1e` merged as `3672c5700`; full Go and independent full integration passed, frontend retained only known baseline exceptions
-- Active queue commit: `95cc6ee2c06bb3cc72dd506bc14b6856c2777248` (index 37, under assessment)
+- Next index: 38
+- Next commit: `0e39e21fa22701295121fdb2d778e9cae3675486`
+- Last action: low-risk blank remote pricing URL scheduler guard `95cc6ee2c` auto-merged as `eb4f01430`; focused scheduler and pricing regressions passed
+- Active queue commit: `0e39e21fa22701295121fdb2d778e9cae3675486` (index 38, under assessment)
 
 ## High-risk verification notes
 
