@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 171
-- Awaiting user: 0
+- Pending: 170
+- Awaiting user: 1
 - Merged: 52
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 69
+- Next index: 69 (awaiting user)
 - Next commit: `031c83b7e0d9b114f03e8d41363be9c06a2c71df`
-- Last action: medium-risk Gemini pool-mode skipped-policy failover fix `7a3fda57c` merged as `a3f445d6e`; unit-tag Gemini policy and handler failover-state tests plus diff checks passed
-- Active queue commit: none
+- Last action: high-risk Gemini 3.6 Flash pricing `031c83b7e` assessed; official Google rates verified and merge recommended, awaiting user decision because ActualCost enters gift/recharge allocation and super-invite spend tracking
+- Active queue commit: `031c83b7e0d9b114f03e8d41363be9c06a2c71df` (`merge | skip` required)
 
 ## High-risk verification notes
 
