@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 200
+- Pending: 199
 - Awaiting user: 0
-- Merged: 23
+- Merged: 24
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 40
-- Next commit: `9994eaa70f0867d36245d91e68157a76c020f756`
-- Last action: medium-risk affiliate mobile copy controls `a9866f03d` auto-merged as `d38083505`; main's super-referral UI was retained, its status API was added to the test fixture in `da3d261b7`, and focused Vitest/ESLint passed
-- Active queue commit: `9994eaa70f0867d36245d91e68157a76c020f756` (index 40, under assessment)
+- Next index: 41
+- Next commit: `333acde7d189b5a604854bc4fc5bb768c7ad58c9`
+- Last action: medium-risk OpenAI Responses input namespace cleanup `9994eaa70` auto-merged as `f9c4b423b`; HTTP/passthrough/retry/WSv2 focused tests passed
+- Active queue commit: `333acde7d189b5a604854bc4fc5bb768c7ad58c9` (index 41, under assessment)
 
 ## High-risk verification notes
 
