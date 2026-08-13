@@ -6,14 +6,14 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 210
-- Awaiting user: 0
+- Awaiting user: 1
 - Merged: 13
 - Skipped: 0
 - Failed/blocked: 0
 - Next index: 30
 - Next commit: `2c76506e072af3aa1a853ef7da71fec7a9ad60d7`
-- Last action: user-approved high-risk OpenAI proxy stream quarantine `6aeea70ee` merged as `014260108`; full backend and integration tests passed; frontend retained only two baseline failures; lint retained only three baseline G704 findings
-- Active queue commit: none
+- Last action: high-risk mobile Alipay precreate deep link `2c76506e0` assessed; awaiting user merge|skip decision
+- Active queue commit: `2c76506e072af3aa1a853ef7da71fec7a9ad60d7` (index 30, high risk, awaiting merge|skip)
 
 ## High-risk verification notes
 
