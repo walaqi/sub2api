@@ -6,14 +6,14 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 170
-- Awaiting user: 1
-- Merged: 52
+- Awaiting user: 0
+- Merged: 53
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 69 (awaiting user)
-- Next commit: `031c83b7e0d9b114f03e8d41363be9c06a2c71df`
-- Last action: high-risk Gemini 3.6 Flash pricing `031c83b7e` assessed; official Google rates verified and merge recommended, awaiting user decision because ActualCost enters gift/recharge allocation and super-invite spend tracking
-- Active queue commit: `031c83b7e0d9b114f03e8d41363be9c06a2c71df` (`merge | skip` required)
+- Next index: 70
+- Next commit: `131d42d25dbc5f98cedbc80514b499e6bee4d811`
+- Last action: user-approved high-risk Gemini 3.6 Flash pricing `031c83b7e` merged as `8a3c92404`; regression `54906c637` verifies official pricing and group-scoped gift/recharge allocation, and the complete integration suite passed
+- Active queue commit: none
 
 ## High-risk verification notes
 
@@ -40,3 +40,4 @@
 - `bb0c38306`: user-approved high-risk Ollama request-driven usage refresh merged as `2afc5bbdb`; conflict resolution preserving main's X-Origin-Model-Id tests was completed in `71bbb7db7`. Automatic refresh now follows actual upstream request activity with trailing debounce, max-wait and failure backoff. Shared gateway hooks are strict no-ops for non-Ollama accounts and deferred last-used writes deduplicate by account; no gift, recharge or super-invite billing path changed. Focused service/repository tests, real PostgreSQL due-query tests and 28 frontend tests passed. Full Go passed; full integration passed with 8171 tests, including 65 Ollama tests and SQL/service due-rule parity; frontend lint/typecheck passed; Vitest passed 1300/1302 with only the two baseline rollback argument failures; golangci-lint retained only the same three baseline G704 findings.
 - `e9a58c1cb`: user-approved high-risk registration email-alias dedup merged as `7c068b980`, with main adaptations in `107dfe025`. Local and OAuth new-user registration, plus verification-code issuance, now collapse plus aliases on all domains and Gmail dot/googlemail aliases before granting a new account; main's regex/suffix registration policy still validates the submitted email first. Transaction-scoped alias locks close concurrent signup races, while administrator-created users and existing-user email binding retain their prior semantics. The concurrent expression-index migration was renumbered from 190 to 209. Candidate overflow now fails closed instead of potentially hiding an alias beyond the 50-row bound, with regression coverage. Focused service/repository/migration tests passed; full Go passed; the complete integration run passed 8192 tests except one unrelated Ollama shared-rate-limit state failure, whose isolated test and full service integration package both passed on immediate rerun; 125 registration/email-alias/gift/referral tests passed. Frontend lint/typecheck passed; Vitest passed 1300/1302 with only the two baseline rollback argument failures; golangci-lint retained only the same three baseline G704 findings.
 - `eb6e3d1f1`: user-approved high-risk per-turn OpenAI Responses WebSocket billing merged as `31e95f5a0`. Each turn independently retains the client-requested, channel-mapped and actual upstream model; account mapping is applied after channel mapping while preserving main's explicit-mapping normalization protection. The selected per-turn BillingModel feeds the existing RecordUsage path, so corrected ActualCost continues through group-aware priority/proportional gift allocation and super-invite spend tracking without changing their semantics. Unsupported mid-session model switches close with reconnect guidance and do not mark the account unhealthy. 389 focused WS/channel-billing/gift/referral tests and complete integration passed. Full unit retained unrelated baseline failures in config env reachability and `TestCheckBalanceEligibility_CheckerNil_StandardMode_FailsClosed`; frontend lint/typecheck passed; Vitest passed 1311/1313 with the two baseline rollback argument failures and existing GroupsView mocks missing `getLiveCapability`; golangci-lint retained the same three G704 findings.
+- `031c83b7e`: user-approved high-risk Gemini 3.6 Flash pricing merged as `8a3c92404`, with billing regression `54906c637`. Official standard and priority rates now cover exact and Antigravity thinking-tier aliases while allowing future exact tier pricing to win. The regression proves a $9.15 ActualCost is carried into main's group-scoped gift allocator and split as $4.15 gift plus $5 recharge; the existing super-invite spend tracker consumes the same applied ActualCost without semantic changes. Focused tests and complete integration passed. Full unit retained only the known three config env-reachability failures and checker-nil balance failure; frontend lint/typecheck passed; Vitest passed 1311/1313 with only the two baseline rollback-timeout failures plus existing GroupsView mock rejections; golangci-lint retained the same three baseline G704 findings.
