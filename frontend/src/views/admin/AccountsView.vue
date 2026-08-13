@@ -2454,8 +2454,8 @@ const handleClickOutside = (event: MouseEvent) => {
 }
 
 onMounted(async () => {
-	if (supportsViewportMediaQuery) {
-		desktopViewportMediaQuery = window.matchMedia(desktopViewportQuery)
+  if (supportsViewportMediaQuery) {
+    desktopViewportMediaQuery = window.matchMedia(desktopViewportQuery)
     isDesktopViewport.value = desktopViewportMediaQuery.matches
     desktopViewportListener = (event: MediaQueryListEvent) => {
       isDesktopViewport.value = event.matches
