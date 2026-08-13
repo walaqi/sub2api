@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 206
+- Pending: 205
 - Awaiting user: 0
-- Merged: 17
+- Merged: 18
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 34
-- Next commit: `cd8bb98c44303b2c8f04c0da340447c992f0cb7d`
-- Last action: low-risk test-only Ollama repository deep-copy race fix `1be6f3018` auto-merged as `42171c3bc`; focused normal and race tests passed
-- Active queue commit: `cd8bb98c44303b2c8f04c0da340447c992f0cb7d` (index 34, under assessment)
+- Next index: 35
+- Next commit: `cb24522dd53f8f363d008e3afdc8e4baf9788cab`
+- Last action: medium-risk Codex identity-index optimization and concrete OpenAI test-model preference `cd8bb98c4` auto-merged as `9fd49e96a`; focused tests passed
+- Active queue commit: `cb24522dd53f8f363d008e3afdc8e4baf9788cab` (index 35, low-risk version sync)
 
 ## High-risk verification notes
 
