@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 217
+- Pending: 216
 - Awaiting user: 0
-- Merged: 6
+- Merged: 7
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 23
-- Next commit: `31e7ae8195817dc7f4dbacd399d1bd5116aad3de`
-- Last action: user-approved high-risk composite billing fix `ba88cc239` merged as `130e06bfd`; full Go, integration and frontend gates completed with only confirmed baseline findings
+- Next index: 24
+- Next commit: `aee9ab36cb12bf45d3c49563b12f755d599f4cc9`
+- Last action: low-risk model rate-limit display fix `31e7ae819` merged as `c09bc52b4`; focused component tests and frontend typecheck passed
 - Active queue commit: none
 
 ## High-risk verification notes
