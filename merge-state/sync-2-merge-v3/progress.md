@@ -6,17 +6,18 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 161
-- Awaiting user: 1
-- Merged: 61
+- Awaiting user: 0
+- Merged: 62
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 78
-- Next commit: `d96b6a31ff6b77896ccfc280ffe790c5ce90fdae`
-- Last action: high-risk Antigravity native OpenAI-compatible gateway replacement `d96b6a31f` assessed; awaiting user merge|skip decision
-- Active queue commit: `d96b6a31ff6b77896ccfc280ffe790c5ce90fdae` (awaiting_user)
+- Next index: 79
+- Next commit: `f18f3143e223a6fa57a2e3a3a125fbe18302af51`
+- Last action: user-approved high-risk Antigravity native OpenAI-compatible gateway `d96b6a31f` merged as `96e7afd48`; complete Go and integration passed, frontend retained only known baseline exceptions
+- Active queue commit: none
 
 ## High-risk verification notes
 
+- `d96b6a31f`: user-approved Antigravity OAuth native OpenAI-compatible gateway merged as `96e7afd48`. Chat Completions and Responses now use native streamGenerateContent with correct buffered/streaming usage extraction, model attribution, endpoint recording, credential failover and client-disconnect draining. The existing single RecordUsage path retains session IDs, request fingerprints, group-scoped priority/proportional gifts and super-invite spend tracking. Complete Go and integration tests passed; frontend lint/typecheck passed; Vitest retained only the known rollback and GroupsView mock baseline exceptions.
 - `9f5b57fc9`: preserved the fork gift engine, proportional gift constraints, overdraft marker and balance cache synchronization.
 - `44ab690a`: retained the complete batch image implementation instead of dropping unresolved endpoints; billing holds use recharge balance only and do not consume or freeze gifts.
 - Added regression coverage in `edaa4e7ff` for rejecting a hold larger than recharge balance even when gift balance makes total balance sufficient.
