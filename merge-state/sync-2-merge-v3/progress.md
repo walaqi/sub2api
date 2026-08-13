@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 173
+- Pending: 172
 - Awaiting user: 0
-- Merged: 50
+- Merged: 51
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 67
-- Next commit: `16365199aaa56a9090acfbf7af8f43b57cd9bdef`
-- Last action: low-risk concurrency-test stabilization `91a2281c7` merged as `78cb63067`, retaining main's removal of obsolete prompt-audit tests; all three current affected tests passed 10 repeated runs and diff checks passed
+- Next index: 68
+- Next commit: `7a3fda57c887642b3cc6e98ff26bb2feca81c4d6`
+- Last action: medium-risk billing-probe nanosecond due-query fix `16365199a` merged as `da47d2f03`; repository/service tests and real PostgreSQL nanosecond, ordering and invalid-date integration tests passed
 - Active queue commit: none
 
 ## High-risk verification notes
