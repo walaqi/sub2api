@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 176
+- Pending: 175
 - Awaiting user: 0
-- Merged: 47
+- Merged: 48
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 64
-- Next commit: `4cc88e27b6f6c50d454b94023dfa64805b5a018b`
-- Last action: medium-risk proxied Claude Code prompt-cache preservation `b468e428e` merged as `7f5e61a6f`, with classification/forwarding regressions in `af8aa6559`; focused service and handler moderation tests plus diff checks passed
+- Next index: 65
+- Next commit: `ece95170919cc450cf874f1d35c9f92672c028b9`
+- Last action: low-risk admin usage request-id filter `4cc88e27b` merged as `2ed6c642a`; focused admin handler and repository SQL tests plus main-specific gift/device/IP field checks passed
 - Active queue commit: none
 
 ## High-risk verification notes
