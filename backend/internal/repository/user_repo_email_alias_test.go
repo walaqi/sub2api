@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -97,4 +98,20 @@ func TestUserRepositoryCreateWithEmailAliasGuard(t *testing.T) {
 		Role:         service.RoleUser,
 		Status:       service.StatusActive,
 	}))
+}
+
+func TestUserRepositoryExistsByEmailAliasFailsClosedWhenCandidatesOverflow(t *testing.T) {
+	repo, _ := newUserEntRepo(t)
+
+	// Dot stripping intentionally over-matches these distinct non-Gmail inboxes.
+	// Overflowing the bounded scan must fail closed because a real alias could
+	// otherwise be hidden beyond the truncated candidate set.
+	local := strings.Repeat("a", emailAliasCandidateLimit+2)
+	for i := 1; i <= emailAliasCandidateLimit+1; i++ {
+		seedUserForAliasTest(t, repo, local[:i]+"."+local[i:]+"@example.com")
+	}
+
+	exists, err := repo.ExistsByEmailAlias(context.Background(), local+"@example.com")
+	require.False(t, exists)
+	require.ErrorIs(t, err, errEmailAliasCandidateLimit)
 }

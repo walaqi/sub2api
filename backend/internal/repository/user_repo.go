@@ -1007,10 +1007,11 @@ func (r *userRepository) ExistsByEmail(ctx context.Context, email string) (bool,
 	return r.client.User.Query().Where(userEmailLookupPredicate(email)).Exist(ctx)
 }
 
-// emailAliasCandidateLimit 限制一次别名查重最多取回的候选行数。探针都以去点后的
-// 本地部分为前缀锚定（见 dotStrippedEmailExpr），正常收件箱的变体只有个位数；
-// 上限只是兜底，避免公开未鉴权的注册/发码端点把大表整张读进内存。
+// emailAliasCandidateLimit 限制一次别名查重最多检查的候选行数。探针都以去点后的
+// 本地部分为前缀锚定（见 dotStrippedEmailExpr），正常收件箱的变体只有个位数。
 const emailAliasCandidateLimit = 50
+
+var errEmailAliasCandidateLimit = errors.New("email alias candidate limit exceeded")
 
 // ExistsByEmailAlias 见 service.UserRepository。软删除过滤沿用 ExistsByEmail 的默认行为。
 func (r *userRepository) ExistsByEmailAlias(ctx context.Context, email string) (bool, error) {
@@ -1036,7 +1037,7 @@ func existsByEmailAliasWithClient(ctx context.Context, client *dbent.Client, ema
 	}
 	candidates, err := client.User.Query().
 		Where(dbuser.Or(preds...)).
-		Limit(emailAliasCandidateLimit).
+		Limit(emailAliasCandidateLimit + 1).
 		Select(dbuser.FieldEmail).
 		Strings(ctx)
 	if err != nil {
@@ -1049,6 +1050,12 @@ func existsByEmailAliasWithClient(ctx context.Context, client *dbent.Client, ema
 		if service.NormalizeEmailForAliasDedup(candidate) == identity {
 			return true, nil
 		}
+	}
+	if len(candidates) > emailAliasCandidateLimit {
+		// The SQL prefilter deliberately over-matches dotted local parts outside
+		// Gmail. Never report "available" when truncation could hide a real alias:
+		// registration callers fail closed on repository errors.
+		return false, errEmailAliasCandidateLimit
 	}
 	return false, nil
 }
