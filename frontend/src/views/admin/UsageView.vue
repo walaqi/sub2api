@@ -64,7 +64,7 @@
           <TokenUsageTrend :trend-data="trendData" :loading="chartsLoading" />
         </div>
       </div>
-      <UsageFilters v-model="filters" :start-date="startDate" :end-date="endDate" :exporting="exporting" :model-options="modelNameOptions" @change="applyFilters" @refresh="refreshData" @reset="resetFilters" @cleanup="openCleanupDialog" @export="exportToExcel">
+      <UsageFilters ref="usageFiltersRef" v-model="filters" :start-date="startDate" :end-date="endDate" :exporting="exporting" :model-options="modelNameOptions" @change="applyFilters" @refresh="refreshData" @reset="resetFilters" @cleanup="openCleanupDialog" @export="exportToExcel">
         <template #after-reset>
           <div class="relative" ref="columnDropdownRef">
             <button
@@ -704,6 +704,7 @@ const openError = (id: number) => { selectedErrorId.value = id; showErrorModal.v
 const switchToErrorsTab = () => { activeTab.value = 'errors'; if (errRows.value.length === 0) loadAdminErrors() }
 
 const showColumnDropdown = ref(false)
+const usageFiltersRef = ref<InstanceType<typeof UsageFilters> | null>(null)
 const columnDropdownRef = ref<HTMLElement | null>(null)
 
 const handleColumnClickOutside = (event: MouseEvent) => {
