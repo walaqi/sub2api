@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 208
+- Pending: 207
 - Awaiting user: 0
-- Merged: 15
+- Merged: 16
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 32
-- Next commit: `2faa0891e4f8de12983eac25585ef2a7eeeb1692`
-- Last action: user-approved high-risk Ollama Cloud official usage refresh subsystem `3f03c93bc` merged as `fc9a93df7`; full Go and integration passed, frontend retained only known baseline exceptions
-- Active queue commit: `2faa0891e4f8de12983eac25585ef2a7eeeb1692` (index 32, pre-approved security hardening follow-up)
+- Next index: 33
+- Next commit: `1be6f3018867d808f18c81c1885881337fec2328`
+- Last action: pre-approved high-risk Ollama audit redaction and unchanged-credentials guard `2faa0891e` merged as `0c88221f2`; full Go and integration passed, frontend retained only known baseline exceptions
+- Active queue commit: `1be6f3018867d808f18c81c1885881337fec2328` (index 33, pending assessment)
 
 ## High-risk verification notes
 
@@ -33,3 +33,4 @@
 - `6aeea70ee`: user-approved high-risk proxy stream circuit merged as `014260108`. Two post-output incomplete OpenAI Responses SSE streams within the configured window quarantine every account sharing the proxy ID until TTL expiry; client cancellations and successful terminal events do not count. The circuit only affects subsequent scheduling and leaves main's usage recording, gift/recharge allocation and super-invite spend tracking unchanged. Full Go and integration tests passed; frontend lint/typecheck passed; Vitest retained only the two confirmed rollback-timeout baseline failures; golangci-lint retained only the same three baseline G704 findings.
 - `2c76506e0`: user-approved high-risk mobile Alipay precreate deep link merged as `ee0c619c1`. Its pre-Jul-22 second-parent dependencies were mapped as prerequisites `d6bb88f6c` and `100e93ef8` without adding queue items or regressing current EasyPay UI. Only official Alipay instances can opt into precreate; app launch failure falls back to a dynamic QR and pending orders are actively verified. Main's gift bonus success display, payment amount validation, duplicate-notification idempotency, recharge fulfillment and invite rebate path remain intact. Upstream migration 186 was moved to 205. Full Go and integration tests passed; frontend lint/typecheck passed; Vitest passed 1273/1275 with only the two baseline rollback-timeout failures; golangci-lint retained only the three baseline G704 findings.
 - `3f03c93bc`: user-approved high-risk Ollama Cloud usage subsystem merged as `fc9a93df7`. Wire was regenerated from the combined handwritten graph, retaining main's gift ops, abuse detection, refund assessment, gift expirer and separate auth Redis while adding the Ollama lifecycle service. Focused backend, repository integration and 70 frontend tests passed. Full Go passed on an independent rerun after one parallel suite timing failure; full integration passed; frontend lint/typecheck passed; Vitest passed 1286/1288 with only the two baseline rollback-timeout failures; golangci-lint retained only the three baseline G704 findings.
+- `2faa0891e`: pre-approved high-risk Ollama security hardening merged as `0c88221f2`. Session-setting request bodies are omitted from audit persistence and bare session fields are redacted; unchanged credentials no longer clear Ollama or upstream billing snapshots, while actual identity changes still invalidate them. Main's removed prompt-audit routes/tests were not restored. Focused unit and PostgreSQL integration tests passed; full Go passed on an independent rerun after the same parallel suite timing failure; full integration passed; frontend lint/typecheck passed; Vitest passed 1286/1288 with only the two baseline rollback-timeout failures; golangci-lint retained only the three baseline G704 findings.
