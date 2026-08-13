@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 174
+- Pending: 173
 - Awaiting user: 0
-- Merged: 49
+- Merged: 50
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 66
-- Next commit: `91a2281c7a2ce250c4b0a9ee9ee04d76a7e273e0`
-- Last action: medium-risk explicit CONFIG_FILE support `ece951709` merged as `71394c635`; full config package, setup/server tests and diff checks passed
+- Next index: 67
+- Next commit: `16365199aaa56a9090acfbf7af8f43b57cd9bdef`
+- Last action: low-risk concurrency-test stabilization `91a2281c7` merged as `78cb63067`, retaining main's removal of obsolete prompt-audit tests; all three current affected tests passed 10 repeated runs and diff checks passed
 - Active queue commit: none
 
 ## High-risk verification notes
