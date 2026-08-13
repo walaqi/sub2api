@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 163
+- Pending: 162
 - Awaiting user: 0
-- Merged: 60
+- Merged: 61
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 77
-- Next commit: `ab73bc0c77c8ab4b0269e958106de65c8a942cd5`
-- Last action: medium-risk Responses-Anthropic tool compatibility `95590b553` auto-merged as `2a02bf613`; focused protocol, usage and gift-cost tests passed
+- Next index: 78
+- Next commit: `d96b6a31ff6b77896ccfc280ffe790c5ce90fdae`
+- Last action: low-risk group description and Select viewport fix `ab73bc0c7` auto-merged as `1cf02f94d`; new tests and typecheck passed, full Vitest retained only known baseline exceptions
 - Active queue commit: none
 
 ## High-risk verification notes
