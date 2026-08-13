@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 183
+- Pending: 182
 - Awaiting user: 0
-- Merged: 40
+- Merged: 41
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 57
-- Next commit: `beeb4b84ed4b7c334ebcb52080cb044525cc9bdc`
-- Last action: medium-risk routed-user label `aac44473a` auto-merged as `b3fc0f3d2` and adapted in `ee6e8bbb1` by restoring its second-parent UsageFilters ref dependency; focused tests and static checks passed
+- Next index: 58
+- Next commit: `fca2e327e464e1f25e095941fdab3b60a3f8c437`
+- Last action: medium-risk mobile available-channels surface `beeb4b84e` auto-merged as `46ff650a0`; component tests, typecheck and focused ESLint passed
 - Active queue commit: none
 
 ## High-risk verification notes
