@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 202
+- Pending: 201
 - Awaiting user: 0
-- Merged: 21
+- Merged: 22
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 38
-- Next commit: `0e39e21fa22701295121fdb2d778e9cae3675486`
-- Last action: low-risk blank remote pricing URL scheduler guard `95cc6ee2c` auto-merged as `eb4f01430`; focused scheduler and pricing regressions passed
-- Active queue commit: `0e39e21fa22701295121fdb2d778e9cae3675486` (index 38, under assessment)
+- Next index: 39
+- Next commit: `a9866f03dbbd69cba68b50c26f12f498369c92b2`
+- Last action: low-risk image diagnostics `0e39e21fa` auto-merged as `e90a02f7c`; deleted upstream test coverage was adapted in `f482e0849`, and focused handler tests passed
+- Active queue commit: `a9866f03dbbd69cba68b50c26f12f498369c92b2` (index 39, under assessment)
 
 ## High-risk verification notes
 
