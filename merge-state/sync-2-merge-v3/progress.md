@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 172
+- Pending: 171
 - Awaiting user: 0
-- Merged: 51
+- Merged: 52
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 68
-- Next commit: `7a3fda57c887642b3cc6e98ff26bb2feca81c4d6`
-- Last action: medium-risk billing-probe nanosecond due-query fix `16365199a` merged as `da47d2f03`; repository/service tests and real PostgreSQL nanosecond, ordering and invalid-date integration tests passed
+- Next index: 69
+- Next commit: `031c83b7e0d9b114f03e8d41363be9c06a2c71df`
+- Last action: medium-risk Gemini pool-mode skipped-policy failover fix `7a3fda57c` merged as `a3f445d6e`; unit-tag Gemini policy and handler failover-state tests plus diff checks passed
 - Active queue commit: none
 
 ## High-risk verification notes
