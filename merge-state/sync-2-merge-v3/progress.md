@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 216
+- Pending: 215
 - Awaiting user: 0
-- Merged: 7
+- Merged: 8
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 24
-- Next commit: `aee9ab36cb12bf45d3c49563b12f755d599f4cc9`
-- Last action: low-risk model rate-limit display fix `31e7ae819` merged as `c09bc52b4`; focused component tests and frontend typecheck passed
+- Next index: 25
+- Next commit: `09b1309c91e7621a93817d2ba98f86d8b7be5ca4`
+- Last action: low-risk CC Switch Grok Build import fix `aee9ab36c` merged as `0b40c5239`; 10 focused tests and frontend typecheck passed
 - Active queue commit: none
 
 ## High-risk verification notes
