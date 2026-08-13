@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 177
+- Pending: 176
 - Awaiting user: 0
-- Merged: 46
+- Merged: 47
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 63
-- Next commit: `b468e428e96be1311316bc8844c1d13ba0304a99`
-- Last action: low-risk Claude Code mimicry version bump `a40d6de12` merged as `ef9d45820`; Claude package compilation, focused Claude/OAuth/header/billing/fingerprint service tests and diff checks passed
+- Next index: 64
+- Next commit: `4cc88e27b6f6c50d454b94023dfa64805b5a018b`
+- Last action: medium-risk proxied Claude Code prompt-cache preservation `b468e428e` merged as `7f5e61a6f`, with classification/forwarding regressions in `af8aa6559`; focused service and handler moderation tests plus diff checks passed
 - Active queue commit: none
 
 ## High-risk verification notes
