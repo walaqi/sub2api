@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 213
+- Pending: 212
 - Awaiting user: 0
-- Merged: 10
+- Merged: 11
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 27
-- Next commit: `fbc88edf90d726d465e627cb4215fce873b4a673`
-- Last action: medium-risk OpenAI OAuth passthrough input normalization `da5c80e11` merged as `e24cff7e1`; focused passthrough tests passed
+- Next index: 28
+- Next commit: `6f7bad3f2fa3a5727485848a1d0c4c132fcf4cb8`
+- Last action: medium-risk simple-mode Grok image enablement `fbc88edf9` merged as `0e6bbd6f8`; upstream migration 186 was moved after main's outbox migration as 204; focused repository integration tests passed
 - Active queue commit: none
 
 ## High-risk verification notes
