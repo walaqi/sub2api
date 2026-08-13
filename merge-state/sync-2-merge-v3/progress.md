@@ -6,14 +6,14 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 209
-- Awaiting user: 0
+- Awaiting user: 1
 - Merged: 14
 - Skipped: 0
 - Failed/blocked: 0
 - Next index: 31
 - Next commit: `3f03c93bc698ee6cc4a826e0ea50bc46a64c40cc`
-- Last action: user-approved high-risk mobile Alipay precreate deep link `2c76506e0` merged as `ee0c619c1` after two mapped prerequisites; full backend and integration tests passed; frontend retained only two baseline failures; lint retained only three baseline G704 findings
-- Active queue commit: none
+- Last action: high-risk Ollama Cloud official usage refresh subsystem `3f03c93bc` assessed; awaiting user merge|skip decision; immediate next queue commit is its security hardening follow-up
+- Active queue commit: `3f03c93bc698ee6cc4a826e0ea50bc46a64c40cc` (index 31, high risk, awaiting merge|skip)
 
 ## High-risk verification notes
 
