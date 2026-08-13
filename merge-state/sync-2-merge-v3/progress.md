@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 204
-- Awaiting user: 0
+- Pending: 203
+- Awaiting user: 1
 - Merged: 19
 - Skipped: 0
 - Failed/blocked: 0
 - Next index: 36
 - Next commit: `37ed639d1e696daf1e3266aae3c172e837a53842`
-- Last action: low-risk version sync `cb24522dd` auto-merged as `6debbd14f`; VERSION is 0.1.164 and server package test passed
-- Active queue commit: `37ed639d1e696daf1e3266aae3c172e837a53842` (index 36, under assessment)
+- Last action: index 36 `37ed639d1e` assessed high risk because Claude Opus 5/4.8 fallback pricing changes ActualCost feeding gift allocation and super-invite spend tracking; awaiting merge|skip
+- Active queue commit: `37ed639d1e696daf1e3266aae3c172e837a53842` (index 36, high risk, awaiting merge|skip)
 
 ## High-risk verification notes
 
