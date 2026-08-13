@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 162
-- Awaiting user: 0
+- Pending: 161
+- Awaiting user: 1
 - Merged: 61
 - Skipped: 0
 - Failed/blocked: 0
 - Next index: 78
 - Next commit: `d96b6a31ff6b77896ccfc280ffe790c5ce90fdae`
-- Last action: low-risk group description and Select viewport fix `ab73bc0c7` auto-merged as `1cf02f94d`; new tests and typecheck passed, full Vitest retained only known baseline exceptions
-- Active queue commit: none
+- Last action: high-risk Antigravity native OpenAI-compatible gateway replacement `d96b6a31f` assessed; awaiting user merge|skip decision
+- Active queue commit: `d96b6a31ff6b77896ccfc280ffe790c5ce90fdae` (awaiting_user)
 
 ## High-risk verification notes
 
