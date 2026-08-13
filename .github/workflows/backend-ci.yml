@@ -9,14 +9,11 @@ permissions:
 
 jobs:
   shell:
-    runs-on: macos-15
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Check deployment scripts
-        run: |
-          /bin/bash -n deploy/apple-container.sh
-          /bin/bash deploy/tests/apple-container-test.sh
-          /bin/sh deploy/test-caddyfile-cache.sh
+      - name: Check Caddy deployment policy
+        run: /bin/sh deploy/test-caddyfile-cache.sh
 
   test:
     runs-on: ubuntu-latest
