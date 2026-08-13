@@ -20,7 +20,7 @@ index	sha	risk	status	decision	result_commit	tests	notes
 19	fa2da0409ecba08d0cb3258d5d1a5e23f9d71757	low	merged	auto_merge	106d3852b8d93729f804e6b0173d06c13818417d	not_needed	Sponsor documentation formatting only; applied cleanly
 20	3e5d4af411977b0b14860ac5796831c02b0fb1be	high	merged	merge	cc77d5ab9	go_all_passed;integration_passed_after_service_rerun;frontend_lint_typecheck_passed;vitest_1253_of_1255_baseline_failures;make_test_baseline_g704_only	Merged complete composite-groups feature after all async-image prerequisites; preserved gift unbinding, gift-scoped billing, affiliate wiring, notification email, client-error throttle, batch/async image routes, Image Studio and websearch; added regression proving composite API key group remains the gift billing scope
 21	90c4f50a5ed5073ab5149803968eb0f326c26c38	low	merged	merge	cd82d478a	focused_backend_passed	Restored currency and timestamps omitted by composite plan projection; prevents admin plan edits from clearing stored currency; no gift, recharge, or affiliate behavior change
-22	ba88cc239cdbe689bc5785dd36238caf6ecb14ef	unassessed	pending			not_run	
+22	ba88cc239cdbe689bc5785dd36238caf6ecb14ef	high	awaiting_user			not_run	Changes billing-model selection and therefore ActualCost for composite aliases; directly affects gift/recharge deduction amounts and super-invite spend accumulation; complete implementation and focused tests are present, but merge requires user decision
 23	31e7ae8195817dc7f4dbacd399d1bd5116aad3de	unassessed	pending			not_run	
 24	aee9ab36cb12bf45d3c49563b12f755d599f4cc9	unassessed	pending			not_run	
 25	09b1309c91e7621a93817d2ba98f86d8b7be5ca4	unassessed	pending			not_run	

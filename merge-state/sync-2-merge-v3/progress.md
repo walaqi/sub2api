@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 218
-- Awaiting user: 0
+- Pending: 217
+- Awaiting user: 1
 - Merged: 5
 - Skipped: 0
 - Failed/blocked: 0
 - Next index: 22
 - Next commit: `ba88cc239cdbe689bc5785dd36238caf6ecb14ef`
-- Last action: low-risk admin plan response fix `90c4f50a` merged as `cd82d478a`; focused backend test passed
-- Active queue commit: none
+- Last action: index 22 `ba88cc239` assessed high risk because corrected composite alias pricing changes ActualCost, gift/recharge deductions and super-invite spend accumulation; awaiting merge/skip decision
+- Active queue commit: `ba88cc239cdbe689bc5785dd36238caf6ecb14ef` (high risk, awaiting user)
 
 ## High-risk verification notes
 
