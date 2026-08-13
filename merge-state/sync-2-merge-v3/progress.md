@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 215
-- Awaiting user: 0
+- Pending: 214
+- Awaiting user: 1
 - Merged: 8
 - Skipped: 0
 - Failed/blocked: 0
 - Next index: 25
 - Next commit: `09b1309c91e7621a93817d2ba98f86d8b7be5ca4`
-- Last action: low-risk CC Switch Grok Build import fix `aee9ab36c` merged as `0b40c5239`; 10 focused tests and frontend typecheck passed
-- Active queue commit: none
+- Last action: index 25 `09b1309c9` assessed high risk because channel-pricing normalization can change ActualCost, gift/recharge deductions and super-invite spend accumulation; awaiting merge/skip decision
+- Active queue commit: `09b1309c91e7621a93817d2ba98f86d8b7be5ca4` (high risk, awaiting user)
 
 ## High-risk verification notes
 
