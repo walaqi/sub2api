@@ -156,6 +156,54 @@ func TestGatewayServiceRecordUsage_BillingFingerprintIncludesRequestPayloadHash(
 	require.Equal(t, payloadHash, billingRepo.lastCmd.RequestPayloadHash)
 }
 
+func TestGatewayServiceRecordUsage_Gemini36FlashPricingFlowsThroughGiftAllocation(t *testing.T) {
+	usageRepo := &openAIRecordUsageLogRepoStub{}
+	giftCost := 4.15
+	rechargeCost := 5.0
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{
+		Applied:      true,
+		GiftCost:     &giftCost,
+		RechargeCost: &rechargeCost,
+	}}
+	svc := newGatewayRecordUsageServiceWithBillingRepoForTest(
+		usageRepo,
+		billingRepo,
+		&openAIRecordUsageUserRepoStub{},
+		&openAIRecordUsageSubRepoStub{},
+	)
+	svc.cfg.Default.RateMultiplier = 1
+	groupID := int64(42)
+
+	err := svc.RecordUsage(context.Background(), &RecordUsageInput{
+		Result: &ForwardResult{
+			RequestID: "gemini-36-flash-gift-allocation",
+			Usage: ClaudeUsage{
+				InputTokens:          1_000_000,
+				OutputTokens:         1_000_000,
+				CacheReadInputTokens: 1_000_000,
+			},
+			Model:    "gemini-3.6-flash-low",
+			Duration: time.Second,
+		},
+		APIKey: &APIKey{
+			ID:      501,
+			GroupID: &groupID,
+		},
+		User:    &User{ID: 601},
+		Account: &Account{ID: 701, Platform: PlatformAntigravity},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, billingRepo.lastCmd)
+	require.InDelta(t, 9.15, billingRepo.lastCmd.BalanceCost, 1e-12)
+	require.Equal(t, &groupID, billingRepo.lastCmd.GroupID)
+	require.NotNil(t, usageRepo.lastLog)
+	require.InDelta(t, 9.15, usageRepo.lastLog.ActualCost, 1e-12)
+	require.InDelta(t, giftCost, usageRepo.lastLog.GiftCost, 1e-12)
+	require.InDelta(t, rechargeCost, usageRepo.lastLog.RechargeCost, 1e-12)
+	require.InDelta(t, usageRepo.lastLog.ActualCost, usageRepo.lastLog.GiftCost+usageRepo.lastLog.RechargeCost, 1e-12)
+}
+
 func TestGatewayServiceRecordUsage_BillingFingerprintFallsBackToContextRequestID(t *testing.T) {
 	usageRepo := &openAIRecordUsageLogRepoStub{}
 	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}
