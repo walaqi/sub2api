@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 212
+- Pending: 211
 - Awaiting user: 0
-- Merged: 11
+- Merged: 12
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 28
-- Next commit: `6f7bad3f2fa3a5727485848a1d0c4c132fcf4cb8`
-- Last action: medium-risk simple-mode Grok image enablement `fbc88edf9` merged as `0e6bbd6f8`; upstream migration 186 was moved after main's outbox migration as 204; focused repository integration tests passed
+- Next index: 29
+- Next commit: `6aeea70ee008825604ac3293ca0f216e951795d1`
+- Last action: medium-risk Grok 402 account cooldown `6f7bad3f2` merged as `aaac9aede`; focused service and handler unit tests passed
 - Active queue commit: none
 
 ## High-risk verification notes
