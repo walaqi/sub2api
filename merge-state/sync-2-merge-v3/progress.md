@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 185
+- Pending: 184
 - Awaiting user: 0
-- Merged: 38
+- Merged: 39
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 55
-- Next commit: `465362e1af5bdef7aab2b8168b4833200dc2cfa6`
-- Last action: medium-risk Grok manual-test HTTP 402 cooldown `6ee2304dc` auto-merged as `e1dcb70f1`; focused manual-test and gateway 402 tests passed
+- Next index: 56
+- Next commit: `aac44473aa8f8c535dffcaab440239855e792bf2`
+- Last action: medium-risk optional affiliate-code registration field `465362e1a` auto-merged as `27eea746f`; 41 registration/affiliate tests, typecheck and focused ESLint passed
 - Active queue commit: none
 
 ## High-risk verification notes
