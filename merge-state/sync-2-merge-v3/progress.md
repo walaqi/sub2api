@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 161
-- Awaiting user: 0
+- Pending: 160
+- Awaiting user: 1
 - Merged: 62
 - Skipped: 0
 - Failed/blocked: 0
 - Next index: 79
 - Next commit: `f18f3143e223a6fa57a2e3a3a125fbe18302af51`
-- Last action: user-approved high-risk Antigravity native OpenAI-compatible gateway `d96b6a31f` merged as `96e7afd48`; complete Go and integration passed, frontend retained only known baseline exceptions
-- Active queue commit: none
+- Last action: assessed panel-wide API rate limiting `f18f3143e` as high risk because it defaults on across authenticated user/payment/admin routes; awaiting merge|skip
+- Active queue commit: `f18f3143e223a6fa57a2e3a3a125fbe18302af51` (awaiting user decision)
 
 ## High-risk verification notes
 
