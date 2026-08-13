@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 197
+- Pending: 196
 - Awaiting user: 0
-- Merged: 26
+- Merged: 27
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 43
-- Next commit: `eb03be0dbfb42c3dc341f51a3cfb608736394974`
-- Last action: user-approved high-risk session-ID persistence `6d956bdc2` merged as `314a04f71`; migration moved to 206, main privacy/billing fields preserved, full verification completed with only documented baseline exceptions
-- Active queue commit: `eb03be0dbfb42c3dc341f51a3cfb608736394974` (index 43, under assessment)
+- Next index: 44
+- Next commit: `a29a62112b0cf93892020d910b60ff308303a21b`
+- Last action: medium-risk Grok pool-mode 5xx cooldown fix `eb03be0db` auto-merged as `7b20e4fc6`; focused unit-tagged upstream-error tests passed
+- Active queue commit: `a29a62112b0cf93892020d910b60ff308303a21b` (index 44, under assessment)
 
 ## High-risk verification notes
 
