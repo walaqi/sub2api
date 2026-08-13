@@ -6,14 +6,14 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 214
-- Awaiting user: 1
-- Merged: 8
+- Awaiting user: 0
+- Merged: 9
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 25
-- Next commit: `09b1309c91e7621a93817d2ba98f86d8b7be5ca4`
-- Last action: index 25 `09b1309c9` assessed high risk because channel-pricing normalization can change ActualCost, gift/recharge deductions and super-invite spend accumulation; awaiting merge/skip decision
-- Active queue commit: `09b1309c91e7621a93817d2ba98f86d8b7be5ca4` (high risk, awaiting user)
+- Next index: 26
+- Next commit: `da5c80e1139aff114904ef542508bc5e1e027e70`
+- Last action: user-approved high-risk channel pricing normalization `09b1309c9` merged as `e9e94e03e`; full Go, integration and frontend gates completed with only confirmed baseline findings
+- Active queue commit: none
 
 ## High-risk verification notes
 
@@ -29,3 +29,4 @@
 - `bfabfe60`: added reachable environment keys and admin-managed, immediately reloadable image-storage settings with backup-S3 reuse and step-up protection; focused backend and frontend gates passed.
 - `3e5d4af4`: merged the complete composite-groups implementation, including migration, Ent model, resolver, admin API/UI, provider-aware routing and usage attribution. Main-specific gift deletion semantics, group-scoped gift billing, affiliate/notification dependencies, client-error throttling, batch/async image routes, Image Studio and websearch wiring were retained. Added a regression asserting that an OpenAI target account still bills gifts against the composite API-key group. `go test ./...` passed; integration packages passed (the service package passed on isolated rerun after one suite-level timing failure); frontend ESLint and typecheck passed. Full Vitest had 1253/1255 passing, with two unchanged baseline rollback-timeout argument assertions failing. `make test` stopped only on the same three baseline G704 findings.
 - `ba88cc239`: user-approved high-risk billing correction merged as `130e06bfd`. Composite public aliases now use the concrete forwarded model unless explicitly channel-priced, preventing zero or family-fallback misbilling. The corrected ActualCost continues through main's gift/recharge allocator and super-invite spend tracker; focused regression confirms the composite API-key group remains the gift scope. Full Go and integration tests passed; frontend lint/typecheck passed; Vitest retained only the two confirmed rollback-timeout baseline failures; golangci-lint retained only the same three baseline G704 findings.
+- `09b1309c9`: user-approved high-risk channel-pricing normalization merged as `e9e94e03e`. Claude dot/hyphen model spellings now resolve to the same custom channel price; corrected ActualCost continues through main's gift/recharge allocator and super-invite spend tracker without changing gift group scope. Focused pricing, composite billing and gift-scope tests passed; full Go and integration tests passed; frontend lint/typecheck passed; Vitest retained only the two confirmed rollback-timeout baseline failures; golangci-lint retained only the same three baseline G704 findings.
