@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 166
+- Pending: 165
 - Awaiting user: 0
-- Merged: 57
+- Merged: 58
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 74
-- Next commit: `b72d487b852b3595d8aef780caaf018141a0c775`
-- Last action: medium-risk usage upstream-model statistics fix `ad34f8915` auto-merged as `6b3d80f73`; focused model persistence, billing, gift and statistics tests passed
+- Next index: 75
+- Next commit: `b765a7f9f6e2666db702ed6aba66bc9fa8fadc5b`
+- Last action: medium-risk payment dashboard currency grouping `b72d487b8` auto-merged as `689d327af`; backend currency tests, frontend typecheck and ESLint passed
 - Active queue commit: none
 
 ## High-risk verification notes
