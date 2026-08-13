@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 205
+- Pending: 204
 - Awaiting user: 0
-- Merged: 18
+- Merged: 19
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 35
-- Next commit: `cb24522dd53f8f363d008e3afdc8e4baf9788cab`
-- Last action: medium-risk Codex identity-index optimization and concrete OpenAI test-model preference `cd8bb98c4` auto-merged as `9fd49e96a`; focused tests passed
-- Active queue commit: `cb24522dd53f8f363d008e3afdc8e4baf9788cab` (index 35, low-risk version sync)
+- Next index: 36
+- Next commit: `37ed639d1e696daf1e3266aae3c172e837a53842`
+- Last action: low-risk version sync `cb24522dd` auto-merged as `6debbd14f`; VERSION is 0.1.164 and server package test passed
+- Active queue commit: `37ed639d1e696daf1e3266aae3c172e837a53842` (index 36, under assessment)
 
 ## High-risk verification notes
 
