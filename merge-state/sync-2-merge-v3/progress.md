@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 196
+- Pending: 195
 - Awaiting user: 0
-- Merged: 27
+- Merged: 28
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 44
-- Next commit: `a29a62112b0cf93892020d910b60ff308303a21b`
-- Last action: medium-risk Grok pool-mode 5xx cooldown fix `eb03be0db` auto-merged as `7b20e4fc6`; focused unit-tagged upstream-error tests passed
-- Active queue commit: `a29a62112b0cf93892020d910b60ff308303a21b` (index 44, under assessment)
+- Next index: 45
+- Next commit: `3176cdee1731bd7b15123eee47b891122f5de060`
+- Last action: medium-risk OpenAI pool same-account retry preservation `a29a62112` auto-merged as `64c351073`; focused unit-tagged pool/non-pool runtime-block tests passed
+- Active queue commit: `3176cdee1731bd7b15123eee47b891122f5de060` (index 45, under assessment)
 
 ## High-risk verification notes
 
