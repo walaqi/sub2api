@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 169
+- Pending: 168
 - Awaiting user: 0
-- Merged: 54
+- Merged: 55
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 71
-- Next commit: `a74e11c26a08867afcf42708d87336108e7df099`
-- Last action: medium-risk composite prefix-route passthrough fix `131d42d25` auto-merged as `cec82b9f5`; focused backend tests, frontend ESLint and typecheck passed
+- Next index: 72
+- Next commit: `de6b189a6bb0a648d8439a76cfe19b5fed0820c4`
+- Last action: medium-risk partial settings update preservation fix `a74e11c26` auto-merged as `29ea9270b`; focused handler and service tests passed
 - Active queue commit: none
 
 ## High-risk verification notes
