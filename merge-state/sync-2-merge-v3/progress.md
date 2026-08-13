@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 186
+- Pending: 185
 - Awaiting user: 0
-- Merged: 37
+- Merged: 38
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 54
-- Next commit: `6ee2304dcdc8e909091890542cce216a87733a7e`
-- Last action: low-risk sponsor cleanup `7d3a896fc` found already effective in the current baseline; empty cherry-pick skipped after verifying all target README references and logo files are absent
+- Next index: 55
+- Next commit: `465362e1af5bdef7aab2b8168b4833200dc2cfa6`
+- Last action: medium-risk Grok manual-test HTTP 402 cooldown `6ee2304dc` auto-merged as `e1dcb70f1`; focused manual-test and gateway 402 tests passed
 - Active queue commit: none
 
 ## High-risk verification notes
