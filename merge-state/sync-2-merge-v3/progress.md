@@ -6,17 +6,18 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 160
-- Awaiting user: 1
-- Merged: 62
+- Awaiting user: 0
+- Merged: 63
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 79
-- Next commit: `f18f3143e223a6fa57a2e3a3a125fbe18302af51`
-- Last action: assessed panel-wide API rate limiting `f18f3143e` as high risk because it defaults on across authenticated user/payment/admin routes; awaiting merge|skip
-- Active queue commit: `f18f3143e223a6fa57a2e3a3a125fbe18302af51` (awaiting user decision)
+- Next index: 80
+- Next commit: `dc893dd0b8eab41df5be595ae9fcd1aa74a062b8`
+- Last action: user-approved high-risk panel API rate limiting `f18f3143e` merged as `6beb36819`; complete Go and integration passed, frontend retained only known baseline exceptions
+- Active queue commit: none
 
 ## High-risk verification notes
 
+- `f18f3143e`: user-approved panel API rate limiting merged as `6beb36819`. Auth routes retain main's Turnstile service-client bypass while adding public-IP and authenticated-user limits; gateway retains its Redis dependency, and user routes retain gifts, recharge discount, super-invite referral status and Image Studio while usage aggregates receive the heavy tier. Payment webhooks and public order recovery remain excluded; prompt-audit remains removed. Complete Go and integration tests passed; frontend lint/typecheck passed; Vitest passed 1317/1319 with only the two known rollback-timeout failures and ten known GroupsView mocks missing `getLiveCapability`.
 - `d96b6a31f`: user-approved Antigravity OAuth native OpenAI-compatible gateway merged as `96e7afd48`. Chat Completions and Responses now use native streamGenerateContent with correct buffered/streaming usage extraction, model attribution, endpoint recording, credential failover and client-disconnect draining. The existing single RecordUsage path retains session IDs, request fingerprints, group-scoped priority/proportional gifts and super-invite spend tracking. Complete Go and integration tests passed; frontend lint/typecheck passed; Vitest retained only the known rollback and GroupsView mock baseline exceptions.
 - `9f5b57fc9`: preserved the fork gift engine, proportional gift constraints, overdraft marker and balance cache synchronization.
 - `44ab690a`: retained the complete batch image implementation instead of dropping unresolved endpoints; billing holds use recharge balance only and do not consume or freeze gifts.
