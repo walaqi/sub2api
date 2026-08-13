@@ -6,14 +6,14 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 217
-- Awaiting user: 1
-- Merged: 5
+- Awaiting user: 0
+- Merged: 6
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 22
-- Next commit: `ba88cc239cdbe689bc5785dd36238caf6ecb14ef`
-- Last action: index 22 `ba88cc239` assessed high risk because corrected composite alias pricing changes ActualCost, gift/recharge deductions and super-invite spend accumulation; awaiting merge/skip decision
-- Active queue commit: `ba88cc239cdbe689bc5785dd36238caf6ecb14ef` (high risk, awaiting user)
+- Next index: 23
+- Next commit: `31e7ae8195817dc7f4dbacd399d1bd5116aad3de`
+- Last action: user-approved high-risk composite billing fix `ba88cc239` merged as `130e06bfd`; full Go, integration and frontend gates completed with only confirmed baseline findings
+- Active queue commit: none
 
 ## High-risk verification notes
 
@@ -28,3 +28,4 @@
 - `09729ba5`: merged the final post-revert implementation from its three-commit second-parent chain (`1fb942dd`, `e5e94d1`, `0eb6e21`), including task persistence, polling routes and S3-compatible result offload. Existing batch image, gift/referral, Image Studio and risk-control wiring were retained. Default URL downloads now use resolved-IP validation and reject private hosts; focused service lint reports zero issues.
 - `bfabfe60`: added reachable environment keys and admin-managed, immediately reloadable image-storage settings with backup-S3 reuse and step-up protection; focused backend and frontend gates passed.
 - `3e5d4af4`: merged the complete composite-groups implementation, including migration, Ent model, resolver, admin API/UI, provider-aware routing and usage attribution. Main-specific gift deletion semantics, group-scoped gift billing, affiliate/notification dependencies, client-error throttling, batch/async image routes, Image Studio and websearch wiring were retained. Added a regression asserting that an OpenAI target account still bills gifts against the composite API-key group. `go test ./...` passed; integration packages passed (the service package passed on isolated rerun after one suite-level timing failure); frontend ESLint and typecheck passed. Full Vitest had 1253/1255 passing, with two unchanged baseline rollback-timeout argument assertions failing. `make test` stopped only on the same three baseline G704 findings.
+- `ba88cc239`: user-approved high-risk billing correction merged as `130e06bfd`. Composite public aliases now use the concrete forwarded model unless explicitly channel-priced, preventing zero or family-fallback misbilling. The corrected ActualCost continues through main's gift/recharge allocator and super-invite spend tracker; focused regression confirms the composite API-key group remains the gift scope. Full Go and integration tests passed; frontend lint/typecheck passed; Vitest retained only the two confirmed rollback-timeout baseline failures; golangci-lint retained only the same three baseline G704 findings.
