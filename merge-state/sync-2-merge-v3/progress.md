@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 184
+- Pending: 183
 - Awaiting user: 0
-- Merged: 39
+- Merged: 40
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 56
-- Next commit: `aac44473aa8f8c535dffcaab440239855e792bf2`
-- Last action: medium-risk optional affiliate-code registration field `465362e1a` auto-merged as `27eea746f`; 41 registration/affiliate tests, typecheck and focused ESLint passed
+- Next index: 57
+- Next commit: `beeb4b84ed4b7c334ebcb52080cb044525cc9bdc`
+- Last action: medium-risk routed-user label `aac44473a` auto-merged as `b3fc0f3d2` and adapted in `ee6e8bbb1` by restoring its second-parent UsageFilters ref dependency; focused tests and static checks passed
 - Active queue commit: none
 
 ## High-risk verification notes
