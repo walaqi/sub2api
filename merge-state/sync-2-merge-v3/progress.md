@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 178
+- Pending: 177
 - Awaiting user: 0
-- Merged: 45
+- Merged: 46
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 62
-- Next commit: `a40d6de12e72edec76aa08917e8217c7fb465871`
-- Last action: low-risk monitor timeline narrow-card overflow fix `bc9173be` merged as `9f4f7759c`; focused ESLint, vue-tsc and diff checks passed
+- Next index: 63
+- Next commit: `b468e428e96be1311316bc8844c1d13ba0304a99`
+- Last action: low-risk Claude Code mimicry version bump `a40d6de12` merged as `ef9d45820`; Claude package compilation, focused Claude/OAuth/header/billing/fingerprint service tests and diff checks passed
 - Active queue commit: none
 
 ## High-risk verification notes
