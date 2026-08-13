@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 182
+- Pending: 181
 - Awaiting user: 0
-- Merged: 41
+- Merged: 42
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 58
-- Next commit: `8f47bd5fa03e35638a9dc51bafbd365b205248fe`
-- Last action: medium-risk mobile available-channels surface `beeb4b84e` auto-merged as `46ff650a0`; component tests, typecheck and focused ESLint passed
+- Next index: 59
+- Next commit: `a93bfb6623d5fca675acbe31c34d89e7dfb20438`
+- Last action: prompt-audit config-unavailable fix `8f47bd5fa` mapped to current content moderation and found already effective; focused config failure and stale-runtime snapshot tests passed without restoring the removed subsystem
 - Active queue commit: none
 
 ## High-risk verification notes
