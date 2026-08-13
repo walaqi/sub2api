@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 207
+- Pending: 206
 - Awaiting user: 0
-- Merged: 16
+- Merged: 17
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 33
-- Next commit: `1be6f3018867d808f18c81c1885881337fec2328`
-- Last action: pre-approved high-risk Ollama audit redaction and unchanged-credentials guard `2faa0891e` merged as `0c88221f2`; full Go and integration passed, frontend retained only known baseline exceptions
-- Active queue commit: `1be6f3018867d808f18c81c1885881337fec2328` (index 33, pending assessment)
+- Next index: 34
+- Next commit: `cd8bb98c44303b2c8f04c0da340447c992f0cb7d`
+- Last action: low-risk test-only Ollama repository deep-copy race fix `1be6f3018` auto-merged as `42171c3bc`; focused normal and race tests passed
+- Active queue commit: `cd8bb98c44303b2c8f04c0da340447c992f0cb7d` (index 34, under assessment)
 
 ## High-risk verification notes
 
