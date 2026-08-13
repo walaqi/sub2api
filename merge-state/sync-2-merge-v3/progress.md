@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 193
+- Pending: 192
 - Awaiting user: 0
-- Merged: 30
+- Merged: 31
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 47
-- Next commit: `b99ea955d94537d14d354c91140a97750c5956d6`
-- Last action: medium-risk Gemini inline-image chat compatibility `e6a3030be` auto-merged as `8b26f0529`; focused image validation, Anthropic isolation and text/tool regression tests passed
-- Active queue commit: `b99ea955d94537d14d354c91140a97750c5956d6` (index 47, under assessment)
+- Next index: 48
+- Next commit: `43d4bae2464387817560a1aeb0b023cd0c9b22ee`
+- Last action: medium-risk announcement Markdown styling and admin preview `b99ea955d9` auto-merged as `4c8dad109`; nested-modal scroll locking adapted in `fcc332f1f`; focused tests, ESLint and typecheck passed, while full Vitest retained only the two recorded rollback-timeout baseline failures
+- Active queue commit: `43d4bae2464387817560a1aeb0b023cd0c9b22ee` (index 48, under assessment)
 
 ## High-risk verification notes
 
