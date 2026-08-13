@@ -6,14 +6,14 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 191
-- Awaiting user: 1
-- Merged: 31
+- Awaiting user: 0
+- Merged: 32
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 48
-- Next commit: `43d4bae2464387817560a1aeb0b023cd0c9b22ee`
-- Last action: high-risk ChatGPT Live/Frameless gateway `43d4bae24` assessed and paused for user decision; it modifies shared concurrency and group surfaces, has migration-number collisions, and logs zero-cost usage without main gift/referral billing effects
-- Active queue commit: `43d4bae2464387817560a1aeb0b023cd0c9b22ee` (index 48, awaiting `merge|skip`)
+- Next index: 49
+- Next commit: `bb0c38306f5a663b9e4dd652446cc43e242d1372`
+- Last action: user-approved high-risk ChatGPT Live/Frameless gateway `43d4bae24` merged as `461a114db` and adapted to main safeguards in `784bbed5a`; full Go and integration tests passed
+- Active queue commit: none
 
 ## High-risk verification notes
 
@@ -36,3 +36,4 @@
 - `2faa0891e`: pre-approved high-risk Ollama security hardening merged as `0c88221f2`. Session-setting request bodies are omitted from audit persistence and bare session fields are redacted; unchanged credentials no longer clear Ollama or upstream billing snapshots, while actual identity changes still invalidate them. Main's removed prompt-audit routes/tests were not restored. Focused unit and PostgreSQL integration tests passed; full Go passed on an independent rerun after the same parallel suite timing failure; full integration passed; frontend lint/typecheck passed; Vitest passed 1286/1288 with only the two baseline rollback-timeout failures; golangci-lint retained only the three baseline G704 findings.
 - `37ed639d1e`: user-approved high-risk Claude Opus 5/4.8 pricing, Bedrock support and PostCSS update merged as `3672c5700`. Opus 5/4.8 now use $5/$25 per MTok fallback pricing instead of legacy Opus $15/$75; corrected ActualCost continues through main's gift allocator and super-invite tracker without changing deduction semantics. The old package-level PostCSS override was adapted into main's complete workspace override set, retaining the fixed pnpm version and resolving PostCSS 8.5.19. Focused pricing, gateway billing, gift and referral tests passed; full Go and independent full integration passed; frontend lint/typecheck passed; Vitest passed 1286/1288 with only the two baseline rollback-timeout failures; golangci-lint retained only the three baseline G704 findings.
 - `6d956bdc2`: user-approved high-risk client session-ID persistence merged as `314a04f71`. Session IDs are sanitized and persisted for all gateway protocols and asynchronous batch-image settlement. Upstream migration 187 was renumbered to 206; main's gift/recharge allocation columns, device/fingerprint abuse signals, ordinary-user IP privacy and intentionally removed prompt-audit subsystem were retained. Focused session, repository, batch-image and gift tests passed; full Go passed; the complete integration run had a suite-level service timing failure and the whole service integration package passed independently; frontend lint/typecheck passed; Vitest passed 1287/1289 with only the two baseline rollback-timeout failures; golangci-lint retained only the three baseline G704 findings.
+- `43d4bae24`: user-approved high-risk ChatGPT Live/Frameless gateway merged as `461a114db`, with main adaptations in `784bbed5a`. The complete prerequisite chain from the merge commit's second parent was retained, including Live call creation, sideband WebSocket control, attestation, shared Redis concurrency leases, group permission, admin UI and usage records. Upstream migrations 188/189 were renumbered to 207/208 and Ent/Wire generation was run against the combined tree. The removed prompt-audit subsystem was not restored: initial `session.instructions` now use main's content moderation, while WebRTC audio and later sideband speech/transcription are not inspected. Billing eligibility uses the requested model, but upstream supplies no token/cost accounting, so Live currently writes an explicit zero-cost usage row and therefore does not deduct recharge/gifts or advance super-invite spend. Main's sanitized client session ID now survives Redis and is written to the Live usage row; ordinary-user IP visibility remains unchanged. Focused Live/content-moderation/Redis tests passed; full Go passed; full integration passed with 8165 tests and exercised gift/referral database flows; frontend lint/typecheck passed; Vitest passed 1300/1302 with only the two baseline rollback argument failures; golangci-lint retained only the same three baseline G704 findings.
