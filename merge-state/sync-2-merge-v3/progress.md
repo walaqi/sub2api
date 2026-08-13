@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 188
+- Pending: 187
 - Awaiting user: 0
-- Merged: 35
+- Merged: 36
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 52
-- Next commit: `2730c1c43b29be003925b033f3f9e645e726bb8c`
-- Last action: user-approved high-risk registration email-alias dedup `e9a58c1cb` merged as `7c068b980` and adapted in `107dfe025`; full Go and relevant integration tests passed
+- Next index: 53
+- Next commit: `7d3a896fcd912e6141b9bbbe90ca5bd08ff49ea3`
+- Last action: low-risk VERSION sync `2730c1c43` auto-merged as `586bffa77`; server version verified as 0.1.165
 - Active queue commit: none
 
 ## High-risk verification notes
