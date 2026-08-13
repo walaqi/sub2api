@@ -980,6 +980,44 @@ func TestGatewayService_AnthropicOAuthRealClaudeCodeHaiku_PreservesClientHeaders
 	require.NotContains(t, string(upstream.lastBody), "x-anthropic-billing-header:")
 }
 
+func TestGatewayService_AnthropicOAuthProxiedClaudeCode_PreservesSystemBody(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	body := []byte(`{"model":"claude-haiku-4-5-20251001","metadata":{"user_id":"proxied-client-session"},"system":[{"type":"text","text":"x-anthropic-billing-header: cc_version=2.1.220.abc; cc_entrypoint=cli;"},{"type":"text","text":"Client-owned Claude Code system","cache_control":{"type":"ephemeral"}}],"messages":[{"role":"user","content":[{"type":"text","text":"hello"}]}]}`)
+	parsed, err := ParseGatewayRequest(NewRequestBodyRef(body), PlatformAnthropic)
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	c.Request.Header.Set("User-Agent", "Go-http-client/1.1")
+
+	upstream := &anthropicHTTPUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(`{"id":"msg_proxied_cc","type":"message","role":"assistant","model":"claude-haiku-4-5-20251001","content":[{"type":"text","text":"ok"}],"usage":{"input_tokens":12,"output_tokens":7}}`)),
+	}}
+	cfg := &config.Config{Gateway: config.GatewayConfig{MaxLineSize: defaultMaxLineSize}}
+	svc := &GatewayService{
+		cfg:                  cfg,
+		responseHeaderFilter: compileResponseHeaderFilter(cfg),
+		httpUpstream:         upstream,
+		rateLimitService:     &RateLimitService{},
+		deferredService:      &DeferredService{},
+	}
+	account := &Account{
+		ID: 303, Name: "anthropic-proxied-cc", Platform: PlatformAnthropic, Type: AccountTypeOAuth, Concurrency: 1,
+		Credentials: map[string]any{"access_token": "oauth-token"}, Status: StatusActive, Schedulable: true,
+	}
+
+	result, err := svc.Forward(context.Background(), c, account, parsed)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, gjson.GetBytes(body, "system").Raw, gjson.GetBytes(upstream.lastBody, "system").Raw)
+	require.Equal(t, gjson.GetBytes(body, "messages").Raw, gjson.GetBytes(upstream.lastBody, "messages").Raw)
+	require.NotContains(t, string(upstream.lastBody), "[System Instructions]")
+}
+
 func TestGatewayService_AnthropicOAuth_SystemPromptInjectionCanBeDisabled(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	resetGatewayForwardingSettingsCacheForTest(t)
