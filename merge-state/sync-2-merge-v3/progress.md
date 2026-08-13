@@ -12,8 +12,8 @@
 - Failed/blocked: 0
 - Next index: 20
 - Next commit: `3e5d4af411977b0b14860ac5796831c02b0fb1be`
-- Last action: prerequisite `65ff8003` merged as `526b62445`; complete integration/frontend gates and all Go tests passed, with only the known baseline G704 lint exception
-- Active prerequisite: `09729ba54c9b799c728996b3e8202c00a0e6e86b` (high risk; final object-storage async image implementation)
+- Last action: prerequisite `09729ba5` merged as `c8f50adbc`; complete async image/object-storage implementation retained and SSRF-hardened; full high-risk gates passed
+- Active prerequisite: `bfabfe60c84cfbb10fbe7900a7ea2bd280aefb75` (medium risk; expose async image object-storage environment configuration)
 
 ## High-risk verification notes
 
@@ -25,3 +25,4 @@
 - `make test`: Go tests pass; lint stops only on three baseline gosec G704 findings in unchanged `internal/pkg/servertiming/http.go` and `internal/server/middleware/openai_fast_policy_forwarding_test.go`.
 - The fixed localhost service-test database predated the batch image migrations and lacked `users.frozen_balance`; the idempotent `160_add_user_frozen_balance.sql` was applied to that local test database before rerunning. The repository integration harness independently proved the full migration set from a clean database.
 - `65ff8003`: preserved recharge-only gift-safe holds while adding phantom-release protection, atomic queue/state transitions, settlement retry exhaustion, hold/discount validation, and image-only token-pricing fail-closed behavior. Its `admin_service.go` increment was mapped to main's split `admin_group.go` implementation.
+- `09729ba5`: merged the final post-revert implementation from its three-commit second-parent chain (`1fb942dd`, `e5e94d1`, `0eb6e21`), including task persistence, polling routes and S3-compatible result offload. Existing batch image, gift/referral, Image Studio and risk-control wiring were retained. Default URL downloads now use resolved-IP validation and reject private hosts; focused service lint reports zero issues.
