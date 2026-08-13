@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 190
+- Pending: 189
 - Awaiting user: 0
-- Merged: 33
+- Merged: 34
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 50
-- Next commit: `2e2638c01de2db8523578fd308b7c28a0cf02969`
-- Last action: user-approved high-risk Ollama request-driven usage refresh `bb0c38306` merged as `2afc5bbdb`, with conflict-test preservation in `71bbb7db7`; full Go and integration tests passed
+- Next index: 51
+- Next commit: `e9a58c1cb8b5ef626a75c93b4d953fde5e67aa29`
+- Last action: medium-risk PostgreSQL <=16 Ollama due parsing and minimum-fetch-floor fix `2e2638c01` auto-merged as `a2b41d0d3`; focused service, repository and PostgreSQL integration tests passed
 - Active queue commit: none
 
 ## High-risk verification notes
