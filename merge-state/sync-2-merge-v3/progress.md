@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 187
+- Pending: 186
 - Awaiting user: 0
-- Merged: 36
+- Merged: 37
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 53
-- Next commit: `7d3a896fcd912e6141b9bbbe90ca5bd08ff49ea3`
-- Last action: low-risk VERSION sync `2730c1c43` auto-merged as `586bffa77`; server version verified as 0.1.165
+- Next index: 54
+- Next commit: `6ee2304dcdc8e909091890542cce216a87733a7e`
+- Last action: low-risk sponsor cleanup `7d3a896fc` found already effective in the current baseline; empty cherry-pick skipped after verifying all target README references and logo files are absent
 - Active queue commit: none
 
 ## High-risk verification notes
