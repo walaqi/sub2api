@@ -11,7 +11,7 @@
 - Skipped: 0
 - Failed/blocked: 0
 - Next index: 58
-- Next commit: `fca2e327e464e1f25e095941fdab3b60a3f8c437`
+- Next commit: `8f47bd5fa03e35638a9dc51bafbd365b205248fe`
 - Last action: medium-risk mobile available-channels surface `beeb4b84e` auto-merged as `46ff650a0`; component tests, typecheck and focused ESLint passed
 - Active queue commit: none
 
