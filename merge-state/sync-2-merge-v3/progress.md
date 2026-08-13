@@ -6,14 +6,14 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 197
-- Awaiting user: 1
-- Merged: 25
+- Awaiting user: 0
+- Merged: 26
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 42
-- Next commit: `6d956bdc20f0d8c38275d4d77b628a8ff776711c`
-- Last action: high-risk session-ID persistence `6d956bdc2` assessed and paused for user merge|skip decision; migration 187 conflicts with main and must become 206 if merged
-- Active queue commit: `6d956bdc20f0d8c38275d4d77b628a8ff776711c` (index 42, awaiting user decision)
+- Next index: 43
+- Next commit: `eb03be0dbfb42c3dc341f51a3cfb608736394974`
+- Last action: user-approved high-risk session-ID persistence `6d956bdc2` merged as `314a04f71`; migration moved to 206, main privacy/billing fields preserved, full verification completed with only documented baseline exceptions
+- Active queue commit: `eb03be0dbfb42c3dc341f51a3cfb608736394974` (index 43, under assessment)
 
 ## High-risk verification notes
 
@@ -35,3 +35,4 @@
 - `3f03c93bc`: user-approved high-risk Ollama Cloud usage subsystem merged as `fc9a93df7`. Wire was regenerated from the combined handwritten graph, retaining main's gift ops, abuse detection, refund assessment, gift expirer and separate auth Redis while adding the Ollama lifecycle service. Focused backend, repository integration and 70 frontend tests passed. Full Go passed on an independent rerun after one parallel suite timing failure; full integration passed; frontend lint/typecheck passed; Vitest passed 1286/1288 with only the two baseline rollback-timeout failures; golangci-lint retained only the three baseline G704 findings.
 - `2faa0891e`: pre-approved high-risk Ollama security hardening merged as `0c88221f2`. Session-setting request bodies are omitted from audit persistence and bare session fields are redacted; unchanged credentials no longer clear Ollama or upstream billing snapshots, while actual identity changes still invalidate them. Main's removed prompt-audit routes/tests were not restored. Focused unit and PostgreSQL integration tests passed; full Go passed on an independent rerun after the same parallel suite timing failure; full integration passed; frontend lint/typecheck passed; Vitest passed 1286/1288 with only the two baseline rollback-timeout failures; golangci-lint retained only the three baseline G704 findings.
 - `37ed639d1e`: user-approved high-risk Claude Opus 5/4.8 pricing, Bedrock support and PostCSS update merged as `3672c5700`. Opus 5/4.8 now use $5/$25 per MTok fallback pricing instead of legacy Opus $15/$75; corrected ActualCost continues through main's gift allocator and super-invite tracker without changing deduction semantics. The old package-level PostCSS override was adapted into main's complete workspace override set, retaining the fixed pnpm version and resolving PostCSS 8.5.19. Focused pricing, gateway billing, gift and referral tests passed; full Go and independent full integration passed; frontend lint/typecheck passed; Vitest passed 1286/1288 with only the two baseline rollback-timeout failures; golangci-lint retained only the three baseline G704 findings.
+- `6d956bdc2`: user-approved high-risk client session-ID persistence merged as `314a04f71`. Session IDs are sanitized and persisted for all gateway protocols and asynchronous batch-image settlement. Upstream migration 187 was renumbered to 206; main's gift/recharge allocation columns, device/fingerprint abuse signals, ordinary-user IP privacy and intentionally removed prompt-audit subsystem were retained. Focused session, repository, batch-image and gift tests passed; full Go passed; the complete integration run had a suite-level service timing failure and the whole service integration package passed independently; frontend lint/typecheck passed; Vitest passed 1287/1289 with only the two baseline rollback-timeout failures; golangci-lint retained only the three baseline G704 findings.
