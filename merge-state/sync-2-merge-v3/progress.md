@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 170
+- Pending: 169
 - Awaiting user: 0
-- Merged: 53
+- Merged: 54
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 70
-- Next commit: `131d42d25dbc5f98cedbc80514b499e6bee4d811`
-- Last action: user-approved high-risk Gemini 3.6 Flash pricing `031c83b7e` merged as `8a3c92404`; regression `54906c637` verifies official pricing and group-scoped gift/recharge allocation, and the complete integration suite passed
+- Next index: 71
+- Next commit: `a74e11c26a08867afcf42708d87336108e7df099`
+- Last action: medium-risk composite prefix-route passthrough fix `131d42d25` auto-merged as `cec82b9f5`; focused backend tests, frontend ESLint and typecheck passed
 - Active queue commit: none
 
 ## High-risk verification notes
