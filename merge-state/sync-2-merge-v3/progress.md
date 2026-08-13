@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 189
-- Awaiting user: 0
+- Pending: 188
+- Awaiting user: 1
 - Merged: 34
 - Skipped: 0
 - Failed/blocked: 0
 - Next index: 51
 - Next commit: `e9a58c1cb8b5ef626a75c93b4d953fde5e67aa29`
-- Last action: medium-risk PostgreSQL <=16 Ollama due parsing and minimum-fetch-floor fix `2e2638c01` auto-merged as `a2b41d0d3`; focused service, repository and PostgreSQL integration tests passed
-- Active queue commit: none
+- Last action: high-risk registration email-alias dedup `e9a58c1cb` assessed and paused for user decision; it changes public/local/OAuth registration identity semantics and protects signup gifts, with migration renumbering required
+- Active queue commit: `e9a58c1cb8b5ef626a75c93b4d953fde5e67aa29` (index 51, awaiting `merge|skip`)
 
 ## High-risk verification notes
 
