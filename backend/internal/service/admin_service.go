@@ -699,9 +699,10 @@ type adminServiceImpl struct {
 	notificationEmailService accountDisabledNotifier
 	// affiliateService is optional; when set (and the affiliate_admin_recharge
 	// setting is enabled) admin balance top-ups accrue an invite rebate.
-	affiliateService   adminRechargeAffiliateAccruer
-	compositeRouteRepo CompositeModelRouteRepository
-	compositeResolver  *CompositeRouteResolver
+	affiliateService        adminRechargeAffiliateAccruer
+	compositeRouteRepo      CompositeModelRouteRepository
+	compositeResolver       *CompositeRouteResolver
+	channelCacheInvalidator ChannelCacheInvalidator
 }
 
 // accountDisabledNotifier is the subset of NotificationEmailService used to
@@ -709,6 +710,12 @@ type adminServiceImpl struct {
 // satisfies it.
 type accountDisabledNotifier interface {
 	Send(ctx context.Context, input NotificationEmailSendInput) error
+}
+
+// ChannelCacheInvalidator 失效渠道缓存。
+// 窄接口，避免 admin 服务依赖整个 ChannelService——与 APIKeyAuthCacheInvalidator 同一思路。
+type ChannelCacheInvalidator interface {
+	InvalidateCache()
 }
 
 type adminRechargeAffiliateAccruer interface {
@@ -743,6 +750,7 @@ func NewAdminService(
 	affiliateService *AffiliateService,
 	compositeRouteRepo CompositeModelRouteRepository,
 	compositeResolver *CompositeRouteResolver,
+	channelCacheInvalidator ChannelCacheInvalidator,
 ) AdminService {
 	return &adminServiceImpl{
 		userRepo:                 userRepo,
@@ -770,6 +778,7 @@ func NewAdminService(
 		affiliateService:         affiliateService,
 		compositeRouteRepo:       compositeRouteRepo,
 		compositeResolver:        compositeResolver,
+		channelCacheInvalidator:  channelCacheInvalidator,
 	}
 }
 
