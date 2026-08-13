@@ -44,7 +44,7 @@ index	sha	risk	status	decision	result_commit	tests	notes
 43	eb03be0dbfb42c3dc341f51a3cfb608736394974	medium	merged	auto_merge	7b20e4fc6	focused_pass	Keeps Grok API-key pool-mode accounts schedulable after upstream 5xx while retaining the two-minute cooldown for non-pool accounts; billing, gifts and referrals unchanged; focused unit-tagged Grok upstream-error tests passed
 44	a29a62112b0cf93892020d910b60ff308303a21b	medium	merged	auto_merge	64c351073	focused_pass	Preserves request-local same-account retries for explicitly retryable OpenAI API-key pool statuses by skipping only the conflicting model transient block; non-retryable pool errors and non-pool accounts retain cooldown behavior; focused unit-tagged pool/non-pool runtime-block tests passed
 45	3176cdee1731bd7b15123eee47b891122f5de060	low	merged	auto_merge	aaf3fbf57	focused_pass	Drops orphan Grok tool_choice only when the tools field is absent, while retaining existing behavior for supported, empty, unsupported and malformed tools shapes; billing, gifts and referrals unchanged; focused six-case unit-tagged sanitizer test passed
-46	e6a3030bebb8f28f129fdf46d89835ae2df29a64	unassessed	pending			not_run	
+46	e6a3030bebb8f28f129fdf46d89835ae2df29a64	medium	merged	auto_merge	8b26f0529	focused_pass	Preserves supported, valid Gemini inline images as Markdown data URLs in OpenAI chat-completions compatibility responses while omitting them from Anthropic Messages and rejecting SVG/malformed MIME/base64; text/tool behavior and billing remain unchanged; focused conversion tests passed
 47	b99ea955d94537d14d354c91140a97750c5956d6	unassessed	pending			not_run	
 48	43d4bae2464387817560a1aeb0b023cd0c9b22ee	unassessed	pending			not_run	
 49	bb0c38306f5a663b9e4dd652446cc43e242d1372	unassessed	pending			not_run	

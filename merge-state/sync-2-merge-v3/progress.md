@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 194
+- Pending: 193
 - Awaiting user: 0
-- Merged: 29
+- Merged: 30
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 46
-- Next commit: `e6a3030bebb8f28f129fdf46d89835ae2df29a64`
-- Last action: low-risk Grok orphan tool_choice cleanup `3176cdee1` auto-merged as `aaf3fbf57`; focused six-case sanitizer test passed
-- Active queue commit: `e6a3030bebb8f28f129fdf46d89835ae2df29a64` (index 46, under assessment)
+- Next index: 47
+- Next commit: `b99ea955d94537d14d354c91140a97750c5956d6`
+- Last action: medium-risk Gemini inline-image chat compatibility `e6a3030be` auto-merged as `8b26f0529`; focused image validation, Anthropic isolation and text/tool regression tests passed
+- Active queue commit: `b99ea955d94537d14d354c91140a97750c5956d6` (index 47, under assessment)
 
 ## High-risk verification notes
 
