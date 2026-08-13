@@ -6,14 +6,14 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 211
-- Awaiting user: 0
+- Awaiting user: 1
 - Merged: 12
 - Skipped: 0
 - Failed/blocked: 0
 - Next index: 29
 - Next commit: `6aeea70ee008825604ac3293ca0f216e951795d1`
-- Last action: medium-risk Grok 402 account cooldown `6f7bad3f2` merged as `aaac9aede`; focused service and handler unit tests passed
-- Active queue commit: none
+- Last action: high-risk OpenAI proxy stream quarantine `6aeea70ee` assessed; awaiting user merge|skip decision
+- Active queue commit: `6aeea70ee008825604ac3293ca0f216e951795d1` (index 29, high risk, awaiting merge|skip)
 
 ## High-risk verification notes
 
