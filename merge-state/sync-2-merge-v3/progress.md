@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 214
+- Pending: 213
 - Awaiting user: 0
-- Merged: 9
+- Merged: 10
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 26
-- Next commit: `da5c80e1139aff114904ef542508bc5e1e027e70`
-- Last action: user-approved high-risk channel pricing normalization `09b1309c9` merged as `e9e94e03e`; full Go, integration and frontend gates completed with only confirmed baseline findings
+- Next index: 27
+- Next commit: `fbc88edf90d726d465e627cb4215fce873b4a673`
+- Last action: medium-risk OpenAI OAuth passthrough input normalization `da5c80e11` merged as `e24cff7e1`; focused passthrough tests passed
 - Active queue commit: none
 
 ## High-risk verification notes
