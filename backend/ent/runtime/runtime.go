@@ -1193,17 +1193,17 @@ func init() {
 	// group.DefaultRpmLimit holds the default value on creation for the rpm_limit field.
 	group.DefaultRpmLimit = groupDescRpmLimit.Default.(int)
 	// groupDescModel5hLimits is the schema descriptor for model_5h_limits field.
-	groupDescModel5hLimits := groupFields[46].Descriptor()
+	groupDescModel5hLimits := groupFields[47].Descriptor()
 	// group.DefaultModel5hLimits holds the default value on creation for the model_5h_limits field.
 	group.DefaultModel5hLimits = groupDescModel5hLimits.Default.(map[string]float64)
 	// groupDescMaxReasoningEffort is the schema descriptor for max_reasoning_effort field.
-	groupDescMaxReasoningEffort := groupFields[47].Descriptor()
+	groupDescMaxReasoningEffort := groupFields[48].Descriptor()
 	// group.DefaultMaxReasoningEffort holds the default value on creation for the max_reasoning_effort field.
 	group.DefaultMaxReasoningEffort = groupDescMaxReasoningEffort.Default.(string)
 	// group.MaxReasoningEffortValidator is a validator for the "max_reasoning_effort" field. It is called by the builders before save.
 	group.MaxReasoningEffortValidator = groupDescMaxReasoningEffort.Validators[0].(func(string) error)
 	// groupDescReasoningEffortMappings is the schema descriptor for reasoning_effort_mappings field.
-	groupDescReasoningEffortMappings := groupFields[48].Descriptor()
+	groupDescReasoningEffortMappings := groupFields[49].Descriptor()
 	// group.DefaultReasoningEffortMappings holds the default value on creation for the reasoning_effort_mappings field.
 	group.DefaultReasoningEffortMappings = groupDescReasoningEffortMappings.Default.([]domain.ReasoningEffortMapping)
 	idempotencyrecordMixin := schema.IdempotencyRecord{}.Mixin()

@@ -75,6 +75,7 @@ func (h *OpenAIGatewayHandler) Live(c *gin.Context) {
 		apiKey.Group,
 		subscription,
 		service.QuotaPlatform(c.Request.Context(), apiKey),
+		model,
 	); err != nil {
 		status, code, message, retryAfter := billingErrorDetails(err)
 		if retryAfter > 0 {
@@ -158,6 +159,7 @@ func liveCallIdentity(
 		UserID:          userID,
 		GroupID:         apiKey.GroupID,
 		SubscriptionID:  subscriptionID,
+		SessionID:       service.ExtractClientSessionID(c),
 		UserAgent:       c.GetHeader("User-Agent"),
 		IPAddress:       ip.GetClientIP(c),
 		InboundEndpoint: GetInboundEndpoint(c),

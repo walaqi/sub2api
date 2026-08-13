@@ -177,3 +177,24 @@ func TestExtractContentModerationInput_ResponsesLastIsAssistantSkipped(t *testin
 	require.Empty(t, input.Text)
 	require.Empty(t, input.Images)
 }
+
+func TestExtractContentModerationInput_OpenAILiveUsesSessionInstructions(t *testing.T) {
+	input := ExtractContentModerationInput(ContentModerationProtocolOpenAILive, []byte(`{
+		"model":"gpt-live",
+		"instructions":"Keep the conversation concise.",
+		"voice":"marin"
+	}`))
+
+	require.Equal(t, "Keep the conversation concise.", input.Text)
+	require.Empty(t, input.Images)
+}
+
+func TestExtractContentModerationInput_OpenAILiveIgnoresNonInstructionFields(t *testing.T) {
+	input := ExtractContentModerationInput(ContentModerationProtocolOpenAILive, []byte(`{
+		"model":"gpt-live",
+		"voice":"marin",
+		"audio":{"input":{"format":"pcm16"}}
+	}`))
+
+	require.True(t, input.IsEmpty())
+}
