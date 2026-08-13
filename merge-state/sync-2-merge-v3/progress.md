@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 179
+- Pending: 178
 - Awaiting user: 0
-- Merged: 44
+- Merged: 45
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 61
-- Next commit: `bc9173be15b8bd16f1563cb78721c570f0609b39`
-- Last action: user-approved high-risk per-turn WebSocket model billing `eb6e3d1f1` merged as `31e95f5a0`; focused billing/gift/referral tests and complete integration passed, with full-suite baseline exceptions recorded below
+- Next index: 62
+- Next commit: `a40d6de12e72edec76aa08917e8217c7fb465871`
+- Last action: low-risk monitor timeline narrow-card overflow fix `bc9173be` merged as `9f4f7759c`; focused ESLint, vue-tsc and diff checks passed
 - Active queue commit: none
 
 ## High-risk verification notes
