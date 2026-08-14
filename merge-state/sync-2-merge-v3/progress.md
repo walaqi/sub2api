@@ -6,17 +6,18 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 125
-- Awaiting user: 1
-- Merged: 95
+- Awaiting user: 0
+- Merged: 96
 - Skipped: 2
 - Failed/blocked: 0
-- Next index: 114
-- Next commit: `26d894ef4f50645a4bf1030e378ac892f17d0223`
-- Last action: assessed `26d894ef4` upstream URL path-segment hardening as high risk and recommend merge; it closes path injection classes but crosses central Responses/Gemini/Grok routing and imposes a compatibility-sensitive closed character set
-- Active queue commit: `26d894ef4f50645a4bf1030e378ac892f17d0223` awaiting `merge|skip`
+- Next index: 115
+- Next commit: `7ceabb3fd5f3d5e3cb774e421d3b2191c6ae99c8`
+- Last action: user-approved high-risk `26d894ef4` upstream URL path hardening merged as `d87aa18f6` with composite Gemini and client-throttle adaptations; complete Go and complete integration passed with only established frontend and unit-tag baselines
+- Active queue commit: `7ceabb3fd5f3d5e3cb774e421d3b2191c6ae99c8` pending assessment
 
 ## High-risk verification notes
 
+- `26d894ef4`: user-approved upstream URL path hardening merged as `d87aa18f6`. Responses path guards cover `/v1`, root and Codex-direct routes while retaining main's client-error throttle, composite resolution and Live sideband routes. Gemini validation was adapted to inspect the final concrete upstream model after composite mapping, so public aliases such as `openrouter/gemini-pro` remain valid while unsafe mapped targets are rejected; Grok video IDs reject dot segments and control characters. Focused path/Gemini/composite/Grok tests passed; complete Go and complete integration passed; frontend lint/typecheck passed; Vitest passed 1346/1348 with only two known rollback failures and ten known GroupsView mock rejections; unit-tag retained only the three known config env-reachability keys and checker-nil baseline.
 - `bf0fc03ab`: user-approved GLM-5.2 fallback pricing merged as `a82b476ac`. GLM-5.2 now uses GLM-5.1's $1.40 input, $0.26 cached input and $4.40 output per MTok instead of falling through the broader GLM-5 match. Official documentation confirms the model exists but does not directly publish this rate parity; the user explicitly accepted that assumption. Focused GLM pricing, billing, gift, referral, super-invite and usage tests passed; complete Go and complete integration passed; frontend lint/typecheck passed; Vitest passed 1346/1348 with only two known rollback failures and ten known GroupsView mock rejections; unit-tag retained only the three known config env-reachability keys and checker-nil baseline.
 - `60f6dc91c`: user-approved GPT-5.6 Terra/Luna official July 30 price reduction merged as `9a39f5453`. Main's model-plaza and image-pricing tests were retained during conflict resolution, with its separate fallback expectations updated to the new rates. Runtime fallback, PricingService, static JSON and per-turn WebSocket billing agree; corrected ActualCost continues through group-scoped priority/proportional gifts and super-invite spend. Focused tests and complete Go passed; complete integration passed independently after initial parallel test-container port contention; frontend lint/typecheck passed; Vitest retained only known rollback and GroupsView mock baselines; unit-tag retained only known config/checker baselines.
 - `6fa784fdd`: user-approved proxy circuit fail-open merged as `44297f96e`. Only an initial OpenAI no-account result while active proxy blocks exist triggers a second quarantine-blind pass. Healthy proxies still win, blocked state remains until success/TTL, unrelated errors and non-OpenAI platforms do not fail open, and an incomplete stream is never resumed on another account. Disconnects from the same proxy within three seconds collapse into one incident; operators can disable the circuit explicitly. Existing RecordUsage, group-scoped gift allocation and super-invite spend paths are unchanged. Focused circuit/scheduler/stream/billing tests passed; complete Go and integration passed; frontend lint/typecheck passed; Vitest passed 1333/1335 with only two known rollback-timeout assertions; unit-tag retained only known config environment-reachability and checker-nil baselines.
