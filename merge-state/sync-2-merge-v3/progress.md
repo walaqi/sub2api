@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 115
-- Awaiting user: 0
+- Pending: 114
+- Awaiting user: 1
 - Merged: 106
 - Skipped: 2
 - Failed/blocked: 0
 - Next index: 125
 - Next commit: `04c96a20155c2bc74141f219b04af420bb062158`
-- Last action: medium-risk `07f980b99` stale encrypted compaction recovery merged automatically as `4cb0df9cd`; focused sanitizer, HTTP/WS recovery, gift and invite tests passed
-- Active queue commit: none awaiting user; assess `04c96a20155c2bc74141f219b04af420bb062158` next
+- Last action: assessed `04c96a201` OpenAI OAuth namespace preserve-by-default behavior as high risk and recommend merge; it fixes namespaced multi-agent dispatch but globally flips the existing HTTP/passthrough tool transformation default
+- Active queue commit: `04c96a20155c2bc74141f219b04af420bb062158` awaiting `merge|skip`
 
 ## High-risk verification notes
 
