@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 95
-- Awaiting user: 0
+- Pending: 94
+- Awaiting user: 1
 - Merged: 125
 - Skipped: 3
 - Failed/blocked: 0
 - Next index: 145
 - Next commit: `61ebdbdd43b788149443f1b4c7872321aec55da2`
-- Last action: auto-merged medium-risk `a1f1a0cc6` billing-failure usage-log retention as `c8fafdbe3`; failed billing remains an error and the retained log has zero ActualCost, while focused unsettled-log and main gift-allocation regressions passed
-- Active queue commit: none; assess `61ebdbdd43b788149443f1b4c7872321aec55da2` next
+- Last action: assessed `61ebdbdd4` cross-tab refresh-token rotation coordinator as high risk because it globally changes 401 replay, proactive refresh, logout/session replacement, Web Locks serialization and the no-lock 31-second reconciliation path; recommend merge with focused auth tests and complete high-risk verification
+- Active queue commit: `61ebdbdd43b788149443f1b4c7872321aec55da2` awaiting `merge|skip`
 
 ## Post-merge follow-up
 
