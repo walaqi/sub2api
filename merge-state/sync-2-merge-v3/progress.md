@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 140
+- Pending: 139
 - Awaiting user: 0
-- Merged: 82
+- Merged: 83
 - Skipped: 1
 - Failed/blocked: 0
-- Next index: 100
-- Next commit: `91850d36e6f965aa12e3c20e176a3311de13c171`
-- Last action: user-approved OpenAI shared-proxy circuit fail-open `6fa784fdd` merged as `44297f96e`; complete Go/integration and frontend gates completed with only known baselines
+- Next index: 101
+- Next commit: `c9156c1e7f3bbe8251fdcc283e8d926c82704ba9`
+- Last action: low-risk Ops cleanup success log-level fix `91850d36e` auto-merged as `1ad12d8f2`; unit and ordinary focused tests passed
 - Active queue commit: none
 
 ## High-risk verification notes
