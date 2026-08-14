@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 142
+- Pending: 141
 - Awaiting user: 0
-- Merged: 80
+- Merged: 81
 - Skipped: 1
 - Failed/blocked: 0
-- Next index: 98
-- Next commit: `5a6143097db142b72a6fc848c214e97214470bdd`
-- Last action: low-risk VERSION sync `b9c7cb8e2` auto-merged as `7a031bbbc`, advancing server metadata from 0.1.166 to 0.1.167
+- Next index: 99
+- Next commit: `6fa784fdd09735f74e60cd77610aecc7954b3b92`
+- Last action: low-risk VERSION sync `5a6143097` auto-merged as `b17b0e5f4`, advancing server metadata from 0.1.167 to 0.1.168
 - Active queue commit: none
 
 ## High-risk verification notes
