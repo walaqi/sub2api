@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 129
+- Pending: 128
 - Awaiting user: 0
-- Merged: 92
+- Merged: 93
 - Skipped: 2
 - Failed/blocked: 0
-- Next index: 111
-- Next commit: `2be08f3f392d391381b836e6538bf4a2e630aacb`
-- Last action: medium-risk Compose no-new-privileges hardening `0a45be17d` auto-merged as `3a60f49cd`; CI retained main deployment checks and security script plus all four Compose parses passed
+- Next index: 112
+- Next commit: `bf0fc03ab7dbdf3b841261fa0fd022ab8f3093a0`
+- Last action: medium-risk Anthropic count_tokens max_tokens stripping `2be08f3f3` auto-merged as `c61950875`; focused OAuth/API-key/context-management tests passed
 - Active queue commit: none
 
 ## High-risk verification notes
