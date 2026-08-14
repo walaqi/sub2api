@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 107
+- Pending: 106
 - Awaiting user: 0
-- Merged: 113
+- Merged: 114
 - Skipped: 3
 - Failed/blocked: 0
-- Next index: 133
-- Next commit: `dd9a177a62a8431e4d54cca061247fdcb29232eb`
-- Last action: auto-merged medium-risk `eb1c5c7ee` Responses tool-output image preservation as `9a1f8aa75`; focused compatibility tests passed
-- Active queue commit: `dd9a177a62a8431e4d54cca061247fdcb29232eb` pending assessment
+- Next index: 134
+- Next commit: `8f5caef78e37caf268cf1a8f5ed15ab8d19a65e6`
+- Last action: auto-merged low-risk `dd9a177a6` sponsor documentation update as `7b90c0356`; conflicts were adapted to preserve main's intentionally reduced sponsor list
+- Active queue commit: `8f5caef78e37caf268cf1a8f5ed15ab8d19a65e6` pending assessment
 
 ## Post-merge follow-up
 
