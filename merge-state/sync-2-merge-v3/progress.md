@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 150
-- Awaiting user: 0
+- Pending: 149
+- Awaiting user: 1
 - Merged: 72
 - Skipped: 1
 - Failed/blocked: 0
 - Next index: 90
 - Next commit: `0ef2228ce9d278610e7022bc3cd2d12e83a19e9e`
-- Last action: medium-risk explicit SKIP_SETUP bypass `1cf6972e7` merged as `acc558e91`; setup package tests passed and default behavior remains unchanged
-- Active queue commit: none
+- Last action: Kimi K3 pricing, thinking protocol and default Moonshot allowlist `0ef2228ce` assessed high risk because fallback cost enters gift/recharge and super-invite accounting; awaiting merge|skip
+- Active queue commit: `0ef2228ce9d278610e7022bc3cd2d12e83a19e9e` (awaiting user decision; recommendation: merge)
 
 ## High-risk verification notes
 
