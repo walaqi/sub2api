@@ -12,7 +12,7 @@
 - Failed/blocked: 0
 - Next index: 148
 - Next commit: `0173830df625bcf898664ceeb8ccb1104e625c96`
-- Last action: merged user-approved `724565e4a` forced-refund hardening as `0f9166c06`, adapted execution to lock and deduct only recharge_pool without changing active gifts, retained main's independent FIFO refund-assessment subsystem, and added PostgreSQL gift regressions in `04e16422a`; complete ordinary Go and independent integration passed with only confirmed frontend/unit baselines
+- Last action: assessed `0173830df` stable amount-specific Stripe refund idempotency as medium risk; it prevents duplicate gateway refunds without changing local refund, gift, assessment or super-invite semantics and is approved for automatic merge
 - Active queue commit: none
 
 ## Post-merge follow-up
