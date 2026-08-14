@@ -633,6 +633,65 @@ func TestGatewayServiceRecordUsage_UsesExplicitPricingAtForPeakRate(t *testing.T
 	}
 }
 
+func TestGatewayServiceRecordUsage_PricingAtFlowsThroughGiftAllocation(t *testing.T) {
+	groupID := int64(904)
+	giftCost := 0.014
+	rechargeCost := 0.022
+	usageRepo := &openAIRecordUsageLogRepoStub{}
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{
+		Applied:      true,
+		GiftCost:     &giftCost,
+		RechargeCost: &rechargeCost,
+	}}
+	svc := newGatewayRecordUsageServiceWithBillingRepoForTest(
+		usageRepo,
+		billingRepo,
+		&openAIRecordUsageUserRepoStub{},
+		&openAIRecordUsageSubRepoStub{},
+	)
+	svc.resolver = newOpenAITokenImageChannelPricingResolverForTest(t, groupID, "gemini-image")
+
+	err := svc.RecordUsage(context.Background(), &RecordUsageInput{
+		Result: &ForwardResult{
+			RequestID:  "gateway_pricing_at_gift_allocation",
+			Model:      "gemini-image",
+			ImageCount: 1,
+			Usage: ClaudeUsage{
+				InputTokens:       1000,
+				OutputTokens:      600,
+				ImageOutputTokens: 100,
+			},
+		},
+		APIKey: &APIKey{
+			ID:      804,
+			GroupID: i64p(groupID),
+			Group: &Group{
+				ID:                 groupID,
+				Platform:           PlatformAnthropic,
+				RateMultiplier:     1.0,
+				SubscriptionType:   SubscriptionTypeSubscription,
+				PeakRateEnabled:    true,
+				PeakStart:          "00:00",
+				PeakEnd:            "01:00",
+				PeakRateMultiplier: 3.0,
+			},
+		},
+		User:      &User{ID: 604},
+		Account:   &Account{ID: 704, Platform: PlatformAnthropic},
+		PricingAt: time.Date(2026, time.January, 1, 0, 30, 0, 0, time.UTC),
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, billingRepo.lastCmd)
+	require.InDelta(t, 0.036, billingRepo.lastCmd.BalanceCost, 1e-12)
+	require.Equal(t, &groupID, billingRepo.lastCmd.GroupID)
+	require.NotNil(t, usageRepo.lastLog)
+	require.InDelta(t, 0.036, usageRepo.lastLog.ActualCost, 1e-12)
+	require.InDelta(t, giftCost, usageRepo.lastLog.GiftCost, 1e-12)
+	require.InDelta(t, rechargeCost, usageRepo.lastLog.RechargeCost, 1e-12)
+	require.InDelta(t, usageRepo.lastLog.ActualCost, usageRepo.lastLog.GiftCost+usageRepo.lastLog.RechargeCost, 1e-12)
+}
+
 func TestGatewayServiceRecordUsage_UsageLogWriteErrorDoesNotSkipBilling(t *testing.T) {
 	usageRepo := &openAIRecordUsageLogRepoStub{inserted: false, err: MarkUsageLogCreateNotPersisted(context.Canceled)}
 	userRepo := &openAIRecordUsageUserRepoStub{}
