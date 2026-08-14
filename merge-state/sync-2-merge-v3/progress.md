@@ -6,17 +6,18 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 148
-- Awaiting user: 1
-- Merged: 73
+- Awaiting user: 0
+- Merged: 74
 - Skipped: 1
 - Failed/blocked: 0
-- Next index: 91
-- Next commit: `2e432173f76c351375d18bbdd9e748cce998891c`
-- Last action: Passkey/WebAuthn authentication subsystem `2e432173f` assessed high risk; security design is opt-in and explicit, but it expands the authentication boundary and requires migration 191 to be renumbered to 210; awaiting merge|skip
-- Active queue commit: `2e432173f76c351375d18bbdd9e748cce998891c` (awaiting user decision; recommendation: merge)
+- Next index: 92
+- Next commit: `39903f006e6f87f6073fc69199d6b20399e401bb`
+- Last action: user-approved Passkey/WebAuthn authentication subsystem `2e432173f` merged as `800b1b479`; migration renumbered to 210, main gift/custom handler wiring retained, complete Go and integration passed, frontend lint/typecheck passed, and full Vitest retained only known baseline exceptions
+- Active queue commit: none
 
 ## High-risk verification notes
 
+- `2e432173f`: user-approved Passkey/WebAuthn authentication subsystem merged as `800b1b479`. It is disabled by default and requires explicit RP ID/origins, production HTTPS and user verification; enrollment/revocation is password-gated and ceremonies are one-time Redis sessions. Upstream migration 191 was renumbered to 210. Wire was regenerated from the combined provider graph, retaining main's gift engine and all custom handlers. Passkey credential bodies are omitted from audit logs while the removed prompt-audit subsystem remains absent. Complete Go and integration passed; frontend lint/typecheck passed; focused Passkey/settings/profile tests passed 33/33; Vitest passed 1324/1326 with only the two known rollback-timeout failures and ten known GroupsView mocks missing `getLiveCapability`.
 - `0ef2228ce`: user-approved Kimi K3 support merged as `07b4f0bdb`. Exact K3 aliases receive $3/$15/$0.30 per MTok input/output/cache-read fallback pricing while near aliases remain unpriced; K3 thinking passback, OpenAI OAuth exclusion and Moonshot default allowlist entries are active. ActualCost continues through RecordUsage, group-scoped gift allocation and super-invite spend. Complete Go and integration passed; frontend lint/typecheck passed; Vitest passed 1319/1321 with only the two known rollback-timeout failures and ten known GroupsView mocks missing `getLiveCapability`.
 - `f18f3143e`: user-approved panel API rate limiting merged as `6beb36819`. Auth routes retain main's Turnstile service-client bypass while adding public-IP and authenticated-user limits; gateway retains its Redis dependency, and user routes retain gifts, recharge discount, super-invite referral status and Image Studio while usage aggregates receive the heavy tier. Payment webhooks and public order recovery remain excluded; prompt-audit remains removed. Complete Go and integration tests passed; frontend lint/typecheck passed; Vitest passed 1317/1319 with only the two known rollback-timeout failures and ten known GroupsView mocks missing `getLiveCapability`.
 - `d96b6a31f`: user-approved Antigravity OAuth native OpenAI-compatible gateway merged as `96e7afd48`. Chat Completions and Responses now use native streamGenerateContent with correct buffered/streaming usage extraction, model attribution, endpoint recording, credential failover and client-disconnect draining. The existing single RecordUsage path retains session IDs, request fingerprints, group-scoped priority/proportional gifts and super-invite spend tracking. Complete Go and integration tests passed; frontend lint/typecheck passed; Vitest retained only the known rollback and GroupsView mock baseline exceptions.
