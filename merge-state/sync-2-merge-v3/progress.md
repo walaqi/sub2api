@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 98
-- Awaiting user: 0
-- Merged: 122
+- Pending: 96
+- Awaiting user: 1
+- Merged: 123
 - Skipped: 3
 - Failed/blocked: 0
-- Next index: 142
-- Next commit: `7e2e9ba05026b7126318aa0754c1afa0ac00bc58`
-- Last action: merged user-approved high-risk `c043c2477` per-group token profit control as `391473b1b`, with gift-allocation regression `d6e489e92`; migrations were renumbered to 211/212 and Ent/Wire regenerated from the combined graph. Focused, ordinary Go, frontend type/lint and independent integration passed; full Vitest and unit-tag retained only documented baseline exceptions
-- Active queue commit: none; assess `7e2e9ba05026b7126318aa0754c1afa0ac00bc58` next
+- Next index: 143
+- Next commit: `954d44c19c24cb27df7f593349c5bf8a3dd99aa2`
+- Last action: auto-merged low-risk VERSION-only `7e2e9ba05` as `6ea59d881`, then assessed `954d44c19` Codex load-shed originator normalization as high risk because it globally changes HTTP, OAuth passthrough, WebSocket and probe request identities plus the account cooldown/failover behavior induced by upstream overload responses
+- Active queue commit: `954d44c19c24cb27df7f593349c5bf8a3dd99aa2` awaiting `merge|skip`
 
 ## Post-merge follow-up
 
