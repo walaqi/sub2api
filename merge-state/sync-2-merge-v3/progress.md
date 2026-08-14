@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 77
-- Awaiting user: 0
+- Pending: 76
+- Awaiting user: 1
 - Merged: 141
 - Skipped: 4
 - Failed/blocked: 0
 - Next index: 162
 - Next commit: `f0e7a9c7a23a7d02fb159b62fa809621eb0475a6`
-- Last action: auto-merged medium-risk pending OAuth Turnstile submit gate `d431c57f2` as `1c52e3b17`; eleven focused tests and typecheck passed
-- Active queue commit: none
+- Last action: assessed Aliyun Captcha 2.0 provider expansion `f0e7a9c7a` as high risk because it changes all authentication gates, provider exclusivity, external credential validation, frontend global SDK lifecycle, dependencies and combined Wire immediately after the Tencent integration
+- Active queue commit: `f0e7a9c7a23a7d02fb159b62fa809621eb0475a6` awaiting `merge|skip`
 
 ## Post-merge follow-up
 
