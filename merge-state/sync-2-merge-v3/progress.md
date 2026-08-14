@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 117
-- Awaiting user: 0
+- Pending: 116
+- Awaiting user: 1
 - Merged: 104
 - Skipped: 2
 - Failed/blocked: 0
 - Next index: 123
 - Next commit: `d29acc29a580f3f25e16351c6d5a19e3674ba83c`
-- Last action: medium-risk `66998918b` missing Codex passthrough instructions default merged automatically as `969c52923`; focused passthrough/default-instruction/moderation tests passed
-- Active queue commit: none awaiting user; assess `d29acc29a580f3f25e16351c6d5a19e3674ba83c` next
+- Last action: assessed `d29acc29a` subscription quota-window alignment as high risk and recommend merge; it fixes early resets and stale activation overwrites but changes subscription limit boundaries for existing and new terms
+- Active queue commit: `d29acc29a580f3f25e16351c6d5a19e3674ba83c` awaiting `merge|skip`
 
 ## High-risk verification notes
 
