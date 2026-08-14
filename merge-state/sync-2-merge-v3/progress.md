@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 106
+- Pending: 105
 - Awaiting user: 0
-- Merged: 114
+- Merged: 115
 - Skipped: 3
 - Failed/blocked: 0
-- Next index: 134
-- Next commit: `8f5caef78e37caf268cf1a8f5ed15ab8d19a65e6`
-- Last action: auto-merged low-risk `dd9a177a6` sponsor documentation update as `7b90c0356`; conflicts were adapted to preserve main's intentionally reduced sponsor list
-- Active queue commit: `8f5caef78e37caf268cf1a8f5ed15ab8d19a65e6` pending assessment
+- Next index: 135
+- Next commit: `d4cada3b6bd1098b11593102de0d1aab535aa016`
+- Last action: auto-merged medium-risk `8f5caef78` Claude Code multi-system-entry classifier compatibility as `dc319f7d6`; validator, handler and forwarding tests passed
+- Active queue commit: `d4cada3b6bd1098b11593102de0d1aab535aa016` pending assessment
 
 ## Post-merge follow-up
 
