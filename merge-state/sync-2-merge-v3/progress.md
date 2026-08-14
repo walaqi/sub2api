@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 86
+- Pending: 85
 - Awaiting user: 0
 - Merged: 133
-- Skipped: 3
+- Skipped: 4
 - Failed/blocked: 0
-- Next index: 153
-- Next commit: `1f4cfc44c1d0c24ce363947b3ba80e8db580650b`
-- Last action: merged user-approved high-risk `9fd7e7623` as `64e22a315` with main version-contract adaptation `22ce6d343`; complete ordinary Go and independent integration passed, and frontend/unit-tag retained only documented baseline exceptions
+- Next index: 154
+- Next commit: `9b4575e43428fe75ff798e304fa2fb432f5e2822`
+- Last action: skipped/deferred prompt-audit-only `1f4cfc44c` under the standing instruction to merge the complete prompt-audit subsystem separately after this queue
 - Active queue commit: none
 
 ## Post-merge follow-up
