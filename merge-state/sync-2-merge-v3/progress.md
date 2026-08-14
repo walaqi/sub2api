@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 101
-- Awaiting user: 0
+- Pending: 100
+- Awaiting user: 1
 - Merged: 119
 - Skipped: 3
 - Failed/blocked: 0
 - Next index: 139
 - Next commit: `d99ee7291197f3a87c0073e8f0d20b439719b641`
-- Last action: medium-risk `b74024c78` OpenAI WebSocket passthrough close-frame cancellation race fix merged as `1d71ffee5`; complete openai_ws_v2 package passed
-- Active queue commit: none
+- Last action: assessed `d99ee7291` multi-platform upstream billing probe as high risk due credential-bearing outbound requests, persistent probe state, proxy invalidation and scheduler trust boundaries; recommend merge while keeping #140 automatic rate write-back as a separate high-risk decision
+- Active queue commit: `d99ee7291197f3a87c0073e8f0d20b439719b641` awaiting `merge|skip`
 
 ## Post-merge follow-up
 
