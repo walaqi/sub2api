@@ -6,14 +6,14 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 108
-- Awaiting user: 1
-- Merged: 111
+- Awaiting user: 0
+- Merged: 112
 - Skipped: 3
 - Failed/blocked: 0
-- Next index: 131
-- Next commit: `d9fba8fe7874ec5e8818a8c68bc528bb50c33a46`
-- Last action: assessed `d9fba8fe7` filtered select-all and concurrent account deletion as high risk; recommend merge because parent/shadow ordering, bounded concurrency and partial-failure recovery are covered, while accepting the deliberate non-transactional mass-deletion scope
-- Active queue commit: `d9fba8fe7874ec5e8818a8c68bc528bb50c33a46` awaiting `merge|skip`
+- Next index: 132
+- Next commit: `eb1c5c7ee866d58c8836c0d00ead33bd1a65b5a8`
+- Last action: user-approved high-risk `d9fba8fe7` filtered select-all and bounded concurrent account deletion merged as `5f2ee740a`, with complete high-risk verification
+- Active queue commit: `eb1c5c7ee866d58c8836c0d00ead33bd1a65b5a8` pending assessment
 
 ## Post-merge follow-up
 
@@ -21,6 +21,7 @@
 
 ## High-risk verification notes
 
+- `d9fba8fe7`: user-approved filtered-result select-all and concurrent account deletion merged as `5f2ee740a`. Administrators can load every matching account ID and permanently delete the selected credential pool with concurrency limited to five. Deletion remains intentionally non-transactional; stable success/failed IDs are returned and failures remain selected for retry. Duplicate/non-positive IDs are normalized, selected Spark parent/shadow relationships collapse to parent cascade deletion, filter changes cancel selection, and incomplete multi-page ID loading preserves the prior selection. Gifts, recharge balances, super-invite, usage privacy and moderation are untouched. Focused backend and seven frontend workflow tests passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1371/1373 with only known rollback and GroupsView mock baselines; unit-tag retained only known config env-reachability and checker-nil failures.
 - `15b3c0c5a`: user-approved codex-auto-review fallback price correction merged as `2f654e34e`, with billing regression `766f4b676`. The user explicitly accepted the assumption that the unpublished internal model uses the official GPT-5.6 Luna base rates: $0.20 input, $0.02 cache read and $1.20 output per MTok; unsupported priority, batch/flex, cache-write and long-context derived tiers were removed. The regression proves a $1.42 ActualCost/BalanceCost flows into main's API-key-group gift allocator as $0.42 gift plus $1 recharge; super-invite spend consumes the same BalanceCost without semantic changes. Complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1364/1366 with only known rollback and GroupsView mock baselines; unit-tag retained only known config env-reachability and checker-nil failures.
 - `682c4fe0e`: user-approved content-moderation proxy routing and SMTP STARTTLS parity merged as `2d9e8e528`. Moderation text/images and API-key tests can use the selected proxy; resolution/build failure never falls back direct, and configuration changes invalidate the one-minute URL cache. SMTP send/test share implicit TLS, mandatory STARTTLS fallback and opportunistic STARTTLS; TLS-required mode never authenticates in plaintext and certificate/non-plaintext TLS errors do not downgrade. Wire was regenerated from main's combined graph, retaining gifts, super-invite, Passkey, Live and all current providers without restoring prompt-audit; missing Wire CLI checksums were added to `go.sum`. Focused security tests, complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1362/1364 with only known rollback failures and GroupsView mock rejections; unit-tag retained only known config env-reachability and checker-nil failures.
 - `04c96a201`: user-approved OpenAI OAuth namespace preserve-by-default behavior merged as `f74372957`. Non-compact OAuth Responses retain Codex namespace declarations and historical call namespaces; compact stays flattened, API-key behavior stays stripped/flattened, native WebSocket stays preserved, and an account compatibility switch restores legacy OAuth flattening. Per-attempt namespace state is cleared before failover. Main's model mapping, default instructions, image permission, gateway restriction, moderation, RecordUsage, group-scoped gifts and super-invite billing remain unchanged. Focused backend and 75 account UI tests, complete ordinary Go and complete integration passed; frontend lint/typecheck passed. Vitest passed 1353/1355 with only known rollback failures and GroupsView mock rejections; unit-tag retained only known config env-reachability and checker-nil failures.
