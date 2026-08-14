@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 155
+- Pending: 153
 - Awaiting user: 0
-- Merged: 67
+- Merged: 69
 - Skipped: 1
 - Failed/blocked: 0
-- Next index: 85
-- Next commit: `f71332ff858108dd53e5feedc84d29a55aadff00`
-- Last action: medium-risk OpenAI passthrough candidate-selection fix `c342a885b` merged as `edb871b26`; focused model support, scheduler and billing mapping tests passed
+- Next index: 87
+- Next commit: `a12d88ed4b34ab87ae324eeda5008c7e84c667af`
+- Last action: low-risk model-ID copy `f71332ff8` merged as `f8e793e2b`; medium-risk Claude OAuth cache-breakpoint preservation `6c04e4195` merged as `c7ac278d2`; focused frontend, OAuth, cache billing and moderation tests passed
 - Active queue commit: none
 
 ## High-risk verification notes
