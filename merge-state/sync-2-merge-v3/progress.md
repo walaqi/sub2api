@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 118
+- Pending: 117
 - Awaiting user: 0
-- Merged: 103
+- Merged: 104
 - Skipped: 2
 - Failed/blocked: 0
-- Next index: 122
-- Next commit: `66998918b6307823246d6c321d62aa67c095ccb8`
-- Last action: medium-risk `da6194c1c` OpenAI pre-output streamed capacity retry for pool mode merged automatically as `0ac04a32a`; focused stream retry/failover tests passed
-- Active queue commit: none awaiting user; assess `66998918b6307823246d6c321d62aa67c095ccb8` next
+- Next index: 123
+- Next commit: `d29acc29a580f3f25e16351c6d5a19e3674ba83c`
+- Last action: medium-risk `66998918b` missing Codex passthrough instructions default merged automatically as `969c52923`; focused passthrough/default-instruction/moderation tests passed
+- Active queue commit: none awaiting user; assess `d29acc29a580f3f25e16351c6d5a19e3674ba83c` next
 
 ## High-risk verification notes
 
