@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 119
+- Pending: 118
 - Awaiting user: 0
-- Merged: 102
+- Merged: 103
 - Skipped: 2
 - Failed/blocked: 0
-- Next index: 121
-- Next commit: `da6194c1c37078a87d8e9adec0f2ddff46f22f57`
-- Last action: medium-risk `132d446ca` payment-config PATCH semantics merged automatically as `e3ace89f7`; focused payment configuration and visible-method routing tests passed
-- Active queue commit: none awaiting user; assess `da6194c1c37078a87d8e9adec0f2ddff46f22f57` next
+- Next index: 122
+- Next commit: `66998918b6307823246d6c321d62aa67c095ccb8`
+- Last action: medium-risk `da6194c1c` OpenAI pre-output streamed capacity retry for pool mode merged automatically as `0ac04a32a`; focused stream retry/failover tests passed
+- Active queue commit: none awaiting user; assess `66998918b6307823246d6c321d62aa67c095ccb8` next
 
 ## High-risk verification notes
 
