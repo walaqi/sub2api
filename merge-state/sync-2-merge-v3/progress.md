@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 148
-- Awaiting user: 0
+- Pending: 147
+- Awaiting user: 1
 - Merged: 74
 - Skipped: 1
 - Failed/blocked: 0
 - Next index: 92
 - Next commit: `39903f006e6f87f6073fc69199d6b20399e401bb`
-- Last action: user-approved Passkey/WebAuthn authentication subsystem `2e432173f` merged as `800b1b479`; migration renumbered to 210, main gift/custom handler wiring retained, complete Go and integration passed, frontend lint/typecheck passed, and full Vitest retained only known baseline exceptions
-- Active queue commit: none
+- Last action: scoped User/API-key column update refactor `39903f006` assessed high risk because it changes shared repository contracts and administrator balance writes across gift/referral/auth/moderation paths; awaiting merge|skip
+- Active queue commit: `39903f006e6f87f6073fc69199d6b20399e401bb` (awaiting user decision; recommendation: merge)
 
 ## High-risk verification notes
 
