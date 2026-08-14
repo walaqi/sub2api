@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 124
+- Pending: 123
 - Awaiting user: 0
-- Merged: 97
+- Merged: 98
 - Skipped: 2
 - Failed/blocked: 0
-- Next index: 116
-- Next commit: `94df1fffc2e0b1fb897623b2e451822b6df54c77`
-- Last action: auto-merged low-risk `7ceabb3fd` version synchronization as `cba089fbb`; backend version is now 0.1.169
-- Active queue commit: `94df1fffc2e0b1fb897623b2e451822b6df54c77` pending assessment
+- Next index: 117
+- Next commit: `c772d186666154aed2ae67ada9df2332f3955fb9`
+- Last action: auto-merged medium-risk `94df1fffc` Grok Responses billing-ping filtering as `303954b55`; bounded SSE filtering preserves terminal usage and focused streaming/close tests passed
+- Active queue commit: `c772d186666154aed2ae67ada9df2332f3955fb9` pending assessment
 
 ## High-risk verification notes
 
