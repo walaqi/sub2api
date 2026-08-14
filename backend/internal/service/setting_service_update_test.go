@@ -243,7 +243,10 @@ func TestSettingService_UpdateSettings_PersistsCompactHomeEnabled(t *testing.T) 
 	repo := &settingUpdateRepoStub{}
 	svc := NewSettingService(repo, &config.Config{})
 
-	err := svc.UpdateSettings(context.Background(), &SystemSettings{CompactHomeEnabled: true})
+	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		CompactHomeEnabled:   true,
+		DefaultSubscriptions: defaultSubsForTests(),
+	})
 
 	require.NoError(t, err)
 	require.Equal(t, "true", repo.updates[SettingKeyCompactHomeEnabled])
