@@ -6,14 +6,14 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 100
-- Awaiting user: 1
-- Merged: 119
+- Awaiting user: 0
+- Merged: 120
 - Skipped: 3
 - Failed/blocked: 0
-- Next index: 139
-- Next commit: `d99ee7291197f3a87c0073e8f0d20b439719b641`
-- Last action: assessed `d99ee7291` multi-platform upstream billing probe as high risk due credential-bearing outbound requests, persistent probe state, proxy invalidation and scheduler trust boundaries; recommend merge while keeping #140 automatic rate write-back as a separate high-risk decision
-- Active queue commit: `d99ee7291197f3a87c0073e8f0d20b439719b641` awaiting `merge|skip`
+- Next index: 140
+- Next commit: `11c1e944b91dd596186f5bf9aa80edc0655ffedd`
+- Last action: merged user-approved high-risk `d99ee7291` multi-platform upstream billing probe as `0dabf367d`; complete ordinary Go, independent integration, frontend typecheck/lint and focused security/repository/scheduler/frontend tests passed, while full Vitest and unit-tag retained only confirmed baseline exceptions
+- Active queue commit: none
 
 ## Post-merge follow-up
 
@@ -21,6 +21,7 @@
 
 ## High-risk verification notes
 
+- `d99ee7291`: user-approved multi-platform upstream billing probe merged as `0dabf367d`. The opt-in `/v1/sub2api/billing` probe now covers every API-key platform and may send an account key only to its configured custom base URL; known official Anthropic, Gemini, Antigravity, Grok and Ollama domains are suppressed without a request, while OpenAI retains its previous official-domain behavior. Unsupported targets back off for up to one day, credential/proxy changes invalidate snapshots, and CRS/admin state is reconciled consistently. Non-OpenAI declarations remain excluded from OpenAI scheduler cost ordering, and this commit does not write declared rates into local account billing multipliers, so gifts, recharge balances and super-invite accounting are unchanged. Focused probe security/repository/scheduler/frontend tests, complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1375/1377 with only known rollback and GroupsView mock baselines; unit-tag retained only the known three config environment-reachability keys and checker-nil balance failure.
 - `b22f73e72`: user-approved interrupted Anthropic stream usage billing merged as `4472af7c3`. OAuth and API-key passthrough streams now retain upstream-observed input, cache and output tokens across non-failover interruptions; failover errors remain result=nil and zero-observation interruptions create no usage row. Partial usage enters main's existing RecordUsage path, so recharge, group-scoped priority/proportional gifts and super-invite spend retain their established deduction semantics. Conflict adaptation moved main's ClientFingerprint and MetadataUserID into the shared success/partial-error submission closure. Stopped worker pools synchronously record during shutdown while configured overflow drops remain unchanged. Focused stream/failover/worker/gift/fingerprint tests and complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1371/1373 with only known rollback and GroupsView mock baselines; unit-tag retained only known config env-reachability and checker-nil failures.
 - `d4cada3b6`: user-approved OpenAI HTTP-200 SSE embedded rate-limit recovery merged as `bd6291cf4`, with main gift-engine test-fixture adaptation `49ea34803`. Embedded `response.failed` rate limits now enter semantic 429 failover and configured same-account retry across Responses, Chat, Anthropic compatibility and passthrough; compact keepalive comments permit replay before semantic output, Retry-After is preserved, and ordinary HTTP-200 quota headers do not install cooldown state. Failed attempts do not alter successful RecordUsage, group-scoped gift allocation or super-invite spend semantics. Focused stream/failover/billing tests and complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1371/1373 with only known rollback and GroupsView mock baselines; unit-tag retained only known config env-reachability and checker-nil failures. Fixed-snapshot #187 and #210 remain tracked for broader capacity-shed recovery and compact-keepalive exhausted-retry terminal-event behavior.
 - `d9fba8fe7`: user-approved filtered-result select-all and concurrent account deletion merged as `5f2ee740a`. Administrators can load every matching account ID and permanently delete the selected credential pool with concurrency limited to five. Deletion remains intentionally non-transactional; stable success/failed IDs are returned and failures remain selected for retry. Duplicate/non-positive IDs are normalized, selected Spark parent/shadow relationships collapse to parent cascade deletion, filter changes cancel selection, and incomplete multi-page ID loading preserves the prior selection. Gifts, recharge balances, super-invite, usage privacy and moderation are untouched. Focused backend and seven frontend workflow tests passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1371/1373 with only known rollback and GroupsView mock baselines; unit-tag retained only known config env-reachability and checker-nil failures.
