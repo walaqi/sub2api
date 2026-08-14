@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 84
+- Pending: 83
 - Awaiting user: 0
-- Merged: 134
+- Merged: 135
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 155
-- Next commit: `846dd310a320b19b8f96d922e56298ece09a32d1`
-- Last action: auto-merged medium-risk administrator spending-ranking username display `9b4575e43` as `e858f4cc0`; focused backend/frontend tests and typecheck passed, full Vitest retained only documented baselines
+- Next index: 156
+- Next commit: `770e35b474cbbffea4bce335ea1839adc24ae56d`
+- Last action: auto-merged medium-risk Claude Code OAuth authorization endpoint update `846dd310a` as `bc5e954d0`; complete oauth package tests passed
 - Active queue commit: none
 
 ## Post-merge follow-up
