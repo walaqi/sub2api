@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 112
-- Awaiting user: 1
-- Merged: 108
+- Pending: 111
+- Awaiting user: 0
+- Merged: 109
 - Skipped: 3
 - Failed/blocked: 0
-- Next index: 128
-- Next commit: `682c4fe0e61b851508fa976ac693e0f68a0639eb`
-- Last action: assessed `682c4fe0e` content-moderation proxy and SMTP STARTTLS parity as high risk and recommend merge; network egress, credential transport and combined Wire require full verification
-- Active queue commit: `682c4fe0e61b851508fa976ac693e0f68a0639eb` awaiting `merge|skip`
+- Next index: 129
+- Next commit: `2e338af822bc3bfafaf1e1834c2eea0c9ab87631`
+- Last action: user-approved `682c4fe0e` content-moderation proxy and SMTP STARTTLS parity merged as `2d9e8e528`; combined Wire regeneration and focused/full verification passed with established baselines only
+- Active queue commit: none
 
 ## Post-merge follow-up
 
@@ -21,6 +21,7 @@
 
 ## High-risk verification notes
 
+- `682c4fe0e`: user-approved content-moderation proxy routing and SMTP STARTTLS parity merged as `2d9e8e528`. Moderation text/images and API-key tests can use the selected proxy; resolution/build failure never falls back direct, and configuration changes invalidate the one-minute URL cache. SMTP send/test share implicit TLS, mandatory STARTTLS fallback and opportunistic STARTTLS; TLS-required mode never authenticates in plaintext and certificate/non-plaintext TLS errors do not downgrade. Wire was regenerated from main's combined graph, retaining gifts, super-invite, Passkey, Live and all current providers without restoring prompt-audit; missing Wire CLI checksums were added to `go.sum`. Focused security tests, complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1362/1364 with only known rollback failures and GroupsView mock rejections; unit-tag retained only known config env-reachability and checker-nil failures.
 - `04c96a201`: user-approved OpenAI OAuth namespace preserve-by-default behavior merged as `f74372957`. Non-compact OAuth Responses retain Codex namespace declarations and historical call namespaces; compact stays flattened, API-key behavior stays stripped/flattened, native WebSocket stays preserved, and an account compatibility switch restores legacy OAuth flattening. Per-attempt namespace state is cleared before failover. Main's model mapping, default instructions, image permission, gateway restriction, moderation, RecordUsage, group-scoped gifts and super-invite billing remain unchanged. Focused backend and 75 account UI tests, complete ordinary Go and complete integration passed; frontend lint/typecheck passed. Vitest passed 1353/1355 with only known rollback failures and GroupsView mock rejections; unit-tag retained only known config env-reachability and checker-nil failures.
 - `d29acc29a`: user-approved subscription quota-window alignment merged as `99c63a118`. Daily, weekly and monthly windows now anchor to exact activation, renewal or manual reset; exact expiry cannot open a new window, partial final periods remain usable, legacy initial-midnight anchors are normalized, and first activation uses a conditional update to preserve existing windows under stale concurrency. Subscription eligibility still feeds the existing RecordUsage path, so group-scoped gifts and super-invite spend are unchanged. Focused service and PostgreSQL CAS tests, complete ordinary Go and complete integration passed. Frontend lint/typecheck passed; Vitest passed 1347/1349 with only known rollback failures and GroupsView mock rejections; unit-tag retained only known config env-reachability and checker-nil failures.
 - `0eac363e6`: user-approved Grok pool-mode cooldown bypass merged as `40390b7e7`. API-key pool accounts retain quota/usage snapshots and current-request failover plus configured same-account retry, but default 401/402/403/429/5xx and successful exhausted-quota observations no longer install runtime or durable cooldowns; explicit configured 403 temporary rules still run first. Focused Grok scheduling tests and complete ordinary Go and integration tests passed. Frontend lint/typecheck passed; Vitest passed 1347/1349 with only the two known rollback failures and ten known GroupsView mock rejections; unit-tag retained only the three known config env-reachability keys and checker-nil balance failure.
