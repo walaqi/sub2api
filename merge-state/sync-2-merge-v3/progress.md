@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 93
-- Awaiting user: 0
+- Pending: 92
+- Awaiting user: 1
 - Merged: 127
 - Skipped: 3
 - Failed/blocked: 0
 - Next index: 147
 - Next commit: `724565e4aa0b06b60f044bf3e0b8414a2e6c7f6d`
-- Last action: auto-merged medium-risk `a03de418c8` administrator require_force refund UI wiring as `281588a06`, then added complete explicit-force workflow regression `21707b486`; focused Vitest, ESLint and typecheck passed
-- Active queue commit: none; assess `724565e4aa0b06b60f044bf3e0b8414a2e6c7f6d` next
+- Last action: assessed `724565e4a` insufficient-balance forced refund and transactional pending finalization as high risk; upstream's users.balance clamp conflicts with main's gift-inclusive balance, so merge requires recharge-pool-only assessment/deduction plus atomic pending finalization without changing gifts, affiliate or super-invite semantics
+- Active queue commit: `724565e4aa0b06b60f044bf3e0b8414a2e6c7f6d` awaiting `merge|skip`
 
 ## Post-merge follow-up
 
