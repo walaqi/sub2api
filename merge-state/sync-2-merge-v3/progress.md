@@ -6,14 +6,14 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 78
-- Awaiting user: 1
-- Merged: 139
+- Awaiting user: 0
+- Merged: 140
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 160
-- Next commit: `8b3fe664dc68d056a65942b7b309089d65dfb8f7`
-- Last action: assessed Tencent Captcha authentication gate `8b3fe664d` as high risk because it spans every new-user/authentication entry point, third-party SDK/CSP, secrets/settings and Wire while overlapping main email policy and super-invite attribution
-- Active queue commit: `8b3fe664dc68d056a65942b7b309089d65dfb8f7` awaiting `merge|skip`
+- Next index: 161
+- Next commit: `d431c57f2ecf96807b4d2aee6e407aa7cdf6c412`
+- Last action: merged user-approved high-risk Tencent Captcha gate `8b3fe664d` as `c8a28d8d4`; main trusted-client bypass, email/alias/invitation/gift semantics and combined Wire were preserved, and complete ordinary Go plus independent integration passed
+- Active queue commit: none
 
 ## Post-merge follow-up
 
@@ -21,6 +21,7 @@
 
 ## High-risk verification notes
 
+- `8b3fe664d`: user-approved complete Tencent Captcha authentication gate merged as `c8a28d8d4`. Password auth, verification/reset, Passkey, OAuth starts and pending account creation can use Tencent while ordinary clients fail closed; main's trusted-client app bypass was adapted to both unified and Tencent-only gates. Combined Wire retains gift engine, affiliate/referral/super-invite, content moderation, Live and Model Plaza; registration regex/suffix policy and alias dedup remain in every new-user flow, and administrator responses expose only secret-configured flags. Focused backend and 45 frontend tests, complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1443/1445 with only two known rollback failures and ten known GroupsView mock errors; unit-tag retained only three known config environment failures and the known CheckerNil failure.
 - `a4d263f62`: user-approved subscription-renewal serialization merged as `550d668f0`. Existing rows are locked and reread in the effective transaction, making concurrent extensions cumulative and preventing stale assignment reads from reactivating a later-suspended subscription. Payment fulfillment continues to reuse its outer transaction and main's post-commit cache invalidation/idempotency behavior is preserved; gifts, recharge-balance allocation and super-invite calculations are unchanged. Focused concurrency/lock/fulfillment tests, complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1415/1417 with only two known rollback failures and ten known GroupsView mock errors; unit-tag retained only three known config environment failures and the known CheckerNil failure.
 - `9fd7e7623`: user-approved process-wide canonical Codex identity enforcement/version sync merged as `64e22a315`, with main's version-contract adaptation in `22ce6d343`. Conflict resolution retained Image Studio, legacy disable compatibility, gift-engine fail-fast construction, content moderation, Live, model plaza, referral/super-invite and separate auth Redis while regenerating the combined Wire graph and adding the version-sync lifecycle. HTTP, OAuth passthrough, WebSocket, account tests, usage probes and alpha search share effective Codex 0.146.0 identity; capacity-shed retries do not create account cooldown state after exhaustion. RecordUsage, group-scoped gifts, recharge and super-invite semantics remain unchanged. Focused tests passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1413/1415 with only two known rollback failures and ten known GroupsView mock errors; unit-tag retained only three known config environment failures, and its service package passed cleanly.
 - `825ca7b1f`: user-approved OpenAI reset-credit refresh/recovery merged as `8fd54feab`. A successful non-refundable redemption is followed by bounded post-processing detached from client cancellation: error, rate-limit, overload, temporary-unschedulable and model-level runtime blocks are cleared while the administrator's manual `schedulable` switch remains unchanged; expiration-aware reset-credit snapshots and the refreshed account row are returned with explicit partial-success warnings. Spark shadows cannot reset parent credits, scheduler cache work stops on canceled requests, and frontend stale-count suppression prevents accidental duplicate consumption. RecordUsage, group-scoped gifts, recharge and super-invite accounting are unchanged. Focused unit and 44 frontend workflow tests passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1413/1415 with only the two known rollback assertions and ten known GroupsView mock rejections; unit-tag retained only the known three config environment-reachability failures and checker-nil balance failure.
