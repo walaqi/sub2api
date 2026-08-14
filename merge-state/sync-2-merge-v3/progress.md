@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 81
+- Pending: 80
 - Awaiting user: 0
-- Merged: 137
+- Merged: 138
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 158
-- Next commit: `ae81dfd93375c7b8432d3f7183f865b56d7404b5`
-- Last action: auto-merged medium-risk Model Plaza image-price display correction `35cab3c81` as `67aebe8aa`; focused backend, 13 frontend pricing tests and typecheck passed
+- Next index: 159
+- Next commit: `a4d263f62f1866726b271ecb09012fb70f3bbf37`
+- Last action: auto-merged medium-risk WebSocket terminal-event preservation on lease loss `ae81dfd93` as `41f3a7c02`; main fingerprint and per-turn billing hooks were retained and focused service/handler tests passed
 - Active queue commit: none
 
 ## Post-merge follow-up
