@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 116
+- Pending: 115
 - Awaiting user: 0
-- Merged: 105
+- Merged: 106
 - Skipped: 2
 - Failed/blocked: 0
-- Next index: 124
-- Next commit: `07f980b99f9d04a4328906f8f3c4dd7b1bee5e06`
-- Last action: user-approved high-risk `d29acc29a` subscription quota-window alignment merged as `99c63a118`; focused PostgreSQL CAS, complete ordinary Go and complete integration passed with only recorded frontend/unit-tag baselines
-- Active queue commit: none awaiting user; assess `07f980b99f9d04a4328906f8f3c4dd7b1bee5e06` next
+- Next index: 125
+- Next commit: `04c96a20155c2bc74141f219b04af420bb062158`
+- Last action: medium-risk `07f980b99` stale encrypted compaction recovery merged automatically as `4cb0df9cd`; focused sanitizer, HTTP/WS recovery, gift and invite tests passed
+- Active queue commit: none awaiting user; assess `04c96a20155c2bc74141f219b04af420bb062158` next
 
 ## High-risk verification notes
 
