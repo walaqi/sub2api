@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 108
+- Pending: 107
 - Awaiting user: 0
-- Merged: 112
+- Merged: 113
 - Skipped: 3
 - Failed/blocked: 0
-- Next index: 132
-- Next commit: `eb1c5c7ee866d58c8836c0d00ead33bd1a65b5a8`
-- Last action: user-approved high-risk `d9fba8fe7` filtered select-all and bounded concurrent account deletion merged as `5f2ee740a`, with complete high-risk verification
-- Active queue commit: `eb1c5c7ee866d58c8836c0d00ead33bd1a65b5a8` pending assessment
+- Next index: 133
+- Next commit: `dd9a177a62a8431e4d54cca061247fdcb29232eb`
+- Last action: auto-merged medium-risk `eb1c5c7ee` Responses tool-output image preservation as `9a1f8aa75`; focused compatibility tests passed
+- Active queue commit: `dd9a177a62a8431e4d54cca061247fdcb29232eb` pending assessment
 
 ## Post-merge follow-up
 
