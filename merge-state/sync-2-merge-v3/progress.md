@@ -5,15 +5,19 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 113
-- Awaiting user: 1
+- Pending: 112
+- Awaiting user: 0
 - Merged: 108
-- Skipped: 2
+- Skipped: 3
 - Failed/blocked: 0
-- Next index: 127
-- Next commit: `570ea74d122c9fc31ab83b164d9461611b73e084`
-- Last action: assessed `570ea74d1` narrow prompt-audit blocking scope as high risk and recommend skip because prompt-audit is removed and main's current moderation already audits latest user input; porting the prior model output would broaden current disclosure
-- Active queue commit: `570ea74d122c9fc31ab83b164d9461611b73e084` awaiting `merge|skip`
+- Next index: 128
+- Next commit: `682c4fe0e61b851508fa976ac693e0f68a0639eb`
+- Last action: user skipped `570ea74d1` prompt-audit-only incremental change and directed that the complete prompt-audit subsystem be merged after the overall sync finishes
+- Active queue commit: none
+
+## Post-merge follow-up
+
+- After all 224 effective queue items are resolved, merge the complete upstream `prompt-audit` subsystem as one separately assessed high-risk unit. Include its original prerequisite chain, all prompt-audit-only commits skipped during this sync, later fixes in the fixed snapshot, migrations, persistent queue/event storage, Wire providers, routes and admin frontend. Reconcile its responsibilities explicitly with main's existing content moderation instead of replacing or duplicating behavior accidentally, preserve Live/content-moderation adaptations and main billing/privacy customizations, then run complete ordinary, unit-tag, frontend and independent integration tests.
 
 ## High-risk verification notes
 
