@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 111
+- Pending: 110
 - Awaiting user: 0
-- Merged: 109
+- Merged: 110
 - Skipped: 3
 - Failed/blocked: 0
-- Next index: 129
-- Next commit: `2e338af822bc3bfafaf1e1834c2eea0c9ab87631`
-- Last action: user-approved `682c4fe0e` content-moderation proxy and SMTP STARTTLS parity merged as `2d9e8e528`; combined Wire regeneration and focused/full verification passed with established baselines only
+- Next index: 130
+- Next commit: `15b3c0c5aa768fc84901db2a233f80120c53f2a5`
+- Last action: auto-merged medium-risk `2e338af82` model-plaza filter alignment, table spacing and billing-mode-aware sorting as `737809a20`; focused frontend verification passed
 - Active queue commit: none
 
 ## Post-merge follow-up
