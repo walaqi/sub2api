@@ -924,7 +924,8 @@ func TestSettingService_PasskeySwitchPersistsAndDefaultsToConfigured(t *testing.
 	updateRepo := &settingUpdateRepoStub{}
 	updateService := NewSettingService(updateRepo, cfg)
 	require.NoError(t, updateService.UpdateSettings(context.Background(), &SystemSettings{
-		PasskeyEnabled: false,
+		PasskeyEnabled:       false,
+		DefaultSubscriptions: defaultSubsForTests(),
 	}))
 	require.Equal(t, "false", updateRepo.updates[SettingKeyPasskeyEnabled])
 
