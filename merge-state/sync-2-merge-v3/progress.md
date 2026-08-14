@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 144
+- Pending: 143
 - Awaiting user: 0
-- Merged: 78
+- Merged: 79
 - Skipped: 1
 - Failed/blocked: 0
-- Next index: 96
-- Next commit: `99c8e4bf7564823bafbab369acab6539e734c1bb`
-- Last action: low-risk Claude Sonnet 5 status alias `f2d824836` auto-merged as `1596ff9d8`; frontend lint/typecheck and all 6 indicator tests passed
+- Next index: 97
+- Next commit: `b9c7cb8e244fa252a706a7d301b915120dd60694`
+- Last action: medium-risk OpenAI Live store-outage finalize/usage resilience `99c8e4bf7` auto-merged as `67c422206`; all Live and initial-instructions-focused tests passed with main moderation/session/zero-cost semantics retained
 - Active queue commit: none
 
 ## High-risk verification notes
