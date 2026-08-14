@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 89
-- Awaiting user: 0
+- Pending: 88
+- Awaiting user: 1
 - Merged: 130
 - Skipped: 3
 - Failed/blocked: 0
 - Next index: 150
 - Next commit: `27e8f69a9e04d5919c7f4b6a4175c34af24e7eb2`
-- Last action: merged user-approved `684ab20a0` configured temporary-unschedulable OpenAI failover as `8063fa2bc`, added committed-response no-replay/no-cooldown regression `80bbf545a`, and completed ordinary, frontend and independent integration verification with only confirmed baselines
-- Active queue commit: none
+- Last action: assessed `27e8f69a9` Composite reasoning-effort policy as high risk because it rewrites requests across HTTP, Messages fallback and WebSocket, affects token cost, and must retain the Composite API-key group as main's gift/billing scope while using the concrete target only for policy applicability
+- Active queue commit: `27e8f69a9e04d5919c7f4b6a4175c34af24e7eb2` awaiting `merge|skip`
 
 ## Post-merge follow-up
 
