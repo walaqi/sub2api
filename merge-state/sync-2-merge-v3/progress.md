@@ -6,14 +6,14 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 102
-- Awaiting user: 1
-- Merged: 117
+- Awaiting user: 0
+- Merged: 118
 - Skipped: 3
 - Failed/blocked: 0
-- Next index: 137
-- Next commit: `b22f73e725236790f97d89bf0c3b908a48e591d5`
-- Last action: low-risk `d6d53052f` sponsor removal recorded as already-effective empty merge `1de374b48`; assessed `b22f73e72` interrupted-stream partial usage billing as high risk because it directly changes recharge, gift and super-invite charging boundaries
-- Active queue commit: `b22f73e725236790f97d89bf0c3b908a48e591d5` awaiting `merge|skip`
+- Next index: 138
+- Next commit: `b74024c7868ee88a0bf921306cbc22a2f922872a`
+- Last action: user-approved high-risk `b22f73e72` interrupted-stream partial usage billing merged as `4472af7c3`; conflict adaptation preserved main's client fingerprint and metadata user ID, and complete verification including independent integration passed with only documented baseline exceptions
+- Active queue commit: none
 
 ## Post-merge follow-up
 
@@ -21,6 +21,7 @@
 
 ## High-risk verification notes
 
+- `b22f73e72`: user-approved interrupted Anthropic stream usage billing merged as `4472af7c3`. OAuth and API-key passthrough streams now retain upstream-observed input, cache and output tokens across non-failover interruptions; failover errors remain result=nil and zero-observation interruptions create no usage row. Partial usage enters main's existing RecordUsage path, so recharge, group-scoped priority/proportional gifts and super-invite spend retain their established deduction semantics. Conflict adaptation moved main's ClientFingerprint and MetadataUserID into the shared success/partial-error submission closure. Stopped worker pools synchronously record during shutdown while configured overflow drops remain unchanged. Focused stream/failover/worker/gift/fingerprint tests and complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1371/1373 with only known rollback and GroupsView mock baselines; unit-tag retained only known config env-reachability and checker-nil failures.
 - `d4cada3b6`: user-approved OpenAI HTTP-200 SSE embedded rate-limit recovery merged as `bd6291cf4`, with main gift-engine test-fixture adaptation `49ea34803`. Embedded `response.failed` rate limits now enter semantic 429 failover and configured same-account retry across Responses, Chat, Anthropic compatibility and passthrough; compact keepalive comments permit replay before semantic output, Retry-After is preserved, and ordinary HTTP-200 quota headers do not install cooldown state. Failed attempts do not alter successful RecordUsage, group-scoped gift allocation or super-invite spend semantics. Focused stream/failover/billing tests and complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1371/1373 with only known rollback and GroupsView mock baselines; unit-tag retained only known config env-reachability and checker-nil failures. Fixed-snapshot #187 and #210 remain tracked for broader capacity-shed recovery and compact-keepalive exhausted-retry terminal-event behavior.
 - `d9fba8fe7`: user-approved filtered-result select-all and concurrent account deletion merged as `5f2ee740a`. Administrators can load every matching account ID and permanently delete the selected credential pool with concurrency limited to five. Deletion remains intentionally non-transactional; stable success/failed IDs are returned and failures remain selected for retry. Duplicate/non-positive IDs are normalized, selected Spark parent/shadow relationships collapse to parent cascade deletion, filter changes cancel selection, and incomplete multi-page ID loading preserves the prior selection. Gifts, recharge balances, super-invite, usage privacy and moderation are untouched. Focused backend and seven frontend workflow tests passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1371/1373 with only known rollback and GroupsView mock baselines; unit-tag retained only known config env-reachability and checker-nil failures.
 - `15b3c0c5a`: user-approved codex-auto-review fallback price correction merged as `2f654e34e`, with billing regression `766f4b676`. The user explicitly accepted the assumption that the unpublished internal model uses the official GPT-5.6 Luna base rates: $0.20 input, $0.02 cache read and $1.20 output per MTok; unsupported priority, batch/flex, cache-write and long-context derived tiers were removed. The regression proves a $1.42 ActualCost/BalanceCost flows into main's API-key-group gift allocator as $0.42 gift plus $1 recharge; super-invite spend consumes the same BalanceCost without semantic changes. Complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1364/1366 with only known rollback and GroupsView mock baselines; unit-tag retained only known config env-reachability and checker-nil failures.
