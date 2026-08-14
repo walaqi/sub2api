@@ -6,14 +6,14 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 99
-- Awaiting user: 1
-- Merged: 120
+- Awaiting user: 0
+- Merged: 121
 - Skipped: 3
 - Failed/blocked: 0
-- Next index: 140
-- Next commit: `11c1e944b91dd596186f5bf9aa80edc0655ffedd`
-- Last action: assessed `11c1e944b` optional upstream billing rate write-back as high risk because an enabled custom upstream can change account-cost reporting and account quota consumption after every successful probe; recommend merge because it is disabled by default and guarded by explicit per-account opt-in, range validation and transactional CAS, while user ActualCost, gifts, recharge and super-invite remain unchanged
-- Active queue commit: `11c1e944b91dd596186f5bf9aa80edc0655ffedd` awaiting `merge|skip`
+- Next index: 141
+- Next commit: `c043c24774228ba891ddf90d783aa6dc7d0855b5`
+- Last action: merged user-approved high-risk `11c1e944b` optional upstream billing rate write-back as `5fffb488b`; complete ordinary Go and independent integration, focused workflow/CAS tests and frontend typecheck/lint passed, while full Vitest and unit-tag retained only confirmed baseline exceptions
+- Active queue commit: none
 
 ## Post-merge follow-up
 
@@ -21,6 +21,7 @@
 
 ## High-risk verification notes
 
+- `11c1e944b`: user-approved optional upstream billing rate write-back merged as `5fffb488b`. API-key accounts may explicitly opt into copying a successful probe's resolved base multiplier into `accounts.rate_multiplier`; the feature is disabled by default, values must round above zero and not exceed 100, and failed, unsupported or invalid declarations preserve the current rate. Snapshot and rate write-back share an identity/snapshot/switch CAS transaction; stale probes cannot overwrite a manual rate after sync is disabled, and manual/bulk edits are blocked while sync owns the field. Conflict resolution retained main's notification-email and admin recharge affiliate dependencies plus its cross-platform bulk-edit block while adding the billing repository and new UI messages/tests. The account multiplier changes internal account cost/quota accounting, not user ActualCost, so recharge, group-scoped gifts and super-invite spend remain unchanged. Focused service/repository and 86 frontend workflow tests, complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1383/1385 with only known rollback and GroupsView mock baselines; unit-tag retained only the known three config environment-reachability keys and checker-nil balance failure.
 - `d99ee7291`: user-approved multi-platform upstream billing probe merged as `0dabf367d`. The opt-in `/v1/sub2api/billing` probe now covers every API-key platform and may send an account key only to its configured custom base URL; known official Anthropic, Gemini, Antigravity, Grok and Ollama domains are suppressed without a request, while OpenAI retains its previous official-domain behavior. Unsupported targets back off for up to one day, credential/proxy changes invalidate snapshots, and CRS/admin state is reconciled consistently. Non-OpenAI declarations remain excluded from OpenAI scheduler cost ordering, and this commit does not write declared rates into local account billing multipliers, so gifts, recharge balances and super-invite accounting are unchanged. Focused probe security/repository/scheduler/frontend tests, complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1375/1377 with only known rollback and GroupsView mock baselines; unit-tag retained only the known three config environment-reachability keys and checker-nil balance failure.
 - `b22f73e72`: user-approved interrupted Anthropic stream usage billing merged as `4472af7c3`. OAuth and API-key passthrough streams now retain upstream-observed input, cache and output tokens across non-failover interruptions; failover errors remain result=nil and zero-observation interruptions create no usage row. Partial usage enters main's existing RecordUsage path, so recharge, group-scoped priority/proportional gifts and super-invite spend retain their established deduction semantics. Conflict adaptation moved main's ClientFingerprint and MetadataUserID into the shared success/partial-error submission closure. Stopped worker pools synchronously record during shutdown while configured overflow drops remain unchanged. Focused stream/failover/worker/gift/fingerprint tests and complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1371/1373 with only known rollback and GroupsView mock baselines; unit-tag retained only known config env-reachability and checker-nil failures.
 - `d4cada3b6`: user-approved OpenAI HTTP-200 SSE embedded rate-limit recovery merged as `bd6291cf4`, with main gift-engine test-fixture adaptation `49ea34803`. Embedded `response.failed` rate limits now enter semantic 429 failover and configured same-account retry across Responses, Chat, Anthropic compatibility and passthrough; compact keepalive comments permit replay before semantic output, Retry-After is preserved, and ordinary HTTP-200 quota headers do not install cooldown state. Failed attempts do not alter successful RecordUsage, group-scoped gift allocation or super-invite spend semantics. Focused stream/failover/billing tests and complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1371/1373 with only known rollback and GroupsView mock baselines; unit-tag retained only known config env-reachability and checker-nil failures. Fixed-snapshot #187 and #210 remain tracked for broader capacity-shed recovery and compact-keepalive exhausted-retry terminal-event behavior.
