@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 153
+- Pending: 152
 - Awaiting user: 0
-- Merged: 69
+- Merged: 70
 - Skipped: 1
 - Failed/blocked: 0
-- Next index: 87
-- Next commit: `a12d88ed4b34ab87ae324eeda5008c7e84c667af`
-- Last action: low-risk model-ID copy `f71332ff8` merged as `f8e793e2b`; medium-risk Claude OAuth cache-breakpoint preservation `6c04e4195` merged as `c7ac278d2`; focused frontend, OAuth, cache billing and moderation tests passed
+- Next index: 88
+- Next commit: `20893dc4fd2977a66348877bbf14884881f2532b`
+- Last action: medium-risk API-key Codex web-search manifest fix `a12d88ed4` merged as `af7e36c6d`; manifest/cache, OAuth isolation and web-search tests passed
 - Active queue commit: none
 
 ## High-risk verification notes
