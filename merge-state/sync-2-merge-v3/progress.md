@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 128
-- Awaiting user: 0
+- Pending: 127
+- Awaiting user: 1
 - Merged: 93
 - Skipped: 2
 - Failed/blocked: 0
 - Next index: 112
 - Next commit: `bf0fc03ab7dbdf3b841261fa0fd022ab8f3093a0`
-- Last action: medium-risk Anthropic count_tokens max_tokens stripping `2be08f3f3` auto-merged as `c61950875`; focused OAuth/API-key/context-management tests passed
-- Active queue commit: none
+- Last action: assessed `bf0fc03ab` GLM-5.2 fallback pricing as high risk and recommend skip: model availability is official, but current Z.ai pay-as-you-go documentation does not publish a GLM-5.2 rate or confirm parity with GLM-5.1
+- Active queue commit: `bf0fc03ab7dbdf3b841261fa0fd022ab8f3093a0` awaiting `merge|skip`
 
 ## High-risk verification notes
 
