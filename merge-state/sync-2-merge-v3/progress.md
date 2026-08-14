@@ -6,14 +6,14 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 110
-- Awaiting user: 0
+- Awaiting user: 1
 - Merged: 110
 - Skipped: 3
 - Failed/blocked: 0
 - Next index: 130
 - Next commit: `15b3c0c5aa768fc84901db2a233f80120c53f2a5`
-- Last action: auto-merged medium-risk `2e338af82` model-plaza filter alignment, table spacing and billing-mode-aware sorting as `737809a20`; focused frontend verification passed
-- Active queue commit: none
+- Last action: assessed `15b3c0c5a` codex-auto-review 25x price reduction as high risk and recommend merge with the explicit assumption that the unpublished internal model uses official GPT-5.6 Luna base rates
+- Active queue commit: `15b3c0c5aa768fc84901db2a233f80120c53f2a5` awaiting `merge|skip`
 
 ## Post-merge follow-up
 
