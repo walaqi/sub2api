@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 99
-- Awaiting user: 0
+- Pending: 98
+- Awaiting user: 1
 - Merged: 121
 - Skipped: 3
 - Failed/blocked: 0
 - Next index: 141
 - Next commit: `c043c24774228ba891ddf90d783aa6dc7d0855b5`
-- Last action: merged user-approved high-risk `11c1e944b` optional upstream billing rate write-back as `5fffb488b`; complete ordinary Go and independent integration, focused workflow/CAS tests and frontend typecheck/lint passed, while full Vitest and unit-tag retained only confirmed baseline exceptions
-- Active queue commit: none
+- Last action: assessed `c043c2477` per-group token profit-control scheduler as high risk because it adds two migrations and a cross-protocol candidate veto based on user price and account cost; recommend merge with migrations renumbered to 211/212 and Ent regenerated from the combined schema, while explicitly retaining nominal pricing-margin semantics that do not treat gifts or super-invite rewards as cash costs
+- Active queue commit: `c043c24774228ba891ddf90d783aa6dc7d0855b5` awaiting `merge|skip`
 
 ## Post-merge follow-up
 
