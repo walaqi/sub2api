@@ -146,7 +146,7 @@ func TestPrepDeductBalanceRequiresForceWhenBalanceIsInsufficient(t *testing.T) {
 				require.NotNil(t, result)
 				require.False(t, result.Success)
 				require.True(t, result.RequireForce)
-				require.Equal(t, "user balance is insufficient for deduction, use force", result.Warning)
+				require.Equal(t, "user recharge balance is insufficient for deduction, use force", result.Warning)
 				require.Zero(t, plan.BalanceToDeduct)
 				return
 			}

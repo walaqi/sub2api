@@ -500,6 +500,65 @@ func (s *UserRepoSuite) TestDeductAvailableBalance_ClampsToNonnegativeBalance() 
 	}
 }
 
+func (s *UserRepoSuite) TestDeductAvailableBalance_PreservesActiveGifts() {
+	user := s.mustCreateUser(&service.User{Email: "refund-active-gift@test.com", Balance: 100})
+	gift, err := s.client.UserGift.Create().
+		SetUserID(user.ID).
+		SetAmount(60).
+		SetRemaining(60).
+		SetDeductionMode("priority").
+		SetSource("manual").
+		SetStatus("active").
+		Save(s.ctx)
+	s.Require().NoError(err)
+
+	deducted, err := s.repo.DeductAvailableBalance(s.ctx, user.ID, 80)
+	s.Require().NoError(err)
+	s.Require().InDelta(40, deducted, 1e-6, "only the recharge pool is refundable")
+
+	got, err := s.repo.GetByID(s.ctx, user.ID)
+	s.Require().NoError(err)
+	s.Require().InDelta(60, got.Balance, 1e-6)
+	unchangedGift, err := s.client.UserGift.Get(s.ctx, gift.ID)
+	s.Require().NoError(err)
+	s.Require().InDelta(60, unchangedGift.Remaining, 1e-6, "refund must not consume gift balance")
+	s.Require().Equal("active", unchangedGift.Status)
+}
+
+func (s *UserRepoSuite) TestDeductAvailableBalance_IgnoresUnavailableGifts() {
+	for _, tc := range []struct {
+		name      string
+		status    string
+		expiresAt *time.Time
+	}{
+		{name: "exhausted", status: "exhausted"},
+		{name: "expired", status: "active", expiresAt: func() *time.Time { v := time.Now().Add(-time.Hour); return &v }()},
+	} {
+		s.Run(tc.name, func() {
+			user := s.mustCreateUser(&service.User{Email: "refund-unavailable-" + tc.name + "@test.com", Balance: 50})
+			create := s.client.UserGift.Create().
+				SetUserID(user.ID).
+				SetAmount(30).
+				SetRemaining(30).
+				SetDeductionMode("priority").
+				SetSource("manual").
+				SetStatus(tc.status)
+			if tc.expiresAt != nil {
+				create = create.SetExpiresAt(*tc.expiresAt)
+			}
+			_, err := create.Save(s.ctx)
+			s.Require().NoError(err)
+
+			deducted, err := s.repo.DeductAvailableBalance(s.ctx, user.ID, 50)
+			s.Require().NoError(err)
+			s.Require().InDelta(50, deducted, 1e-6)
+			got, err := s.repo.GetByID(s.ctx, user.ID)
+			s.Require().NoError(err)
+			s.Require().InDelta(0, got.Balance, 1e-6)
+		})
+	}
+}
+
 // --- Concurrency ---
 
 func (s *UserRepoSuite) TestUpdateConcurrency() {
