@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 104
-- Awaiting user: 1
-- Merged: 115
+- Pending: 103
+- Awaiting user: 0
+- Merged: 116
 - Skipped: 3
 - Failed/blocked: 0
-- Next index: 135
-- Next commit: `d4cada3b6bd1098b11593102de0d1aab535aa016`
-- Last action: assessed `d4cada3b6` OpenAI SSE in-stream rate-limit retry as high risk; recommend merge with explicit tracking of fixed-snapshot follow-up #210 for compact-keepalive exhaustion semantics
-- Active queue commit: `d4cada3b6bd1098b11593102de0d1aab535aa016` awaiting `merge|skip`
+- Next index: 136
+- Next commit: `d6d53052f808b9b13001eb927e361f8458b453f0`
+- Last action: user-approved high-risk `d4cada3b6` OpenAI SSE in-stream rate-limit retry merged as `bd6291cf4`, with main gift-constructor test adaptation `49ea34803`; complete verification including independent integration passed with only documented baseline exceptions
+- Active queue commit: none
 
 ## Post-merge follow-up
 
@@ -21,6 +21,7 @@
 
 ## High-risk verification notes
 
+- `d4cada3b6`: user-approved OpenAI HTTP-200 SSE embedded rate-limit recovery merged as `bd6291cf4`, with main gift-engine test-fixture adaptation `49ea34803`. Embedded `response.failed` rate limits now enter semantic 429 failover and configured same-account retry across Responses, Chat, Anthropic compatibility and passthrough; compact keepalive comments permit replay before semantic output, Retry-After is preserved, and ordinary HTTP-200 quota headers do not install cooldown state. Failed attempts do not alter successful RecordUsage, group-scoped gift allocation or super-invite spend semantics. Focused stream/failover/billing tests and complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1371/1373 with only known rollback and GroupsView mock baselines; unit-tag retained only known config env-reachability and checker-nil failures. Fixed-snapshot #187 and #210 remain tracked for broader capacity-shed recovery and compact-keepalive exhausted-retry terminal-event behavior.
 - `d9fba8fe7`: user-approved filtered-result select-all and concurrent account deletion merged as `5f2ee740a`. Administrators can load every matching account ID and permanently delete the selected credential pool with concurrency limited to five. Deletion remains intentionally non-transactional; stable success/failed IDs are returned and failures remain selected for retry. Duplicate/non-positive IDs are normalized, selected Spark parent/shadow relationships collapse to parent cascade deletion, filter changes cancel selection, and incomplete multi-page ID loading preserves the prior selection. Gifts, recharge balances, super-invite, usage privacy and moderation are untouched. Focused backend and seven frontend workflow tests passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1371/1373 with only known rollback and GroupsView mock baselines; unit-tag retained only known config env-reachability and checker-nil failures.
 - `15b3c0c5a`: user-approved codex-auto-review fallback price correction merged as `2f654e34e`, with billing regression `766f4b676`. The user explicitly accepted the assumption that the unpublished internal model uses the official GPT-5.6 Luna base rates: $0.20 input, $0.02 cache read and $1.20 output per MTok; unsupported priority, batch/flex, cache-write and long-context derived tiers were removed. The regression proves a $1.42 ActualCost/BalanceCost flows into main's API-key-group gift allocator as $0.42 gift plus $1 recharge; super-invite spend consumes the same BalanceCost without semantic changes. Complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1364/1366 with only known rollback and GroupsView mock baselines; unit-tag retained only known config env-reachability and checker-nil failures.
 - `682c4fe0e`: user-approved content-moderation proxy routing and SMTP STARTTLS parity merged as `2d9e8e528`. Moderation text/images and API-key tests can use the selected proxy; resolution/build failure never falls back direct, and configuration changes invalidate the one-minute URL cache. SMTP send/test share implicit TLS, mandatory STARTTLS fallback and opportunistic STARTTLS; TLS-required mode never authenticates in plaintext and certificate/non-plaintext TLS errors do not downgrade. Wire was regenerated from main's combined graph, retaining gifts, super-invite, Passkey, Live and all current providers without restoring prompt-audit; missing Wire CLI checksums were added to `go.sum`. Focused security tests, complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1362/1364 with only known rollback failures and GroupsView mock rejections; unit-tag retained only known config env-reachability and checker-nil failures.
