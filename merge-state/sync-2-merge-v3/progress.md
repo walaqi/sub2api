@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 102
+- Pending: 101
 - Awaiting user: 0
-- Merged: 118
+- Merged: 119
 - Skipped: 3
 - Failed/blocked: 0
-- Next index: 138
-- Next commit: `b74024c7868ee88a0bf921306cbc22a2f922872a`
-- Last action: user-approved high-risk `b22f73e72` interrupted-stream partial usage billing merged as `4472af7c3`; conflict adaptation preserved main's client fingerprint and metadata user ID, and complete verification including independent integration passed with only documented baseline exceptions
+- Next index: 139
+- Next commit: `d99ee7291197f3a87c0073e8f0d20b439719b641`
+- Last action: medium-risk `b74024c78` OpenAI WebSocket passthrough close-frame cancellation race fix merged as `1d71ffee5`; complete openai_ws_v2 package passed
 - Active queue commit: none
 
 ## Post-merge follow-up
