@@ -6,14 +6,14 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 86
-- Awaiting user: 1
-- Merged: 132
+- Awaiting user: 0
+- Merged: 133
 - Skipped: 3
 - Failed/blocked: 0
-- Next index: 152
-- Next commit: `9fd7e762316367d45188040b054bbd62157239c9`
-- Last action: assessed `9fd7e7623` process-wide Codex identity enforcement/version sync as high risk because it supersedes the prior targeted load-shed normalization across every outbound path, adds default-on GitHub release polling and changes overload retry/cooldown scheduling semantics
-- Active queue commit: `9fd7e762316367d45188040b054bbd62157239c9` awaiting `merge|skip`
+- Next index: 153
+- Next commit: `1f4cfc44c1d0c24ce363947b3ba80e8db580650b`
+- Last action: merged user-approved high-risk `9fd7e7623` as `64e22a315` with main version-contract adaptation `22ce6d343`; complete ordinary Go and independent integration passed, and frontend/unit-tag retained only documented baseline exceptions
+- Active queue commit: none
 
 ## Post-merge follow-up
 
@@ -21,6 +21,7 @@
 
 ## High-risk verification notes
 
+- `9fd7e7623`: user-approved process-wide canonical Codex identity enforcement/version sync merged as `64e22a315`, with main's version-contract adaptation in `22ce6d343`. Conflict resolution retained Image Studio, legacy disable compatibility, gift-engine fail-fast construction, content moderation, Live, model plaza, referral/super-invite and separate auth Redis while regenerating the combined Wire graph and adding the version-sync lifecycle. HTTP, OAuth passthrough, WebSocket, account tests, usage probes and alpha search share effective Codex 0.146.0 identity; capacity-shed retries do not create account cooldown state after exhaustion. RecordUsage, group-scoped gifts, recharge and super-invite semantics remain unchanged. Focused tests passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1413/1415 with only two known rollback failures and ten known GroupsView mock errors; unit-tag retained only three known config environment failures, and its service package passed cleanly.
 - `825ca7b1f`: user-approved OpenAI reset-credit refresh/recovery merged as `8fd54feab`. A successful non-refundable redemption is followed by bounded post-processing detached from client cancellation: error, rate-limit, overload, temporary-unschedulable and model-level runtime blocks are cleared while the administrator's manual `schedulable` switch remains unchanged; expiration-aware reset-credit snapshots and the refreshed account row are returned with explicit partial-success warnings. Spark shadows cannot reset parent credits, scheduler cache work stops on canceled requests, and frontend stale-count suppression prevents accidental duplicate consumption. RecordUsage, group-scoped gifts, recharge and super-invite accounting are unchanged. Focused unit and 44 frontend workflow tests passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1413/1415 with only the two known rollback assertions and ten known GroupsView mock rejections; unit-tag retained only the known three config environment-reachability failures and checker-nil balance failure.
 - `27e8f69a9`: user-approved Composite reasoning-effort policy merged as `5e78b159d`. The ceiling/mapping applies only when the request's concrete target is OpenAI across Responses, Chat Completions, Anthropic Messages conversion/raw fallback and every Responses WebSocket turn; omitted Messages effort remains omitted. Admin create/update, API-key cache snapshots and UI configuration were retained. Concrete platform resolution is used only for policy applicability, while RecordUsage retains the original Composite API-key group for main's group-scoped priority/proportional gift allocation; recharge and super-invite accounting semantics are unchanged. Focused cross-protocol, target-isolation, fallback, WebSocket, frontend and gift-scope tests passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1405/1407 with only the two known rollback assertions and ten known GroupsView mock rejections; unit-tag retained only the known three config environment-reachability failures and checker-nil balance failure.
 - `684ab20a0`: user-approved configured temporary-unschedulable OpenAI failover merged as `8063fa2bc`, with response-commit regression `80bbf545a`. Messages, Responses, Chat Completions, raw and compatibility fallbacks may switch accounts only before response commitment; matching rules apply model/account cooldown, while committed responses and nil contexts do not replay or mutate scheduling and Grok remains excluded. Failed attempts return result=nil before RecordUsage, so only a successful account can deduct recharge/gifts or advance super-invite spend. Focused Messages, commit-boundary, Grok and failover/billing tests passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1405/1407 with only known rollback assertions and GroupsView mock errors; unit-tag retained only known config reachability and checker-nil failures.
