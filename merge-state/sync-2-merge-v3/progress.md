@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 79
-- Awaiting user: 0
+- Pending: 78
+- Awaiting user: 1
 - Merged: 139
 - Skipped: 4
 - Failed/blocked: 0
 - Next index: 160
 - Next commit: `8b3fe664dc68d056a65942b7b309089d65dfb8f7`
-- Last action: merged user-approved high-risk subscription renewal serialization `a4d263f62` as `550d668f0`; focused, complete ordinary Go and independent integration passed, with only documented unit/frontend baselines
-- Active queue commit: none
+- Last action: assessed Tencent Captcha authentication gate `8b3fe664d` as high risk because it spans every new-user/authentication entry point, third-party SDK/CSP, secrets/settings and Wire while overlapping main email policy and super-invite attribution
+- Active queue commit: `8b3fe664dc68d056a65942b7b309089d65dfb8f7` awaiting `merge|skip`
 
 ## Post-merge follow-up
 
