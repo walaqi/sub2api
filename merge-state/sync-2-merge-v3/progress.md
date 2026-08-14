@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 127
+- Pending: 126
 - Awaiting user: 0
-- Merged: 94
+- Merged: 95
 - Skipped: 2
 - Failed/blocked: 0
-- Next index: 113
-- Next commit: `f9d2791693369c3212f7fe79cc2196971d2d2fe3`
-- Last action: user-approved high-risk `bf0fc03ab` GLM-5.2 fallback pricing merged as `a82b476ac`; complete Go and isolated complete integration passed, with only established frontend and unit-tag baseline exceptions
-- Active queue commit: `f9d2791693369c3212f7fe79cc2196971d2d2fe3` pending assessment
+- Next index: 114
+- Next commit: `26d894ef4f50645a4bf1030e378ac892f17d0223`
+- Last action: auto-merged medium-risk `f9d279169` release resource packaging as `c06690b1a`; fallback pricing resources are now present in release images and focused deployment checks passed
+- Active queue commit: `26d894ef4f50645a4bf1030e378ac892f17d0223` pending assessment
 
 ## High-risk verification notes
 
