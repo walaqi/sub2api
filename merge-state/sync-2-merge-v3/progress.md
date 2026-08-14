@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 145
+- Pending: 144
 - Awaiting user: 0
-- Merged: 77
+- Merged: 78
 - Skipped: 1
 - Failed/blocked: 0
-- Next index: 95
-- Next commit: `f2d824836f1cbdfc695eaca03fe4db6f760281c9`
-- Last action: low-risk Passkey disabled-state toast fix `6e1cbed423` auto-merged as `65211e1c2`; frontend lint/typecheck and 36 focused tests passed
+- Next index: 96
+- Next commit: `99c8e4bf7564823bafbab369acab6539e734c1bb`
+- Last action: low-risk Claude Sonnet 5 status alias `f2d824836` auto-merged as `1596ff9d8`; frontend lint/typecheck and all 6 indicator tests passed
 - Active queue commit: none
 
 ## High-risk verification notes
