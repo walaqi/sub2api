@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 120
+- Pending: 119
 - Awaiting user: 0
-- Merged: 101
+- Merged: 102
 - Skipped: 2
 - Failed/blocked: 0
-- Next index: 120
-- Next commit: `132d446ca92f6f86c9d918ba67cb49af66d19c6e`
-- Last action: user-approved high-risk `0eac363e6` Grok pool-mode cooldown bypass merged as `40390b7e7`; complete ordinary Go and integration tests passed, with only recorded frontend and unit-tag baseline exceptions
-- Active queue commit: none awaiting user; assess `132d446ca92f6f86c9d918ba67cb49af66d19c6e` next
+- Next index: 121
+- Next commit: `da6194c1c37078a87d8e9adec0f2ddff46f22f57`
+- Last action: medium-risk `132d446ca` payment-config PATCH semantics merged automatically as `e3ace89f7`; focused payment configuration and visible-method routing tests passed
+- Active queue commit: none awaiting user; assess `da6194c1c37078a87d8e9adec0f2ddff46f22f57` next
 
 ## High-risk verification notes
 
