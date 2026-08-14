@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 105
-- Awaiting user: 0
+- Pending: 104
+- Awaiting user: 1
 - Merged: 115
 - Skipped: 3
 - Failed/blocked: 0
 - Next index: 135
 - Next commit: `d4cada3b6bd1098b11593102de0d1aab535aa016`
-- Last action: auto-merged medium-risk `8f5caef78` Claude Code multi-system-entry classifier compatibility as `dc319f7d6`; validator, handler and forwarding tests passed
-- Active queue commit: `d4cada3b6bd1098b11593102de0d1aab535aa016` pending assessment
+- Last action: assessed `d4cada3b6` OpenAI SSE in-stream rate-limit retry as high risk; recommend merge with explicit tracking of fixed-snapshot follow-up #210 for compact-keepalive exhaustion semantics
+- Active queue commit: `d4cada3b6bd1098b11593102de0d1aab535aa016` awaiting `merge|skip`
 
 ## Post-merge follow-up
 
