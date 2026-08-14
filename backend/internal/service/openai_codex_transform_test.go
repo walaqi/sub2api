@@ -12,7 +12,7 @@ import (
 // 现有测试都用生产常量自身作为 expected，无法防止漏改其中一处。这里硬编码期望版本，
 // 任何一处未同步都会直接 fail，提醒开发者四处一起改。升级版本时同步更新本测试。
 func TestCodexVersionConstantsInSync(t *testing.T) {
-	const wantVersion = "0.144.4"
+	const wantVersion = "0.146.0"
 
 	require.Equal(t, wantVersion, codexCLIVersion,
 		"codexCLIVersion (forwarded Version header) out of sync")
