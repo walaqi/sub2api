@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 88
-- Awaiting user: 0
+- Pending: 87
+- Awaiting user: 1
 - Merged: 131
 - Skipped: 3
 - Failed/blocked: 0
 - Next index: 151
 - Next commit: `825ca7b1fc9335f904bc077f051de815fb61e47f`
-- Last action: merged user-approved high-risk `27e8f69a9` Composite reasoning-effort policy as `5e78b159d`; concrete OpenAI targets select policy applicability while the original Composite API-key group remains the gift/billing scope, and the complete high-risk test matrix passed with only documented baseline exceptions
-- Active queue commit: `825ca7b1fc9335f904bc077f051de815fb61e47f` pending assessment
+- Last action: assessed `825ca7b1f` OpenAI reset-credit refresh/recovery as high risk because it consumes a non-refundable upstream credit before recovering scheduler state and persisting UI cache; partial success can leave irreversible credit consumption, scheduler state and displayed availability inconsistent
+- Active queue commit: `825ca7b1fc9335f904bc077f051de815fb61e47f` awaiting `merge|skip`
 
 ## Post-merge follow-up
 
