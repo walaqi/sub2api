@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 139
+- Pending: 138
 - Awaiting user: 0
-- Merged: 83
+- Merged: 84
 - Skipped: 1
 - Failed/blocked: 0
-- Next index: 101
-- Next commit: `c9156c1e7f3bbe8251fdcc283e8d926c82704ba9`
-- Last action: low-risk Ops cleanup success log-level fix `91850d36e` auto-merged as `1ad12d8f2`; unit and ordinary focused tests passed
+- Next index: 102
+- Next commit: `1f8b3a9c60f8a6925677d77a28a514ba6f0cacfa`
+- Last action: medium-risk OAuth refresh candidate filter `c9156c1e7` auto-merged as `5fc0344b8`; permanently unschedulable accounts are excluded while temporary recovery refresh remains intact, and focused repository/service tests passed
 - Active queue commit: none
 
 ## High-risk verification notes
