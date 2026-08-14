@@ -6,18 +6,18 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 146
-- Awaiting user: 1
-- Merged: 75
+- Awaiting user: 0
+- Merged: 76
 - Skipped: 1
 - Failed/blocked: 0
-- Next index: 93
-- Next commit: `8fd01c2814f42997d79bdb4bafcbcfab2fabeee3`
-- Last action: assessed `8fd01c281` model plaza as high risk; it duplicates main's existing models-plaza with incompatible routes, settings, visibility and pricing semantics, and its pricing/composite corrections only arrive in later queue commits; recommendation is skip
-- Active queue commit: `8fd01c2814f42997d79bdb4bafcbcfab2fabeee3` awaiting `merge|skip`
+- Next index: 94
+- Next commit: `6e1cbed423b2088b2611ff21f173b69f8ac8b197`
+- Last action: user-approved replacement merge `8fd01c281` landed as `6037b5c78`; the broken plural models-plaza implementation was removed and upstream's singular model-plaza is now the sole implementation, with full Go/integration and frontend gates completed
+- Active queue commit: none
 
 ## High-risk verification notes
 
-- `8fd01c281`: awaiting user decision, recommendation `skip`. Main already contains the public `/models-plaza` catalog with its own opt-in setting, public-group-only visibility, standard/recharge price model, metadata and default-group behavior. This commit adds a parallel `/model-plaza` product with separate settings, handler/service graph and frontend, optionally showing allowed exclusive groups and per-user multipliers to authenticated users. Keeping both would duplicate administrator controls and navigation while exposing different catalogs and price meanings. The new implementation also needs later queue fixes `35cab3c81` and `8f55e0a7c` for image-price settlement parity and composite-group models, so this commit alone is not its final correct state.
+- `8fd01c281`: user-approved replacement merge landed as `6037b5c78`, with test-fixture adaptation `fe683fd41`. Main's nonfunctional plural `/models-plaza` API, aggregation service, settings, sidebar route and frontend were removed; upstream's singular `/model-plaza` is now the only implementation. Combined Wire retains the gift engine, Image Studio, recharge discount, referral/super-invite, activity/keybind and websearch health providers while adding OptionalJWT. Anonymous visibility is limited to non-exclusive groups; authenticated users may see explicitly allowed exclusive groups and personal rates. Focused plaza/auth/frontend tests passed; complete Go and integration passed; frontend lint/typecheck passed; Vitest passed 1332/1334 with only the two known rollback-timeout assertions. Unit-tag tests retained only known config environment-reachability and checker-nil baselines. Later queue commits `35cab3c81` and `8f55e0a7c` remain responsible for image-price settlement parity and composite-group models.
 - `39903f006`: user-approved scoped User/API-key update refactor merged as `fe8f7aa2d`. Explicit field masks prevent stale profile/key snapshots from overwriting concurrent billing, bans, limits and usage counters. Administrator add/set/subtract now updates `users.balance` atomically; gift rows remain unchanged, preserving the derived recharge-pool model, while positive admin adds still accrue affiliate rewards and invalidate auth/billing caches. Conflict resolution retained main's stricter API-key name validation and gift-engine fallback billing coverage. Focused field-mask, balance, gift/referral/billing and PostgreSQL lost-update tests passed; complete Go and integration passed; frontend lint/typecheck passed; Vitest passed 1324/1326 with only the two known rollback-timeout failures and ten known GroupsView mocks missing `getLiveCapability`. The unit-tag suite retained only known config environment-reachability and checker-nil baseline failures.
 - `2e432173f`: user-approved Passkey/WebAuthn authentication subsystem merged as `800b1b479`. It is disabled by default and requires explicit RP ID/origins, production HTTPS and user verification; enrollment/revocation is password-gated and ceremonies are one-time Redis sessions. Upstream migration 191 was renumbered to 210. Wire was regenerated from the combined provider graph, retaining main's gift engine and all custom handlers. Passkey credential bodies are omitted from audit logs while the removed prompt-audit subsystem remains absent. Complete Go and integration passed; frontend lint/typecheck passed; focused Passkey/settings/profile tests passed 33/33; Vitest passed 1324/1326 with only the two known rollback-timeout failures and ten known GroupsView mocks missing `getLiveCapability`.
 - `0ef2228ce`: user-approved Kimi K3 support merged as `07b4f0bdb`. Exact K3 aliases receive $3/$15/$0.30 per MTok input/output/cache-read fallback pricing while near aliases remain unpriced; K3 thinking passback, OpenAI OAuth exclusion and Moonshot default allowlist entries are active. ActualCost continues through RecordUsage, group-scoped gift allocation and super-invite spend. Complete Go and integration passed; frontend lint/typecheck passed; Vitest passed 1319/1321 with only the two known rollback-timeout failures and ten known GroupsView mocks missing `getLiveCapability`.
