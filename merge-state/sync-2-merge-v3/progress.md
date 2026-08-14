@@ -6,14 +6,14 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 87
-- Awaiting user: 1
-- Merged: 131
+- Awaiting user: 0
+- Merged: 132
 - Skipped: 3
 - Failed/blocked: 0
-- Next index: 151
-- Next commit: `825ca7b1fc9335f904bc077f051de815fb61e47f`
-- Last action: assessed `825ca7b1f` OpenAI reset-credit refresh/recovery as high risk because it consumes a non-refundable upstream credit before recovering scheduler state and persisting UI cache; partial success can leave irreversible credit consumption, scheduler state and displayed availability inconsistent
-- Active queue commit: `825ca7b1fc9335f904bc077f051de815fb61e47f` awaiting `merge|skip`
+- Next index: 152
+- Next commit: `9fd7e762316367d45188040b054bbd62157239c9`
+- Last action: merged user-approved high-risk `825ca7b1f` OpenAI reset-credit refresh/recovery as `8fd54feab`; irreversible redemption is followed by cancellation-independent account recovery and expiration-aware cache refresh, with complete tests passing except documented baselines
+- Active queue commit: `9fd7e762316367d45188040b054bbd62157239c9` pending assessment
 
 ## Post-merge follow-up
 
@@ -21,6 +21,7 @@
 
 ## High-risk verification notes
 
+- `825ca7b1f`: user-approved OpenAI reset-credit refresh/recovery merged as `8fd54feab`. A successful non-refundable redemption is followed by bounded post-processing detached from client cancellation: error, rate-limit, overload, temporary-unschedulable and model-level runtime blocks are cleared while the administrator's manual `schedulable` switch remains unchanged; expiration-aware reset-credit snapshots and the refreshed account row are returned with explicit partial-success warnings. Spark shadows cannot reset parent credits, scheduler cache work stops on canceled requests, and frontend stale-count suppression prevents accidental duplicate consumption. RecordUsage, group-scoped gifts, recharge and super-invite accounting are unchanged. Focused unit and 44 frontend workflow tests passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1413/1415 with only the two known rollback assertions and ten known GroupsView mock rejections; unit-tag retained only the known three config environment-reachability failures and checker-nil balance failure.
 - `27e8f69a9`: user-approved Composite reasoning-effort policy merged as `5e78b159d`. The ceiling/mapping applies only when the request's concrete target is OpenAI across Responses, Chat Completions, Anthropic Messages conversion/raw fallback and every Responses WebSocket turn; omitted Messages effort remains omitted. Admin create/update, API-key cache snapshots and UI configuration were retained. Concrete platform resolution is used only for policy applicability, while RecordUsage retains the original Composite API-key group for main's group-scoped priority/proportional gift allocation; recharge and super-invite accounting semantics are unchanged. Focused cross-protocol, target-isolation, fallback, WebSocket, frontend and gift-scope tests passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1405/1407 with only the two known rollback assertions and ten known GroupsView mock rejections; unit-tag retained only the known three config environment-reachability failures and checker-nil balance failure.
 - `684ab20a0`: user-approved configured temporary-unschedulable OpenAI failover merged as `8063fa2bc`, with response-commit regression `80bbf545a`. Messages, Responses, Chat Completions, raw and compatibility fallbacks may switch accounts only before response commitment; matching rules apply model/account cooldown, while committed responses and nil contexts do not replay or mutate scheduling and Grok remains excluded. Failed attempts return result=nil before RecordUsage, so only a successful account can deduct recharge/gifts or advance super-invite spend. Focused Messages, commit-boundary, Grok and failover/billing tests passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1405/1407 with only known rollback assertions and GroupsView mock errors; unit-tag retained only known config reachability and checker-nil failures.
 - `724565e4a`: user-approved forced-refund hardening merged as `0f9166c06`, with main gift-isolation regression `04e16422a`. Refund preparation now reports `require_force` against recharge_pool rather than gift-inclusive total balance. Actual ordinary and pending-finalization deductions lock the user and active nonexpired gift rows, clamp to current recharge funds, and leave gift rows unchanged. Pending completion atomically claims the order, deducts recharge funds, writes final status and audit, and commits, preventing duplicate finalization and rolling back post-deduction failures. Main's independent read-only FIFO refund-assessment subsystem remains unchanged. Focused refund/audit/rollback/FIFO tests and real PostgreSQL active/expired/exhausted gift tests passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1405/1407 with only known rollback assertions and GroupsView mock errors; unit-tag retained only known config reachability and checker-nil failures.
