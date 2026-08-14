@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 132
+- Pending: 131
 - Awaiting user: 0
-- Merged: 89
+- Merged: 90
 - Skipped: 2
 - Failed/blocked: 0
-- Next index: 108
-- Next commit: `1702ee1362ec138315dfdafbed54d9fee1729468`
-- Last action: low-risk subscription plan title layout fix `c4b461c68` auto-merged as `07fab6adf`; 21 focused payment tests, typecheck and ESLint passed
+- Next index: 109
+- Next commit: `60f6dc91cf907841c09b4aa7f9f78874fd08579c`
+- Last action: medium-risk subscription expiry-label correction `1702ee136` auto-merged as `58f58f47e`; five calendar/sub-day boundary tests, typecheck and ESLint passed
 - Active queue commit: none
 
 ## High-risk verification notes
