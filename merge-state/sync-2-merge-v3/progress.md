@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 134
+- Pending: 133
 - Awaiting user: 0
-- Merged: 87
+- Merged: 88
 - Skipped: 2
 - Failed/blocked: 0
-- Next index: 106
-- Next commit: `3c387a164d77a8b24f3323f0b80a6251afe8f8b2`
-- Last action: user skipped high-risk prompt-audit-only Qwen3Guard parser change `e854132a5`; main's removed prompt-audit subsystem remains absent
+- Next index: 107
+- Next commit: `c4b461c68c3c27c1d8d1d17e3c4a6625e7225c63`
+- Last action: low-risk Passkey deployment guidance `3c387a164` auto-merged as `d04af9ad7`; SettingsView tests, typecheck and ESLint passed, while full Vitest retained only known baseline exceptions
 - Active queue commit: none
 
 ## High-risk verification notes
