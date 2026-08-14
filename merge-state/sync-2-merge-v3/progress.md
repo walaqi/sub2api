@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 131
-- Awaiting user: 0
+- Pending: 130
+- Awaiting user: 1
 - Merged: 90
 - Skipped: 2
 - Failed/blocked: 0
 - Next index: 109
 - Next commit: `60f6dc91cf907841c09b4aa7f9f78874fd08579c`
-- Last action: medium-risk subscription expiry-label correction `1702ee136` auto-merged as `58f58f47e`; five calendar/sub-day boundary tests, typecheck and ESLint passed
-- Active queue commit: none
+- Last action: assessed `60f6dc91c` GPT-5.6 Terra/Luna price reduction as high risk; official July 30 pricing confirms every submitted rate and recommendation is merge, with complete tests required because ActualCost feeds gifts and super-invite spend
+- Active queue commit: `60f6dc91cf907841c09b4aa7f9f78874fd08579c` awaiting `merge|skip`
 
 ## High-risk verification notes
 
