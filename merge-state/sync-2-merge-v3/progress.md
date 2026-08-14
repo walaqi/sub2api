@@ -6,14 +6,14 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 112
-- Awaiting user: 0
+- Awaiting user: 1
 - Merged: 108
 - Skipped: 3
 - Failed/blocked: 0
 - Next index: 128
 - Next commit: `682c4fe0e61b851508fa976ac693e0f68a0639eb`
-- Last action: user skipped `570ea74d1` prompt-audit-only incremental change and directed that the complete prompt-audit subsystem be merged after the overall sync finishes
-- Active queue commit: none
+- Last action: assessed `682c4fe0e` content-moderation proxy and SMTP STARTTLS parity as high risk and recommend merge; network egress, credential transport and combined Wire require full verification
+- Active queue commit: `682c4fe0e61b851508fa976ac693e0f68a0639eb` awaiting `merge|skip`
 
 ## Post-merge follow-up
 
