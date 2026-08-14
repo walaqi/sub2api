@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 82
+- Pending: 81
 - Awaiting user: 0
-- Merged: 136
+- Merged: 137
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 157
-- Next commit: `35cab3c814a0903c81136411683262a5dd8ee481`
-- Last action: auto-merged medium-risk Grok CLI 0.2.114 identity unification `770e35b47` as `e04292f3e`; focused upstream identity tests passed and the old version constant is absent
+- Next index: 158
+- Next commit: `ae81dfd93375c7b8432d3f7183f865b56d7404b5`
+- Last action: auto-merged medium-risk Model Plaza image-price display correction `35cab3c81` as `67aebe8aa`; focused backend, 13 frontend pricing tests and typecheck passed
 - Active queue commit: none
 
 ## Post-merge follow-up
