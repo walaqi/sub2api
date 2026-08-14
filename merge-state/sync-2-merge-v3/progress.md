@@ -6,14 +6,14 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 134
-- Awaiting user: 1
+- Awaiting user: 0
 - Merged: 87
-- Skipped: 1
+- Skipped: 2
 - Failed/blocked: 0
-- Next index: 105
-- Next commit: `e854132a57d8bdf846c95b855a00fabe90d5d729`
-- Last action: assessed `e854132a5` Qwen3Guard auxiliary-field parsing as high risk and recommend skip because it only restores orphaned files from main's intentionally removed prompt-audit subsystem, not the active content moderation system
-- Active queue commit: `e854132a57d8bdf846c95b855a00fabe90d5d729` awaiting `merge|skip`
+- Next index: 106
+- Next commit: `3c387a164d77a8b24f3323f0b80a6251afe8f8b2`
+- Last action: user skipped high-risk prompt-audit-only Qwen3Guard parser change `e854132a5`; main's removed prompt-audit subsystem remains absent
+- Active queue commit: none
 
 ## High-risk verification notes
 
