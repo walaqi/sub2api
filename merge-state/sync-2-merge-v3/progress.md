@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 109
-- Awaiting user: 0
+- Pending: 108
+- Awaiting user: 1
 - Merged: 111
 - Skipped: 3
 - Failed/blocked: 0
 - Next index: 131
 - Next commit: `d9fba8fe7874ec5e8818a8c68bc528bb50c33a46`
-- Last action: user-approved high-risk `15b3c0c5a` codex-auto-review price correction merged as `2f654e34e`, with billing regression `766f4b676` and complete high-risk verification
-- Active queue commit: `d9fba8fe7874ec5e8818a8c68bc528bb50c33a46` pending assessment
+- Last action: assessed `d9fba8fe7` filtered select-all and concurrent account deletion as high risk; recommend merge because parent/shadow ordering, bounded concurrency and partial-failure recovery are covered, while accepting the deliberate non-transactional mass-deletion scope
+- Active queue commit: `d9fba8fe7874ec5e8818a8c68bc528bb50c33a46` awaiting `merge|skip`
 
 ## Post-merge follow-up
 
