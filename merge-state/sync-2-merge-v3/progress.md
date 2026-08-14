@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 87
-- Awaiting user: 0
+- Pending: 86
+- Awaiting user: 1
 - Merged: 132
 - Skipped: 3
 - Failed/blocked: 0
 - Next index: 152
 - Next commit: `9fd7e762316367d45188040b054bbd62157239c9`
-- Last action: merged user-approved high-risk `825ca7b1f` OpenAI reset-credit refresh/recovery as `8fd54feab`; irreversible redemption is followed by cancellation-independent account recovery and expiration-aware cache refresh, with complete tests passing except documented baselines
-- Active queue commit: `9fd7e762316367d45188040b054bbd62157239c9` pending assessment
+- Last action: assessed `9fd7e7623` process-wide Codex identity enforcement/version sync as high risk because it supersedes the prior targeted load-shed normalization across every outbound path, adds default-on GitHub release polling and changes overload retry/cooldown scheduling semantics
+- Active queue commit: `9fd7e762316367d45188040b054bbd62157239c9` awaiting `merge|skip`
 
 ## Post-merge follow-up
 
