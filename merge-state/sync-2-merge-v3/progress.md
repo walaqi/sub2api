@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 125
+- Pending: 124
 - Awaiting user: 0
-- Merged: 96
+- Merged: 97
 - Skipped: 2
 - Failed/blocked: 0
-- Next index: 115
-- Next commit: `7ceabb3fd5f3d5e3cb774e421d3b2191c6ae99c8`
-- Last action: user-approved high-risk `26d894ef4` upstream URL path hardening merged as `d87aa18f6` with composite Gemini and client-throttle adaptations; complete Go and complete integration passed with only established frontend and unit-tag baselines
-- Active queue commit: `7ceabb3fd5f3d5e3cb774e421d3b2191c6ae99c8` pending assessment
+- Next index: 116
+- Next commit: `94df1fffc2e0b1fb897623b2e451822b6df54c77`
+- Last action: auto-merged low-risk `7ceabb3fd` version synchronization as `cba089fbb`; backend version is now 0.1.169
+- Active queue commit: `94df1fffc2e0b1fb897623b2e451822b6df54c77` pending assessment
 
 ## High-risk verification notes
 
