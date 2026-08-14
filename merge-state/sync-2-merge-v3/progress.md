@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 100
-- Awaiting user: 0
+- Pending: 99
+- Awaiting user: 1
 - Merged: 120
 - Skipped: 3
 - Failed/blocked: 0
 - Next index: 140
 - Next commit: `11c1e944b91dd596186f5bf9aa80edc0655ffedd`
-- Last action: merged user-approved high-risk `d99ee7291` multi-platform upstream billing probe as `0dabf367d`; complete ordinary Go, independent integration, frontend typecheck/lint and focused security/repository/scheduler/frontend tests passed, while full Vitest and unit-tag retained only confirmed baseline exceptions
-- Active queue commit: none
+- Last action: assessed `11c1e944b` optional upstream billing rate write-back as high risk because an enabled custom upstream can change account-cost reporting and account quota consumption after every successful probe; recommend merge because it is disabled by default and guarded by explicit per-account opt-in, range validation and transactional CAS, while user ActualCost, gifts, recharge and super-invite remain unchanged
+- Active queue commit: `11c1e944b91dd596186f5bf9aa80edc0655ffedd` awaiting `merge|skip`
 
 ## Post-merge follow-up
 
