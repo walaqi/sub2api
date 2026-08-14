@@ -2096,6 +2096,7 @@ func TestOpenAIResponses_APIKeyPassthroughSSERateLimitUsesConfiguredPoolRetry(t 
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	h := NewOpenAIGatewayHandler(
 		gatewaySvc,
