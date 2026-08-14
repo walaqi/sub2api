@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 96
+- Pending: 95
 - Awaiting user: 0
-- Merged: 124
+- Merged: 125
 - Skipped: 3
 - Failed/blocked: 0
-- Next index: 144
-- Next commit: `a1f1a0cc6b4bf222c034d742eabd931775d2a0f7`
-- Last action: merged user-approved high-risk `954d44c19` Codex load-shed identity normalization as `713233e7e`, with main's CLI UA version-contract adaptation in `093990588`; focused and complete ordinary/integration tests passed, frontend type/lint passed, and Vitest/unit-tag retained only documented baselines
-- Active queue commit: none; assess `a1f1a0cc6b4bf222c034d742eabd931775d2a0f7` next
+- Next index: 145
+- Next commit: `61ebdbdd43b788149443f1b4c7872321aec55da2`
+- Last action: auto-merged medium-risk `a1f1a0cc6` billing-failure usage-log retention as `c8fafdbe3`; failed billing remains an error and the retained log has zero ActualCost, while focused unsettled-log and main gift-allocation regressions passed
+- Active queue commit: none; assess `61ebdbdd43b788149443f1b4c7872321aec55da2` next
 
 ## Post-merge follow-up
 
