@@ -6,14 +6,14 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 88
-- Awaiting user: 1
-- Merged: 130
+- Awaiting user: 0
+- Merged: 131
 - Skipped: 3
 - Failed/blocked: 0
-- Next index: 150
-- Next commit: `27e8f69a9e04d5919c7f4b6a4175c34af24e7eb2`
-- Last action: assessed `27e8f69a9` Composite reasoning-effort policy as high risk because it rewrites requests across HTTP, Messages fallback and WebSocket, affects token cost, and must retain the Composite API-key group as main's gift/billing scope while using the concrete target only for policy applicability
-- Active queue commit: `27e8f69a9e04d5919c7f4b6a4175c34af24e7eb2` awaiting `merge|skip`
+- Next index: 151
+- Next commit: `825ca7b1fc9335f904bc077f051de815fb61e47f`
+- Last action: merged user-approved high-risk `27e8f69a9` Composite reasoning-effort policy as `5e78b159d`; concrete OpenAI targets select policy applicability while the original Composite API-key group remains the gift/billing scope, and the complete high-risk test matrix passed with only documented baseline exceptions
+- Active queue commit: `825ca7b1fc9335f904bc077f051de815fb61e47f` pending assessment
 
 ## Post-merge follow-up
 
@@ -21,6 +21,7 @@
 
 ## High-risk verification notes
 
+- `27e8f69a9`: user-approved Composite reasoning-effort policy merged as `5e78b159d`. The ceiling/mapping applies only when the request's concrete target is OpenAI across Responses, Chat Completions, Anthropic Messages conversion/raw fallback and every Responses WebSocket turn; omitted Messages effort remains omitted. Admin create/update, API-key cache snapshots and UI configuration were retained. Concrete platform resolution is used only for policy applicability, while RecordUsage retains the original Composite API-key group for main's group-scoped priority/proportional gift allocation; recharge and super-invite accounting semantics are unchanged. Focused cross-protocol, target-isolation, fallback, WebSocket, frontend and gift-scope tests passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1405/1407 with only the two known rollback assertions and ten known GroupsView mock rejections; unit-tag retained only the known three config environment-reachability failures and checker-nil balance failure.
 - `684ab20a0`: user-approved configured temporary-unschedulable OpenAI failover merged as `8063fa2bc`, with response-commit regression `80bbf545a`. Messages, Responses, Chat Completions, raw and compatibility fallbacks may switch accounts only before response commitment; matching rules apply model/account cooldown, while committed responses and nil contexts do not replay or mutate scheduling and Grok remains excluded. Failed attempts return result=nil before RecordUsage, so only a successful account can deduct recharge/gifts or advance super-invite spend. Focused Messages, commit-boundary, Grok and failover/billing tests passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1405/1407 with only known rollback assertions and GroupsView mock errors; unit-tag retained only known config reachability and checker-nil failures.
 - `724565e4a`: user-approved forced-refund hardening merged as `0f9166c06`, with main gift-isolation regression `04e16422a`. Refund preparation now reports `require_force` against recharge_pool rather than gift-inclusive total balance. Actual ordinary and pending-finalization deductions lock the user and active nonexpired gift rows, clamp to current recharge funds, and leave gift rows unchanged. Pending completion atomically claims the order, deducts recharge funds, writes final status and audit, and commits, preventing duplicate finalization and rolling back post-deduction failures. Main's independent read-only FIFO refund-assessment subsystem remains unchanged. Focused refund/audit/rollback/FIFO tests and real PostgreSQL active/expired/exhausted gift tests passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1405/1407 with only known rollback assertions and GroupsView mock errors; unit-tag retained only known config reachability and checker-nil failures.
 - `61ebdbdd4`: user-approved cross-tab refresh-token rotation coordinator merged as `c585af7b0`. Same-document refreshes share one promise; Web Locks serialize one-time token rotation across tabs, while browsers without locks reconcile races by adopting the winning token pair within the 30-second request timeout plus grace. The rotating refresh token is persisted last as a commit marker. 401 retries carry the failed access token and avoid clearing a session replaced by logout or another-user login; proactive auth-store refresh shares the same coordinator. Existing OAuth/localStorage keys remain compatible, and this frontend authentication change does not touch billing, gifts, super-invite, moderation or usage privacy. 47 focused client/coordinator/store tests, complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1404/1406 with only known rollback and GroupsView mock baselines; unit-tag retained only the known three config environment-reachability keys and checker-nil balance failure.
