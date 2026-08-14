@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 130
+- Pending: 129
 - Awaiting user: 0
-- Merged: 91
+- Merged: 92
 - Skipped: 2
 - Failed/blocked: 0
-- Next index: 110
-- Next commit: `0a45be17d866c1f37fe33d6a7b3ea4b8474558ae`
-- Last action: user-approved GPT-5.6 Terra/Luna official price reduction `60f6dc91c` merged as `9a39f5453`; focused billing/gift/referral/WS, complete Go and isolated complete integration passed, with only known frontend/unit baselines retained
+- Next index: 111
+- Next commit: `2be08f3f392d391381b836e6538bf4a2e630aacb`
+- Last action: medium-risk Compose no-new-privileges hardening `0a45be17d` auto-merged as `3a60f49cd`; CI retained main deployment checks and security script plus all four Compose parses passed
 - Active queue commit: none
 
 ## High-risk verification notes
