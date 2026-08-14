@@ -6,17 +6,18 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 127
-- Awaiting user: 1
-- Merged: 93
+- Awaiting user: 0
+- Merged: 94
 - Skipped: 2
 - Failed/blocked: 0
-- Next index: 112
-- Next commit: `bf0fc03ab7dbdf3b841261fa0fd022ab8f3093a0`
-- Last action: assessed `bf0fc03ab` GLM-5.2 fallback pricing as high risk and recommend skip: model availability is official, but current Z.ai pay-as-you-go documentation does not publish a GLM-5.2 rate or confirm parity with GLM-5.1
-- Active queue commit: `bf0fc03ab7dbdf3b841261fa0fd022ab8f3093a0` awaiting `merge|skip`
+- Next index: 113
+- Next commit: `f9d2791693369c3212f7fe79cc2196971d2d2fe3`
+- Last action: user-approved high-risk `bf0fc03ab` GLM-5.2 fallback pricing merged as `a82b476ac`; complete Go and isolated complete integration passed, with only established frontend and unit-tag baseline exceptions
+- Active queue commit: `f9d2791693369c3212f7fe79cc2196971d2d2fe3` pending assessment
 
 ## High-risk verification notes
 
+- `bf0fc03ab`: user-approved GLM-5.2 fallback pricing merged as `a82b476ac`. GLM-5.2 now uses GLM-5.1's $1.40 input, $0.26 cached input and $4.40 output per MTok instead of falling through the broader GLM-5 match. Official documentation confirms the model exists but does not directly publish this rate parity; the user explicitly accepted that assumption. Focused GLM pricing, billing, gift, referral, super-invite and usage tests passed; complete Go and complete integration passed; frontend lint/typecheck passed; Vitest passed 1346/1348 with only two known rollback failures and ten known GroupsView mock rejections; unit-tag retained only the three known config env-reachability keys and checker-nil baseline.
 - `60f6dc91c`: user-approved GPT-5.6 Terra/Luna official July 30 price reduction merged as `9a39f5453`. Main's model-plaza and image-pricing tests were retained during conflict resolution, with its separate fallback expectations updated to the new rates. Runtime fallback, PricingService, static JSON and per-turn WebSocket billing agree; corrected ActualCost continues through group-scoped priority/proportional gifts and super-invite spend. Focused tests and complete Go passed; complete integration passed independently after initial parallel test-container port contention; frontend lint/typecheck passed; Vitest retained only known rollback and GroupsView mock baselines; unit-tag retained only known config/checker baselines.
 - `6fa784fdd`: user-approved proxy circuit fail-open merged as `44297f96e`. Only an initial OpenAI no-account result while active proxy blocks exist triggers a second quarantine-blind pass. Healthy proxies still win, blocked state remains until success/TTL, unrelated errors and non-OpenAI platforms do not fail open, and an incomplete stream is never resumed on another account. Disconnects from the same proxy within three seconds collapse into one incident; operators can disable the circuit explicitly. Existing RecordUsage, group-scoped gift allocation and super-invite spend paths are unchanged. Focused circuit/scheduler/stream/billing tests passed; complete Go and integration passed; frontend lint/typecheck passed; Vitest passed 1333/1335 with only two known rollback-timeout assertions; unit-tag retained only known config environment-reachability and checker-nil baselines.
 - `8fd01c281`: user-approved replacement merge landed as `6037b5c78`, with test-fixture adaptation `fe683fd41`. Main's nonfunctional plural `/models-plaza` API, aggregation service, settings, sidebar route and frontend were removed; upstream's singular `/model-plaza` is now the only implementation. Combined Wire retains the gift engine, Image Studio, recharge discount, referral/super-invite, activity/keybind and websearch health providers while adding OptionalJWT. Anonymous visibility is limited to non-exclusive groups; authenticated users may see explicitly allowed exclusive groups and personal rates. Focused plaza/auth/frontend tests passed; complete Go and integration passed; frontend lint/typecheck passed; Vitest passed 1332/1334 with only the two known rollback-timeout assertions. Unit-tag tests retained only known config environment-reachability and checker-nil baselines. Later queue commits `35cab3c81` and `8f55e0a7c` remain responsible for image-price settlement parity and composite-group models.
