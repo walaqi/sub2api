@@ -6,17 +6,18 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 130
-- Awaiting user: 1
-- Merged: 90
+- Awaiting user: 0
+- Merged: 91
 - Skipped: 2
 - Failed/blocked: 0
-- Next index: 109
-- Next commit: `60f6dc91cf907841c09b4aa7f9f78874fd08579c`
-- Last action: assessed `60f6dc91c` GPT-5.6 Terra/Luna price reduction as high risk; official July 30 pricing confirms every submitted rate and recommendation is merge, with complete tests required because ActualCost feeds gifts and super-invite spend
-- Active queue commit: `60f6dc91cf907841c09b4aa7f9f78874fd08579c` awaiting `merge|skip`
+- Next index: 110
+- Next commit: `0a45be17d866c1f37fe33d6a7b3ea4b8474558ae`
+- Last action: user-approved GPT-5.6 Terra/Luna official price reduction `60f6dc91c` merged as `9a39f5453`; focused billing/gift/referral/WS, complete Go and isolated complete integration passed, with only known frontend/unit baselines retained
+- Active queue commit: none
 
 ## High-risk verification notes
 
+- `60f6dc91c`: user-approved GPT-5.6 Terra/Luna official July 30 price reduction merged as `9a39f5453`. Main's model-plaza and image-pricing tests were retained during conflict resolution, with its separate fallback expectations updated to the new rates. Runtime fallback, PricingService, static JSON and per-turn WebSocket billing agree; corrected ActualCost continues through group-scoped priority/proportional gifts and super-invite spend. Focused tests and complete Go passed; complete integration passed independently after initial parallel test-container port contention; frontend lint/typecheck passed; Vitest retained only known rollback and GroupsView mock baselines; unit-tag retained only known config/checker baselines.
 - `6fa784fdd`: user-approved proxy circuit fail-open merged as `44297f96e`. Only an initial OpenAI no-account result while active proxy blocks exist triggers a second quarantine-blind pass. Healthy proxies still win, blocked state remains until success/TTL, unrelated errors and non-OpenAI platforms do not fail open, and an incomplete stream is never resumed on another account. Disconnects from the same proxy within three seconds collapse into one incident; operators can disable the circuit explicitly. Existing RecordUsage, group-scoped gift allocation and super-invite spend paths are unchanged. Focused circuit/scheduler/stream/billing tests passed; complete Go and integration passed; frontend lint/typecheck passed; Vitest passed 1333/1335 with only two known rollback-timeout assertions; unit-tag retained only known config environment-reachability and checker-nil baselines.
 - `8fd01c281`: user-approved replacement merge landed as `6037b5c78`, with test-fixture adaptation `fe683fd41`. Main's nonfunctional plural `/models-plaza` API, aggregation service, settings, sidebar route and frontend were removed; upstream's singular `/model-plaza` is now the only implementation. Combined Wire retains the gift engine, Image Studio, recharge discount, referral/super-invite, activity/keybind and websearch health providers while adding OptionalJWT. Anonymous visibility is limited to non-exclusive groups; authenticated users may see explicitly allowed exclusive groups and personal rates. Focused plaza/auth/frontend tests passed; complete Go and integration passed; frontend lint/typecheck passed; Vitest passed 1332/1334 with only the two known rollback-timeout assertions. Unit-tag tests retained only known config environment-reachability and checker-nil baselines. Later queue commits `35cab3c81` and `8f55e0a7c` remain responsible for image-price settlement parity and composite-group models.
 - `39903f006`: user-approved scoped User/API-key update refactor merged as `fe8f7aa2d`. Explicit field masks prevent stale profile/key snapshots from overwriting concurrent billing, bans, limits and usage counters. Administrator add/set/subtract now updates `users.balance` atomically; gift rows remain unchanged, preserving the derived recharge-pool model, while positive admin adds still accrue affiliate rewards and invalidate auth/billing caches. Conflict resolution retained main's stricter API-key name validation and gift-engine fallback billing coverage. Focused field-mask, balance, gift/referral/billing and PostgreSQL lost-update tests passed; complete Go and integration passed; frontend lint/typecheck passed; Vitest passed 1324/1326 with only the two known rollback-timeout failures and ten known GroupsView mocks missing `getLiveCapability`. The unit-tag suite retained only known config environment-reachability and checker-nil baseline failures.
