@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 90
-- Awaiting user: 0
+- Pending: 89
+- Awaiting user: 1
 - Merged: 129
 - Skipped: 3
 - Failed/blocked: 0
 - Next index: 149
 - Next commit: `684ab20a0be2e744e50fe66bfe6970b2361f686e`
-- Last action: auto-merged medium-risk `0173830df` stable amount-specific Stripe refund idempotency as `ea56900c0`; focused provider test passed and local refund, gift, assessment and super-invite semantics are unchanged
-- Active queue commit: none
+- Last action: assessed `684ab20a0` configured temporary-unschedulable failover as high risk because its shared helper changes Messages, Responses, Chat Completions, raw and fallback replay/scheduling behavior while source coverage only proves Messages
+- Active queue commit: `684ab20a0be2e744e50fe66bfe6970b2361f686e` awaiting `merge|skip`
 
 ## Post-merge follow-up
 
