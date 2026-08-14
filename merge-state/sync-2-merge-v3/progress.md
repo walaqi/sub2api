@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 151
+- Pending: 150
 - Awaiting user: 0
-- Merged: 71
+- Merged: 72
 - Skipped: 1
 - Failed/blocked: 0
-- Next index: 89
-- Next commit: `1cf6972e7387ac81a958a7e017ff59fbdc3a803d`
-- Last action: medium-risk GPT-5.6 max-effort preservation `20893dc4f` merged as `adce77457`; Responses/Chat bridge, billing, gift and referral tests passed
+- Next index: 90
+- Next commit: `0ef2228ce9d278610e7022bc3cd2d12e83a19e9e`
+- Last action: medium-risk explicit SKIP_SETUP bypass `1cf6972e7` merged as `acc558e91`; setup package tests passed and default behavior remains unchanged
 - Active queue commit: none
 
 ## High-risk verification notes
