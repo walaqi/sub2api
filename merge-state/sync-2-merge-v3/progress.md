@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 78
+- Pending: 77
 - Awaiting user: 0
-- Merged: 140
+- Merged: 141
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 161
-- Next commit: `d431c57f2ecf96807b4d2aee6e407aa7cdf6c412`
-- Last action: merged user-approved high-risk Tencent Captcha gate `8b3fe664d` as `c8a28d8d4`; main trusted-client bypass, email/alias/invitation/gift semantics and combined Wire were preserved, and complete ordinary Go plus independent integration passed
+- Next index: 162
+- Next commit: `f0e7a9c7a23a7d02fb159b62fa809621eb0475a6`
+- Last action: auto-merged medium-risk pending OAuth Turnstile submit gate `d431c57f2` as `1c52e3b17`; eleven focused tests and typecheck passed
 - Active queue commit: none
 
 ## Post-merge follow-up
