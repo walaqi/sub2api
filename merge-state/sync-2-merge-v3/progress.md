@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 143
+- Pending: 142
 - Awaiting user: 0
-- Merged: 79
+- Merged: 80
 - Skipped: 1
 - Failed/blocked: 0
-- Next index: 97
-- Next commit: `b9c7cb8e244fa252a706a7d301b915120dd60694`
-- Last action: medium-risk OpenAI Live store-outage finalize/usage resilience `99c8e4bf7` auto-merged as `67c422206`; all Live and initial-instructions-focused tests passed with main moderation/session/zero-cost semantics retained
+- Next index: 98
+- Next commit: `5a6143097db142b72a6fc848c214e97214470bdd`
+- Last action: low-risk VERSION sync `b9c7cb8e2` auto-merged as `7a031bbbc`, advancing server metadata from 0.1.166 to 0.1.167
 - Active queue commit: none
 
 ## High-risk verification notes
