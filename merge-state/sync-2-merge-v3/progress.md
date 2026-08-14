@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 136
+- Pending: 135
 - Awaiting user: 0
-- Merged: 86
+- Merged: 87
 - Skipped: 1
 - Failed/blocked: 0
-- Next index: 104
-- Next commit: `a8cd33eeadb4320af6f14a65473677398e816978`
-- Last action: medium-risk standards-compliant SMTP message builder `276d9cbd9` auto-merged as `a9cdcab21`; encoded MIME/header-injection and notification/report SMTP-flow tests passed, with socket tests rerun outside the restricted sandbox
+- Next index: 105
+- Next commit: `e854132a57d8bdf846c95b855a00fabe90d5d729`
+- Last action: medium-risk Claude Code official security-monitor classifier recognition `a8cd33eea` auto-merged as `2791158de`; strict header/metadata/prompt-marker checks remain and the complete validator test family passed
 - Active queue commit: none
 
 ## High-risk verification notes
