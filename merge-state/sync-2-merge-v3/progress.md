@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 126
-- Awaiting user: 0
+- Pending: 125
+- Awaiting user: 1
 - Merged: 95
 - Skipped: 2
 - Failed/blocked: 0
 - Next index: 114
 - Next commit: `26d894ef4f50645a4bf1030e378ac892f17d0223`
-- Last action: auto-merged medium-risk `f9d279169` release resource packaging as `c06690b1a`; fallback pricing resources are now present in release images and focused deployment checks passed
-- Active queue commit: `26d894ef4f50645a4bf1030e378ac892f17d0223` pending assessment
+- Last action: assessed `26d894ef4` upstream URL path-segment hardening as high risk and recommend merge; it closes path injection classes but crosses central Responses/Gemini/Grok routing and imposes a compatibility-sensitive closed character set
+- Active queue commit: `26d894ef4f50645a4bf1030e378ac892f17d0223` awaiting `merge|skip`
 
 ## High-risk verification notes
 
