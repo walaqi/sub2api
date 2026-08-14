@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 80
-- Awaiting user: 0
+- Pending: 79
+- Awaiting user: 1
 - Merged: 138
 - Skipped: 4
 - Failed/blocked: 0
 - Next index: 159
 - Next commit: `a4d263f62f1866726b271ecb09012fb70f3bbf37`
-- Last action: auto-merged medium-risk WebSocket terminal-event preservation on lease loss `ae81dfd93` as `41f3a7c02`; main fingerprint and per-turn billing hooks were retained and focused service/handler tests passed
-- Active queue commit: none
+- Last action: assessed subscription renewal serialization `a4d263f62` as high risk because it changes paid-entitlement mutation and row-lock semantics across payment fulfillment, redeem codes, administrator assignment and default subscriptions
+- Active queue commit: `a4d263f62f1866726b271ecb09012fb70f3bbf37` awaiting `merge|skip`
 
 ## Post-merge follow-up
 
