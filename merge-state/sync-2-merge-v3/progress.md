@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 135
-- Awaiting user: 0
+- Pending: 134
+- Awaiting user: 1
 - Merged: 87
 - Skipped: 1
 - Failed/blocked: 0
 - Next index: 105
 - Next commit: `e854132a57d8bdf846c95b855a00fabe90d5d729`
-- Last action: medium-risk Claude Code official security-monitor classifier recognition `a8cd33eea` auto-merged as `2791158de`; strict header/metadata/prompt-marker checks remain and the complete validator test family passed
-- Active queue commit: none
+- Last action: assessed `e854132a5` Qwen3Guard auxiliary-field parsing as high risk and recommend skip because it only restores orphaned files from main's intentionally removed prompt-audit subsystem, not the active content moderation system
+- Active queue commit: `e854132a57d8bdf846c95b855a00fabe90d5d729` awaiting `merge|skip`
 
 ## High-risk verification notes
 
