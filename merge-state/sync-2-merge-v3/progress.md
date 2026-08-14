@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 91
+- Pending: 90
 - Awaiting user: 0
-- Merged: 128
+- Merged: 129
 - Skipped: 3
 - Failed/blocked: 0
-- Next index: 148
-- Next commit: `0173830df625bcf898664ceeb8ccb1104e625c96`
-- Last action: assessed `0173830df` stable amount-specific Stripe refund idempotency as medium risk; it prevents duplicate gateway refunds without changing local refund, gift, assessment or super-invite semantics and is approved for automatic merge
+- Next index: 149
+- Next commit: `684ab20a0be2e744e50fe66bfe6970b2361f686e`
+- Last action: auto-merged medium-risk `0173830df` stable amount-specific Stripe refund idempotency as `ea56900c0`; focused provider test passed and local refund, gift, assessment and super-invite semantics are unchanged
 - Active queue commit: none
 
 ## Post-merge follow-up
