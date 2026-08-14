@@ -5,6 +5,8 @@ package service
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -199,6 +201,61 @@ func TestGatewayServiceRecordUsage_Gemini36FlashPricingFlowsThroughGiftAllocatio
 	require.Equal(t, &groupID, billingRepo.lastCmd.GroupID)
 	require.NotNil(t, usageRepo.lastLog)
 	require.InDelta(t, 9.15, usageRepo.lastLog.ActualCost, 1e-12)
+	require.InDelta(t, giftCost, usageRepo.lastLog.GiftCost, 1e-12)
+	require.InDelta(t, rechargeCost, usageRepo.lastLog.RechargeCost, 1e-12)
+	require.InDelta(t, usageRepo.lastLog.ActualCost, usageRepo.lastLog.GiftCost+usageRepo.lastLog.RechargeCost, 1e-12)
+}
+
+func TestGatewayServiceRecordUsage_CodexAutoReviewPricingFlowsThroughGiftAllocation(t *testing.T) {
+	usageRepo := &openAIRecordUsageLogRepoStub{}
+	giftCost := 0.42
+	rechargeCost := 1.0
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{
+		Applied:      true,
+		GiftCost:     &giftCost,
+		RechargeCost: &rechargeCost,
+	}}
+	svc := newGatewayRecordUsageServiceWithBillingRepoForTest(
+		usageRepo,
+		billingRepo,
+		&openAIRecordUsageUserRepoStub{},
+		&openAIRecordUsageSubRepoStub{},
+	)
+	svc.cfg.Default.RateMultiplier = 1
+	pricingJSON, err := os.ReadFile(filepath.Join("..", "..", "resources", "model-pricing", "model_prices_and_context_window.json"))
+	require.NoError(t, err)
+	pricingSvc := &PricingService{}
+	pricingData, err := pricingSvc.parsePricingData(pricingJSON)
+	require.NoError(t, err)
+	pricingSvc.pricingData = pricingData
+	svc.billingService = NewBillingService(svc.cfg, pricingSvc)
+	groupID := int64(43)
+
+	err = svc.RecordUsage(context.Background(), &RecordUsageInput{
+		Result: &ForwardResult{
+			RequestID: "codex-auto-review-gift-allocation",
+			Usage: ClaudeUsage{
+				InputTokens:          1_000_000,
+				OutputTokens:         1_000_000,
+				CacheReadInputTokens: 1_000_000,
+			},
+			Model:    "codex-auto-review",
+			Duration: time.Second,
+		},
+		APIKey: &APIKey{
+			ID:      502,
+			GroupID: &groupID,
+		},
+		User:    &User{ID: 602},
+		Account: &Account{ID: 702, Platform: PlatformOpenAI},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, billingRepo.lastCmd)
+	require.InDelta(t, 1.42, billingRepo.lastCmd.BalanceCost, 1e-12)
+	require.Equal(t, &groupID, billingRepo.lastCmd.GroupID)
+	require.NotNil(t, usageRepo.lastLog)
+	require.InDelta(t, 1.42, usageRepo.lastLog.ActualCost, 1e-12)
 	require.InDelta(t, giftCost, usageRepo.lastLog.GiftCost, 1e-12)
 	require.InDelta(t, rechargeCost, usageRepo.lastLog.RechargeCost, 1e-12)
 	require.InDelta(t, usageRepo.lastLog.ActualCost, usageRepo.lastLog.GiftCost+usageRepo.lastLog.RechargeCost, 1e-12)
