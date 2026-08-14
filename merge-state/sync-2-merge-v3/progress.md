@@ -6,14 +6,14 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 156
-- Awaiting user: 1
+- Awaiting user: 0
 - Merged: 66
-- Skipped: 0
+- Skipped: 1
 - Failed/blocked: 0
-- Next index: 83
-- Next commit: `1aeacf4d412d41d91a01a458c29a0f25db9d5eea`
-- Last action: medium-risk authentic Anthropic message IDs `d95f6b98c` merged as `7062ab8c0` and focused tests passed; prompt-audit recovery `1aeacf4d4` assessed high risk and awaits merge|skip
-- Active queue commit: `1aeacf4d412d41d91a01a458c29a0f25db9d5eea` (awaiting user decision; recommendation: skip)
+- Next index: 84
+- Next commit: `c342a885b50debc37cacb32eae557114a8e40c92`
+- Last action: user skipped high-risk prompt-audit recovery `1aeacf4d4`; the removed second moderation subsystem remains absent
+- Active queue commit: none
 
 ## High-risk verification notes
 
