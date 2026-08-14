@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 152
+- Pending: 151
 - Awaiting user: 0
-- Merged: 70
+- Merged: 71
 - Skipped: 1
 - Failed/blocked: 0
-- Next index: 88
-- Next commit: `20893dc4fd2977a66348877bbf14884881f2532b`
-- Last action: medium-risk API-key Codex web-search manifest fix `a12d88ed4` merged as `af7e36c6d`; manifest/cache, OAuth isolation and web-search tests passed
+- Next index: 89
+- Next commit: `1cf6972e7387ac81a958a7e017ff59fbdc3a803d`
+- Last action: medium-risk GPT-5.6 max-effort preservation `20893dc4f` merged as `adce77457`; Responses/Chat bridge, billing, gift and referral tests passed
 - Active queue commit: none
 
 ## High-risk verification notes
