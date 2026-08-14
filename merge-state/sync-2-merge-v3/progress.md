@@ -6,14 +6,14 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 89
-- Awaiting user: 1
-- Merged: 129
+- Awaiting user: 0
+- Merged: 130
 - Skipped: 3
 - Failed/blocked: 0
-- Next index: 149
-- Next commit: `684ab20a0be2e744e50fe66bfe6970b2361f686e`
-- Last action: assessed `684ab20a0` configured temporary-unschedulable failover as high risk because its shared helper changes Messages, Responses, Chat Completions, raw and fallback replay/scheduling behavior while source coverage only proves Messages
-- Active queue commit: `684ab20a0be2e744e50fe66bfe6970b2361f686e` awaiting `merge|skip`
+- Next index: 150
+- Next commit: `27e8f69a9e04d5919c7f4b6a4175c34af24e7eb2`
+- Last action: merged user-approved `684ab20a0` configured temporary-unschedulable OpenAI failover as `8063fa2bc`, added committed-response no-replay/no-cooldown regression `80bbf545a`, and completed ordinary, frontend and independent integration verification with only confirmed baselines
+- Active queue commit: none
 
 ## Post-merge follow-up
 
@@ -21,6 +21,7 @@
 
 ## High-risk verification notes
 
+- `684ab20a0`: user-approved configured temporary-unschedulable OpenAI failover merged as `8063fa2bc`, with response-commit regression `80bbf545a`. Messages, Responses, Chat Completions, raw and compatibility fallbacks may switch accounts only before response commitment; matching rules apply model/account cooldown, while committed responses and nil contexts do not replay or mutate scheduling and Grok remains excluded. Failed attempts return result=nil before RecordUsage, so only a successful account can deduct recharge/gifts or advance super-invite spend. Focused Messages, commit-boundary, Grok and failover/billing tests passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1405/1407 with only known rollback assertions and GroupsView mock errors; unit-tag retained only known config reachability and checker-nil failures.
 - `724565e4a`: user-approved forced-refund hardening merged as `0f9166c06`, with main gift-isolation regression `04e16422a`. Refund preparation now reports `require_force` against recharge_pool rather than gift-inclusive total balance. Actual ordinary and pending-finalization deductions lock the user and active nonexpired gift rows, clamp to current recharge funds, and leave gift rows unchanged. Pending completion atomically claims the order, deducts recharge funds, writes final status and audit, and commits, preventing duplicate finalization and rolling back post-deduction failures. Main's independent read-only FIFO refund-assessment subsystem remains unchanged. Focused refund/audit/rollback/FIFO tests and real PostgreSQL active/expired/exhausted gift tests passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1405/1407 with only known rollback assertions and GroupsView mock errors; unit-tag retained only known config reachability and checker-nil failures.
 - `61ebdbdd4`: user-approved cross-tab refresh-token rotation coordinator merged as `c585af7b0`. Same-document refreshes share one promise; Web Locks serialize one-time token rotation across tabs, while browsers without locks reconcile races by adopting the winning token pair within the 30-second request timeout plus grace. The rotating refresh token is persisted last as a commit marker. 401 retries carry the failed access token and avoid clearing a session replaced by logout or another-user login; proactive auth-store refresh shares the same coordinator. Existing OAuth/localStorage keys remain compatible, and this frontend authentication change does not touch billing, gifts, super-invite, moderation or usage privacy. 47 focused client/coordinator/store tests, complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1404/1406 with only known rollback and GroupsView mock baselines; unit-tag retained only the known three config environment-reachability keys and checker-nil balance failure.
 - `954d44c19`: user-approved Codex load-shed identity normalization merged as `713233e7e`, with main version-contract adaptation `093990588`. `codex-tui` originator/User-Agent pairs are rewritten to `codex_cli_rs` while preserving version, OS, architecture and terminal fingerprint across HTTP, OAuth passthrough, WebSocket and account-usage probes; the browser fallback uses main's current `codex_cli_rs/0.144.4` identity. Configuration can disable the default-on process-wide behavior. Conflict resolution retained the non-simple-mode gift-engine fail-fast constructor check and all later main settings. RecordUsage, pricing, group-scoped priority/proportional gifts, recharge and super-invite remain unchanged. Focused transport/identity tests, complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1396/1398 with only known rollback and GroupsView mock baselines; unit-tag retained only the known three config environment-reachability keys and checker-nil balance failure.
