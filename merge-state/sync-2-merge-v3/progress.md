@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 103
-- Awaiting user: 0
-- Merged: 116
+- Pending: 102
+- Awaiting user: 1
+- Merged: 117
 - Skipped: 3
 - Failed/blocked: 0
-- Next index: 136
-- Next commit: `d6d53052f808b9b13001eb927e361f8458b453f0`
-- Last action: user-approved high-risk `d4cada3b6` OpenAI SSE in-stream rate-limit retry merged as `bd6291cf4`, with main gift-constructor test adaptation `49ea34803`; complete verification including independent integration passed with only documented baseline exceptions
-- Active queue commit: none
+- Next index: 137
+- Next commit: `b22f73e725236790f97d89bf0c3b908a48e591d5`
+- Last action: low-risk `d6d53052f` sponsor removal recorded as already-effective empty merge `1de374b48`; assessed `b22f73e72` interrupted-stream partial usage billing as high risk because it directly changes recharge, gift and super-invite charging boundaries
+- Active queue commit: `b22f73e725236790f97d89bf0c3b908a48e591d5` awaiting `merge|skip`
 
 ## Post-merge follow-up
 
