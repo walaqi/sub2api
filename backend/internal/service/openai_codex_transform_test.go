@@ -22,9 +22,13 @@ func TestCodexVersionConstantsInSync(t *testing.T) {
 		"codexCLIUserAgent (forwarded User-Agent) out of sync")
 	require.Contains(t, DefaultOpenAICodexUserAgent, wantVersion,
 		"DefaultOpenAICodexUserAgent (fallback UA) out of sync")
-	// 回退 UA 形如 "codex-tui/<v> (...) (codex-tui; <v>)"，两处版本片段都应更新。
-	require.Equal(t, 2, strings.Count(DefaultOpenAICodexUserAgent, wantVersion),
-		"DefaultOpenAICodexUserAgent should carry the version in both segments")
+	// 回退身份使用官方 CLI 形态，不再携带 codex-tui 的尾部客户端标识组。
+	require.Equal(t, codexCLIUserAgent, DefaultOpenAICodexUserAgent,
+		"fallback UA should use the normalized CLI identity")
+	require.Equal(t, 1, strings.Count(DefaultOpenAICodexUserAgent, wantVersion),
+		"CLI fallback UA should carry the version once")
+	require.NotContains(t, DefaultOpenAICodexUserAgent, "codex-tui",
+		"fallback UA should not re-enter the load-shed identity bucket")
 }
 
 func TestApplyCodexOAuthTransform_ToolContinuationPreservesInput(t *testing.T) {
