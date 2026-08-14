@@ -6,17 +6,18 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 120
-- Awaiting user: 1
-- Merged: 100
+- Awaiting user: 0
+- Merged: 101
 - Skipped: 2
 - Failed/blocked: 0
-- Next index: 119
-- Next commit: `0eac363e67887747c3903c09d1de1f0bd366962a`
-- Last action: assessed `0eac363e6` Grok pool-mode default-cooldown bypass as high risk and recommend merge; it delegates all default health cooldown decisions to the upstream pool but leaves persistently failing endpoints schedulable
-- Active queue commit: `0eac363e67887747c3903c09d1de1f0bd366962a` awaiting `merge|skip`
+- Next index: 120
+- Next commit: `132d446ca92f6f86c9d918ba67cb49af66d19c6e`
+- Last action: user-approved high-risk `0eac363e6` Grok pool-mode cooldown bypass merged as `40390b7e7`; complete ordinary Go and integration tests passed, with only recorded frontend and unit-tag baseline exceptions
+- Active queue commit: none awaiting user; assess `132d446ca92f6f86c9d918ba67cb49af66d19c6e` next
 
 ## High-risk verification notes
 
+- `0eac363e6`: user-approved Grok pool-mode cooldown bypass merged as `40390b7e7`. API-key pool accounts retain quota/usage snapshots and current-request failover plus configured same-account retry, but default 401/402/403/429/5xx and successful exhausted-quota observations no longer install runtime or durable cooldowns; explicit configured 403 temporary rules still run first. Focused Grok scheduling tests and complete ordinary Go and integration tests passed. Frontend lint/typecheck passed; Vitest passed 1347/1349 with only the two known rollback failures and ten known GroupsView mock rejections; unit-tag retained only the three known config env-reachability keys and checker-nil balance failure.
 - `26d894ef4`: user-approved upstream URL path hardening merged as `d87aa18f6`. Responses path guards cover `/v1`, root and Codex-direct routes while retaining main's client-error throttle, composite resolution and Live sideband routes. Gemini validation was adapted to inspect the final concrete upstream model after composite mapping, so public aliases such as `openrouter/gemini-pro` remain valid while unsafe mapped targets are rejected; Grok video IDs reject dot segments and control characters. Focused path/Gemini/composite/Grok tests passed; complete Go and complete integration passed; frontend lint/typecheck passed; Vitest passed 1346/1348 with only two known rollback failures and ten known GroupsView mock rejections; unit-tag retained only the three known config env-reachability keys and checker-nil baseline.
 - `bf0fc03ab`: user-approved GLM-5.2 fallback pricing merged as `a82b476ac`. GLM-5.2 now uses GLM-5.1's $1.40 input, $0.26 cached input and $4.40 output per MTok instead of falling through the broader GLM-5 match. Official documentation confirms the model exists but does not directly publish this rate parity; the user explicitly accepted that assumption. Focused GLM pricing, billing, gift, referral, super-invite and usage tests passed; complete Go and complete integration passed; frontend lint/typecheck passed; Vitest passed 1346/1348 with only two known rollback failures and ten known GroupsView mock rejections; unit-tag retained only the three known config env-reachability keys and checker-nil baseline.
 - `60f6dc91c`: user-approved GPT-5.6 Terra/Luna official July 30 price reduction merged as `9a39f5453`. Main's model-plaza and image-pricing tests were retained during conflict resolution, with its separate fallback expectations updated to the new rates. Runtime fallback, PricingService, static JSON and per-turn WebSocket billing agree; corrected ActualCost continues through group-scoped priority/proportional gifts and super-invite spend. Focused tests and complete Go passed; complete integration passed independently after initial parallel test-container port contention; frontend lint/typecheck passed; Vitest retained only known rollback and GroupsView mock baselines; unit-tag retained only known config/checker baselines.
