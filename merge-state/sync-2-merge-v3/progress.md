@@ -6,17 +6,18 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 114
-- Awaiting user: 1
-- Merged: 106
+- Awaiting user: 0
+- Merged: 107
 - Skipped: 2
 - Failed/blocked: 0
-- Next index: 125
-- Next commit: `04c96a20155c2bc74141f219b04af420bb062158`
-- Last action: assessed `04c96a201` OpenAI OAuth namespace preserve-by-default behavior as high risk and recommend merge; it fixes namespaced multi-agent dispatch but globally flips the existing HTTP/passthrough tool transformation default
-- Active queue commit: `04c96a20155c2bc74141f219b04af420bb062158` awaiting `merge|skip`
+- Next index: 126
+- Next commit: `2980ff385076593d0db9aaa30c590db153e27366`
+- Last action: user-approved `04c96a201` OpenAI OAuth namespace preservation merged as `f74372957`; focused and complete ordinary/integration verification passed with only established frontend and unit-tag baseline exceptions
+- Active queue commit: none
 
 ## High-risk verification notes
 
+- `04c96a201`: user-approved OpenAI OAuth namespace preserve-by-default behavior merged as `f74372957`. Non-compact OAuth Responses retain Codex namespace declarations and historical call namespaces; compact stays flattened, API-key behavior stays stripped/flattened, native WebSocket stays preserved, and an account compatibility switch restores legacy OAuth flattening. Per-attempt namespace state is cleared before failover. Main's model mapping, default instructions, image permission, gateway restriction, moderation, RecordUsage, group-scoped gifts and super-invite billing remain unchanged. Focused backend and 75 account UI tests, complete ordinary Go and complete integration passed; frontend lint/typecheck passed. Vitest passed 1353/1355 with only known rollback failures and GroupsView mock rejections; unit-tag retained only known config env-reachability and checker-nil failures.
 - `d29acc29a`: user-approved subscription quota-window alignment merged as `99c63a118`. Daily, weekly and monthly windows now anchor to exact activation, renewal or manual reset; exact expiry cannot open a new window, partial final periods remain usable, legacy initial-midnight anchors are normalized, and first activation uses a conditional update to preserve existing windows under stale concurrency. Subscription eligibility still feeds the existing RecordUsage path, so group-scoped gifts and super-invite spend are unchanged. Focused service and PostgreSQL CAS tests, complete ordinary Go and complete integration passed. Frontend lint/typecheck passed; Vitest passed 1347/1349 with only known rollback failures and GroupsView mock rejections; unit-tag retained only known config env-reachability and checker-nil failures.
 - `0eac363e6`: user-approved Grok pool-mode cooldown bypass merged as `40390b7e7`. API-key pool accounts retain quota/usage snapshots and current-request failover plus configured same-account retry, but default 401/402/403/429/5xx and successful exhausted-quota observations no longer install runtime or durable cooldowns; explicit configured 403 temporary rules still run first. Focused Grok scheduling tests and complete ordinary Go and integration tests passed. Frontend lint/typecheck passed; Vitest passed 1347/1349 with only the two known rollback failures and ten known GroupsView mock rejections; unit-tag retained only the three known config env-reachability keys and checker-nil balance failure.
 - `26d894ef4`: user-approved upstream URL path hardening merged as `d87aa18f6`. Responses path guards cover `/v1`, root and Codex-direct routes while retaining main's client-error throttle, composite resolution and Live sideband routes. Gemini validation was adapted to inspect the final concrete upstream model after composite mapping, so public aliases such as `openrouter/gemini-pro` remain valid while unsafe mapped targets are rejected; Grok video IDs reject dot segments and control characters. Focused path/Gemini/composite/Grok tests passed; complete Go and complete integration passed; frontend lint/typecheck passed; Vitest passed 1346/1348 with only two known rollback failures and ten known GroupsView mock rejections; unit-tag retained only the three known config env-reachability keys and checker-nil baseline.
