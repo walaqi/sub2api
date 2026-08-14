@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 121
-- Awaiting user: 0
+- Pending: 120
+- Awaiting user: 1
 - Merged: 100
 - Skipped: 2
 - Failed/blocked: 0
 - Next index: 119
 - Next commit: `0eac363e67887747c3903c09d1de1f0bd366962a`
-- Last action: auto-merged medium-risk `796313e99` image data-URL offload as `b6080b369`; strict local decoding and image task/batch settlement regression tests passed
-- Active queue commit: `0eac363e67887747c3903c09d1de1f0bd366962a` pending assessment
+- Last action: assessed `0eac363e6` Grok pool-mode default-cooldown bypass as high risk and recommend merge; it delegates all default health cooldown decisions to the upstream pool but leaves persistently failing endpoints schedulable
+- Active queue commit: `0eac363e67887747c3903c09d1de1f0bd366962a` awaiting `merge|skip`
 
 ## High-risk verification notes
 
