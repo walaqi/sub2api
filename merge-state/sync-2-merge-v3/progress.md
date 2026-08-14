@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 149
-- Awaiting user: 0
+- Pending: 148
+- Awaiting user: 1
 - Merged: 73
 - Skipped: 1
 - Failed/blocked: 0
 - Next index: 91
 - Next commit: `2e432173f76c351375d18bbdd9e748cce998891c`
-- Last action: user-approved high-risk Kimi K3 support `0ef2228ce` merged as `07b4f0bdb`; complete Go and integration passed, frontend retained only known baseline exceptions
-- Active queue commit: none
+- Last action: Passkey/WebAuthn authentication subsystem `2e432173f` assessed high risk; security design is opt-in and explicit, but it expands the authentication boundary and requires migration 191 to be renumbered to 210; awaiting merge|skip
+- Active queue commit: `2e432173f76c351375d18bbdd9e748cce998891c` (awaiting user decision; recommendation: merge)
 
 ## High-risk verification notes
 
