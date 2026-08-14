@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 156
+- Pending: 155
 - Awaiting user: 0
-- Merged: 66
+- Merged: 67
 - Skipped: 1
 - Failed/blocked: 0
-- Next index: 84
-- Next commit: `c342a885b50debc37cacb32eae557114a8e40c92`
-- Last action: user skipped high-risk prompt-audit recovery `1aeacf4d4`; the removed second moderation subsystem remains absent
+- Next index: 85
+- Next commit: `f71332ff858108dd53e5feedc84d29a55aadff00`
+- Last action: medium-risk OpenAI passthrough candidate-selection fix `c342a885b` merged as `edb871b26`; focused model support, scheduler and billing mapping tests passed
 - Active queue commit: none
 
 ## High-risk verification notes
