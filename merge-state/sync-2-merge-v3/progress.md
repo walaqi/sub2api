@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 94
+- Pending: 93
 - Awaiting user: 0
-- Merged: 126
+- Merged: 127
 - Skipped: 3
 - Failed/blocked: 0
-- Next index: 146
-- Next commit: `a03de418c8c4cf863526b83eed4457e8c0dc54c8`
-- Last action: merged user-approved high-risk `61ebdbdd4` cross-tab refresh-token coordinator as `c585af7b0`; 47 focused auth tests, complete ordinary Go and independent integration passed, frontend type/lint passed, and Vitest/unit-tag retained only documented baselines
-- Active queue commit: none; assess `a03de418c8c4cf863526b83eed4457e8c0dc54c8` next
+- Next index: 147
+- Next commit: `724565e4aa0b06b60f044bf3e0b8414a2e6c7f6d`
+- Last action: auto-merged medium-risk `a03de418c8` administrator require_force refund UI wiring as `281588a06`, then added complete explicit-force workflow regression `21707b486`; focused Vitest, ESLint and typecheck passed
+- Active queue commit: none; assess `724565e4aa0b06b60f044bf3e0b8414a2e6c7f6d` next
 
 ## Post-merge follow-up
 
