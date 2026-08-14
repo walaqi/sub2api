@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 123
+- Pending: 122
 - Awaiting user: 0
-- Merged: 98
+- Merged: 99
 - Skipped: 2
 - Failed/blocked: 0
-- Next index: 117
-- Next commit: `c772d186666154aed2ae67ada9df2332f3955fb9`
-- Last action: auto-merged medium-risk `94df1fffc` Grok Responses billing-ping filtering as `303954b55`; bounded SSE filtering preserves terminal usage and focused streaming/close tests passed
-- Active queue commit: `c772d186666154aed2ae67ada9df2332f3955fb9` pending assessment
+- Next index: 118
+- Next commit: `796313e993a0a17863c2ac54cbad85b65c69871b`
+- Last action: auto-merged low-risk `c772d1866` EasyPay selector overflow fix as `95129e752`, retaining main's custom label/icon/sort contract; focused component and static checks passed
+- Active queue commit: `796313e993a0a17863c2ac54cbad85b65c69871b` pending assessment
 
 ## High-risk verification notes
 
