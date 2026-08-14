@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 133
+- Pending: 132
 - Awaiting user: 0
-- Merged: 88
+- Merged: 89
 - Skipped: 2
 - Failed/blocked: 0
-- Next index: 107
-- Next commit: `c4b461c68c3c27c1d8d1d17e3c4a6625e7225c63`
-- Last action: low-risk Passkey deployment guidance `3c387a164` auto-merged as `d04af9ad7`; SettingsView tests, typecheck and ESLint passed, while full Vitest retained only known baseline exceptions
+- Next index: 108
+- Next commit: `1702ee1362ec138315dfdafbed54d9fee1729468`
+- Last action: low-risk subscription plan title layout fix `c4b461c68` auto-merged as `07fab6adf`; 21 focused payment tests, typecheck and ESLint passed
 - Active queue commit: none
 
 ## High-risk verification notes
