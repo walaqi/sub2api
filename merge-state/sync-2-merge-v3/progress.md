@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 92
-- Awaiting user: 1
-- Merged: 127
+- Pending: 91
+- Awaiting user: 0
+- Merged: 128
 - Skipped: 3
 - Failed/blocked: 0
-- Next index: 147
-- Next commit: `724565e4aa0b06b60f044bf3e0b8414a2e6c7f6d`
-- Last action: assessed `724565e4a` insufficient-balance forced refund and transactional pending finalization as high risk; upstream's users.balance clamp conflicts with main's gift-inclusive balance, so merge requires recharge-pool-only assessment/deduction plus atomic pending finalization without changing gifts, affiliate or super-invite semantics
-- Active queue commit: `724565e4aa0b06b60f044bf3e0b8414a2e6c7f6d` awaiting `merge|skip`
+- Next index: 148
+- Next commit: `0173830df625bcf898664ceeb8ccb1104e625c96`
+- Last action: merged user-approved `724565e4a` forced-refund hardening as `0f9166c06`, adapted execution to lock and deduct only recharge_pool without changing active gifts, retained main's independent FIFO refund-assessment subsystem, and added PostgreSQL gift regressions in `04e16422a`; complete ordinary Go and independent integration passed with only confirmed frontend/unit baselines
+- Active queue commit: none
 
 ## Post-merge follow-up
 
@@ -21,6 +21,7 @@
 
 ## High-risk verification notes
 
+- `724565e4a`: user-approved forced-refund hardening merged as `0f9166c06`, with main gift-isolation regression `04e16422a`. Refund preparation now reports `require_force` against recharge_pool rather than gift-inclusive total balance. Actual ordinary and pending-finalization deductions lock the user and active nonexpired gift rows, clamp to current recharge funds, and leave gift rows unchanged. Pending completion atomically claims the order, deducts recharge funds, writes final status and audit, and commits, preventing duplicate finalization and rolling back post-deduction failures. Main's independent read-only FIFO refund-assessment subsystem remains unchanged. Focused refund/audit/rollback/FIFO tests and real PostgreSQL active/expired/exhausted gift tests passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1405/1407 with only known rollback assertions and GroupsView mock errors; unit-tag retained only known config reachability and checker-nil failures.
 - `61ebdbdd4`: user-approved cross-tab refresh-token rotation coordinator merged as `c585af7b0`. Same-document refreshes share one promise; Web Locks serialize one-time token rotation across tabs, while browsers without locks reconcile races by adopting the winning token pair within the 30-second request timeout plus grace. The rotating refresh token is persisted last as a commit marker. 401 retries carry the failed access token and avoid clearing a session replaced by logout or another-user login; proactive auth-store refresh shares the same coordinator. Existing OAuth/localStorage keys remain compatible, and this frontend authentication change does not touch billing, gifts, super-invite, moderation or usage privacy. 47 focused client/coordinator/store tests, complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1404/1406 with only known rollback and GroupsView mock baselines; unit-tag retained only the known three config environment-reachability keys and checker-nil balance failure.
 - `954d44c19`: user-approved Codex load-shed identity normalization merged as `713233e7e`, with main version-contract adaptation `093990588`. `codex-tui` originator/User-Agent pairs are rewritten to `codex_cli_rs` while preserving version, OS, architecture and terminal fingerprint across HTTP, OAuth passthrough, WebSocket and account-usage probes; the browser fallback uses main's current `codex_cli_rs/0.144.4` identity. Configuration can disable the default-on process-wide behavior. Conflict resolution retained the non-simple-mode gift-engine fail-fast constructor check and all later main settings. RecordUsage, pricing, group-scoped priority/proportional gifts, recharge and super-invite remain unchanged. Focused transport/identity tests, complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1396/1398 with only known rollback and GroupsView mock baselines; unit-tag retained only the known three config environment-reachability keys and checker-nil balance failure.
 - `c043c2477`: user-approved default-off per-group token profit control merged as `391473b1b`, with main-specific gift regression `d6e489e92`. Across OpenAI, Anthropic, Gemini, Grok and Antigravity token scheduling, admission requires `account rate <= user effective group rate * (1 - margin - buffer)` at a pricing instant frozen through failover and usage recording; each WebSocket turn refreshes it. Invalid account rates fail closed, group configuration errors fail open, and post-slot rechecks prevent stale updates from slipping through. Dedicated image/video, count_tokens and zero-cost Live paths remain excluded, while mixed Responses token work is covered. Source migrations were renumbered to 211/212 and Ent/Wire regenerated from the combined tree, retaining gifts, affiliate/referral, moderation, Live and model plaza. The regression proves peak-adjusted ActualCost still flows into same-group gift allocation; margin remains nominal pricing and deliberately does not discount gift-funded usage or count super-invite rewards as cash costs. Focused cross-protocol, PostgreSQL projection/cache-invalidation and frontend tests passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1396/1398 with only known rollback and GroupsView mock baselines; unit-tag retained only the known three config environment-reachability keys and checker-nil balance failure.
