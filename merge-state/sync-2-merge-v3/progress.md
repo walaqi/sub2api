@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 85
+- Pending: 84
 - Awaiting user: 0
-- Merged: 133
+- Merged: 134
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 154
-- Next commit: `9b4575e43428fe75ff798e304fa2fb432f5e2822`
-- Last action: skipped/deferred prompt-audit-only `1f4cfc44c` under the standing instruction to merge the complete prompt-audit subsystem separately after this queue
+- Next index: 155
+- Next commit: `846dd310a320b19b8f96d922e56298ece09a32d1`
+- Last action: auto-merged medium-risk administrator spending-ranking username display `9b4575e43` as `e858f4cc0`; focused backend/frontend tests and typecheck passed, full Vitest retained only documented baselines
 - Active queue commit: none
 
 ## Post-merge follow-up
