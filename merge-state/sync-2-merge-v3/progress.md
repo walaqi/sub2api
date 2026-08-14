@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 146
+- Pending: 145
 - Awaiting user: 0
-- Merged: 76
+- Merged: 77
 - Skipped: 1
 - Failed/blocked: 0
-- Next index: 94
-- Next commit: `6e1cbed423b2088b2611ff21f173b69f8ac8b197`
-- Last action: user-approved replacement merge `8fd01c281` landed as `6037b5c78`; the broken plural models-plaza implementation was removed and upstream's singular model-plaza is now the sole implementation, with full Go/integration and frontend gates completed
+- Next index: 95
+- Next commit: `f2d824836f1cbdfc695eaca03fe4db6f760281c9`
+- Last action: low-risk Passkey disabled-state toast fix `6e1cbed423` auto-merged as `65211e1c2`; frontend lint/typecheck and 36 focused tests passed
 - Active queue commit: none
 
 ## High-risk verification notes
