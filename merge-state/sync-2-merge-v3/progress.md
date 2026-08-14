@@ -6,17 +6,18 @@
 - Effective merge total: 224
 - Already in baseline: 16
 - Pending: 116
-- Awaiting user: 1
-- Merged: 104
+- Awaiting user: 0
+- Merged: 105
 - Skipped: 2
 - Failed/blocked: 0
-- Next index: 123
-- Next commit: `d29acc29a580f3f25e16351c6d5a19e3674ba83c`
-- Last action: assessed `d29acc29a` subscription quota-window alignment as high risk and recommend merge; it fixes early resets and stale activation overwrites but changes subscription limit boundaries for existing and new terms
-- Active queue commit: `d29acc29a580f3f25e16351c6d5a19e3674ba83c` awaiting `merge|skip`
+- Next index: 124
+- Next commit: `07f980b99f9d04a4328906f8f3c4dd7b1bee5e06`
+- Last action: user-approved high-risk `d29acc29a` subscription quota-window alignment merged as `99c63a118`; focused PostgreSQL CAS, complete ordinary Go and complete integration passed with only recorded frontend/unit-tag baselines
+- Active queue commit: none awaiting user; assess `07f980b99f9d04a4328906f8f3c4dd7b1bee5e06` next
 
 ## High-risk verification notes
 
+- `d29acc29a`: user-approved subscription quota-window alignment merged as `99c63a118`. Daily, weekly and monthly windows now anchor to exact activation, renewal or manual reset; exact expiry cannot open a new window, partial final periods remain usable, legacy initial-midnight anchors are normalized, and first activation uses a conditional update to preserve existing windows under stale concurrency. Subscription eligibility still feeds the existing RecordUsage path, so group-scoped gifts and super-invite spend are unchanged. Focused service and PostgreSQL CAS tests, complete ordinary Go and complete integration passed. Frontend lint/typecheck passed; Vitest passed 1347/1349 with only known rollback failures and GroupsView mock rejections; unit-tag retained only known config env-reachability and checker-nil failures.
 - `0eac363e6`: user-approved Grok pool-mode cooldown bypass merged as `40390b7e7`. API-key pool accounts retain quota/usage snapshots and current-request failover plus configured same-account retry, but default 401/402/403/429/5xx and successful exhausted-quota observations no longer install runtime or durable cooldowns; explicit configured 403 temporary rules still run first. Focused Grok scheduling tests and complete ordinary Go and integration tests passed. Frontend lint/typecheck passed; Vitest passed 1347/1349 with only the two known rollback failures and ten known GroupsView mock rejections; unit-tag retained only the three known config env-reachability keys and checker-nil balance failure.
 - `26d894ef4`: user-approved upstream URL path hardening merged as `d87aa18f6`. Responses path guards cover `/v1`, root and Codex-direct routes while retaining main's client-error throttle, composite resolution and Live sideband routes. Gemini validation was adapted to inspect the final concrete upstream model after composite mapping, so public aliases such as `openrouter/gemini-pro` remain valid while unsafe mapped targets are rejected; Grok video IDs reject dot segments and control characters. Focused path/Gemini/composite/Grok tests passed; complete Go and complete integration passed; frontend lint/typecheck passed; Vitest passed 1346/1348 with only two known rollback failures and ten known GroupsView mock rejections; unit-tag retained only the three known config env-reachability keys and checker-nil baseline.
 - `bf0fc03ab`: user-approved GLM-5.2 fallback pricing merged as `a82b476ac`. GLM-5.2 now uses GLM-5.1's $1.40 input, $0.26 cached input and $4.40 output per MTok instead of falling through the broader GLM-5 match. Official documentation confirms the model exists but does not directly publish this rate parity; the user explicitly accepted that assumption. Focused GLM pricing, billing, gift, referral, super-invite and usage tests passed; complete Go and complete integration passed; frontend lint/typecheck passed; Vitest passed 1346/1348 with only two known rollback failures and ten known GroupsView mock rejections; unit-tag retained only the three known config env-reachability keys and checker-nil baseline.
