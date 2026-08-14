@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 114
+- Pending: 113
 - Awaiting user: 0
-- Merged: 107
+- Merged: 108
 - Skipped: 2
 - Failed/blocked: 0
-- Next index: 126
-- Next commit: `2980ff385076593d0db9aaa30c590db153e27366`
-- Last action: user-approved `04c96a201` OpenAI OAuth namespace preservation merged as `f74372957`; focused and complete ordinary/integration verification passed with only established frontend and unit-tag baseline exceptions
+- Next index: 127
+- Next commit: `570ea74d122c9fc31ab83b164d9461611b73e084`
+- Last action: auto-merged medium-risk `2980ff385` compact home preset as `33ba612f5`, retaining main's custom-home template substitutions; test fixture adaptation `662020792` and focused backend/frontend verification passed
 - Active queue commit: none
 
 ## High-risk verification notes
