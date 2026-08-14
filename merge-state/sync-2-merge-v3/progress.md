@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 137
+- Pending: 136
 - Awaiting user: 0
-- Merged: 85
+- Merged: 86
 - Skipped: 1
 - Failed/blocked: 0
-- Next index: 103
-- Next commit: `276d9cbd9b6ae929e086d161fce1e35d67dd07a5`
-- Last action: medium-risk Composite Available Channels projection fix `1f8b3a9c6` auto-merged as `363e311a0`; Composite groups expand across concrete configured model platforms while ordinary groups remain isolated, and focused handler tests passed
+- Next index: 104
+- Next commit: `a8cd33eeadb4320af6f14a65473677398e816978`
+- Last action: medium-risk standards-compliant SMTP message builder `276d9cbd9` auto-merged as `a9cdcab21`; encoded MIME/header-injection and notification/report SMTP-flow tests passed, with socket tests rerun outside the restricted sandbox
 - Active queue commit: none
 
 ## High-risk verification notes
