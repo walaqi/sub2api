@@ -5,14 +5,14 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 138
+- Pending: 137
 - Awaiting user: 0
-- Merged: 84
+- Merged: 85
 - Skipped: 1
 - Failed/blocked: 0
-- Next index: 102
-- Next commit: `1f8b3a9c60f8a6925677d77a28a514ba6f0cacfa`
-- Last action: medium-risk OAuth refresh candidate filter `c9156c1e7` auto-merged as `5fc0344b8`; permanently unschedulable accounts are excluded while temporary recovery refresh remains intact, and focused repository/service tests passed
+- Next index: 103
+- Next commit: `276d9cbd9b6ae929e086d161fce1e35d67dd07a5`
+- Last action: medium-risk Composite Available Channels projection fix `1f8b3a9c6` auto-merged as `363e311a0`; Composite groups expand across concrete configured model platforms while ordinary groups remain isolated, and focused handler tests passed
 - Active queue commit: none
 
 ## High-risk verification notes
