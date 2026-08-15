@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 15
+- Pending: 14
 - Awaiting user: 0
-- Merged: 201
+- Merged: 202
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 222
-- Next commit: `bc0a6a70394c13cf070045468cde7862df3f4455`
-- Last action: automatically merged medium-risk #221 Chat Completions `reasoning` response alias support as `160ba5054`; complete apicompat package tests passed.
-- Active queue commit: none; #222 is next for automatic risk assessment and merge
+- Next index: 223
+- Next commit: `574dfad2dc6dbaef887ca4badc5421dbe36dd8d8`
+- Last action: automatically merged low-risk #222 administrator request ID column as `66914c2b1`, retaining main's UsageTable behavior and excluding non-incremental IP-geolocation code; focused frontend tests and typecheck passed.
+- Active queue commit: none; #223 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
