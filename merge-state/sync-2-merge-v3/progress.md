@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 49
+- Pending: 48
 - Awaiting user: 0
-- Merged: 167
+- Merged: 168
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 188
-- Next commit: `89915748736c84dbeb2a4ef201a4e2f444f13cab`
-- Last action: automatically merged high-risk #187 OpenAI stream capacity-shed recovery as `99fa6fd9b`; complete verification passed with only documented baseline exceptions.
-- Active queue commit: `89915748736c84dbeb2a4ef201a4e2f444f13cab` under automatic risk assessment and merge
+- Next index: 189
+- Next commit: `155c494964c3ea6ecc31f52679525c1034bf0f16`
+- Last action: automatically merged high-risk #188 OAuth pending-exchange account-takeover protection as `f4fd3d468`; complete verification passed with only documented baseline exceptions.
+- Active queue commit: `155c494964c3ea6ecc31f52679525c1034bf0f16` under automatic risk assessment and merge
 
 ## Post-merge follow-up
 
@@ -22,6 +22,7 @@
 
 ## High-risk verification notes
 
+- `899157487`: OAuth pending-exchange account-takeover protection merged automatically as `f4fd3d468`. Nonterminal attacker-influenced sessions can no longer apply identity adoption; only token-eligible completed sessions and authenticated bind-current-user intents may bind. Rejected states return their payload without consuming the session, while existing legitimate completion and binding workflows remain intact. Registration policy, user creation, gifts and super-invite behavior are unchanged. Focused takeover coverage passed; complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1471/1473 with only known rollback failures and existing GroupsView mock errors; unit-tag and lint retained only documented baselines.
 - `8f7b0a314`: OpenAI stream capacity-shed recovery merged automatically as `99fa6fd9b`. Retryable error frames before client output remain eligible for account failover; when failover is unavailable, only the downstream copy rewrites Codex-fatal capacity codes to a retryable server error. Original upstream payloads still drive HTTP/WebSocket account state, nonretryable and rate-limit errors are unchanged, and committed output is never replayed. Failed pre-output attempts do not reach RecordUsage, so gift/recharge allocation and super-invite spend cannot be duplicated. Focused stream/flush/WebSocket tests passed; complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1471/1473 with only known rollback failures and existing GroupsView mock errors; unit-tag and lint retained only documented baselines.
 - `de904c433`: upstream response-model audit merged automatically as `084e6cdc9`. Every supported gateway now captures the model reported by the upstream response, persists mismatch state, and exposes audit filters/statistics to administrators. Migrations were moved to 213/214 and the combined Ent/Wire output regenerated. Query-filter helpers were adapted from prerequisite `cafc95c3e` without importing its unrelated ordinary-user IP/geo display, preserving main's usage privacy boundary. Main's gift/recharge columns, device/fingerprint signals, group-scoped allocation and user ActualCost semantics remain intact, and ordinary-user DTOs expose neither IP nor upstream audit fields. Focused backend/frontend and PostgreSQL migration tests passed; complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1471/1473 with only known rollback failures and existing GroupsView mock errors; unit-tag and lint retained only documented baselines.
 - `bd9b12bbc`: subscription daily-midnight reset semantics merged automatically as `a3e6b3705`. Daily windows now align to the configured timezone's calendar-day boundary across activation, renewal, legacy-anchor healing and administrator reset, while weekly/monthly term alignment and one-time daily-card behavior remain intact. The change affects entitlement timing but leaves main's recharge/gift allocation and super-invite accounting untouched. Focused midnight/manual-reset/renewal/monthly and PostgreSQL conditional-reset tests passed; complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1469/1471 with only known rollback failures; unit-tag and lint retained only documented baselines.
