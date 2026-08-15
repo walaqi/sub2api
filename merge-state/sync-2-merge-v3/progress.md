@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 223
 - Already in baseline: 16
-- Pending: 14
+- Pending: 13
 - Awaiting user: 0
-- Merged: 205
+- Merged: 206
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 226
-- Next commit: `d76c1af7592ac6d2af5eeeb780e3dd5fa363ba8b`
-- Last action: automatically merged medium-risk #225 OpenAI passthrough pool auth-status retry as `62e2cf6d9`, with main gift-engine test wiring retained in `768513b11`; focused service and handler tests passed.
-- Active queue commit: none; #226 is next for automatic risk assessment and merge
+- Next index: 227
+- Next commit: `177bf30867446d2fe2b3789424d8fc1d70706eb5`
+- Last action: automatically merged low-risk #226 account scheduling-threshold i18n nesting fix as `257d7646f`; EditAccountModal tests and frontend typecheck passed.
+- Active queue commit: none; #227 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
