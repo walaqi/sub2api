@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 17
+- Pending: 16
 - Awaiting user: 0
-- Merged: 199
+- Merged: 200
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 220
-- Next commit: `b918874f8159a60cd49fb9434a9f0bc93297627e`
-- Last action: automatically merged high-risk #219 empty OpenAI Responses completed-stream failover as `20077f0ca`; complete serial ordinary Go, independent integration and frontend verification passed, with only the documented unit-tag baselines and no new lint findings.
-- Active queue commit: none; #220 is next for automatic risk assessment and merge
+- Next index: 221
+- Next commit: `6876477371ac17f14c5806f2a59dc86711a9008d`
+- Last action: automatically merged medium-risk #220 request-scoped capacity retry exponential backoff as `6219c5f75`; focused retry-delay tests passed.
+- Active queue commit: none; #221 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
