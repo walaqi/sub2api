@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 31
+- Pending: 30
 - Awaiting user: 0
-- Merged: 185
+- Merged: 186
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 206
-- Next commit: `895e8247afc6151cca5c70cb186c7b45d30f307a`
-- Last action: automatically merged medium-risk #205 OpenAI OAuth personal/workspace subscription-expiry association fix as `2dfca63bb`; focused account-association, enrichment and subscription tests passed.
-- Active queue commit: none; #206 is next for automatic risk assessment and merge
+- Next index: 207
+- Next commit: `5deeb7ef15999bb6f1c010d2ab60d49ad19ba329`
+- Last action: automatically merged medium-risk #206 OpenAI Codex scheduling-threshold percentage fix as `5cf4924fd`; focused unit-tag threshold tests passed.
+- Active queue commit: none; #207 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
