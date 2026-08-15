@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMigration222CreatesGroupUsageRollups(t *testing.T) {
-	content, err := FS.ReadFile("222_group_usage_daily_rollups.sql")
+func TestMigration237CreatesGroupUsageRollups(t *testing.T) {
+	content, err := FS.ReadFile("237_group_usage_daily_rollups.sql")
 	require.NoError(t, err)
 
 	sql := string(content)
@@ -22,8 +22,8 @@ func TestMigration222CreatesGroupUsageRollups(t *testing.T) {
 	require.Contains(t, sql, "ON CONFLICT (id) DO NOTHING")
 }
 
-func TestMigration222InvalidatesClosedBucketsWhenUsageLogsChange(t *testing.T) {
-	content, err := FS.ReadFile("222_group_usage_daily_rollups.sql")
+func TestMigration237InvalidatesClosedBucketsWhenUsageLogsChange(t *testing.T) {
+	content, err := FS.ReadFile("237_group_usage_daily_rollups.sql")
 	require.NoError(t, err)
 
 	sql := string(content)
@@ -39,8 +39,8 @@ func TestMigration222InvalidatesClosedBucketsWhenUsageLogsChange(t *testing.T) {
 	require.Contains(t, sql, "AFTER UPDATE OF created_at, group_id, actual_cost")
 }
 
-func TestMigration223TracksConfiguredTimezone(t *testing.T) {
-	content, err := FS.ReadFile("223_group_usage_rollup_timezone.sql")
+func TestMigration238TracksConfiguredTimezone(t *testing.T) {
+	content, err := FS.ReadFile("238_group_usage_rollup_timezone.sql")
 	require.NoError(t, err)
 
 	sql := string(content)
