@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 75
+- Pending: 74
 - Awaiting user: 0
-- Merged: 142
+- Merged: 143
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 163
-- Next commit: `aac53afe0ef1ae850e2f18b5d2814ac67c835e7e`
-- Last action: user-approved Aliyun Captcha 2.0 merged as `e410569b7` with main's trusted-client bypass, gift/referral stack, registration policy, moderation and combined Wire preserved; complete high-risk verification finished with only known baselines
-- Active queue commit: `aac53afe0ef1ae850e2f18b5d2814ac67c835e7e` under automatic low-risk evaluation
+- Next index: 164
+- Next commit: `c5e046b7d7b5fec8ebb7f6bfe18733a660c7e8b1`
+- Last action: automatically merged the low-risk VERSION 0.1.171 synchronization as `257880f05`; version resolver and cmd/server tests passed
+- Active queue commit: `c5e046b7d7b5fec8ebb7f6bfe18733a660c7e8b1` assessed low risk and queued for automatic merge
 
 ## Post-merge follow-up
 
