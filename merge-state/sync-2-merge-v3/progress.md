@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 223
 - Already in baseline: 16
-- Pending: 13
+- Pending: 12
 - Awaiting user: 0
-- Merged: 206
+- Merged: 207
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 227
-- Next commit: `177bf30867446d2fe2b3789424d8fc1d70706eb5`
-- Last action: automatically merged low-risk #226 account scheduling-threshold i18n nesting fix as `257d7646f`; EditAccountModal tests and frontend typecheck passed.
-- Active queue commit: none; #227 is next for automatic risk assessment and merge
+- Next index: 228
+- Next commit: `40aae11888ee038f34535b7564e408fb9c333868`
+- Last action: automatically merged low-risk #227 Ops memory capacity display formatting as `cc8375385`; formatter tests and frontend typecheck passed.
+- Active queue commit: none; #228 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
