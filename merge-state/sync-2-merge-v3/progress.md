@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 62
+- Pending: 61
 - Awaiting user: 0
-- Merged: 154
+- Merged: 155
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 175
-- Next commit: `22ef761c2760c30cb4a2bb8d8ccf587d5b09c923`
-- Last action: automatically merged medium-risk #174 Grok video `task_id` owner-binding fix as `6c03bd271`; focused extraction, ownership isolation and usage tests passed.
-- Active queue commit: `22ef761c2760c30cb4a2bb8d8ccf587d5b09c923` under automatic risk assessment and merge
+- Next index: 176
+- Next commit: `dce0f6b4e32be64c93f519fc7f71c388f4763d40`
+- Last action: automatically merged medium-risk #175 Antigravity Gemini 3.6 Flash routing support as `b3d68ab7e`; focused mapping, model-list, pricing and gift-usage tests passed.
+- Active queue commit: `dce0f6b4e32be64c93f519fc7f71c388f4763d40` under automatic risk assessment and merge
 
 ## Post-merge follow-up
 
