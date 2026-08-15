@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 57
+- Pending: 56
 - Awaiting user: 0
-- Merged: 159
+- Merged: 160
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 180
-- Next commit: `32e4de79420f747ddef741e15474ff5e6515000a`
-- Last action: automatically merged medium-risk #179 Composite Model Plaza display fix as `6975d1f24`; focused backend platform-isolation, frontend component and ESLint tests passed.
-- Active queue commit: `32e4de79420f747ddef741e15474ff5e6515000a` under automatic risk assessment and merge
+- Next index: 181
+- Next commit: `bd9b12bbcb987b7ca0389cbb5fc9302650098651`
+- Last action: automatically merged high-risk #180 bounded upstream TCP/TLS and proxy dialing as `7732655ed`; focused network tests and complete ordinary/integration/frontend verification passed with only documented unit, lint and Vitest baselines.
+- Active queue commit: `bd9b12bbcb987b7ca0389cbb5fc9302650098651` under automatic risk assessment and merge
 
 ## Post-merge follow-up
 
@@ -22,6 +22,7 @@
 
 ## High-risk verification notes
 
+- `32e4de794`: bounded upstream TCP/TLS and proxy dialing merged automatically as `7732655ed`. New upstream connections and HTTP/SOCKS5 proxy connections now fail within an explicit 10-second TCP/DNS or TLS-handshake window instead of relying on longer kernel behavior, while keepalive, response-header timing, streaming and connection reuse remain separate. Scheduling, RecordUsage and main's gift/recharge/super-invite/moderation/privacy behavior are untouched. Focused direct and proxy timeout tests passed; complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1469/1471 with only known rollback failures; unit-tag and lint retained only documented baselines.
 - `5ec11885d`: Codex Responses WebSocket prewarm continuation merged automatically as `c88b611f9`. The strict previous-response comparator now ignores transport-only `client_metadata` and `stream_options` and removes only `generate=false`; `generate=true`, model, input and all other semantic fields remain meaningful, while existing connection/account ownership checks still prevent cross-session reuse. RecordUsage and main's gift, recharge, super-invite, moderation and privacy behavior are untouched. Focused WebSocket normalization/continuation/usage tests passed; complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1468/1470 with only two known rollback failures and existing GroupsView mock errors; unit-tag and lint retained only documented baselines.
 - `93367b6db`: Codex OAuth default identity switched to `codex-tui` as `95613efbb`, with main's obsolete anti-TUI assertion adapted in `b8bb9e4ff`. HTTP, passthrough, WebSocket, alpha search and model/PAT probes now share a canonical User-Agent/originator/version while retaining administrator fingerprint overrides, version auto-sync, process-wide enforcement and its rollback switch. Focused tests and ordinary Go passed; independent complete integration passed on full rerun after one unrelated Aliyun transport timing failure passed three isolated repetitions. Frontend lint/typecheck passed; Vitest passed 1466/1468 with only known rollback failures and existing GroupsView mock errors; unit-tag and lint retained only documented baselines.
 - `e4b0e1b66`: Tencent Captcha region/CSP/SDK lifecycle hardening merged as `ec4704359`, with reflection compatibility adaptation `f6e33dba1`. China and international endpoints now stay aligned across settings, backend verification, frontend SDK loading and CSP; malformed forwarded IP candidates are rejected. Main's Aliyun provider, trusted-client bypass ordering, provider mutual exclusion, write-only secrets and partial settings updates remain intact. Focused backend and 64 frontend tests passed; complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1466/1468 with only known rollback failures; unit-tag retained only known config reachability and CheckerNil failures; lint retained only three known G704 findings.
