@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 24
+- Pending: 23
 - Awaiting user: 0
-- Merged: 192
+- Merged: 193
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 213
-- Next commit: `61acf2912588e98986d6b184cbd36ecd9313fb76`
-- Last action: automatically merged high-risk #212 safe upstream response-model billing as `6ccd574fd`; complete serial ordinary Go, independent integration and frontend verification passed, with only the documented unit-tag baselines and no new lint findings.
-- Active queue commit: none; #213 is next for automatic risk assessment and merge
+- Next index: 214
+- Next commit: `ba4bd0c0b41dc4618ceb9c8a0f6cf27db73ad6c9`
+- Last action: automatically merged medium-risk #213 absent scheduling-threshold cache fix as `e5b5a620d`; focused unit-tag setting-cache and backup tests passed.
+- Active queue commit: none; #214 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
