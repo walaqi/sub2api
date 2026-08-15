@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 55
+- Pending: 54
 - Awaiting user: 0
-- Merged: 161
+- Merged: 162
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 182
-- Next commit: `b8c0c00091ee62b69be71f7643e1ecd4c4ba6e67`
-- Last action: automatically merged high-risk #181 subscription daily-midnight reset semantics as `a3e6b3705`; focused entitlement/database tests and complete ordinary/integration/frontend verification passed with only documented unit, lint and Vitest baselines.
-- Active queue commit: `b8c0c00091ee62b69be71f7643e1ecd4c4ba6e67` under automatic risk assessment and merge
+- Next index: 183
+- Next commit: `e79429b03f5b9ba0ff6cec055df67918a7c72ce5`
+- Last action: automatically merged medium-risk #182 Ops system-log flush backoff as `a76846756`; focused suppression, recovery and healthy-path tests passed.
+- Active queue commit: `e79429b03f5b9ba0ff6cec055df67918a7c72ce5` under automatic risk assessment and merge
 
 ## Post-merge follow-up
 
