@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 53
+- Pending: 52
 - Awaiting user: 0
-- Merged: 163
+- Merged: 164
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 184
-- Next commit: `045b620d0d73b7a2125fb99132b9a453596406d3`
-- Last action: automatically merged medium-risk #183 Grok/OpenAI HTTP 405 failover as `a468e3d46`; focused status, passthrough and billing-idempotency tests passed.
-- Active queue commit: `045b620d0d73b7a2125fb99132b9a453596406d3` under automatic risk assessment and merge
+- Next index: 185
+- Next commit: `e88fc52ce666aa239b80de21630f339464c505b5`
+- Last action: automatically merged medium-risk #184 Codex plan-gated image cooldown correction as `b0b0a4be2`; conflict adaptation retained main's channel-mapping context and focused endpoint/mapping/rate-limit tests passed.
+- Active queue commit: `e88fc52ce666aa239b80de21630f339464c505b5` under automatic risk assessment and merge
 
 ## Post-merge follow-up
 
