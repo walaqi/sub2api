@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 223
 - Already in baseline: 16
-- Pending: 10
+- Pending: 9
 - Awaiting user: 0
-- Merged: 209
+- Merged: 210
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 230
-- Next commit: `1225437099395cdab87463784f14b612fbaaca3a`
-- Last action: automatically merged high-risk #229 OpenAI OAuth HTML-403 account-penalty exemption as `15b77717c`; failover is unchanged and the complete high-risk verification gate passed with only documented unit-tag and lint baselines.
-- Active queue commit: none; #230 is next for automatic risk assessment and merge
+- Next index: 231
+- Next commit: `a29fce4a6170f26f527fb4d175d6a3465ff9e6f0`
+- Last action: automatically merged medium-risk #230 service-tier-aware account cost statistics as `3076dcffd`; focused unit-tag account-stats pricing tests passed.
+- Active queue commit: none; #231 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
