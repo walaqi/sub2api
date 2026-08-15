@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 64
+- Pending: 63
 - Awaiting user: 0
-- Merged: 152
+- Merged: 153
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 173
-- Next commit: `93367b6db43315abe4f9fd9b09cbfc971b1f5ad0`
-- Last action: automatically merged high-risk #172 Tencent Captcha regional/CSP/SDK lifecycle hardening as `ec4704359`, with reflection/lint compatibility adaptation `f6e33dba1`; complete ordinary and independent integration tests passed, with only documented baseline exceptions elsewhere.
-- Active queue commit: `93367b6db43315abe4f9fd9b09cbfc971b1f5ad0` under automatic risk assessment and merge
+- Next index: 174
+- Next commit: `865002fd2c00346e18cfa56fda5214eac6874ff6`
+- Last action: automatically merged high-risk #173 Codex TUI default identity as `95613efbb`, with main contract-test adaptation `b8bb9e4ff`; focused, ordinary and independently rerun full integration tests passed, with only documented baseline exceptions elsewhere.
+- Active queue commit: `865002fd2c00346e18cfa56fda5214eac6874ff6` under automatic risk assessment and merge
 
 ## Post-merge follow-up
 
@@ -22,6 +22,7 @@
 
 ## High-risk verification notes
 
+- `93367b6db`: Codex OAuth default identity switched to `codex-tui` as `95613efbb`, with main's obsolete anti-TUI assertion adapted in `b8bb9e4ff`. HTTP, passthrough, WebSocket, alpha search and model/PAT probes now share a canonical User-Agent/originator/version while retaining administrator fingerprint overrides, version auto-sync, process-wide enforcement and its rollback switch. Focused tests and ordinary Go passed; independent complete integration passed on full rerun after one unrelated Aliyun transport timing failure passed three isolated repetitions. Frontend lint/typecheck passed; Vitest passed 1466/1468 with only known rollback failures and existing GroupsView mock errors; unit-tag and lint retained only documented baselines.
 - `e4b0e1b66`: Tencent Captcha region/CSP/SDK lifecycle hardening merged as `ec4704359`, with reflection compatibility adaptation `f6e33dba1`. China and international endpoints now stay aligned across settings, backend verification, frontend SDK loading and CSP; malformed forwarded IP candidates are rejected. Main's Aliyun provider, trusted-client bypass ordering, provider mutual exclusion, write-only secrets and partial settings updates remain intact. Focused backend and 64 frontend tests passed; complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1466/1468 with only known rollback failures; unit-tag retained only known config reachability and CheckerNil failures; lint retained only three known G704 findings.
 - `47c03c75d`: usage-billing NUMERIC(20,8) quantization merged as `c97bd2bf4`, with main reconciliation in `41a5690fe`. Raw V1/V2 fingerprints survive repeated normalization for rolling-deploy idempotency, while the canonical user cost is shared by group-scoped gift/recharge allocation, usage logs, caches, notifications and super-invite spend. The PostgreSQL boundary regression proved exact balance, API-key quota and gift-breakdown reconciliation. Complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1454/1456 with only known rollback failures; unit-tag retained only known config reachability and CheckerNil failures.
 - `f0e7a9c7a`: user-approved Aliyun Captcha 2.0 merged as `e410569b7`. The third mutually exclusive provider covers ordinary authentication, pending OAuth creation and OAuth/passkey action gates, with fail-closed backend verification, administrator credential probing and the frontend global SDK lifecycle. Conflict resolution preserved main's trusted-client bypass before provider reads and retained gift/referral/super-invite, registration email policy, content moderation, Live, Model Plaza, image endpoints and gift expiry in regenerated Wire; secrets remain redacted. Focused tests and the added Aliyun bypass regression passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1454/1456 with only two known rollback failures and ten known GroupsView mock errors; unit-tag retained only three known config environment failures and the known CheckerNil failure.
