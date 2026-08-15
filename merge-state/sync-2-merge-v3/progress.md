@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 69
+- Pending: 68
 - Awaiting user: 0
-- Merged: 147
+- Merged: 148
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 168
-- Next commit: `e08aee49ed1abb3e51a0918614119f9a4a9f2e45`
-- Last action: automatically merged low-risk EasyPay UTF-8-safe error truncation as `769bbe44f`; focused provider tests passed. Assessed #168 transient OpenAI failure-streak retention as medium risk and queued it for automatic merge.
-- Active queue commit: `e08aee49ed1abb3e51a0918614119f9a4a9f2e45` under automatic merge
+- Next index: 169
+- Next commit: `c123caddd40bbb655caea4e68af4470a9e196fed`
+- Last action: automatically merged medium-risk sparse-traffic transient failure-streak retention as `4f7a13a41`; all focused state tests passed. Assessed #169 sponsor README/assets update as low risk.
+- Active queue commit: `c123caddd40bbb655caea4e68af4470a9e196fed` under automatic merge
 
 ## Post-merge follow-up
 
