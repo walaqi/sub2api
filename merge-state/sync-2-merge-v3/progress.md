@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 45
+- Pending: 44
 - Awaiting user: 0
-- Merged: 171
+- Merged: 172
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 192
-- Next commit: `cc67b1aca1d3b590609abef2fcd3a6ca31c5c651`
-- Last action: automatically merged medium-risk #191 nanoid security patch as `9ca3656e6`; frozen-lockfile, lint and typecheck passed, with only documented Vitest baselines.
-- Active queue commit: `cc67b1aca1d3b590609abef2fcd3a6ca31c5c651` under automatic risk assessment and merge
+- Next index: 193
+- Next commit: `fb0475656cbc674c0304cfe18c2bbd413f3d9f83`
+- Last action: automatically merged high-risk #192 OpenAI OAuth routing hints as `d96d43a08`; complete verification passed with only documented baseline exceptions.
+- Active queue commit: `fb0475656cbc674c0304cfe18c2bbd413f3d9f83` under automatic risk assessment and merge
 
 ## Post-merge follow-up
 
@@ -22,6 +22,7 @@
 
 ## High-risk verification notes
 
+- `cc67b1aca`: OpenAI OAuth routing hints merged automatically as `d96d43a08`. HTTP and WebSocket requests derive the gateway-owned hint from the final model/service tier; caller-supplied variants are stripped and non-OAuth accounts never receive it. WebSocket pools remain account-partitioned and use the hint only as soft affinity, preserving pinned continuation and handshake compatibility. BillingModel, upstream response-model auditing and RecordUsage are untouched, so gift/recharge allocation and super-invite spend semantics remain unchanged. Focused routing/pool tests passed; complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1471/1473 with only known rollback failures and existing GroupsView mock errors; unit-tag and lint retained only documented baselines.
 - `899157487`: OAuth pending-exchange account-takeover protection merged automatically as `f4fd3d468`. Nonterminal attacker-influenced sessions can no longer apply identity adoption; only token-eligible completed sessions and authenticated bind-current-user intents may bind. Rejected states return their payload without consuming the session, while existing legitimate completion and binding workflows remain intact. Registration policy, user creation, gifts and super-invite behavior are unchanged. Focused takeover coverage passed; complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1471/1473 with only known rollback failures and existing GroupsView mock errors; unit-tag and lint retained only documented baselines.
 - `8f7b0a314`: OpenAI stream capacity-shed recovery merged automatically as `99fa6fd9b`. Retryable error frames before client output remain eligible for account failover; when failover is unavailable, only the downstream copy rewrites Codex-fatal capacity codes to a retryable server error. Original upstream payloads still drive HTTP/WebSocket account state, nonretryable and rate-limit errors are unchanged, and committed output is never replayed. Failed pre-output attempts do not reach RecordUsage, so gift/recharge allocation and super-invite spend cannot be duplicated. Focused stream/flush/WebSocket tests passed; complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1471/1473 with only known rollback failures and existing GroupsView mock errors; unit-tag and lint retained only documented baselines.
 - `de904c433`: upstream response-model audit merged automatically as `084e6cdc9`. Every supported gateway now captures the model reported by the upstream response, persists mismatch state, and exposes audit filters/statistics to administrators. Migrations were moved to 213/214 and the combined Ent/Wire output regenerated. Query-filter helpers were adapted from prerequisite `cafc95c3e` without importing its unrelated ordinary-user IP/geo display, preserving main's usage privacy boundary. Main's gift/recharge columns, device/fingerprint signals, group-scoped allocation and user ActualCost semantics remain intact, and ordinary-user DTOs expose neither IP nor upstream audit fields. Focused backend/frontend and PostgreSQL migration tests passed; complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1471/1473 with only known rollback failures and existing GroupsView mock errors; unit-tag and lint retained only documented baselines.
