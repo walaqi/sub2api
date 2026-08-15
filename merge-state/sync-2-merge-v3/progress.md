@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 223
 - Already in baseline: 16
-- Pending: 3
+- Pending: 2
 - Awaiting user: 0
-- Merged: 216
+- Merged: 217
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 237
-- Next commit: `93c32fa1a2450351561abc46156d2e28cb5f74ca`
-- Last action: automatically merged low-risk #236 simple-mode risk-control menu visibility as `3178dcd18`, adapted to main's current content-moderation route without restoring deferred prompt-audit; focused tests and typecheck passed.
-- Active queue commit: none; #237 is next for automatic risk assessment and merge
+- Next index: 238
+- Next commit: `ef4f99f292dc7d0c9ebcd0080e90b169417a9774`
+- Last action: automatically merged high-risk #237 Codex OAuth fingerprint convergence as adapted commit `8b1babe6b`; completed upstream's HTTP-only implementation across OAuth passthrough and all Responses WebSocket paths, with complete ordinary, frontend and independent integration gates passing and only known unit/lint baselines remaining.
+- Active queue commit: none; #238 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
@@ -22,6 +22,7 @@
 
 ## High-risk verification notes
 
+- `93c32fa1a`: Codex OAuth device fingerprint convergence merged automatically as adapted commit `8b1babe6b`. The upstream implementation's off/device/session/full modes and admin controls are preserved, while transport coverage is completed for standard HTTP, OAuth passthrough, pooled/dedicated ingress WS and WS v2 passthrough. Headers and `client_metadata` share each turn's IDs; WebSocket turns receive fresh turn IDs without losing stable account/session/thread convergence. Existing conversation isolation, identity enforcement, routing, content moderation and main billing/gift/super-invite paths remain unchanged. Focused transport regressions, complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1533 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
 - `80acae16f`: OpenAI Responses visible-output TTFT merged automatically as `24292c593`. Structural events still commit the attempt and disarm first-output failover, preventing replay, while only nonempty text/reasoning/tool/audio/image output starts TTFT; usage-only terminal events leave TTFT unset. Forwarding, usage parsing, RecordUsage and main's gift/recharge/super-invite accounting are unchanged. Focused tests, complete ordinary Go and independent integration passed. Frontend passed all 1532 tests on a full rerun after one unrelated asynchronous table-loader rejection, then ESLint/typecheck passed. Unit-tag retained only known config reachability and CheckerNil failures; lint retained only three known G704 findings.
 - `0ed1a9f22`: cyber-policy hard-block audit scope merged automatically as `56e54b68f`. Audit records, violation counts and automatic bans now apply only when the event's group and model are inside the content-moderation scope; the global risk-control switch remains mandatory, while moderation enabled/mode/sample do not suppress in-scope cyber-policy events. Initial runtime-config failures skip side effects and refresh failures retain the last valid scope. Focused tests, complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1532 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
 - `5192abb6b`: OpenAI OAuth HTML-403 account-penalty exemption merged automatically as `15b77717c`. HTML 403 responses remain eligible for the existing current-request failover but no longer increment account-error counters, temporarily unschedule or disable the account. Structured JSON 403, plain-text 403 and all non-OpenAI platforms retain existing penalty behavior. Scheduling, RecordUsage and main's gift/recharge/super-invite accounting are otherwise unchanged. Focused 403 tests, complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1532 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
