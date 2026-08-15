@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 28
+- Pending: 27
 - Awaiting user: 0
-- Merged: 188
+- Merged: 189
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 209
-- Next commit: `f19e3816d0d5725f63260cb45b37302dec0e97e6`
-- Last action: automatically merged medium-risk #208 API-key quota/rate-limit/expiry validation as `ea3d7f82c`, resolving the service import conflict while preserving main's stricter name behavior; focused unit-tag tests and ordinary package compilation passed.
-- Active queue commit: none; #209 is next for automatic risk assessment and merge
+- Next index: 210
+- Next commit: `f3c7a1a8c410d03f67d6fc5fae96508ef4dff9da`
+- Last action: automatically merged medium-risk #209 legacy OpenAI scheduler exclusion diagnostics as `493007838`; focused legacy, profit-control and scheduling tests passed.
+- Active queue commit: none; #210 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
