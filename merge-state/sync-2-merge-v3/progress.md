@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 223
 - Already in baseline: 16
-- Pending: 16
+- Pending: 15
 - Awaiting user: 0
-- Merged: 203
+- Merged: 204
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 224
-- Next commit: `caa1abb13a2ea0ef5125f3e9108fc4f4a05c8d65`
-- Last action: automatically merged medium-risk #223 stale/reset Codex scheduling-threshold snapshot handling as `2a6f5a422`; focused threshold and OpenAI scheduler tests passed. Reconciled progress totals directly from all 239 state rows: 16 already in baseline, 203 merged, 4 skipped and 16 pending, so the effective action total is 223 rather than 224.
-- Active queue commit: none; #224 is next for automatic risk assessment and merge
+- Next index: 225
+- Next commit: `1e618dbc299fc0a82e9a690bcf2d5843be817113`
+- Last action: automatically merged and adapted high-risk #224 OAuth image transport-read failover as `e62be604e`, preserving main's Responses passthrough and billing behavior; complete ordinary Go, independent integration and frontend verification passed, with only documented unit-tag and lint baselines.
+- Active queue commit: none; #225 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
