@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 223
 - Already in baseline: 16
-- Pending: 9
+- Pending: 8
 - Awaiting user: 0
-- Merged: 210
+- Merged: 211
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 231
-- Next commit: `a29fce4a6170f26f527fb4d175d6a3465ff9e6f0`
-- Last action: automatically merged medium-risk #230 service-tier-aware account cost statistics as `3076dcffd`; focused unit-tag account-stats pricing tests passed.
-- Active queue commit: none; #231 is next for automatic risk assessment and merge
+- Next index: 232
+- Next commit: `0ed1a9f22abfd58d360e679293411a882cba385c`
+- Last action: automatically merged medium-risk #231 WebSocket moderation audit logging as `4c3e9a2cd`, adapted to main's current content-moderation helper without restoring deferred prompt-audit; focused tests passed.
+- Active queue commit: none; #232 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
