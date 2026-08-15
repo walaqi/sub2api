@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 223
 - Already in baseline: 16
-- Pending: 4
+- Pending: 3
 - Awaiting user: 0
-- Merged: 215
+- Merged: 216
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 236
-- Next commit: `4ec9ceec4adac9b7679848347164804451bca48a`
-- Last action: automatically merged medium-risk #235 nested OpenAI-compatible usage envelopes as `b3ac96daf`; focused usage, image and gift billing-consistency tests passed.
-- Active queue commit: none; #236 is next for automatic risk assessment and merge
+- Next index: 237
+- Next commit: `93c32fa1a2450351561abc46156d2e28cb5f74ca`
+- Last action: automatically merged low-risk #236 simple-mode risk-control menu visibility as `3178dcd18`, adapted to main's current content-moderation route without restoring deferred prompt-audit; focused tests and typecheck passed.
+- Active queue commit: none; #237 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
