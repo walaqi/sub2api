@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 16
+- Pending: 15
 - Awaiting user: 0
-- Merged: 200
+- Merged: 201
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 221
-- Next commit: `6876477371ac17f14c5806f2a59dc86711a9008d`
-- Last action: automatically merged medium-risk #220 request-scoped capacity retry exponential backoff as `6219c5f75`; focused retry-delay tests passed.
-- Active queue commit: none; #221 is next for automatic risk assessment and merge
+- Next index: 222
+- Next commit: `bc0a6a70394c13cf070045468cde7862df3f4455`
+- Last action: automatically merged medium-risk #221 Chat Completions `reasoning` response alias support as `160ba5054`; complete apicompat package tests passed.
+- Active queue commit: none; #222 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
