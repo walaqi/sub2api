@@ -4,13 +4,13 @@
 - Frozen source tip: `1d3b9665c8824d3b7f5a03a3f50419e812261e91`
 - Raw incremental objects: 33
 - Effective first-parent merge units: 9
-- Pending: 6
-- Merged: 3
+- Pending: 5
+- Merged: 4
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 243
-- Next commit: `5912ae960c523027c048e108bd91365174cfcf44`
-- Last action: merged medium-risk #242 as `114976297`; focused Responses probe verdict tests passed.
+- Next index: 244
+- Next commit: `e803e3851c0a7e222cfadeafad7b8636ab959d11`
+- Last action: merged medium-risk #243 as `0d962635e`; Wire regeneration and focused cache invalidation tests passed.
 
 ## High-risk verification
 
