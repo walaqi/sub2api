@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 223
 - Already in baseline: 16
-- Pending: 7
+- Pending: 6
 - Awaiting user: 0
-- Merged: 212
+- Merged: 213
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 233
-- Next commit: `19c6007a229bad0cdd54d726df01a9b4be31f786`
-- Last action: automatically merged high-risk #232 cyber-policy group/model audit scope as `56e54b68f`; the complete high-risk verification gate passed with only documented unit-tag and lint baselines.
-- Active queue commit: none; #233 is next for automatic risk assessment and merge
+- Next index: 234
+- Next commit: `80acae16fa58d0742e1144925afabe9558e31f3b`
+- Last action: automatically merged medium-risk #233 OpenAI WebSocket v2 terminal-event TTFT correction as `051ded0ec`; focused relay tests passed.
+- Active queue commit: none; #234 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
