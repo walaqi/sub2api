@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 68
+- Pending: 67
 - Awaiting user: 0
-- Merged: 148
+- Merged: 149
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 169
-- Next commit: `c123caddd40bbb655caea4e68af4470a9e196fed`
-- Last action: automatically merged medium-risk sparse-traffic transient failure-streak retention as `4f7a13a41`; all focused state tests passed. Assessed #169 sponsor README/assets update as low risk.
-- Active queue commit: `c123caddd40bbb655caea4e68af4470a9e196fed` under automatic merge
+- Next index: 170
+- Next commit: `a1936d42db3826319c60a93996ea4d512779d5a7`
+- Last action: automatically merged low-risk sponsor additions as `5adaa79bc`, preserving main's sponsor list. Assessed #170 and its immediate #171 PNG dependency as a low-risk atomic documentation sequence.
+- Active queue commits: `a1936d42db3826319c60a93996ea4d512779d5a7` then `a19c9f8d8a1059d5ce6d78a276fa4e9bca982914` under automatic merge
 
 ## Post-merge follow-up
 
