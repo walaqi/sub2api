@@ -16,6 +16,16 @@
 - Last action: completed the separately tracked high-risk prompt-audit subsystem merge and current-main adaptation as `4c6069992` after restoring its full upstream prerequisite/fix chain.
 - Active queue commit: none; all 223 effective snapshot items are resolved (219 merged, 4 skipped), and the separately recorded prompt-audit follow-up is complete.
 
+## Active incremental snapshot
+
+- Frozen range: `5935e674a84341c3536e27e6a968384f67d9062b..1d3b9665c8824d3b7f5a03a3f50419e812261e91`
+- Raw incremental Git objects: 33
+- Effective first-parent merge units: 9
+- Pending: 9
+- Merged: 0
+- Next: #240 `0fa577a19c07f33808f02ff04ceee16a481b8949`
+- Ledger: `merge-state/sync-2-merge-v3/increment-1d3b9665c/`
+
 ## Post-merge follow-up
 
 - Completed 2026-08-15: merged the complete upstream `prompt-audit` subsystem as one separately assessed high-risk unit. Restored the original implementation and all prompt-audit-specific fixes through source snapshot `5935e674a`, then adapted current-main integration in `4c6069992`. Migrations were renumbered from 181/182 to 234/235; Wire, lifecycle shutdown, admin routes/UI, persistent event/payload storage, HTTP/WS/batch/media gates and audit logging are active. The Coordinator composes prompt audit with main's existing content moderation instead of replacing it. Search and TTS text now use the composed gate; Live/Codex realtime remain on the previously approved realtime content-moderation path, while STT/custom-voices are explicitly classified as non-text inputs. Main billing, gift, super-invite, registration regex and ordinary-user IP privacy code remained unchanged.
