@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 20
+- Pending: 19
 - Awaiting user: 0
-- Merged: 196
+- Merged: 197
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 217
-- Next commit: `e499a54a9d239af465119e0025ca6d5db78bfda7`
-- Last action: automatically merged high-risk #216 Grok missing-usage rejection as `13a701266`; complete serial ordinary Go, independent integration and frontend verification passed, with only the documented unit-tag baselines and no new lint findings.
-- Active queue commit: none; #217 is next for automatic risk assessment and merge
+- Next index: 218
+- Next commit: `ca9e2b48ee99e57236b9d92896b504115779ae6f`
+- Last action: automatically merged low-risk #217 Go/golangci-lint documentation synchronization as `74c1df5ff`; repository/CI version consistency and documentation diff checks passed.
+- Active queue commit: none; #218 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
