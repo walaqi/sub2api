@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 223
 - Already in baseline: 16
-- Pending: 6
+- Pending: 5
 - Awaiting user: 0
-- Merged: 213
+- Merged: 214
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 234
-- Next commit: `80acae16fa58d0742e1144925afabe9558e31f3b`
-- Last action: automatically merged medium-risk #233 OpenAI WebSocket v2 terminal-event TTFT correction as `051ded0ec`; focused relay tests passed.
-- Active queue commit: none; #234 is next for automatic risk assessment and merge
+- Next index: 235
+- Next commit: `46cbb7187b2cfc78fa9e13a0706475b4d7ea804b`
+- Last action: automatically merged high-risk #234 visible-output TTFT and first-output progress separation as `24292c593`; the complete high-risk verification gate passed with only documented unit-tag/lint baselines and one unrelated frontend flaky run that passed on full rerun.
+- Active queue commit: none; #235 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
@@ -22,6 +22,7 @@
 
 ## High-risk verification notes
 
+- `80acae16f`: OpenAI Responses visible-output TTFT merged automatically as `24292c593`. Structural events still commit the attempt and disarm first-output failover, preventing replay, while only nonempty text/reasoning/tool/audio/image output starts TTFT; usage-only terminal events leave TTFT unset. Forwarding, usage parsing, RecordUsage and main's gift/recharge/super-invite accounting are unchanged. Focused tests, complete ordinary Go and independent integration passed. Frontend passed all 1532 tests on a full rerun after one unrelated asynchronous table-loader rejection, then ESLint/typecheck passed. Unit-tag retained only known config reachability and CheckerNil failures; lint retained only three known G704 findings.
 - `0ed1a9f22`: cyber-policy hard-block audit scope merged automatically as `56e54b68f`. Audit records, violation counts and automatic bans now apply only when the event's group and model are inside the content-moderation scope; the global risk-control switch remains mandatory, while moderation enabled/mode/sample do not suppress in-scope cyber-policy events. Initial runtime-config failures skip side effects and refresh failures retain the last valid scope. Focused tests, complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1532 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
 - `5192abb6b`: OpenAI OAuth HTML-403 account-penalty exemption merged automatically as `15b77717c`. HTML 403 responses remain eligible for the existing current-request failover but no longer increment account-error counters, temporarily unschedule or disable the account. Structured JSON 403, plain-text 403 and all non-OpenAI platforms retain existing penalty behavior. Scheduling, RecordUsage and main's gift/recharge/super-invite accounting are otherwise unchanged. Focused 403 tests, complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1532 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
 - `20a2d12dd`: empty OpenAI Responses completed-stream failover merged automatically as `20077f0ca`. A valid empty response.completed/response.done is retryable only before any semantic/client output and when no accumulated or terminal usage, error or output item exists. Text, tool/output, error and usage-bearing streams retain success behavior, preventing zero-cost empty successes without replaying committed content. Successful `ActualCost` still uses main's group-aware gift allocator and super-invite tracker. Focused empty-completed tests, complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1527 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint introduced no new findings.
