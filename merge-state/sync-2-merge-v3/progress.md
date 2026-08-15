@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 36
+- Pending: 35
 - Awaiting user: 0
-- Merged: 180
+- Merged: 181
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 201
-- Next commit: `48eb3766d2da817b171b45bb3036d42575e42b8f`
-- Last action: automatically merged high-risk #200 default-off email-domain quota switch as `c51399bdc`; complete ordinary Go, independent integration and frontend verification passed, with only documented unit-tag and lint baselines.
-- Active queue commit: none; #201 is next for automatic risk assessment and merge
+- Next index: 202
+- Next commit: `fddc806db29a518f3b53d2c3ae9cc28cae100c4b`
+- Last action: automatically merged low-risk #201 version sync to 0.1.173 as `d18c1293d`; focused server verification passed.
+- Active queue commit: none; #202 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
