@@ -27,3 +27,7 @@ for completeness and dependency auditing.
 - Update `state.tsv`, `progress.md` and the parent progress ledger after each
   resolved merge unit.
 
+## Completion
+
+All 9 first-parent merge units representing the frozen 33-object range are
+resolved: 9 merged, 0 skipped, 0 pending, 0 failed or blocked.
