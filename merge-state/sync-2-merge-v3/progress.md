@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 38
+- Pending: 37
 - Awaiting user: 0
-- Merged: 178
+- Merged: 179
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 199
-- Next commit: `f2da30bcd94615d697719cb764d1c971a7e92a8b`
-- Last action: automatically merged high-risk #198 Gemini native image output accounting as `685677870`; complete ordinary Go, independent integration and frontend verification passed, with only documented unit-tag and lint baselines.
-- Active queue commit: none; #199 is next for automatic risk assessment and merge
+- Next index: 200
+- Next commit: `29009f0b2ea14edf3b11ae2564fb617ff91a03b4`
+- Last action: automatically merged high-risk #199 email-domain registration quota as `02eb0afe7`; complete ordinary Go, independent integration and frontend verification passed, with only documented unit-tag and lint baselines.
+- Active queue commit: none; #200 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
@@ -22,6 +22,7 @@
 
 ## High-risk verification notes
 
+- `f2da30bcd`: email-domain registration quota merged automatically as `02eb0afe7`. When the trusted-domain list is nonempty, exact, wildcard and main's regex rules remain unlimited while each nonmatching registrable root domain is limited to one self-registered account; an empty list remains unrestricted. Public-suffix normalization, PostgreSQL advisory locks and an in-transaction domain/alias recheck close concurrent duplicate-registration paths, deleted users do not consume quota, and administrator-created users bypass it. Main's registration regex support, alias overflow fail-closed behavior, post-create gift/referral/super-invite bootstrap and email-change prohibition were preserved. The registration UI delegates first-account eligibility to the backend instead of incorrectly rejecting nontrusted domains. Focused backend and frontend tests passed; complete ordinary Go and independent integration, including the PostgreSQL concurrency path, passed; frontend ESLint/typecheck and all 1520 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
 - `7821c4005`: Gemini native image output accounting merged automatically as `685677870`. Native and compatibility paths count valid inline image parts from actual upstream responses, reset observation per failover attempt, and use the largest cumulative SSE payload count to prevent duplicate charging; known image model names remain a fallback. Corrected ImageCount enters the existing group-priced image-cost path, GiftEngine allocation and super-invite spend tracker without changing deduction semantics. Incremental multi-image streams remain conservatively undercounted rather than overcharged. Complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1514 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
 - `c5bda8b8e`: API-key image upstream-context detachment merged automatically as `c1dc348e2`. Non-streaming image generation now continues after a client disconnect, matching existing OAuth and Grok media behavior so an upstream-generated and charged image still reaches the mandatory detached RecordUsage task. Response-header timeouts remain the upstream bound; scheduling and main's group-scoped gift/recharge/super-invite accounting remain on the existing usage path. Complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1514 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
 - `909cbb9b1`: passive Channel Monitor V2 merged automatically as `f74cab162`. V2 aggregation, privacy/health thresholds, guarded APIs and the operations UI are present, but deployments remain on mode=v1 until explicitly switched. Upstream migrations were moved from 194-206 to 221-233. Combined routes and Wire retain gift ops, refund assessment, gift expiry, Image Studio, referral/super-invite settings and current content moderation. Complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1514 Vitest tests passed. Unit-tag and lint retained only documented baselines.
