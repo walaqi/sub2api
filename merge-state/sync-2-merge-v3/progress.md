@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 42
+- Pending: 41
 - Awaiting user: 0
-- Merged: 174
+- Merged: 175
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 195
-- Next commit: `7a113fb7a30eb8fba4014229fdd1dce7bc518d86`
-- Last action: automatically merged high-risk #194 passive Channel Monitor V2 as `f74cab162`; complete verification passed with only documented baseline exceptions.
-- Active queue commit: none; #195 is next for automatic risk assessment and merge
+- Next index: 196
+- Next commit: `a1073843ac5693b0b84f464769f688fd7b319f69`
+- Last action: automatically merged medium-risk #195 Gemini pool-mode 429 handling as `06a84236e`; focused unit-tag regression passed.
+- Active queue commit: none; #196 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
