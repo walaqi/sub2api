@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 23
+- Pending: 22
 - Awaiting user: 0
-- Merged: 193
+- Merged: 194
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 214
-- Next commit: `ba4bd0c0b41dc4618ceb9c8a0f6cf27db73ad6c9`
-- Last action: automatically merged medium-risk #213 absent scheduling-threshold cache fix as `e5b5a620d`; focused unit-tag setting-cache and backup tests passed.
-- Active queue commit: none; #214 is next for automatic risk assessment and merge
+- Next index: 215
+- Next commit: `e2d9034d3d298ab4e288686c9fd0e62fcf196e2b`
+- Last action: automatically merged medium-risk #214 deterministic native Responses HTTP 400 passthrough as `564060e83`; focused upstream-error classification and forwarding tests passed.
+- Active queue commit: none; #215 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
