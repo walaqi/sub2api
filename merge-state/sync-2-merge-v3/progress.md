@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 223
 - Already in baseline: 16
-- Pending: 12
+- Pending: 11
 - Awaiting user: 0
-- Merged: 207
+- Merged: 208
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 228
-- Next commit: `40aae11888ee038f34535b7564e408fb9c333868`
-- Last action: automatically merged low-risk #227 Ops memory capacity display formatting as `cc8375385`; formatter tests and frontend typecheck passed.
-- Active queue commit: none; #228 is next for automatic risk assessment and merge
+- Next index: 229
+- Next commit: `5192abb6b55f36122dea13bf08feb26cf54c4408`
+- Last action: automatically merged medium-risk #228 Gemini integer exclusive-minimum schema normalization as `20cd4599e`; focused schema and tool conversion tests passed.
+- Active queue commit: none; #229 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
