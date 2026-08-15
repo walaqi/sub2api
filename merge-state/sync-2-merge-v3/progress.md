@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 73
-- Awaiting user: 0
-- Merged: 144
+- Pending: 71
+- Awaiting user: 1
+- Merged: 145
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 165
-- Next commit: `00b8596176809906993169c283671811ad04f58d`
-- Last action: automatically merged the low-risk sponsor documentation cleanup as `5afbd72d3`, deleting only the expired AICodeMirror block while preserving main's divergent sponsor list
-- Active queue commit: `00b8596176809906993169c283671811ad04f58d` assessed low risk and queued for automatic merge
+- Next index: 166
+- Next commit: `47c03c75d82494cb224b4be2c8387030d3ac449d`
+- Last action: automatically removed the unreferenced AICodeMirror image as `507f5d043`, then assessed usage-billing NUMERIC(20,8) quantization as high risk because main's versioned fingerprints, gift/recharge breakdown, usage logs, caches and super-invite spend need a shared canonical amount
+- Active queue commit: `47c03c75d82494cb224b4be2c8387030d3ac449d` awaiting `merge|skip`
 
 ## Post-merge follow-up
 
