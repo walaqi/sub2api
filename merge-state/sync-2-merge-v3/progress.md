@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 41
+- Pending: 40
 - Awaiting user: 0
-- Merged: 175
+- Merged: 176
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 196
-- Next commit: `a1073843ac5693b0b84f464769f688fd7b319f69`
-- Last action: automatically merged medium-risk #195 Gemini pool-mode 429 handling as `06a84236e`; focused unit-tag regression passed.
-- Active queue commit: none; #196 is next for automatic risk assessment and merge
+- Next index: 197
+- Next commit: `c5bda8b8e4639c170a170c886ab6abf02ba78e9a`
+- Last action: automatically merged medium-risk #196 upstream response-model observation hot-path optimization as `d1aeefbc6`; focused service regressions passed.
+- Active queue commit: none; #197 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
