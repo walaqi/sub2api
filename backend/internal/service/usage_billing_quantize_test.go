@@ -157,10 +157,37 @@ func TestNormalizeKeepsFingerprintDerivedFromRawAmounts(t *testing.T) {
 	}
 
 	cmd := newCmd()
-	expected := buildUsageBillingFingerprint(newCmd())
+	expected := buildUsageBillingFingerprint(newCmd(), UsageBillingFingerprintV1)
 
 	cmd.Normalize()
 	require.Equal(t, expected, cmd.RequestFingerprint)
+}
+
+func TestNormalizePreservesRawFingerprintsAcrossVersions(t *testing.T) {
+	groupID := int64(42)
+	cmd := &UsageBillingCommand{
+		RequestID:           "req-5229-versioned-fp",
+		UserID:              1,
+		APIKeyID:            2,
+		AccountID:           3,
+		GroupID:             &groupID,
+		FingerprintVersion:  UsageBillingFingerprintV2,
+		BalanceCost:         0.000078125,
+		APIKeyQuotaCost:     0.000078125,
+		APIKeyRateLimitCost: 0.000078125,
+	}
+	wantV1 := buildUsageBillingFingerprint(cmd, UsageBillingFingerprintV1)
+	wantV2 := buildUsageBillingFingerprint(cmd, UsageBillingFingerprintV2)
+
+	cmd.Normalize()
+	require.Equal(t, wantV2, cmd.RequestFingerprint)
+	require.Equal(t, wantV1, cmd.FingerprintForVersion(UsageBillingFingerprintV1))
+	require.Equal(t, wantV2, cmd.FingerprintForVersion(UsageBillingFingerprintV2))
+
+	// Repository.Apply 会再次 Normalize；重复规范化不能把兼容指纹改成量化金额指纹。
+	cmd.Normalize()
+	require.Equal(t, wantV1, cmd.FingerprintForVersion(UsageBillingFingerprintV1))
+	require.Equal(t, wantV2, cmd.FingerprintForVersion(UsageBillingFingerprintV2))
 }
 
 // 显式设置的指纹不被覆盖，且金额仍会被量化。

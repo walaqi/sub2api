@@ -158,6 +158,38 @@ func TestGatewayServiceRecordUsage_BillingFingerprintIncludesRequestPayloadHash(
 	require.Equal(t, payloadHash, billingRepo.lastCmd.RequestPayloadHash)
 }
 
+func TestApplyUsageBillingUsesCanonicalAmountForGiftBreakdownAndUsageLog(t *testing.T) {
+	const rawCost = 0.000078125
+	canonicalCost := QuantizeUsageBillingAmount(rawCost)
+	giftCost := canonicalCost
+	rechargeCost := 0.0
+	repo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{
+		Applied:      true,
+		GiftCost:     &giftCost,
+		RechargeCost: &rechargeCost,
+	}}
+	usageLog := &UsageLog{ActualCost: rawCost}
+	p := &postUsageBillingParams{
+		Cost:          &CostBreakdown{TotalCost: rawCost, ActualCost: rawCost},
+		User:          &User{ID: 601},
+		APIKey:        &APIKey{ID: 501},
+		Account:       &Account{ID: 701},
+		APIKeyService: &openAIRecordUsageAPIKeyQuotaStub{},
+	}
+	deps := &billingDeps{
+		billingCacheService: &BillingCacheService{},
+		deferredService:     &DeferredService{},
+	}
+
+	applied, err := applyUsageBilling(context.Background(), "req-5229-gift-log", usageLog, p, deps, repo)
+	require.NoError(t, err)
+	require.True(t, applied)
+	require.Equal(t, canonicalCost, repo.lastCmd.BalanceCost)
+	require.Equal(t, canonicalCost, p.Cost.ActualCost)
+	require.Equal(t, canonicalCost, usageLog.ActualCost)
+	require.Equal(t, canonicalCost, usageLog.GiftCost+usageLog.RechargeCost)
+}
+
 func TestGatewayServiceRecordUsage_Gemini36FlashPricingFlowsThroughGiftAllocation(t *testing.T) {
 	usageRepo := &openAIRecordUsageLogRepoStub{}
 	giftCost := 4.15

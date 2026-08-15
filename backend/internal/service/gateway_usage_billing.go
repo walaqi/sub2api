@@ -149,7 +149,7 @@ func (p *postUsageBillingParams) shouldUpdateAccountQuota() bool {
 // 返回 error 语义：只有"扣费本身"失败才返回（可让上层重试）；扣费提交之后的附属
 // best-effort 更新（key quota / rate-limit / account quota / platform quota）失败仅记日志，
 // 不返回错误——否则重试会重复扣费（cx-s2 实现注）。
-func postUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *billingDeps) error {
+func postUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *billingDeps, accountQuotaCost float64) error {
 	billingCtx, cancel := detachedBillingContext(ctx)
 	defer cancel()
 
@@ -189,9 +189,8 @@ func postUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *bill
 	}
 
 	if p.shouldUpdateAccountQuota() {
-		accountCost := cost.TotalCost * p.AccountRateMultiplier
-		if err := deps.accountRepo.IncrementQuotaUsed(billingCtx, p.Account.ID, accountCost); err != nil {
-			slog.Error("increment account quota used failed", "account_id", p.Account.ID, "cost", accountCost, "error", err)
+		if err := deps.accountRepo.IncrementQuotaUsed(billingCtx, p.Account.ID, accountQuotaCost); err != nil {
+			slog.Error("increment account quota used failed", "account_id", p.Account.ID, "cost", accountQuotaCost, "error", err)
 		}
 	}
 
@@ -327,8 +326,25 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 	}
 
 	cmd := buildUsageBillingCommand(requestID, usageLog, p, usageBillingFingerprintVersion(deps.cfg))
+	accountQuotaCost := 0.0
+	if cmd != nil {
+		accountQuotaCost = cmd.AccountQuotaCost
+		// Normalize 已把数据库计费金额统一到 NUMERIC(20,8)。后续日志、缓存、
+		// 通知和邀请奖励必须复用同一金额，才能与赠金分摊及数据库扣费精确对账。
+		if p.IsSubscriptionBill {
+			p.Cost.ActualCost = cmd.SubscriptionCost
+		} else {
+			p.Cost.ActualCost = cmd.BalanceCost
+		}
+		if usageLog != nil {
+			usageLog.ActualCost = p.Cost.ActualCost
+		}
+	}
 	if cmd == nil || cmd.RequestID == "" || repo == nil {
-		if err := postUsageBilling(ctx, p, deps); err != nil {
+		if cmd == nil && p.Cost != nil {
+			accountQuotaCost = QuantizeUsageBillingAmount(p.Cost.TotalCost * p.AccountRateMultiplier)
+		}
+		if err := postUsageBilling(ctx, p, deps, accountQuotaCost); err != nil {
 			return false, err
 		}
 		return true, nil
@@ -365,11 +381,11 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 		}
 	}
 
-	finalizePostUsageBilling(billingCtx, p, deps, result)
+	finalizePostUsageBilling(billingCtx, p, deps, result, cmd.AccountQuotaCost)
 	return true, nil
 }
 
-func finalizePostUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *billingDeps, result *UsageBillingApplyResult) {
+func finalizePostUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *billingDeps, result *UsageBillingApplyResult, accountQuotaCost float64) {
 	if p == nil || p.Cost == nil || deps == nil {
 		return
 	}
@@ -433,7 +449,7 @@ func finalizePostUsageBilling(ctx context.Context, p *postUsageBillingParams, de
 	}
 
 	go notifyBalanceLow(p, deps, result)
-	go notifyAccountQuota(p, deps, result)
+	go notifyAccountQuota(p, deps, result, accountQuotaCost)
 }
 
 func syncBalanceCacheAfterDeduction(ctx context.Context, p *postUsageBillingParams, deps *billingDeps, result *UsageBillingApplyResult) {
@@ -498,7 +514,7 @@ func resolveOldBalance(p *postUsageBillingParams, result *UsageBillingApplyResul
 // notifyAccountQuota sends account quota threshold notification after increment.
 // When result.QuotaState is available (from DB transaction RETURNING), it is passed directly
 // to avoid a separate DB read that may see stale or concurrently-modified data.
-func notifyAccountQuota(p *postUsageBillingParams, deps *billingDeps, result *UsageBillingApplyResult) {
+func notifyAccountQuota(p *postUsageBillingParams, deps *billingDeps, result *UsageBillingApplyResult, accountCost float64) {
 	defer func() {
 		if r := recover(); r != nil {
 			slog.Error("panic in notifyAccountQuota", "recover", r)
@@ -513,7 +529,6 @@ func notifyAccountQuota(p *postUsageBillingParams, deps *billingDeps, result *Us
 		)
 		return
 	}
-	accountCost := p.Cost.TotalCost * p.AccountRateMultiplier
 	var quotaState *AccountQuotaState
 	if result != nil {
 		quotaState = result.QuotaState

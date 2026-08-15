@@ -81,6 +81,43 @@ func TestUsageBillingRepositoryApply_DeduplicatesBalanceBilling(t *testing.T) {
 	require.Equal(t, 1, dedupCount)
 }
 
+func TestUsageBillingRepositoryApply_QuantizedGiftAndQuotaReconcileExactly(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	repo := NewUsageBillingRepository(client, integrationDB, gift.NewEngine(client, integrationDB))
+
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("usage-billing-quantized-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      100,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID: user.ID,
+		Key:    "sk-usage-billing-quantized-" + uuid.NewString(),
+		Name:   "billing-quantized",
+		Quota:  100,
+	})
+
+	result, err := repo.Apply(ctx, &service.UsageBillingCommand{
+		RequestID:       uuid.NewString(),
+		APIKeyID:        apiKey.ID,
+		UserID:          user.ID,
+		BalanceCost:     0.000078125,
+		APIKeyQuotaCost: 0.000078125,
+	})
+	require.NoError(t, err)
+	require.True(t, result.Applied)
+	require.NotNil(t, result.GiftCost)
+	require.NotNil(t, result.RechargeCost)
+	require.Equal(t, service.QuantizeUsageBillingAmount(0.000078125), *result.GiftCost+*result.RechargeCost)
+
+	var balanceText, quotaText string
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT balance::text FROM users WHERE id = $1", user.ID).Scan(&balanceText))
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT quota_used::text FROM api_keys WHERE id = $1", apiKey.ID).Scan(&quotaText))
+	require.Equal(t, "99.99992187", balanceText)
+	require.Equal(t, "0.00007813", quotaText)
+}
+
 func TestUsageBillingRepositoryApply_FlagsGiftEngineOverdraft(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)

@@ -52,6 +52,11 @@ type UsageBillingCommand struct {
 	//   2：含 group_id。两阶段发布下由 config 开关控制新写入用哪版（见 plan.md §3.6）。
 	// dedup 表持久化该版本，比对时按存储版本选公式，避免混版误判冲突。
 	FingerprintVersion int16
+
+	// rawFingerprintV1 / V2 缓存首次 Normalize 时基于原始金额生成的指纹。
+	// 金额随后会被量化，因此跨版本 dedup 比对不能再从已量化字段重算。
+	rawFingerprintV1 string
+	rawFingerprintV2 string
 }
 
 // UsageBillingFingerprintV1 / V2 是指纹公式版本号。
@@ -69,8 +74,14 @@ func (c *UsageBillingCommand) Normalize() {
 	if c.FingerprintVersion == 0 {
 		c.FingerprintVersion = UsageBillingFingerprintV1
 	}
+	if c.rawFingerprintV1 == "" {
+		c.rawFingerprintV1 = buildUsageBillingFingerprint(c, UsageBillingFingerprintV1)
+	}
+	if c.rawFingerprintV2 == "" {
+		c.rawFingerprintV2 = buildUsageBillingFingerprint(c, UsageBillingFingerprintV2)
+	}
 	if strings.TrimSpace(c.RequestFingerprint) == "" {
-		c.RequestFingerprint = buildUsageBillingFingerprint(c, c.FingerprintVersion)
+		c.RequestFingerprint = c.rawFingerprintForVersion(c.FingerprintVersion)
 	}
 	// 量化必须在指纹计算之后：指纹是请求幂等键，保持由原始金额派生可以避免
 	// 升级前后同一 request_id 的重试算出不同指纹而被判为 fingerprint conflict。
@@ -166,7 +177,20 @@ func buildUsageBillingFingerprint(c *UsageBillingCommand, version int16) string 
 // FingerprintForVersion 用指定版本公式重算本命令的指纹，供 dedup 比对：
 // 存储行标注 version=1 → 用 V1 重算比对（即使本命令是 V2 写入），避免混版误判冲突。
 func (c *UsageBillingCommand) FingerprintForVersion(version int16) string {
+	if c == nil {
+		return ""
+	}
+	if fingerprint := c.rawFingerprintForVersion(version); fingerprint != "" {
+		return fingerprint
+	}
 	return buildUsageBillingFingerprint(c, version)
+}
+
+func (c *UsageBillingCommand) rawFingerprintForVersion(version int16) string {
+	if version >= UsageBillingFingerprintV2 {
+		return c.rawFingerprintV2
+	}
+	return c.rawFingerprintV1
 }
 
 func HashUsageRequestPayload(payload []byte) string {
