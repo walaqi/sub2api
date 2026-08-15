@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 51
+- Pending: 50
 - Awaiting user: 0
-- Merged: 165
+- Merged: 166
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 186
-- Next commit: `de904c433e3a2b5bce18f2937ef5ce99a70e6874`
-- Last action: automatically merged medium-risk #185 OpenAI Responses tool-schema null-type sanitizer as `ba4289d28`; focused nested-schema, validity, immutability and depth-bound tests passed.
-- Active queue commit: `de904c433e3a2b5bce18f2937ef5ce99a70e6874` under automatic risk assessment and merge
+- Next index: 187
+- Next commit: `8f7b0a314de816daabb5b761db3025cb10c3eca9`
+- Last action: automatically merged high-risk #186 upstream response-model audit as `084e6cdc9`; complete verification passed with only documented baseline exceptions.
+- Active queue commit: `8f7b0a314de816daabb5b761db3025cb10c3eca9` under automatic risk assessment and merge
 
 ## Post-merge follow-up
 
@@ -22,6 +22,7 @@
 
 ## High-risk verification notes
 
+- `de904c433`: upstream response-model audit merged automatically as `084e6cdc9`. Every supported gateway now captures the model reported by the upstream response, persists mismatch state, and exposes audit filters/statistics to administrators. Migrations were moved to 213/214 and the combined Ent/Wire output regenerated. Query-filter helpers were adapted from prerequisite `cafc95c3e` without importing its unrelated ordinary-user IP/geo display, preserving main's usage privacy boundary. Main's gift/recharge columns, device/fingerprint signals, group-scoped allocation and user ActualCost semantics remain intact, and ordinary-user DTOs expose neither IP nor upstream audit fields. Focused backend/frontend and PostgreSQL migration tests passed; complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1471/1473 with only known rollback failures and existing GroupsView mock errors; unit-tag and lint retained only documented baselines.
 - `bd9b12bbc`: subscription daily-midnight reset semantics merged automatically as `a3e6b3705`. Daily windows now align to the configured timezone's calendar-day boundary across activation, renewal, legacy-anchor healing and administrator reset, while weekly/monthly term alignment and one-time daily-card behavior remain intact. The change affects entitlement timing but leaves main's recharge/gift allocation and super-invite accounting untouched. Focused midnight/manual-reset/renewal/monthly and PostgreSQL conditional-reset tests passed; complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1469/1471 with only known rollback failures; unit-tag and lint retained only documented baselines.
 - `32e4de794`: bounded upstream TCP/TLS and proxy dialing merged automatically as `7732655ed`. New upstream connections and HTTP/SOCKS5 proxy connections now fail within an explicit 10-second TCP/DNS or TLS-handshake window instead of relying on longer kernel behavior, while keepalive, response-header timing, streaming and connection reuse remain separate. Scheduling, RecordUsage and main's gift/recharge/super-invite/moderation/privacy behavior are untouched. Focused direct and proxy timeout tests passed; complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1469/1471 with only known rollback failures; unit-tag and lint retained only documented baselines.
 - `5ec11885d`: Codex Responses WebSocket prewarm continuation merged automatically as `c88b611f9`. The strict previous-response comparator now ignores transport-only `client_metadata` and `stream_options` and removes only `generate=false`; `generate=true`, model, input and all other semantic fields remain meaningful, while existing connection/account ownership checks still prevent cross-session reuse. RecordUsage and main's gift, recharge, super-invite, moderation and privacy behavior are untouched. Focused WebSocket normalization/continuation/usage tests passed; complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1468/1470 with only two known rollback failures and existing GroupsView mock errors; unit-tag and lint retained only documented baselines.
