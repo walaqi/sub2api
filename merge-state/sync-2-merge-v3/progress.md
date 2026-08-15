@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 60
+- Pending: 59
 - Awaiting user: 0
-- Merged: 156
+- Merged: 157
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 177
-- Next commit: `c8af48d769d6516b5628280be0336dbf0d1891c2`
-- Last action: automatically merged medium-risk #176 OAuth count_tokens HTML-403 fallback as `3c0f1e5af`; focused fallback, account-health and local-estimation tests passed.
-- Active queue commit: `c8af48d769d6516b5628280be0336dbf0d1891c2` under automatic risk assessment and merge
+- Next index: 178
+- Next commit: `5ec11885d1beb9be35ac7da6c77e46f51c718515`
+- Last action: automatically merged low-risk #177 Ops custom error-range propagation as `a62a0b8cb`; conflict adaptation retained main and excluded unrelated pre-queue sorting, with focused tests, typecheck and ESLint passing.
+- Active queue commit: `5ec11885d1beb9be35ac7da6c77e46f51c718515` under automatic risk assessment and merge
 
 ## Post-merge follow-up
 
