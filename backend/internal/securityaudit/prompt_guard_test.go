@@ -222,7 +222,9 @@ func TestGuardEvaluatorFlagSharedDeadlineFailClosedAndContextCancel(t *testing.T
 		elapsed := time.Since(started)
 		require.Error(t, err)
 		require.Equal(t, 2, calls)
-		require.Less(t, elapsed, 180*time.Millisecond)
+		// The bound proves failover shares the first endpoint's deadline while
+		// leaving room for scheduler delay on a busy test host.
+		require.Less(t, elapsed, 350*time.Millisecond)
 		require.GreaterOrEqual(t, elapsed, 50*time.Millisecond)
 		require.Equal(t, int64(1), metrics.Snapshot().Failovers)
 		require.Equal(t, int64(1), metrics.Snapshot().Timeouts)

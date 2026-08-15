@@ -79,11 +79,8 @@ func (h *GatewayHandler) WebSearch(c *gin.Context) {
 			"role": "user", "content": req.Query,
 		}},
 	})
-	if decision := h.checkContentModeration(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIChat, xai.DefaultTextModel, auditBody); decision != nil && decision.Blocked {
-		c.JSON(contentModerationStatus(decision), gin.H{"error": gin.H{
-			"type":    contentModerationErrorCode(decision),
-			"message": decision.Message,
-		}})
+	if decision := h.checkSecurityAudit(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIChat, xai.DefaultTextModel, auditBody); decision != nil && !decision.AllowNextStage {
+		h.openAISecurityAuditError(c, decision)
 		return
 	}
 
