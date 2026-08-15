@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 223
 - Already in baseline: 16
-- Pending: 5
+- Pending: 4
 - Awaiting user: 0
-- Merged: 214
+- Merged: 215
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 235
-- Next commit: `46cbb7187b2cfc78fa9e13a0706475b4d7ea804b`
-- Last action: automatically merged high-risk #234 visible-output TTFT and first-output progress separation as `24292c593`; the complete high-risk verification gate passed with only documented unit-tag/lint baselines and one unrelated frontend flaky run that passed on full rerun.
-- Active queue commit: none; #235 is next for automatic risk assessment and merge
+- Next index: 236
+- Next commit: `4ec9ceec4adac9b7679848347164804451bca48a`
+- Last action: automatically merged medium-risk #235 nested OpenAI-compatible usage envelopes as `b3ac96daf`; focused usage, image and gift billing-consistency tests passed.
+- Active queue commit: none; #236 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
