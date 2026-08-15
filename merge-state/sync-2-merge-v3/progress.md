@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 25
+- Pending: 24
 - Awaiting user: 0
-- Merged: 191
+- Merged: 192
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 212
-- Next commit: `0b3fe95afd20aba77ee7649b37febb8255fb57a5`
-- Last action: automatically merged high-risk #211 WebSocket audit deduplication as a main content-moderation adaptation `b9aff4ece`, without restoring deferred prompt-audit; complete serial ordinary Go, independent integration and frontend verification passed, with only documented unit-tag and lint baselines.
-- Active queue commit: none; #212 is next for automatic risk assessment and merge
+- Next index: 213
+- Next commit: `61acf2912588e98986d6b184cbd36ecd9313fb76`
+- Last action: automatically merged high-risk #212 safe upstream response-model billing as `6ccd574fd`; complete serial ordinary Go, independent integration and frontend verification passed, with only the documented unit-tag baselines and no new lint findings.
+- Active queue commit: none; #213 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
@@ -22,6 +22,7 @@
 
 ## High-risk verification notes
 
+- `0b3fe95af`: safe upstream response-model billing merged automatically as `6ccd574fd`. It can lower token charges only for channels explicitly configured with `response_model`, one nonconflicting successful response declaration and deterministic token pricing. Media/search/audio requests, price increases, positive-to-zero changes and channel-price bypasses retain baseline billing. The accepted `ActualCost` continues through main's group-aware priority/proportional gift allocator and super-invite tracker unchanged. Focused response-model tests, complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1527 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint introduced no new findings.
 - `10a4c6e3a`: upstream WebSocket turn-audit deduplication was adapted to main's existing content-moderation subsystem rather than restoring the deleted/deferred prompt-audit helper. Only a pure allow result for the same turn, protocol, requested model and exact payload hash is reused; changes to any key and all flagged, blocked or error decisions force a new check. Existing first-frame blocking and multi-turn moderation remain active. Focused dedupe and WebSocket moderation tests passed; complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1527 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
 - `4667f9012`: reverted #203's fail-closed behavior only when the initial content-moderation runtime settings snapshot cannot be loaded, restoring logged fail-open handling. The content-moderation subsystem, explicit enablement, provider checks, gateway and Live/voice integration remain present, and prompt-audit remains deferred. Focused moderation tests passed; complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1526 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
 - `b5e83156d`: content-moderation runtime-config fail-closed handling merged automatically as `d75ae84ba`. A failure to obtain the initial risk-control enablement/configuration snapshot now returns a blocked 500 decision before any upstream gateway or Live/voice session starts, instead of silently allowing the request. Explicitly disabled/off moderation, absent service wiring, observe-mode asynchronous failures and moderation-provider call failures retain their existing behavior; despite the upstream PR title, this commit does not make every audit API failure fail closed. Main's current content moderation remains the implementation and no deferred prompt-audit dependency was introduced. Focused content-moderation and Live handler tests passed; complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1526 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
