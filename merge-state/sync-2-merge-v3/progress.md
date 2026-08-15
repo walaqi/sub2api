@@ -2,18 +2,19 @@
 
 - Baseline: `ec909bf6ff6b28b08b6f7fb4a1a1a3f1eaf4dbc2`
 - Source snapshot tip: `5935e674a84341c3536e27e6a968384f67d9062b`
+- Active merge policy (updated 2026-08-15): automatically merge every remaining queue commit regardless of risk level; do not pause for `merge|skip`. Continue to assess and document risk, preserve main-specific features, resolve prerequisite commits instead of dropping behavior, and run the complete test suite including independent integration tests after every high-risk merge.
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 71
-- Awaiting user: 1
-- Merged: 145
+- Pending: 70
+- Awaiting user: 0
+- Merged: 146
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 166
-- Next commit: `47c03c75d82494cb224b4be2c8387030d3ac449d`
-- Last action: automatically removed the unreferenced AICodeMirror image as `507f5d043`, then assessed usage-billing NUMERIC(20,8) quantization as high risk because main's versioned fingerprints, gift/recharge breakdown, usage logs, caches and super-invite spend need a shared canonical amount
-- Active queue commit: `47c03c75d82494cb224b4be2c8387030d3ac449d` awaiting `merge|skip`
+- Next index: 167
+- Next commit: `c9e60d1f2649c8c1e1334f6aaff39b511cc5979c`
+- Last action: merged high-risk usage-billing NUMERIC(20,8) quantization as `c97bd2bf4` with main reconciliation `41a5690fe`; raw V1/V2 fingerprints are retained while gift/recharge allocation, usage logs, caches, notifications and super-invite spend share the canonical amount. Complete ordinary Go and independent integration passed; frontend lint/typecheck passed; Vitest and unit-tag retained only known baseline failures.
+- Active queue commit: `c9e60d1f2649c8c1e1334f6aaff39b511cc5979c` under automatic assessment/merge
 
 ## Post-merge follow-up
 
@@ -21,6 +22,7 @@
 
 ## High-risk verification notes
 
+- `47c03c75d`: usage-billing NUMERIC(20,8) quantization merged as `c97bd2bf4`, with main reconciliation in `41a5690fe`. Raw V1/V2 fingerprints survive repeated normalization for rolling-deploy idempotency, while the canonical user cost is shared by group-scoped gift/recharge allocation, usage logs, caches, notifications and super-invite spend. The PostgreSQL boundary regression proved exact balance, API-key quota and gift-breakdown reconciliation. Complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1454/1456 with only known rollback failures; unit-tag retained only known config reachability and CheckerNil failures.
 - `f0e7a9c7a`: user-approved Aliyun Captcha 2.0 merged as `e410569b7`. The third mutually exclusive provider covers ordinary authentication, pending OAuth creation and OAuth/passkey action gates, with fail-closed backend verification, administrator credential probing and the frontend global SDK lifecycle. Conflict resolution preserved main's trusted-client bypass before provider reads and retained gift/referral/super-invite, registration email policy, content moderation, Live, Model Plaza, image endpoints and gift expiry in regenerated Wire; secrets remain redacted. Focused tests and the added Aliyun bypass regression passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1454/1456 with only two known rollback failures and ten known GroupsView mock errors; unit-tag retained only three known config environment failures and the known CheckerNil failure.
 - `8b3fe664d`: user-approved complete Tencent Captcha authentication gate merged as `c8a28d8d4`. Password auth, verification/reset, Passkey, OAuth starts and pending account creation can use Tencent while ordinary clients fail closed; main's trusted-client app bypass was adapted to both unified and Tencent-only gates. Combined Wire retains gift engine, affiliate/referral/super-invite, content moderation, Live and Model Plaza; registration regex/suffix policy and alias dedup remain in every new-user flow, and administrator responses expose only secret-configured flags. Focused backend and 45 frontend tests, complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1443/1445 with only two known rollback failures and ten known GroupsView mock errors; unit-tag retained only three known config environment failures and the known CheckerNil failure.
 - `a4d263f62`: user-approved subscription-renewal serialization merged as `550d668f0`. Existing rows are locked and reread in the effective transaction, making concurrent extensions cumulative and preventing stale assignment reads from reactivating a later-suspended subscription. Payment fulfillment continues to reuse its outer transaction and main's post-commit cache invalidation/idempotency behavior is preserved; gifts, recharge-balance allocation and super-invite calculations are unchanged. Focused concurrency/lock/fulfillment tests, complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1415/1417 with only two known rollback failures and ten known GroupsView mock errors; unit-tag retained only three known config environment failures and the known CheckerNil failure.
