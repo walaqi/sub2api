@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 19
+- Pending: 18
 - Awaiting user: 0
-- Merged: 197
+- Merged: 198
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 218
-- Next commit: `ca9e2b48ee99e57236b9d92896b504115779ae6f`
-- Last action: automatically merged low-risk #217 Go/golangci-lint documentation synchronization as `74c1df5ff`; repository/CI version consistency and documentation diff checks passed.
-- Active queue commit: none; #218 is next for automatic risk assessment and merge
+- Next index: 219
+- Next commit: `20a2d12ddeeb27c50ece99388e6d078382b61072`
+- Last action: automatically merged medium-risk #218 invalid Responses reasoning item-ID sanitation as `e95f8a89a`; focused unit-tag passthrough and sanitation tests passed.
+- Active queue commit: none; #219 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
