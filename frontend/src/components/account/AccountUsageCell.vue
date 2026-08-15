@@ -1318,9 +1318,15 @@ const loadUsage = async (options?: { source?: 'passive' | 'active'; bypassCache?
   error.value = null
 
   try {
-    const fetchFn = () => options?.source
-      ? adminAPI.accounts.getUsage(props.account.id, options.source, options.bypassCache === true)
-      : adminAPI.accounts.getUsage(props.account.id)
+    const fetchFn = () => {
+      if (options?.bypassCache) {
+        return adminAPI.accounts.getUsage(props.account.id, options.source, true)
+      }
+      if (props.account.platform === 'openai' || options?.source) {
+        return adminAPI.accounts.getUsage(props.account.id, options?.source)
+      }
+      return adminAPI.accounts.getUsage(props.account.id)
+    }
     const result = await enqueueUsageRequest(props.account, fetchFn)
     if (!unmounted.value) {
       usageInfo.value = result

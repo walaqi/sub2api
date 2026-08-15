@@ -44,6 +44,7 @@ func TestBuildSystemSettingsUpdates_PersistsAccountSchedulingThresholds(t *testi
 	svc := newSettingServiceForPlatformThresholdTest(nil)
 
 	updates, err := svc.buildSystemSettingsUpdates(context.Background(), &SystemSettings{
+		DefaultSubscriptions: defaultSubsForTests(),
 		AccountSchedulingThresholds: map[string]int{
 			PlatformOpenAI:    91,
 			PlatformAnthropic: 88,
@@ -78,6 +79,7 @@ func TestUpdateSettings_StoresAccountSchedulingThresholds(t *testing.T) {
 	svc := newSettingServiceForPlatformThresholdTest(nil)
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		DefaultSubscriptions: defaultSubsForTests(),
 		AccountSchedulingThresholds: map[string]int{
 			PlatformOpenAI:    92,
 			PlatformAnthropic: 89,
@@ -114,7 +116,8 @@ func TestUpdateSettings_OmittedAccountSchedulingThresholdsDoesNotCacheDefaults(t
 	})
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
-		FrontendURL: "https://example.test",
+		FrontendURL:          "https://example.test",
+		DefaultSubscriptions: defaultSubsForTests(),
 	})
 	require.NoError(t, err)
 
