@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 21
+- Pending: 20
 - Awaiting user: 0
-- Merged: 195
+- Merged: 196
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 216
-- Next commit: `0f73203e35d3e530f4245a32ec3e0f00472cfc38`
-- Last action: automatically merged medium-risk #215 persistent account-fingerprint User-Agent validation and healing as `5ce005961`; focused identity validation and lifecycle tests passed.
-- Active queue commit: none; #216 is next for automatic risk assessment and merge
+- Next index: 217
+- Next commit: `e499a54a9d239af465119e0025ca6d5db78bfda7`
+- Last action: automatically merged high-risk #216 Grok missing-usage rejection as `13a701266`; complete serial ordinary Go, independent integration and frontend verification passed, with only the documented unit-tag baselines and no new lint findings.
+- Active queue commit: none; #217 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
@@ -22,6 +22,7 @@
 
 ## High-risk verification notes
 
+- `0f73203e3`: Grok missing-usage rejection merged automatically as `13a701266`. Buffered/non-streaming successful Grok chat responses containing content but no aggregate billable token usage now fail over before any client write instead of becoming zero-cost consumption. The guard covers Grok accounts and explicit Grok model identities; non-Grok traffic and Grok responses carrying aggregate usage retain prior behavior. Accepted `ActualCost` still flows through main's group-aware gift allocator and super-invite tracker. Focused Grok integrity tests, complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1527 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint introduced no new findings.
 - `0b3fe95af`: safe upstream response-model billing merged automatically as `6ccd574fd`. It can lower token charges only for channels explicitly configured with `response_model`, one nonconflicting successful response declaration and deterministic token pricing. Media/search/audio requests, price increases, positive-to-zero changes and channel-price bypasses retain baseline billing. The accepted `ActualCost` continues through main's group-aware priority/proportional gift allocator and super-invite tracker unchanged. Focused response-model tests, complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1527 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint introduced no new findings.
 - `10a4c6e3a`: upstream WebSocket turn-audit deduplication was adapted to main's existing content-moderation subsystem rather than restoring the deleted/deferred prompt-audit helper. Only a pure allow result for the same turn, protocol, requested model and exact payload hash is reused; changes to any key and all flagged, blocked or error decisions force a new check. Existing first-frame blocking and multi-turn moderation remain active. Focused dedupe and WebSocket moderation tests passed; complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1527 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
 - `4667f9012`: reverted #203's fail-closed behavior only when the initial content-moderation runtime settings snapshot cannot be loaded, restoring logged fail-open handling. The content-moderation subsystem, explicit enablement, provider checks, gateway and Live/voice integration remain present, and prompt-audit remains deferred. Focused moderation tests passed; complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1526 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
