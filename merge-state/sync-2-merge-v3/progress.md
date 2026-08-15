@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 33
+- Pending: 32
 - Awaiting user: 0
-- Merged: 183
+- Merged: 184
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 204
-- Next commit: `4667f9012f4e163dc1d0b18481674830c7123046`
-- Last action: automatically merged high-risk #203 content-moderation runtime-config fail-closed handling as `d75ae84ba`; complete serial ordinary Go, independent integration and frontend verification passed, with only documented unit-tag and lint baselines.
-- Active queue commit: none; #204 is next for automatic risk assessment and merge
+- Next index: 205
+- Next commit: `2d0976ac2c8690d31218b311e5856ba6ed1f06f4`
+- Last action: automatically merged high-risk #204 content-moderation runtime-config fail-open revert as `9fccbc760`; complete serial ordinary Go, independent integration and frontend verification passed, with only documented unit-tag and lint baselines.
+- Active queue commit: none; #205 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
@@ -22,6 +22,7 @@
 
 ## High-risk verification notes
 
+- `4667f9012`: reverted #203's fail-closed behavior only when the initial content-moderation runtime settings snapshot cannot be loaded, restoring logged fail-open handling. The content-moderation subsystem, explicit enablement, provider checks, gateway and Live/voice integration remain present, and prompt-audit remains deferred. Focused moderation tests passed; complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1526 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
 - `b5e83156d`: content-moderation runtime-config fail-closed handling merged automatically as `d75ae84ba`. A failure to obtain the initial risk-control enablement/configuration snapshot now returns a blocked 500 decision before any upstream gateway or Live/voice session starts, instead of silently allowing the request. Explicitly disabled/off moderation, absent service wiring, observe-mode asynchronous failures and moderation-provider call failures retain their existing behavior; despite the upstream PR title, this commit does not make every audit API failure fail closed. Main's current content moderation remains the implementation and no deferred prompt-audit dependency was introduced. Focused content-moderation and Live handler tests passed; complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1526 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
 - `fddc806db`: large-backup multipart upload and restore merged automatically as `dada225ad`. New gzip archives are staged locally and split above 4 GiB into ordered S3 objects below the single-PutObject size limit; each part records its byte size and SHA-256, and restore verifies contiguous order, size and checksum before invoking the database restore. Legacy single-object records remain downloadable/restorable. Partial upload, stale-running, explicit deletion and retention cleanup paths attempt every related object and preserve records/keys when cleanup cannot complete, while running records cannot be deleted underneath an active upload. The admin API/UI returns ordered per-part download URLs. This trades additional local temporary-disk use for bounded object size and pre-restore integrity checking. Focused backup service, S3 UploadFile and frontend tests passed; complete ordinary Go and independent integration passed on serial reruns after concurrent Go suites raced on Ent's `.entc` temporary file; frontend ESLint/typecheck and all 1526 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
 - `29009f0b2`: default-off email-domain quota switch merged automatically as `c51399bdc`. A nonempty trusted-domain list now remains a strict allowlist unless the administrator explicitly enables the new switch; when enabled, nontrusted registrable root domains receive the one-account quota introduced by #199, and an empty list remains unrestricted in either mode. The fail-closed default is initialized and exposed consistently through admin/public settings, registration, verification-code and pending OAuth paths, including a defensive recheck at creation time. Conflict resolution retained main's regex trusted rules, all gift/super-invite settings and the existing post-create bootstrap. Focused backend and 57 frontend tests passed; complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1523 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
