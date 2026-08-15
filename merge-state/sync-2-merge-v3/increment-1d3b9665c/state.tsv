@@ -1,5 +1,5 @@
 index	sha	risk	status	decision	result_commit	tests	notes
-240	0fa577a19c07f33808f02ff04ceee16a481b8949	high	pending	auto_merge	-	pending	Grok JWT tier, 4.6, per-model pricing, realtime/search billing, Ent schema and migration overlap main billing and prompt-audit routes
+240	0fa577a19c07f33808f02ff04ceee16a481b8949	high	merged	auto_merge	b90772c1e	pass_with_baseline_exceptions	Merged complete Grok JWT tier/4.6/per-model-pricing/x_search/realtime chain; regenerated Ent/Wire, moved migration 221 to 236, retained composed prompt-audit for web_search/x_search and main gift/super-invite allocation. Ordinary Go passed; frontend 1572/1572 plus ESLint/typecheck passed; integration passed except one cross-package keybind DB interference and the full keybind integration package passed independently; unit retained known config/CheckerNil baselines and one Aliyun transport flake passed independently; lint retained only three known G704 findings
 241	4853662f992dfd92bbedbb160aecb2e7a6c76f78	medium	pending	auto_merge	-	pending	Align channel pricing conflict normalization with cache keys
 242	e77b4b260e75c3656e251c202210f0442f641b7b	medium	pending	auto_merge	-	pending	Keep Responses capability unknown when probing is inconclusive
 243	5912ae960c523027c048e108bd91365174cfcf44	medium	pending	auto_merge	-	pending	Invalidate channel cache when group platform changes; Wire overlap expected
@@ -8,4 +8,3 @@ index	sha	risk	status	decision	result_commit	tests	notes
 246	fbfdcef8184ae4b2e224d5cfc47cf1d0e3742710	high	pending	auto_merge	-	pending	Correct Grok long-context and unknown-model billing fallback
 247	c204d33b09ebfefe96c1d4dcb16a88590992257e	high	pending	auto_merge	-	pending	Group usage daily rollups, migrations, cleanup and dashboard aggregation
 248	1d3b9665c8824d3b7f5a03a3f50419e812261e91	high	pending	auto_merge	-	pending	Remote compaction v2 routing, scheduling, profitability and fallback behavior
-
