@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 63
+- Pending: 62
 - Awaiting user: 0
-- Merged: 153
+- Merged: 154
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 174
-- Next commit: `865002fd2c00346e18cfa56fda5214eac6874ff6`
-- Last action: automatically merged high-risk #173 Codex TUI default identity as `95613efbb`, with main contract-test adaptation `b8bb9e4ff`; focused, ordinary and independently rerun full integration tests passed, with only documented baseline exceptions elsewhere.
-- Active queue commit: `865002fd2c00346e18cfa56fda5214eac6874ff6` under automatic risk assessment and merge
+- Next index: 175
+- Next commit: `22ef761c2760c30cb4a2bb8d8ccf587d5b09c923`
+- Last action: automatically merged medium-risk #174 Grok video `task_id` owner-binding fix as `6c03bd271`; focused extraction, ownership isolation and usage tests passed.
+- Active queue commit: `22ef761c2760c30cb4a2bb8d8ccf587d5b09c923` under automatic risk assessment and merge
 
 ## Post-merge follow-up
 
