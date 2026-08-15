@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 22
+- Pending: 21
 - Awaiting user: 0
-- Merged: 194
+- Merged: 195
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 215
-- Next commit: `e2d9034d3d298ab4e288686c9fd0e62fcf196e2b`
-- Last action: automatically merged medium-risk #214 deterministic native Responses HTTP 400 passthrough as `564060e83`; focused upstream-error classification and forwarding tests passed.
-- Active queue commit: none; #215 is next for automatic risk assessment and merge
+- Next index: 216
+- Next commit: `4bd98cc3f2b2569f7451bfccae56e4a95ac57975`
+- Last action: automatically merged medium-risk #215 persistent account-fingerprint User-Agent validation and healing as `5ce005961`; focused identity validation and lifecycle tests passed.
+- Active queue commit: none; #216 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
