@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 18
+- Pending: 17
 - Awaiting user: 0
-- Merged: 198
+- Merged: 199
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 219
-- Next commit: `20a2d12ddeeb27c50ece99388e6d078382b61072`
-- Last action: automatically merged medium-risk #218 invalid Responses reasoning item-ID sanitation as `e95f8a89a`; focused unit-tag passthrough and sanitation tests passed.
-- Active queue commit: none; #219 is next for automatic risk assessment and merge
+- Next index: 220
+- Next commit: `b918874f8159a60cd49fb9434a9f0bc93297627e`
+- Last action: automatically merged high-risk #219 empty OpenAI Responses completed-stream failover as `20077f0ca`; complete serial ordinary Go, independent integration and frontend verification passed, with only the documented unit-tag baselines and no new lint findings.
+- Active queue commit: none; #220 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
@@ -22,6 +22,7 @@
 
 ## High-risk verification notes
 
+- `20a2d12dd`: empty OpenAI Responses completed-stream failover merged automatically as `20077f0ca`. A valid empty response.completed/response.done is retryable only before any semantic/client output and when no accumulated or terminal usage, error or output item exists. Text, tool/output, error and usage-bearing streams retain success behavior, preventing zero-cost empty successes without replaying committed content. Successful `ActualCost` still uses main's group-aware gift allocator and super-invite tracker. Focused empty-completed tests, complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1527 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint introduced no new findings.
 - `0f73203e3`: Grok missing-usage rejection merged automatically as `13a701266`. Buffered/non-streaming successful Grok chat responses containing content but no aggregate billable token usage now fail over before any client write instead of becoming zero-cost consumption. The guard covers Grok accounts and explicit Grok model identities; non-Grok traffic and Grok responses carrying aggregate usage retain prior behavior. Accepted `ActualCost` still flows through main's group-aware gift allocator and super-invite tracker. Focused Grok integrity tests, complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1527 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint introduced no new findings.
 - `0b3fe95af`: safe upstream response-model billing merged automatically as `6ccd574fd`. It can lower token charges only for channels explicitly configured with `response_model`, one nonconflicting successful response declaration and deterministic token pricing. Media/search/audio requests, price increases, positive-to-zero changes and channel-price bypasses retain baseline billing. The accepted `ActualCost` continues through main's group-aware priority/proportional gift allocator and super-invite tracker unchanged. Focused response-model tests, complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1527 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint introduced no new findings.
 - `10a4c6e3a`: upstream WebSocket turn-audit deduplication was adapted to main's existing content-moderation subsystem rather than restoring the deleted/deferred prompt-audit helper. Only a pure allow result for the same turn, protocol, requested model and exact payload hash is reused; changes to any key and all flagged, blocked or error decisions force a new check. Existing first-frame blocking and multi-turn moderation remain active. Focused dedupe and WebSocket moderation tests passed; complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1527 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
