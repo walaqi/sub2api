@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 67
+- Pending: 65
 - Awaiting user: 0
-- Merged: 149
+- Merged: 151
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 170
-- Next commit: `a1936d42db3826319c60a93996ea4d512779d5a7`
-- Last action: automatically merged low-risk sponsor additions as `5adaa79bc`, preserving main's sponsor list. Assessed #170 and its immediate #171 PNG dependency as a low-risk atomic documentation sequence.
-- Active queue commits: `a1936d42db3826319c60a93996ea4d512779d5a7` then `a19c9f8d8a1059d5ce6d78a276fa4e9bca982914` under automatic merge
+- Next index: 172
+- Next commit: `e4b0e1b66bc296523939bc186100c6b6853e5f48`
+- Last action: automatically merged #170 sponsor wording as `0e819e58e` and its #171 hao.ai PNG dependency as `15cfbf497`; all README image references resolve. Assessed #172 Tencent Captcha regional/CSP/SDK lifecycle fix as high risk for automatic merge with complete verification.
+- Active queue commit: `e4b0e1b66bc296523939bc186100c6b6853e5f48` under automatic high-risk merge
 
 ## Post-merge follow-up
 
