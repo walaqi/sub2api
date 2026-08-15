@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 59
+- Pending: 58
 - Awaiting user: 0
-- Merged: 157
+- Merged: 158
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 178
-- Next commit: `5ec11885d1beb9be35ac7da6c77e46f51c718515`
-- Last action: automatically merged low-risk #177 Ops custom error-range propagation as `a62a0b8cb`; conflict adaptation retained main and excluded unrelated pre-queue sorting, with focused tests, typecheck and ESLint passing.
-- Active queue commit: `5ec11885d1beb9be35ac7da6c77e46f51c718515` under automatic risk assessment and merge
+- Next index: 179
+- Next commit: `8f55e0a7cd4dc404666b2e47738775b51e7896f2`
+- Last action: automatically merged high-risk #178 Codex WebSocket prewarm continuation as `c88b611f9`; focused checks and complete ordinary/integration/frontend verification passed with only documented unit, lint and Vitest baselines.
+- Active queue commit: `8f55e0a7cd4dc404666b2e47738775b51e7896f2` under automatic risk assessment and merge
 
 ## Post-merge follow-up
 
@@ -22,6 +22,7 @@
 
 ## High-risk verification notes
 
+- `5ec11885d`: Codex Responses WebSocket prewarm continuation merged automatically as `c88b611f9`. The strict previous-response comparator now ignores transport-only `client_metadata` and `stream_options` and removes only `generate=false`; `generate=true`, model, input and all other semantic fields remain meaningful, while existing connection/account ownership checks still prevent cross-session reuse. RecordUsage and main's gift, recharge, super-invite, moderation and privacy behavior are untouched. Focused WebSocket normalization/continuation/usage tests passed; complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1468/1470 with only two known rollback failures and existing GroupsView mock errors; unit-tag and lint retained only documented baselines.
 - `93367b6db`: Codex OAuth default identity switched to `codex-tui` as `95613efbb`, with main's obsolete anti-TUI assertion adapted in `b8bb9e4ff`. HTTP, passthrough, WebSocket, alpha search and model/PAT probes now share a canonical User-Agent/originator/version while retaining administrator fingerprint overrides, version auto-sync, process-wide enforcement and its rollback switch. Focused tests and ordinary Go passed; independent complete integration passed on full rerun after one unrelated Aliyun transport timing failure passed three isolated repetitions. Frontend lint/typecheck passed; Vitest passed 1466/1468 with only known rollback failures and existing GroupsView mock errors; unit-tag and lint retained only documented baselines.
 - `e4b0e1b66`: Tencent Captcha region/CSP/SDK lifecycle hardening merged as `ec4704359`, with reflection compatibility adaptation `f6e33dba1`. China and international endpoints now stay aligned across settings, backend verification, frontend SDK loading and CSP; malformed forwarded IP candidates are rejected. Main's Aliyun provider, trusted-client bypass ordering, provider mutual exclusion, write-only secrets and partial settings updates remain intact. Focused backend and 64 frontend tests passed; complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1466/1468 with only known rollback failures; unit-tag retained only known config reachability and CheckerNil failures; lint retained only three known G704 findings.
 - `47c03c75d`: usage-billing NUMERIC(20,8) quantization merged as `c97bd2bf4`, with main reconciliation in `41a5690fe`. Raw V1/V2 fingerprints survive repeated normalization for rolling-deploy idempotency, while the canonical user cost is shared by group-scoped gift/recharge allocation, usage logs, caches, notifications and super-invite spend. The PostgreSQL boundary regression proved exact balance, API-key quota and gift-breakdown reconciliation. Complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1454/1456 with only known rollback failures; unit-tag retained only known config reachability and CheckerNil failures.
