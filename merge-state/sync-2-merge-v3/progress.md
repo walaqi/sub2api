@@ -6,22 +6,23 @@
 - Raw snapshot total: 239
 - Effective merge total: 223
 - Already in baseline: 16
-- Pending: 11
+- Pending: 10
 - Awaiting user: 0
-- Merged: 208
+- Merged: 209
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 229
-- Next commit: `5192abb6b55f36122dea13bf08feb26cf54c4408`
-- Last action: automatically merged medium-risk #228 Gemini integer exclusive-minimum schema normalization as `20cd4599e`; focused schema and tool conversion tests passed.
-- Active queue commit: none; #229 is next for automatic risk assessment and merge
+- Next index: 230
+- Next commit: `1225437099395cdab87463784f14b612fbaaca3a`
+- Last action: automatically merged high-risk #229 OpenAI OAuth HTML-403 account-penalty exemption as `15b77717c`; failover is unchanged and the complete high-risk verification gate passed with only documented unit-tag and lint baselines.
+- Active queue commit: none; #230 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
-- After all 224 effective queue items are resolved, merge the complete upstream `prompt-audit` subsystem as one separately assessed high-risk unit. Include its original prerequisite chain, all prompt-audit-only commits skipped during this sync, later fixes in the fixed snapshot, migrations, persistent queue/event storage, Wire providers, routes and admin frontend. Reconcile its responsibilities explicitly with main's existing content moderation instead of replacing or duplicating behavior accidentally, preserve Live/content-moderation adaptations and main billing/privacy customizations, then run complete ordinary, unit-tag, frontend and independent integration tests.
+- After all 223 effective queue items are resolved, merge the complete upstream `prompt-audit` subsystem as one separately assessed high-risk unit. Include its original prerequisite chain, all prompt-audit-only commits skipped during this sync, later fixes in the fixed snapshot, migrations, persistent queue/event storage, Wire providers, routes and admin frontend. Reconcile its responsibilities explicitly with main's existing content moderation instead of replacing or duplicating behavior accidentally, preserve Live/content-moderation adaptations and main billing/privacy customizations, then run complete ordinary, unit-tag, frontend and independent integration tests.
 
 ## High-risk verification notes
 
+- `5192abb6b`: OpenAI OAuth HTML-403 account-penalty exemption merged automatically as `15b77717c`. HTML 403 responses remain eligible for the existing current-request failover but no longer increment account-error counters, temporarily unschedule or disable the account. Structured JSON 403, plain-text 403 and all non-OpenAI platforms retain existing penalty behavior. Scheduling, RecordUsage and main's gift/recharge/super-invite accounting are otherwise unchanged. Focused 403 tests, complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1532 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
 - `20a2d12dd`: empty OpenAI Responses completed-stream failover merged automatically as `20077f0ca`. A valid empty response.completed/response.done is retryable only before any semantic/client output and when no accumulated or terminal usage, error or output item exists. Text, tool/output, error and usage-bearing streams retain success behavior, preventing zero-cost empty successes without replaying committed content. Successful `ActualCost` still uses main's group-aware gift allocator and super-invite tracker. Focused empty-completed tests, complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1527 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint introduced no new findings.
 - `0f73203e3`: Grok missing-usage rejection merged automatically as `13a701266`. Buffered/non-streaming successful Grok chat responses containing content but no aggregate billable token usage now fail over before any client write instead of becoming zero-cost consumption. The guard covers Grok accounts and explicit Grok model identities; non-Grok traffic and Grok responses carrying aggregate usage retain prior behavior. Accepted `ActualCost` still flows through main's group-aware gift allocator and super-invite tracker. Focused Grok integrity tests, complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1527 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint introduced no new findings.
 - `0b3fe95af`: safe upstream response-model billing merged automatically as `6ccd574fd`. It can lower token charges only for channels explicitly configured with `response_model`, one nonconflicting successful response declaration and deterministic token pricing. Media/search/audio requests, price increases, positive-to-zero changes and channel-price bypasses retain baseline billing. The accepted `ActualCost` continues through main's group-aware priority/proportional gift allocator and super-invite tracker unchanged. Focused response-model tests, complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1527 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint introduced no new findings.
