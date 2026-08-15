@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 70
+- Pending: 69
 - Awaiting user: 0
-- Merged: 146
+- Merged: 147
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 167
-- Next commit: `c9e60d1f2649c8c1e1334f6aaff39b511cc5979c`
-- Last action: merged high-risk usage-billing NUMERIC(20,8) quantization as `c97bd2bf4` with main reconciliation `41a5690fe`; raw V1/V2 fingerprints are retained while gift/recharge allocation, usage logs, caches, notifications and super-invite spend share the canonical amount. Complete ordinary Go and independent integration passed; frontend lint/typecheck passed; Vitest and unit-tag retained only known baseline failures.
-- Active queue commit: `c9e60d1f2649c8c1e1334f6aaff39b511cc5979c` under automatic assessment/merge
+- Next index: 168
+- Next commit: `e08aee49ed1abb3e51a0918614119f9a4a9f2e45`
+- Last action: automatically merged low-risk EasyPay UTF-8-safe error truncation as `769bbe44f`; focused provider tests passed. Assessed #168 transient OpenAI failure-streak retention as medium risk and queued it for automatic merge.
+- Active queue commit: `e08aee49ed1abb3e51a0918614119f9a4a9f2e45` under automatic merge
 
 ## Post-merge follow-up
 
