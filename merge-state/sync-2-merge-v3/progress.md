@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 74
+- Pending: 73
 - Awaiting user: 0
-- Merged: 143
+- Merged: 144
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 164
-- Next commit: `c5e046b7d7b5fec8ebb7f6bfe18733a660c7e8b1`
-- Last action: automatically merged the low-risk VERSION 0.1.171 synchronization as `257880f05`; version resolver and cmd/server tests passed
-- Active queue commit: `c5e046b7d7b5fec8ebb7f6bfe18733a660c7e8b1` assessed low risk and queued for automatic merge
+- Next index: 165
+- Next commit: `00b8596176809906993169c283671811ad04f58d`
+- Last action: automatically merged the low-risk sponsor documentation cleanup as `5afbd72d3`, deleting only the expired AICodeMirror block while preserving main's divergent sponsor list
+- Active queue commit: `00b8596176809906993169c283671811ad04f58d` assessed low risk and queued for automatic merge
 
 ## Post-merge follow-up
 
