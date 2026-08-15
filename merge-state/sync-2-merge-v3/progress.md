@@ -4,17 +4,17 @@
 - Source snapshot tip: `5935e674a84341c3536e27e6a968384f67d9062b`
 - Active merge policy (updated 2026-08-15): automatically merge every remaining queue commit regardless of risk level; do not pause for `merge|skip`. Continue to assess and document risk, preserve main-specific features, resolve prerequisite commits instead of dropping behavior, and run the complete test suite including independent integration tests after every high-risk merge.
 - Raw snapshot total: 239
-- Effective merge total: 224
+- Effective merge total: 223
 - Already in baseline: 16
-- Pending: 14
+- Pending: 16
 - Awaiting user: 0
-- Merged: 202
+- Merged: 203
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 223
-- Next commit: `574dfad2dc6dbaef887ca4badc5421dbe36dd8d8`
-- Last action: automatically merged low-risk #222 administrator request ID column as `66914c2b1`, retaining main's UsageTable behavior and excluding non-incremental IP-geolocation code; focused frontend tests and typecheck passed.
-- Active queue commit: none; #223 is next for automatic risk assessment and merge
+- Next index: 224
+- Next commit: `caa1abb13a2ea0ef5125f3e9108fc4f4a05c8d65`
+- Last action: automatically merged medium-risk #223 stale/reset Codex scheduling-threshold snapshot handling as `2a6f5a422`; focused threshold and OpenAI scheduler tests passed. Reconciled progress totals directly from all 239 state rows: 16 already in baseline, 203 merged, 4 skipped and 16 pending, so the effective action total is 223 rather than 224.
+- Active queue commit: none; #224 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
