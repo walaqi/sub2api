@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 65
+- Pending: 64
 - Awaiting user: 0
-- Merged: 151
+- Merged: 152
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 172
-- Next commit: `e4b0e1b66bc296523939bc186100c6b6853e5f48`
-- Last action: automatically merged #170 sponsor wording as `0e819e58e` and its #171 hao.ai PNG dependency as `15cfbf497`; all README image references resolve. Assessed #172 Tencent Captcha regional/CSP/SDK lifecycle fix as high risk for automatic merge with complete verification.
-- Active queue commit: `e4b0e1b66bc296523939bc186100c6b6853e5f48` under automatic high-risk merge
+- Next index: 173
+- Next commit: `93367b6db43315abe4f9fd9b09cbfc971b1f5ad0`
+- Last action: automatically merged high-risk #172 Tencent Captcha regional/CSP/SDK lifecycle hardening as `ec4704359`, with reflection/lint compatibility adaptation `f6e33dba1`; complete ordinary and independent integration tests passed, with only documented baseline exceptions elsewhere.
+- Active queue commit: `93367b6db43315abe4f9fd9b09cbfc971b1f5ad0` under automatic risk assessment and merge
 
 ## Post-merge follow-up
 
@@ -22,6 +22,7 @@
 
 ## High-risk verification notes
 
+- `e4b0e1b66`: Tencent Captcha region/CSP/SDK lifecycle hardening merged as `ec4704359`, with reflection compatibility adaptation `f6e33dba1`. China and international endpoints now stay aligned across settings, backend verification, frontend SDK loading and CSP; malformed forwarded IP candidates are rejected. Main's Aliyun provider, trusted-client bypass ordering, provider mutual exclusion, write-only secrets and partial settings updates remain intact. Focused backend and 64 frontend tests passed; complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1466/1468 with only known rollback failures; unit-tag retained only known config reachability and CheckerNil failures; lint retained only three known G704 findings.
 - `47c03c75d`: usage-billing NUMERIC(20,8) quantization merged as `c97bd2bf4`, with main reconciliation in `41a5690fe`. Raw V1/V2 fingerprints survive repeated normalization for rolling-deploy idempotency, while the canonical user cost is shared by group-scoped gift/recharge allocation, usage logs, caches, notifications and super-invite spend. The PostgreSQL boundary regression proved exact balance, API-key quota and gift-breakdown reconciliation. Complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1454/1456 with only known rollback failures; unit-tag retained only known config reachability and CheckerNil failures.
 - `f0e7a9c7a`: user-approved Aliyun Captcha 2.0 merged as `e410569b7`. The third mutually exclusive provider covers ordinary authentication, pending OAuth creation and OAuth/passkey action gates, with fail-closed backend verification, administrator credential probing and the frontend global SDK lifecycle. Conflict resolution preserved main's trusted-client bypass before provider reads and retained gift/referral/super-invite, registration email policy, content moderation, Live, Model Plaza, image endpoints and gift expiry in regenerated Wire; secrets remain redacted. Focused tests and the added Aliyun bypass regression passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1454/1456 with only two known rollback failures and ten known GroupsView mock errors; unit-tag retained only three known config environment failures and the known CheckerNil failure.
 - `8b3fe664d`: user-approved complete Tencent Captcha authentication gate merged as `c8a28d8d4`. Password auth, verification/reset, Passkey, OAuth starts and pending account creation can use Tencent while ordinary clients fail closed; main's trusted-client app bypass was adapted to both unified and Tencent-only gates. Combined Wire retains gift engine, affiliate/referral/super-invite, content moderation, Live and Model Plaza; registration regex/suffix policy and alias dedup remain in every new-user flow, and administrator responses expose only secret-configured flags. Focused backend and 45 frontend tests, complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1443/1445 with only two known rollback failures and ten known GroupsView mock errors; unit-tag retained only three known config environment failures and the known CheckerNil failure.
