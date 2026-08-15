@@ -21,9 +21,9 @@
 - Frozen range: `5935e674a84341c3536e27e6a968384f67d9062b..1d3b9665c8824d3b7f5a03a3f50419e812261e91`
 - Raw incremental Git objects: 33
 - Effective first-parent merge units: 9
-- Pending: 5
-- Merged: 4
-- Next: #244 `e803e3851c0a7e222cfadeafad7b8636ab959d11`
+- Pending: 4
+- Merged: 5
+- Next: #245 `0e82efe48951cb7da1f8554639afdeab05bf16b8`
 - Ledger: `merge-state/sync-2-merge-v3/increment-1d3b9665c/`
 
 ## Post-merge follow-up

@@ -3,7 +3,7 @@ index	sha	risk	status	decision	result_commit	tests	notes
 241	4853662f992dfd92bbedbb160aecb2e7a6c76f78	medium	merged	auto_merge	5580cb642	pass	Channel pricing conflict validation now uses the same Claude dot/hyphen and whitespace normalization as pricing cache keys while mapping normalization remains separate; focused unit-tag conflict/cache tests passed
 242	e77b4b260e75c3656e251c202210f0442f641b7b	medium	merged	auto_merge	114976297	pass	Incomplete API-key Responses probes now preserve unknown capability while conclusive supported/unsupported responses still persist; focused verdict tests passed
 243	5912ae960c523027c048e108bd91365174cfcf44	medium	merged	auto_merge	0d962635e	pass	Group platform changes invalidate channel cache through a narrow optional interface; conflict resolution retained main notification email, affiliate and composite-route dependencies and regenerated Wire; focused cache invalidation/nil compatibility tests passed
-244	e803e3851c0a7e222cfadeafad7b8636ab959d11	medium	pending	auto_merge	-	pending	Add leader lock to scheduled backups; Wire overlap expected
+244	e803e3851c0a7e222cfadeafad7b8636ab959d11	medium	merged	auto_merge	097685069	pass	Scheduled backups now use the shared singleton leader lock so non-leaders skip and leaders release after execution; focused leader-election tests passed and Wire merged cleanly
 245	0e82efe48951cb7da1f8554639afdeab05bf16b8	low	pending	auto_merge	-	pending	VERSION 0.1.176 only
 246	fbfdcef8184ae4b2e224d5cfc47cf1d0e3742710	high	pending	auto_merge	-	pending	Correct Grok long-context and unknown-model billing fallback
 247	c204d33b09ebfefe96c1d4dcb16a88590992257e	high	pending	auto_merge	-	pending	Group usage daily rollups, migrations, cleanup and dashboard aggregation
