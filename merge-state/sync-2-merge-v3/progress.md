@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 29
+- Pending: 28
 - Awaiting user: 0
-- Merged: 187
+- Merged: 188
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 208
-- Next commit: `30d0405388f0eaf02e45548d04bf2a00e86e290c`
-- Last action: automatically merged low-risk #207 Composite-group image-pricing control enablement as `bc2e35ebe`; all 7 focused frontend tests passed.
-- Active queue commit: none; #208 is next for automatic risk assessment and merge
+- Next index: 209
+- Next commit: `f19e3816d0d5725f63260cb45b37302dec0e97e6`
+- Last action: automatically merged medium-risk #208 API-key quota/rate-limit/expiry validation as `ea3d7f82c`, resolving the service import conflict while preserving main's stricter name behavior; focused unit-tag tests and ordinary package compilation passed.
+- Active queue commit: none; #209 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
