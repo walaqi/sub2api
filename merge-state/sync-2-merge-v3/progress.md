@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 223
 - Already in baseline: 16
-- Pending: 1
+- Pending: 0
 - Awaiting user: 0
-- Merged: 218
+- Merged: 219
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 239
-- Next commit: `5935e674a84341c3536e27e6a968384f67d9062b`
-- Last action: automatically merged low-risk #238 VERSION synchronization to 0.1.175 as `7c31297fc`; version resolution and cmd/server tests passed.
-- Active queue commit: none; #239 is next for automatic risk assessment and merge
+- Next index: none (fixed snapshot queue complete)
+- Next commit: none
+- Last action: automatically merged low-risk #239 sponsor README/assets update as `ae00914d5`; all three README references and PNG assets validated.
+- Active queue commit: none; all 223 effective snapshot items are resolved (219 merged, 4 skipped). The separately recorded prompt-audit subsystem follow-up is next.
 
 ## Post-merge follow-up
 
