@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 48
+- Pending: 47
 - Awaiting user: 0
-- Merged: 168
+- Merged: 169
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 189
-- Next commit: `155c494964c3ea6ecc31f52679525c1034bf0f16`
-- Last action: automatically merged high-risk #188 OAuth pending-exchange account-takeover protection as `f4fd3d468`; complete verification passed with only documented baseline exceptions.
-- Active queue commit: `155c494964c3ea6ecc31f52679525c1034bf0f16` under automatic risk assessment and merge
+- Next index: 190
+- Next commit: `68d8f122e47fe50e9edda3beba95c7bd98b19e56`
+- Last action: automatically merged medium-risk #189 Responses-to-Anthropic invalid-content filtering as `53d4feeff`; the complete protocol-conversion package tests passed.
+- Active queue commit: `68d8f122e47fe50e9edda3beba95c7bd98b19e56` under automatic risk assessment and merge
 
 ## Post-merge follow-up
 
