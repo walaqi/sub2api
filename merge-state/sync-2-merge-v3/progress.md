@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 61
+- Pending: 60
 - Awaiting user: 0
-- Merged: 155
+- Merged: 156
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 176
-- Next commit: `dce0f6b4e32be64c93f519fc7f71c388f4763d40`
-- Last action: automatically merged medium-risk #175 Antigravity Gemini 3.6 Flash routing support as `b3d68ab7e`; focused mapping, model-list, pricing and gift-usage tests passed.
-- Active queue commit: `dce0f6b4e32be64c93f519fc7f71c388f4763d40` under automatic risk assessment and merge
+- Next index: 177
+- Next commit: `c8af48d769d6516b5628280be0336dbf0d1891c2`
+- Last action: automatically merged medium-risk #176 OAuth count_tokens HTML-403 fallback as `3c0f1e5af`; focused fallback, account-health and local-estimation tests passed.
+- Active queue commit: `c8af48d769d6516b5628280be0336dbf0d1891c2` under automatic risk assessment and merge
 
 ## Post-merge follow-up
 
