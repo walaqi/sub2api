@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 32
+- Pending: 31
 - Awaiting user: 0
-- Merged: 184
+- Merged: 185
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 205
-- Next commit: `2d0976ac2c8690d31218b311e5856ba6ed1f06f4`
-- Last action: automatically merged high-risk #204 content-moderation runtime-config fail-open revert as `9fccbc760`; complete serial ordinary Go, independent integration and frontend verification passed, with only documented unit-tag and lint baselines.
-- Active queue commit: none; #205 is next for automatic risk assessment and merge
+- Next index: 206
+- Next commit: `895e8247afc6151cca5c70cb186c7b45d30f307a`
+- Last action: automatically merged medium-risk #205 OpenAI OAuth personal/workspace subscription-expiry association fix as `2dfca63bb`; focused account-association, enrichment and subscription tests passed.
+- Active queue commit: none; #206 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
