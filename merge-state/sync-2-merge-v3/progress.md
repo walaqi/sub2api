@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 223
 - Already in baseline: 16
-- Pending: 15
+- Pending: 14
 - Awaiting user: 0
-- Merged: 204
+- Merged: 205
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 225
-- Next commit: `1e618dbc299fc0a82e9a690bcf2d5843be817113`
-- Last action: automatically merged and adapted high-risk #224 OAuth image transport-read failover as `e62be604e`, preserving main's Responses passthrough and billing behavior; complete ordinary Go, independent integration and frontend verification passed, with only documented unit-tag and lint baselines.
-- Active queue commit: none; #225 is next for automatic risk assessment and merge
+- Next index: 226
+- Next commit: `d76c1af7592ac6d2af5eeeb780e3dd5fa363ba8b`
+- Last action: automatically merged medium-risk #225 OpenAI passthrough pool auth-status retry as `62e2cf6d9`, with main gift-engine test wiring retained in `768513b11`; focused service and handler tests passed.
+- Active queue commit: none; #226 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
