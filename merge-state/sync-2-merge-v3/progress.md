@@ -5,15 +5,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 76
-- Awaiting user: 1
-- Merged: 141
+- Pending: 75
+- Awaiting user: 0
+- Merged: 142
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 162
-- Next commit: `f0e7a9c7a23a7d02fb159b62fa809621eb0475a6`
-- Last action: assessed Aliyun Captcha 2.0 provider expansion `f0e7a9c7a` as high risk because it changes all authentication gates, provider exclusivity, external credential validation, frontend global SDK lifecycle, dependencies and combined Wire immediately after the Tencent integration
-- Active queue commit: `f0e7a9c7a23a7d02fb159b62fa809621eb0475a6` awaiting `merge|skip`
+- Next index: 163
+- Next commit: `aac53afe0ef1ae850e2f18b5d2814ac67c835e7e`
+- Last action: user-approved Aliyun Captcha 2.0 merged as `e410569b7` with main's trusted-client bypass, gift/referral stack, registration policy, moderation and combined Wire preserved; complete high-risk verification finished with only known baselines
+- Active queue commit: `aac53afe0ef1ae850e2f18b5d2814ac67c835e7e` under automatic low-risk evaluation
 
 ## Post-merge follow-up
 
@@ -21,6 +21,7 @@
 
 ## High-risk verification notes
 
+- `f0e7a9c7a`: user-approved Aliyun Captcha 2.0 merged as `e410569b7`. The third mutually exclusive provider covers ordinary authentication, pending OAuth creation and OAuth/passkey action gates, with fail-closed backend verification, administrator credential probing and the frontend global SDK lifecycle. Conflict resolution preserved main's trusted-client bypass before provider reads and retained gift/referral/super-invite, registration email policy, content moderation, Live, Model Plaza, image endpoints and gift expiry in regenerated Wire; secrets remain redacted. Focused tests and the added Aliyun bypass regression passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1454/1456 with only two known rollback failures and ten known GroupsView mock errors; unit-tag retained only three known config environment failures and the known CheckerNil failure.
 - `8b3fe664d`: user-approved complete Tencent Captcha authentication gate merged as `c8a28d8d4`. Password auth, verification/reset, Passkey, OAuth starts and pending account creation can use Tencent while ordinary clients fail closed; main's trusted-client app bypass was adapted to both unified and Tencent-only gates. Combined Wire retains gift engine, affiliate/referral/super-invite, content moderation, Live and Model Plaza; registration regex/suffix policy and alias dedup remain in every new-user flow, and administrator responses expose only secret-configured flags. Focused backend and 45 frontend tests, complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1443/1445 with only two known rollback failures and ten known GroupsView mock errors; unit-tag retained only three known config environment failures and the known CheckerNil failure.
 - `a4d263f62`: user-approved subscription-renewal serialization merged as `550d668f0`. Existing rows are locked and reread in the effective transaction, making concurrent extensions cumulative and preventing stale assignment reads from reactivating a later-suspended subscription. Payment fulfillment continues to reuse its outer transaction and main's post-commit cache invalidation/idempotency behavior is preserved; gifts, recharge-balance allocation and super-invite calculations are unchanged. Focused concurrency/lock/fulfillment tests, complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1415/1417 with only two known rollback failures and ten known GroupsView mock errors; unit-tag retained only three known config environment failures and the known CheckerNil failure.
 - `9fd7e7623`: user-approved process-wide canonical Codex identity enforcement/version sync merged as `64e22a315`, with main's version-contract adaptation in `22ce6d343`. Conflict resolution retained Image Studio, legacy disable compatibility, gift-engine fail-fast construction, content moderation, Live, model plaza, referral/super-invite and separate auth Redis while regenerating the combined Wire graph and adding the version-sync lifecycle. HTTP, OAuth passthrough, WebSocket, account tests, usage probes and alpha search share effective Codex 0.146.0 identity; capacity-shed retries do not create account cooldown state after exhaustion. RecordUsage, group-scoped gifts, recharge and super-invite semantics remain unchanged. Focused tests passed; complete ordinary Go and independent integration passed; frontend typecheck/lint passed. Vitest passed 1413/1415 with only two known rollback failures and ten known GroupsView mock errors; unit-tag retained only three known config environment failures, and its service package passed cleanly.
