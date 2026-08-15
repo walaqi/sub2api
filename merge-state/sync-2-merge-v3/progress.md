@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 35
+- Pending: 34
 - Awaiting user: 0
-- Merged: 181
+- Merged: 182
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 202
-- Next commit: `fddc806db29a518f3b53d2c3ae9cc28cae100c4b`
-- Last action: automatically merged low-risk #201 version sync to 0.1.173 as `d18c1293d`; focused server verification passed.
-- Active queue commit: none; #202 is next for automatic risk assessment and merge
+- Next index: 203
+- Next commit: `b5e83156d9633d4618a989c320ab0334a92a1d98`
+- Last action: automatically merged high-risk #202 large-backup multipart upload and restore as `dada225ad`; complete serial ordinary Go, independent integration and frontend verification passed, with only documented unit-tag and lint baselines.
+- Active queue commit: none; #203 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
@@ -22,6 +22,7 @@
 
 ## High-risk verification notes
 
+- `fddc806db`: large-backup multipart upload and restore merged automatically as `dada225ad`. New gzip archives are staged locally and split above 4 GiB into ordered S3 objects below the single-PutObject size limit; each part records its byte size and SHA-256, and restore verifies contiguous order, size and checksum before invoking the database restore. Legacy single-object records remain downloadable/restorable. Partial upload, stale-running, explicit deletion and retention cleanup paths attempt every related object and preserve records/keys when cleanup cannot complete, while running records cannot be deleted underneath an active upload. The admin API/UI returns ordered per-part download URLs. This trades additional local temporary-disk use for bounded object size and pre-restore integrity checking. Focused backup service, S3 UploadFile and frontend tests passed; complete ordinary Go and independent integration passed on serial reruns after concurrent Go suites raced on Ent's `.entc` temporary file; frontend ESLint/typecheck and all 1526 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
 - `29009f0b2`: default-off email-domain quota switch merged automatically as `c51399bdc`. A nonempty trusted-domain list now remains a strict allowlist unless the administrator explicitly enables the new switch; when enabled, nontrusted registrable root domains receive the one-account quota introduced by #199, and an empty list remains unrestricted in either mode. The fail-closed default is initialized and exposed consistently through admin/public settings, registration, verification-code and pending OAuth paths, including a defensive recheck at creation time. Conflict resolution retained main's regex trusted rules, all gift/super-invite settings and the existing post-create bootstrap. Focused backend and 57 frontend tests passed; complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1523 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
 - `f2da30bcd`: email-domain registration quota merged automatically as `02eb0afe7`. When the trusted-domain list is nonempty, exact, wildcard and main's regex rules remain unlimited while each nonmatching registrable root domain is limited to one self-registered account; an empty list remains unrestricted. Public-suffix normalization, PostgreSQL advisory locks and an in-transaction domain/alias recheck close concurrent duplicate-registration paths, deleted users do not consume quota, and administrator-created users bypass it. Main's registration regex support, alias overflow fail-closed behavior, post-create gift/referral/super-invite bootstrap and email-change prohibition were preserved. The registration UI delegates first-account eligibility to the backend instead of incorrectly rejecting nontrusted domains. Focused backend and frontend tests passed; complete ordinary Go and independent integration, including the PostgreSQL concurrency path, passed; frontend ESLint/typecheck and all 1520 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
 - `7821c4005`: Gemini native image output accounting merged automatically as `685677870`. Native and compatibility paths count valid inline image parts from actual upstream responses, reset observation per failover attempt, and use the largest cumulative SSE payload count to prevent duplicate charging; known image model names remain a fallback. Corrected ImageCount enters the existing group-priced image-cost path, GiftEngine allocation and super-invite spend tracker without changing deduction semantics. Incremental multi-image streams remain conservatively undercounted rather than overcharged. Complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1514 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
