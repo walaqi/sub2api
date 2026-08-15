@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 54
+- Pending: 53
 - Awaiting user: 0
-- Merged: 162
+- Merged: 163
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 183
-- Next commit: `e79429b03f5b9ba0ff6cec055df67918a7c72ce5`
-- Last action: automatically merged medium-risk #182 Ops system-log flush backoff as `a76846756`; focused suppression, recovery and healthy-path tests passed.
-- Active queue commit: `e79429b03f5b9ba0ff6cec055df67918a7c72ce5` under automatic risk assessment and merge
+- Next index: 184
+- Next commit: `045b620d0d73b7a2125fb99132b9a453596406d3`
+- Last action: automatically merged medium-risk #183 Grok/OpenAI HTTP 405 failover as `a468e3d46`; focused status, passthrough and billing-idempotency tests passed.
+- Active queue commit: `045b620d0d73b7a2125fb99132b9a453596406d3` under automatic risk assessment and merge
 
 ## Post-merge follow-up
 
