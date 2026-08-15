@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 44
+- Pending: 43
 - Awaiting user: 0
-- Merged: 172
+- Merged: 173
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 193
-- Next commit: `fb0475656cbc674c0304cfe18c2bbd413f3d9f83`
-- Last action: automatically merged high-risk #192 OpenAI OAuth routing hints as `d96d43a08`; complete verification passed with only documented baseline exceptions.
-- Active queue commit: `fb0475656cbc674c0304cfe18c2bbd413f3d9f83` under automatic risk assessment and merge
+- Next index: 194
+- Next commit: `909cbb9b12b594c396ccbe519ace95f8b4c69771`
+- Last action: automatically merged high-risk #193 complete Grok integration as `6ac922ac0`, followed by compatibility fix `16f2585af`; complete verification passed with only documented baseline exceptions.
+- Active queue commit: none; #194 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
@@ -22,6 +22,7 @@
 
 ## High-risk verification notes
 
+- `fb0475656`: complete Grok integration merged automatically as `6ac922ac0`, with main compatibility reconciliation in `16f2585af`. Native web search, HTTP/realtime voice, video, OAuth/SSO, quotas, scheduling thresholds, pricing and billing are active. Main's batch-image/composite pricing, gift/recharge eligibility, super-invite settings, client-error throttle and current content moderation were preserved; Search and TTS use `ContentModerationService` instead of importing the deferred prompt-audit subsystem. Migration 220 preserves composite video pricing and snapshots cleared non-Grok values. Complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1481 Vitest tests passed. Unit-tag retained only the known three config reachability and CheckerNil failures; lint retained only three known G704 findings.
 - `cc67b1aca`: OpenAI OAuth routing hints merged automatically as `d96d43a08`. HTTP and WebSocket requests derive the gateway-owned hint from the final model/service tier; caller-supplied variants are stripped and non-OAuth accounts never receive it. WebSocket pools remain account-partitioned and use the hint only as soft affinity, preserving pinned continuation and handshake compatibility. BillingModel, upstream response-model auditing and RecordUsage are untouched, so gift/recharge allocation and super-invite spend semantics remain unchanged. Focused routing/pool tests passed; complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1471/1473 with only known rollback failures and existing GroupsView mock errors; unit-tag and lint retained only documented baselines.
 - `899157487`: OAuth pending-exchange account-takeover protection merged automatically as `f4fd3d468`. Nonterminal attacker-influenced sessions can no longer apply identity adoption; only token-eligible completed sessions and authenticated bind-current-user intents may bind. Rejected states return their payload without consuming the session, while existing legitimate completion and binding workflows remain intact. Registration policy, user creation, gifts and super-invite behavior are unchanged. Focused takeover coverage passed; complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1471/1473 with only known rollback failures and existing GroupsView mock errors; unit-tag and lint retained only documented baselines.
 - `8f7b0a314`: OpenAI stream capacity-shed recovery merged automatically as `99fa6fd9b`. Retryable error frames before client output remain eligible for account failover; when failover is unavailable, only the downstream copy rewrites Codex-fatal capacity codes to a retryable server error. Original upstream payloads still drive HTTP/WebSocket account state, nonretryable and rate-limit errors are unchanged, and committed output is never replayed. Failed pre-output attempts do not reach RecordUsage, so gift/recharge allocation and super-invite spend cannot be duplicated. Focused stream/flush/WebSocket tests passed; complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1471/1473 with only known rollback failures and existing GroupsView mock errors; unit-tag and lint retained only documented baselines.
