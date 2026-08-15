@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 30
+- Pending: 29
 - Awaiting user: 0
-- Merged: 186
+- Merged: 187
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 207
-- Next commit: `5deeb7ef15999bb6f1c010d2ab60d49ad19ba329`
-- Last action: automatically merged medium-risk #206 OpenAI Codex scheduling-threshold percentage fix as `5cf4924fd`; focused unit-tag threshold tests passed.
-- Active queue commit: none; #207 is next for automatic risk assessment and merge
+- Next index: 208
+- Next commit: `30d0405388f0eaf02e45548d04bf2a00e86e290c`
+- Last action: automatically merged low-risk #207 Composite-group image-pricing control enablement as `bc2e35ebe`; all 7 focused frontend tests passed.
+- Active queue commit: none; #208 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
