@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 40
+- Pending: 39
 - Awaiting user: 0
-- Merged: 176
+- Merged: 177
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 197
-- Next commit: `c5bda8b8e4639c170a170c886ab6abf02ba78e9a`
-- Last action: automatically merged medium-risk #196 upstream response-model observation hot-path optimization as `d1aeefbc6`; focused service regressions passed.
-- Active queue commit: none; #197 is next for automatic risk assessment and merge
+- Next index: 198
+- Next commit: `7821c4005e8b3ad156e5a952b803fd07bb43e199`
+- Last action: automatically merged high-risk #197 API-key image upstream-context detachment as `c1dc348e2`; complete ordinary Go, independent integration and frontend verification passed, with only documented unit-tag and lint baselines.
+- Active queue commit: none; #198 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
@@ -22,6 +22,7 @@
 
 ## High-risk verification notes
 
+- `c5bda8b8e`: API-key image upstream-context detachment merged automatically as `c1dc348e2`. Non-streaming image generation now continues after a client disconnect, matching existing OAuth and Grok media behavior so an upstream-generated and charged image still reaches the mandatory detached RecordUsage task. Response-header timeouts remain the upstream bound; scheduling and main's group-scoped gift/recharge/super-invite accounting remain on the existing usage path. Complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1514 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
 - `909cbb9b1`: passive Channel Monitor V2 merged automatically as `f74cab162`. V2 aggregation, privacy/health thresholds, guarded APIs and the operations UI are present, but deployments remain on mode=v1 until explicitly switched. Upstream migrations were moved from 194-206 to 221-233. Combined routes and Wire retain gift ops, refund assessment, gift expiry, Image Studio, referral/super-invite settings and current content moderation. Complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1514 Vitest tests passed. Unit-tag and lint retained only documented baselines.
 - `fb0475656`: complete Grok integration merged automatically as `6ac922ac0`, with main compatibility reconciliation in `16f2585af`. Native web search, HTTP/realtime voice, video, OAuth/SSO, quotas, scheduling thresholds, pricing and billing are active. Main's batch-image/composite pricing, gift/recharge eligibility, super-invite settings, client-error throttle and current content moderation were preserved; Search and TTS use `ContentModerationService` instead of importing the deferred prompt-audit subsystem. Migration 220 preserves composite video pricing and snapshots cleared non-Grok values. Complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1481 Vitest tests passed. Unit-tag retained only the known three config reachability and CheckerNil failures; lint retained only three known G704 findings.
 - `cc67b1aca`: OpenAI OAuth routing hints merged automatically as `d96d43a08`. HTTP and WebSocket requests derive the gateway-owned hint from the final model/service tier; caller-supplied variants are stripped and non-OAuth accounts never receive it. WebSocket pools remain account-partitioned and use the hint only as soft affinity, preserving pinned continuation and handshake compatibility. BillingModel, upstream response-model auditing and RecordUsage are untouched, so gift/recharge allocation and super-invite spend semantics remain unchanged. Focused routing/pool tests passed; complete ordinary Go and independent integration passed; frontend lint/typecheck passed. Vitest passed 1471/1473 with only known rollback failures and existing GroupsView mock errors; unit-tag and lint retained only documented baselines.
