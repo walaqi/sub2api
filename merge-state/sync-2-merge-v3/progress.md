@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 224
 - Already in baseline: 16
-- Pending: 52
+- Pending: 51
 - Awaiting user: 0
-- Merged: 164
+- Merged: 165
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 185
-- Next commit: `e88fc52ce666aa239b80de21630f339464c505b5`
-- Last action: automatically merged medium-risk #184 Codex plan-gated image cooldown correction as `b0b0a4be2`; conflict adaptation retained main's channel-mapping context and focused endpoint/mapping/rate-limit tests passed.
-- Active queue commit: `e88fc52ce666aa239b80de21630f339464c505b5` under automatic risk assessment and merge
+- Next index: 186
+- Next commit: `de904c433e3a2b5bce18f2937ef5ce99a70e6874`
+- Last action: automatically merged medium-risk #185 OpenAI Responses tool-schema null-type sanitizer as `ba4289d28`; focused nested-schema, validity, immutability and depth-bound tests passed.
+- Active queue commit: `de904c433e3a2b5bce18f2937ef5ce99a70e6874` under automatic risk assessment and merge
 
 ## Post-merge follow-up
 
