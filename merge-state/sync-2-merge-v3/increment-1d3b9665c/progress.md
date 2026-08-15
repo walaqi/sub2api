@@ -4,13 +4,13 @@
 - Frozen source tip: `1d3b9665c8824d3b7f5a03a3f50419e812261e91`
 - Raw incremental objects: 33
 - Effective first-parent merge units: 9
-- Pending: 8
-- Merged: 1
+- Pending: 7
+- Merged: 2
 - Skipped: 0
 - Failed/blocked: 0
-- Next index: 241
-- Next commit: `4853662f992dfd92bbedbb160aecb2e7a6c76f78`
-- Last action: merged high-risk #240 as `b90772c1e`; complete gates passed with documented baseline/flaky isolation exceptions.
+- Next index: 242
+- Next commit: `e77b4b260e75c3656e251c202210f0442f641b7b`
+- Last action: merged medium-risk #241 as `5580cb642`; focused unit-tag pricing normalization tests passed.
 
 ## High-risk verification
 
