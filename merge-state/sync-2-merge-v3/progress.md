@@ -6,15 +6,15 @@
 - Raw snapshot total: 239
 - Effective merge total: 223
 - Already in baseline: 16
-- Pending: 8
+- Pending: 7
 - Awaiting user: 0
-- Merged: 211
+- Merged: 212
 - Skipped: 4
 - Failed/blocked: 0
-- Next index: 232
-- Next commit: `0ed1a9f22abfd58d360e679293411a882cba385c`
-- Last action: automatically merged medium-risk #231 WebSocket moderation audit logging as `4c3e9a2cd`, adapted to main's current content-moderation helper without restoring deferred prompt-audit; focused tests passed.
-- Active queue commit: none; #232 is next for automatic risk assessment and merge
+- Next index: 233
+- Next commit: `19c6007a229bad0cdd54d726df01a9b4be31f786`
+- Last action: automatically merged high-risk #232 cyber-policy group/model audit scope as `56e54b68f`; the complete high-risk verification gate passed with only documented unit-tag and lint baselines.
+- Active queue commit: none; #233 is next for automatic risk assessment and merge
 
 ## Post-merge follow-up
 
@@ -22,6 +22,7 @@
 
 ## High-risk verification notes
 
+- `0ed1a9f22`: cyber-policy hard-block audit scope merged automatically as `56e54b68f`. Audit records, violation counts and automatic bans now apply only when the event's group and model are inside the content-moderation scope; the global risk-control switch remains mandatory, while moderation enabled/mode/sample do not suppress in-scope cyber-policy events. Initial runtime-config failures skip side effects and refresh failures retain the last valid scope. Focused tests, complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1532 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
 - `5192abb6b`: OpenAI OAuth HTML-403 account-penalty exemption merged automatically as `15b77717c`. HTML 403 responses remain eligible for the existing current-request failover but no longer increment account-error counters, temporarily unschedule or disable the account. Structured JSON 403, plain-text 403 and all non-OpenAI platforms retain existing penalty behavior. Scheduling, RecordUsage and main's gift/recharge/super-invite accounting are otherwise unchanged. Focused 403 tests, complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1532 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint retained only three known G704 findings.
 - `20a2d12dd`: empty OpenAI Responses completed-stream failover merged automatically as `20077f0ca`. A valid empty response.completed/response.done is retryable only before any semantic/client output and when no accumulated or terminal usage, error or output item exists. Text, tool/output, error and usage-bearing streams retain success behavior, preventing zero-cost empty successes without replaying committed content. Successful `ActualCost` still uses main's group-aware gift allocator and super-invite tracker. Focused empty-completed tests, complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1527 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint introduced no new findings.
 - `0f73203e3`: Grok missing-usage rejection merged automatically as `13a701266`. Buffered/non-streaming successful Grok chat responses containing content but no aggregate billable token usage now fail over before any client write instead of becoming zero-cost consumption. The guard covers Grok accounts and explicit Grok model identities; non-Grok traffic and Grok responses carrying aggregate usage retain prior behavior. Accepted `ActualCost` still flows through main's group-aware gift allocator and super-invite tracker. Focused Grok integrity tests, complete ordinary Go and independent integration passed; frontend ESLint/typecheck and all 1527 Vitest tests passed. Unit-tag retained only three known config reachability failures and the known CheckerNil failure; lint introduced no new findings.
