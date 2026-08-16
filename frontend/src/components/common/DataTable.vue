@@ -70,12 +70,13 @@
           <div
             v-for="column in dataColumns"
             :key="column.key"
-            class="flex items-start justify-between gap-4"
+            :data-field="column.key"
+            class="flex min-w-0 items-start justify-between gap-4"
           >
             <span class="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">
               {{ column.label }}
             </span>
-            <div class="text-right text-sm text-gray-900 dark:text-gray-100">
+            <div class="min-w-0 max-w-full text-right text-sm text-gray-900 dark:text-gray-100">
               <slot :name="`cell-${column.key}`" :row="row" :value="row[column.key]" :expanded="actionsExpanded">
                 {{ column.formatter ? column.formatter(row[column.key], row) : row[column.key] }}
               </slot>
@@ -130,7 +131,7 @@
             ]"
             @click="column.sortable && handleSort(column.key)"
           >
-            <div class="flex items-center space-x-1">
+            <div :class="['flex items-center space-x-1', getHeaderContentAlignmentClass(column)]">
               <slot
                 :name="`header-${column.key}`"
                 :column="column"
@@ -317,6 +318,11 @@ const checkScrollable = () => {
 
 // 检查操作列是否需要展开
 const checkActionsColumnWidth = () => {
+  if (!props.expandableActions) {
+    actionsColumnNeedsExpanding.value = false
+    actionsExpanded.value = false
+    return
+  }
   if (!tableWrapperRef.value) return
 
   // 查找第一行的操作列单元格
@@ -558,6 +564,13 @@ const getSortIndicatorClass = (key: string, order: 'asc' | 'desc') => {
 const getColumnAriaSort = (key: string) => {
   if (sortKey.value !== key) return 'none'
   return sortOrder.value === 'asc' ? 'ascending' : 'descending'
+}
+
+const getHeaderContentAlignmentClass = (column: Column) => {
+  const className = column.class || ''
+  if (className.includes('text-center')) return 'justify-center'
+  if (className.includes('text-right')) return 'justify-end'
+  return 'justify-start'
 }
 
 const isNullishOrEmpty = (value: any) => value === null || value === undefined || value === ''

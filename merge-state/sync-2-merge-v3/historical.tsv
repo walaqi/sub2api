@@ -1,0 +1,16 @@
+index	sha	historical_status	historical_adaptation	historical_verification	ledger_lines
+2	d1613ef020d76d125c7d2a3aea00c8a849be670a	merged_previous_run	clean auto-merge	Frontend typecheck and ops locale spec passed	3829-3841
+3	793f62357f03423fb3eabcaba402b3b27160bbac	merged_previous_run	clean auto-merge	Frontend typecheck passed	3842-3853
+4	30371e64cdd28ff8a8c9a4d21ae430de8a4268da	merged_previous_run	resolved UsageFilters conflict using upstream PR side	Frontend typecheck and focused spec passed	3854-3870
+5	ec413f78021f918526f72429a06b902b31881dfc	merged_previous_run	clean auto-merge	Frontend typecheck and focused spec passed	3871-3883
+6	134a2c0bd356b0dc6fb37221195b5b4e861aaa03	merged_previous_run	clean auto-merge	Backend build and repository cache tests passed	3884-3896
+7	7905d02ce5bca34d368ea5e2e08f5d5e088c80f0	merged_previous_run	clean auto-merge	Backend build and scheduler tests passed	3897-3909
+8	3f7beb4679d70a0ee841afabd54e72ef3f8ad225	merged_previous_run	clean auto-merge	Backend build and channel monitor tests passed	3910-3922
+9	003deac5401780ba0627f216ad867e1200b98db7	merged_previous_run	clean auto-merge; gift/referral injection did not overlap	Backend build and relevant tests passed	3923-3937
+10	a185705d198e372b197a872e4ee0ad4a87c4b48d	merged_previous_run	clean auto-merge	Backend build and Grok tests passed	3938-3950
+11	8e078534c2beb13d5215ff68461a3dac8f90853b	merged_previous_run	clean auto-merge	Frontend focused tests passed	3951-3963
+12	ebfaf2496b482ef086ac02e848881dc051c01431	merged_previous_run_user_approved	migration renumbered 185 to 203; conflicts resolved preserving fork model_5h_limits	Ent regenerated and full relevant tests passed	3964-4004
+13	4126c4c09120997a1e9f578904702a60aca0352f	merged_previous_run	clean auto-merge	Backend build and focused tests passed	4005-4017
+14	5e9d75b86329ac0232a9cdee6aabb89277285619	merged_previous_run	clean auto-merge	Backend build and focused tests passed	4018-4030
+15	cffea2979b8ebbe25108528bb827047c85dcf6db	merged_previous_run	adapted missing ModelFilterSource infrastructure	Backend build and focused tests passed	4031-4047
+16	d0bdd7e771636a8d315f542cafd39484f39bd60c	merged_previous_run	clean auto-merge	Frontend focused tests passed	4048-4060

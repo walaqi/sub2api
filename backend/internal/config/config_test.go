@@ -17,7 +17,42 @@ import (
 func resetViperWithJWTSecret(t *testing.T) {
 	t.Helper()
 	viper.Reset()
+	t.Cleanup(viper.Reset)
+	t.Setenv("CONFIG_FILE", "")
+	t.Setenv("DATA_DIR", "")
 	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
+}
+
+func TestLoadTimezonePrecedence(t *testing.T) {
+	tests := []struct {
+		name         string
+		fileTimezone string
+		timezoneEnv  string
+		tzEnv        string
+		want         string
+	}{
+		{name: "default", want: "Asia/Shanghai"},
+		{name: "config_file", fileTimezone: "Europe/London", want: "Europe/London"},
+		{name: "timezone_env", fileTimezone: "Europe/London", timezoneEnv: "UTC", want: "UTC"},
+		{name: "tz_env", fileTimezone: "Europe/London", timezoneEnv: "UTC", tzEnv: "America/New_York", want: "America/New_York"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resetViperWithJWTSecret(t)
+			t.Setenv("TIMEZONE", tt.timezoneEnv)
+			t.Setenv("TZ", tt.tzEnv)
+			if tt.fileTimezone != "" {
+				configFile := filepath.Join(t.TempDir(), "config.yaml")
+				require.NoError(t, os.WriteFile(configFile, []byte("timezone: "+tt.fileTimezone+"\n"), 0o600))
+				t.Setenv("CONFIG_FILE", configFile)
+			}
+
+			cfg, err := Load()
+			require.NoError(t, err)
+			require.Equal(t, tt.want, cfg.Timezone)
+		})
+	}
 }
 
 func TestLoadServerTimingConfig(t *testing.T) {
@@ -254,8 +289,53 @@ func TestLoadTrustedProxiesPresenceFromYAML(t *testing.T) {
 	}
 }
 
+func TestLoadTrustedProxiesFromConfigFile(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	configFile := filepath.Join(t.TempDir(), "reporter-config.yaml")
+	require.NoError(t, os.WriteFile(configFile, []byte(`server:
+  host: 192.0.2.10
+  trusted_proxies:
+    - 127.0.0.1/32
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 192.168.0.0/16
+`), 0o600))
+	t.Setenv("CONFIG_FILE", configFile)
+
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.Equal(t, "192.0.2.10", cfg.Server.Host)
+	require.Equal(t, []string{"127.0.0.1/32", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"}, cfg.Server.TrustedProxies)
+	require.True(t, cfg.Server.TrustedProxiesConfigured)
+}
+
+func TestConfigFileTakesPrecedenceOverDataDir(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	dataDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dataDir, "config.yaml"), []byte("server:\n  host: 192.0.2.20\n"), 0o600))
+	configFile := filepath.Join(t.TempDir(), "explicit.yaml")
+	require.NoError(t, os.WriteFile(configFile, []byte("server:\n  host: 192.0.2.30\n"), 0o600))
+	t.Setenv("DATA_DIR", dataDir)
+	t.Setenv("CONFIG_FILE", configFile)
+
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.Equal(t, "192.0.2.30", cfg.Server.Host)
+}
+
+func TestLoadReturnsErrorForMissingConfigFile(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	t.Setenv("CONFIG_FILE", filepath.Join(t.TempDir(), "missing.yaml"))
+
+	_, err := Load()
+	require.ErrorContains(t, err, "read config error")
+}
+
 func TestLoadForBootstrapAllowsMissingJWTSecret(t *testing.T) {
 	viper.Reset()
+	t.Cleanup(viper.Reset)
+	t.Setenv("CONFIG_FILE", "")
+	t.Setenv("DATA_DIR", "")
 	t.Setenv("JWT_SECRET", "")
 
 	cfg, err := LoadForBootstrap()
@@ -491,6 +571,19 @@ func TestLoadOpenAICompactModelFromEnv(t *testing.T) {
 	require.Equal(t, "gpt-5.3-codex", cfg.Gateway.OpenAICompactModel)
 }
 
+func TestLoadDefaultGrokFreeQuotaSoftGate(t *testing.T) {
+	resetViperWithJWTSecret(t)
+
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.False(t, cfg.Gateway.Grok.PasswordAuthEnabled)
+	require.True(t, cfg.Gateway.Grok.FreeQuotaSoftGateEnabled)
+	require.Equal(t, int64(500_000), cfg.Gateway.Grok.FreeQuotaTokenLimit)
+	require.Equal(t, 95, cfg.Gateway.Grok.FreeQuotaSoftGatePercent)
+	require.Equal(t, 24, cfg.Gateway.Grok.FreeQuotaWindowHours)
+	require.Equal(t, 60, cfg.Gateway.Grok.FreeQuotaStatsCacheSeconds)
+}
+
 func TestLoadDefaultOpenAIHTTP2Enabled(t *testing.T) {
 	resetViperWithJWTSecret(t)
 
@@ -498,6 +591,25 @@ func TestLoadDefaultOpenAIHTTP2Enabled(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, cfg.Gateway.OpenAIHTTP2.Enabled)
 	require.True(t, cfg.Gateway.OpenAIHTTP2.AllowProxyFallbackToHTTP1)
+	require.False(t, cfg.Gateway.OpenAIProxyStreamCircuit.Disabled)
+	require.Equal(t, 2, cfg.Gateway.OpenAIProxyStreamCircuit.FailureThreshold)
+	require.Equal(t, 60, cfg.Gateway.OpenAIProxyStreamCircuit.WindowSeconds)
+	require.Equal(t, 600, cfg.Gateway.OpenAIProxyStreamCircuit.TTLSeconds)
+}
+
+func TestLoadOpenAIProxyStreamCircuitFromEnv(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	t.Setenv("GATEWAY_OPENAI_PROXY_STREAM_CIRCUIT_DISABLED", "true")
+	t.Setenv("GATEWAY_OPENAI_PROXY_STREAM_CIRCUIT_FAILURE_THRESHOLD", "3")
+	t.Setenv("GATEWAY_OPENAI_PROXY_STREAM_CIRCUIT_WINDOW_SECONDS", "90")
+	t.Setenv("GATEWAY_OPENAI_PROXY_STREAM_CIRCUIT_TTL_SECONDS", "420")
+
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.True(t, cfg.Gateway.OpenAIProxyStreamCircuit.Disabled)
+	require.Equal(t, 3, cfg.Gateway.OpenAIProxyStreamCircuit.FailureThreshold)
+	require.Equal(t, 90, cfg.Gateway.OpenAIProxyStreamCircuit.WindowSeconds)
+	require.Equal(t, 420, cfg.Gateway.OpenAIProxyStreamCircuit.TTLSeconds)
 }
 
 func TestLoadOpenAIHTTP2DisabledFromEnv(t *testing.T) {
@@ -567,6 +679,14 @@ func TestLoadDefaultIdempotencyConfig(t *testing.T) {
 	if cfg.Idempotency.SystemOperationTTLSeconds != 3600 {
 		t.Fatalf("Idempotency.SystemOperationTTLSeconds = %d, want 3600", cfg.Idempotency.SystemOperationTTLSeconds)
 	}
+}
+
+func TestLoadDefaultBatchImageQueueDisabled(t *testing.T) {
+	resetViperWithJWTSecret(t)
+
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.False(t, cfg.BatchImage.QueueEnabled)
 }
 
 func TestLoadIdempotencyConfigFromEnv(t *testing.T) {
@@ -683,6 +803,21 @@ func TestLoadDefaultSecurityToggles(t *testing.T) {
 	}
 	if !cfg.Security.ResponseHeaders.Enabled {
 		t.Fatalf("ResponseHeaders.Enabled = false, want true")
+	}
+
+	wantHosts := []string{
+		"api.kimi.com",
+		"api.moonshot.ai",
+		"api.moonshot.cn",
+	}
+	hostSet := make(map[string]struct{}, len(cfg.Security.URLAllowlist.UpstreamHosts))
+	for _, h := range cfg.Security.URLAllowlist.UpstreamHosts {
+		hostSet[h] = struct{}{}
+	}
+	for _, want := range wantHosts {
+		if _, ok := hostSet[want]; !ok {
+			t.Fatalf("URLAllowlist.UpstreamHosts missing %q; got %v", want, cfg.Security.URLAllowlist.UpstreamHosts)
+		}
 	}
 }
 
@@ -1132,6 +1267,8 @@ func TestNormalizeStringSlice(t *testing.T) {
 }
 
 func TestGetServerAddressFromEnv(t *testing.T) {
+	t.Setenv("CONFIG_FILE", "")
+	t.Setenv("DATA_DIR", "")
 	t.Setenv("SERVER_HOST", "127.0.0.1")
 	t.Setenv("SERVER_PORT", "9090")
 
@@ -1139,6 +1276,17 @@ func TestGetServerAddressFromEnv(t *testing.T) {
 	if address != "127.0.0.1:9090" {
 		t.Fatalf("GetServerAddress() = %q", address)
 	}
+}
+
+func TestGetServerAddressFromConfigFile(t *testing.T) {
+	configFile := filepath.Join(t.TempDir(), "setup.yaml")
+	require.NoError(t, os.WriteFile(configFile, []byte("server:\n  host: 192.0.2.40\n  port: 9191\n"), 0o600))
+	t.Setenv("CONFIG_FILE", configFile)
+	t.Setenv("DATA_DIR", "")
+	t.Setenv("SERVER_HOST", "")
+	t.Setenv("SERVER_PORT", "")
+
+	require.Equal(t, "192.0.2.40:9191", GetServerAddress())
 }
 
 func TestValidateAbsoluteHTTPURL(t *testing.T) {
@@ -1567,6 +1715,11 @@ func TestValidateConfigErrors(t *testing.T) {
 			wantErr: "billing.circuit_breaker.half_open_requests",
 		},
 		{
+			name:    "billing minimum balance reserve",
+			mutate:  func(c *Config) { c.Billing.MinimumBalanceReserve = -0.01 },
+			wantErr: "billing.minimum_balance_reserve",
+		},
+		{
 			name:    "database max open conns",
 			mutate:  func(c *Config) { c.Database.MaxOpenConns = 0 },
 			wantErr: "database.max_open_conns",
@@ -1776,6 +1929,21 @@ func TestValidateConfigErrors(t *testing.T) {
 			name:    "gateway openai http2 fallback ttl",
 			mutate:  func(c *Config) { c.Gateway.OpenAIHTTP2.FallbackTTLSeconds = -1 },
 			wantErr: "gateway.openai_http2.fallback_ttl_seconds",
+		},
+		{
+			name:    "gateway openai proxy stream circuit threshold",
+			mutate:  func(c *Config) { c.Gateway.OpenAIProxyStreamCircuit.FailureThreshold = -1 },
+			wantErr: "gateway.openai_proxy_stream_circuit.failure_threshold",
+		},
+		{
+			name:    "gateway openai proxy stream circuit window",
+			mutate:  func(c *Config) { c.Gateway.OpenAIProxyStreamCircuit.WindowSeconds = -1 },
+			wantErr: "gateway.openai_proxy_stream_circuit.window_seconds",
+		},
+		{
+			name:    "gateway openai proxy stream circuit ttl",
+			mutate:  func(c *Config) { c.Gateway.OpenAIProxyStreamCircuit.TTLSeconds = -1 },
+			wantErr: "gateway.openai_proxy_stream_circuit.ttl_seconds",
 		},
 		{
 			name:    "gateway stream data interval range",

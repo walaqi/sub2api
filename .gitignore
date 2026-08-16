@@ -134,6 +134,7 @@ vite.config.js
 !docs/PAYMENT.md
 !docs/PAYMENT_CN.md
 !docs/ADMIN_PAYMENT_INTEGRATION_API.md
+!docs/ASYNC_IMAGE_TASKS.md
 !docs/legal/
 !docs/legal/*.md
 docs/error-checks
@@ -143,3 +144,6 @@ frontend/coverage/
 aicodex
 output/
 logs/*
+
+# Vitest / Vite cache at repo root
+.vite/

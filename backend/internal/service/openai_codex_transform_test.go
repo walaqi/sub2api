@@ -12,7 +12,7 @@ import (
 // 现有测试都用生产常量自身作为 expected，无法防止漏改其中一处。这里硬编码期望版本，
 // 任何一处未同步都会直接 fail，提醒开发者四处一起改。升级版本时同步更新本测试。
 func TestCodexVersionConstantsInSync(t *testing.T) {
-	const wantVersion = "0.144.4"
+	const wantVersion = "0.146.0"
 
 	require.Equal(t, wantVersion, codexCLIVersion,
 		"codexCLIVersion (forwarded Version header) out of sync")
@@ -22,9 +22,13 @@ func TestCodexVersionConstantsInSync(t *testing.T) {
 		"codexCLIUserAgent (forwarded User-Agent) out of sync")
 	require.Contains(t, DefaultOpenAICodexUserAgent, wantVersion,
 		"DefaultOpenAICodexUserAgent (fallback UA) out of sync")
-	// 回退 UA 形如 "codex-tui/<v> (...) (codex-tui; <v>)"，两处版本片段都应更新。
-	require.Equal(t, 2, strings.Count(DefaultOpenAICodexUserAgent, wantVersion),
-		"DefaultOpenAICodexUserAgent should carry the version in both segments")
+	// 回退身份使用当前上游要求的官方 TUI 形态，并保持版本声明单一。
+	require.Equal(t, codexCLIUserAgent, DefaultOpenAICodexUserAgent,
+		"fallback UA should use the canonical TUI identity")
+	require.Equal(t, 1, strings.Count(DefaultOpenAICodexUserAgent, wantVersion),
+		"TUI fallback UA should carry the version once")
+	require.True(t, strings.HasPrefix(DefaultOpenAICodexUserAgent, "codex-tui/"+wantVersion),
+		"fallback UA should use the codex-tui originator and current version")
 }
 
 func TestApplyCodexOAuthTransform_ToolContinuationPreservesInput(t *testing.T) {

@@ -139,6 +139,10 @@
           <Select v-model="filters.billing_mode" :options="billingModeOptions" @change="emitChange" />
         </div>
 
+		<div class="w-full sm:w-auto sm:min-w-[220px]">
+		  <label class="input-label">{{ t('admin.usage.upstreamModelAudit') }}</label>
+		  <Select v-model="filters.upstream_model_mismatch" :options="upstreamModelMismatchOptions" @change="emitChange" />
+		</div>
         <!-- Group Filter -->
         <div class="w-full sm:w-auto sm:min-w-[200px]">
           <label class="input-label">{{ t('admin.usage.group') }}</label>
@@ -233,6 +237,7 @@ const groupOptions = ref<SelectOption[]>([{ value: null, label: t('admin.usage.a
 const requestTypeOptions = ref<SelectOption[]>([
   { value: null, label: t('admin.usage.allTypes') },
   { value: 'ws_v2', label: t('usage.ws') },
+  { value: 'live', label: t('usage.live') },
   { value: 'stream', label: t('usage.stream') },
   { value: 'sync', label: t('usage.sync') },
   { value: 'cyber', label: t('usage.cyber') }
@@ -250,6 +255,12 @@ const billingModeOptions = ref<SelectOption[]>([
   { value: 'per_request', label: t('admin.usage.billingModePerRequest') },
   { value: 'image', label: t('admin.usage.billingModeImage') },
   { value: 'video', label: t('admin.usage.billingModeVideo') }
+])
+
+const upstreamModelMismatchOptions = ref<SelectOption[]>([
+  { value: null, label: t('admin.usage.allUpstreamModelAudit') },
+  { value: true, label: t('admin.usage.upstreamModelMismatchOnly') },
+  { value: false, label: t('admin.usage.upstreamModelMatchedOnly') }
 ])
 
 const emitChange = () => emit('change')
@@ -468,5 +479,7 @@ const setUserKeyword = (email: string) => {
   showUserDropdown.value = false
 }
 
-defineExpose({ setUserKeyword })
+const getUserSearchRevision = () => userSearchSequence
+
+defineExpose({ getUserSearchRevision, setUserKeyword })
 </script>

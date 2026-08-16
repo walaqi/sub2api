@@ -86,6 +86,46 @@ func TestIsClaudeCodeClient(t *testing.T) {
 	}
 }
 
+func TestSystemHasBillingAttributionBlock(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+		want bool
+	}{
+		{
+			name: "billing block with entrypoint",
+			body: `{"system":[{"type":"text","text":"x-anthropic-billing-header: cc_version=2.1.220.abc; cc_entrypoint=cli;"}]}`,
+			want: true,
+		},
+		{
+			name: "billing prefix without entrypoint",
+			body: `{"system":[{"type":"text","text":"x-anthropic-billing-header: cc_version=2.1.220.abc;"}]}`,
+			want: false,
+		},
+		{
+			name: "entrypoint outside billing block",
+			body: `{"system":[{"type":"text","text":"custom cc_entrypoint=cli;"}]}`,
+			want: false,
+		},
+		{
+			name: "billing block in string system",
+			body: `{"system":"x-anthropic-billing-header: cc_entrypoint=cli;"}`,
+			want: false,
+		},
+		{
+			name: "invalid body",
+			body: `{invalid`,
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, systemHasBillingAttributionBlock([]byte(tt.body)))
+		})
+	}
+}
+
 func TestSystemIncludesClaudeCodePrompt(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -480,6 +520,34 @@ func TestRewriteSystemForNonClaudeCodeWithPrompt_UsesCustomExpansionPrompt(t *te
 	require.Len(t, system.Array(), 3)
 	require.Equal(t, customPrompt, system.Array()[2].Get("text").String())
 	require.Equal(t, "ephemeral", system.Array()[2].Get("cache_control.type").String())
+}
+
+func TestRewriteSystemForNonClaudeCode_PreservesSystemCacheControlOnMigratedMessage(t *testing.T) {
+	body := []byte(`{"model":"claude-3","system":[{"type":"text","text":"Stable project instructions","cache_control":{"type":"ephemeral","ttl":"1h"}}],"messages":[{"role":"user","content":"hello"}]}`)
+	system := []any{
+		map[string]any{
+			"type":          "text",
+			"text":          "Stable project instructions",
+			"cache_control": map[string]any{"type": "ephemeral", "ttl": "1h"},
+		},
+	}
+
+	result := rewriteSystemForNonClaudeCode(body, system)
+
+	require.Equal(t, "[System Instructions]\nStable project instructions", gjson.GetBytes(result, "messages.0.content.0.text").String())
+	require.Equal(t, "ephemeral", gjson.GetBytes(result, "messages.0.content.0.cache_control.type").String())
+	require.Equal(t, "1h", gjson.GetBytes(result, "messages.0.content.0.cache_control.ttl").String())
+}
+
+func TestRewriteSystemForNonClaudeCode_LeavesMigratedMessageUncachedWithoutSystemBreakpoint(t *testing.T) {
+	body := []byte(`{"model":"claude-3","system":[{"type":"text","text":"Project instructions"}],"messages":[{"role":"user","content":"hello"}]}`)
+	system := []any{
+		map[string]any{"type": "text", "text": "Project instructions"},
+	}
+
+	result := rewriteSystemForNonClaudeCode(body, system)
+
+	require.False(t, gjson.GetBytes(result, "messages.0.content.0.cache_control").Exists())
 }
 
 func TestRewriteSystemForNonClaudeCodeWithPromptBlocks_UsesConfiguredBlocks(t *testing.T) {

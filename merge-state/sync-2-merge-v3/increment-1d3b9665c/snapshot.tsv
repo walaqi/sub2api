@@ -1,0 +1,11 @@
+index	sha	committed_at	parent_count	parents	subject
+240	0fa577a19c07f33808f02ff04ceee16a481b8949	2026-08-13T09:08:35+08:00	2	5935e674a84341c3536e27e6a968384f67d9062b b61e4bcc458860c438c6cf119208924c4ad9d076	Merge pull request #5571 from IanShaw027/feat/grok-jwt-tier-and-4.6
+241	4853662f992dfd92bbedbb160aecb2e7a6c76f78	2026-08-13T09:12:41+08:00	2	0fa577a19c07f33808f02ff04ceee16a481b8949 bd404c16f2ff28c7b21c560f816be0b3af4b21c9	Merge pull request #5540 from luckydududu/fix/channel-pricing-model-name-normalization
+242	e77b4b260e75c3656e251c202210f0442f641b7b	2026-08-13T09:23:50+08:00	2	4853662f992dfd92bbedbb160aecb2e7a6c76f78 fd9ce53281af6010cba6d8841aa435cc2de6c842	Merge pull request #5504 from fengshao1227/fix/responses-probe-inconclusive-keeps-unknown
+243	5912ae960c523027c048e108bd91365174cfcf44	2026-08-13T09:24:00+08:00	2	e77b4b260e75c3656e251c202210f0442f641b7b 814ecfba7c11a3e3819f2256b0a8405a0d8b6205	Merge pull request #5543 from luckydududu/fix/invalidate-channel-cache-on-group-platform-change
+244	e803e3851c0a7e222cfadeafad7b8636ab959d11	2026-08-13T09:24:11+08:00	2	5912ae960c523027c048e108bd91365174cfcf44 bba6a55e0f5402c96c0e3dbc0ab8dac4e8474a2d	Merge pull request #5559 from seng1e/fix/scheduled-backup-leader-lock
+245	0e82efe48951cb7da1f8554639afdeab05bf16b8	2026-08-13T01:46:47+00:00	1	e803e3851c0a7e222cfadeafad7b8636ab959d11	chore: sync VERSION to 0.1.176 [skip ci]
+246	fbfdcef8184ae4b2e224d5cfc47cf1d0e3742710	2026-08-13T10:32:07+08:00	2	0e82efe48951cb7da1f8554639afdeab05bf16b8 e215c98c2c959e2b93700d59af08ebec189b27fe	Merge pull request #5573 from IanShaw027/fix/grok-long-context-and-media-fallback
+247	c204d33b09ebfefe96c1d4dcb16a88590992257e	2026-08-15T09:00:16+08:00	2	fbfdcef8184ae4b2e224d5cfc47cf1d0e3742710 45dcce0e49b979c4eeea9002b844dc5e923bb681	Merge pull request #5649 from lyen1688/feat/group-usage-daily-rollups
+248	1d3b9665c8824d3b7f5a03a3f50419e812261e91	2026-08-15T13:46:31+08:00	2	c204d33b09ebfefe96c1d4dcb16a88590992257e a8b9ea22b701704507fa597c03c1835173248f36	Merge pull request #5641 from InCerryGit/fix/issue-5624-remote-compaction-v2
+

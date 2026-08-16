@@ -60,6 +60,7 @@ func ProvideRouter(
 	cfg *config.Config,
 	handlers *handler.Handlers,
 	jwtAuth middleware2.JWTAuthMiddleware,
+	optionalJWTAuth middleware2.OptionalJWTAuthMiddleware,
 	adminAuth middleware2.AdminAuthMiddleware,
 	apiKeyAuth middleware2.APIKeyAuthMiddleware,
 	auditLog middleware2.AuditLogMiddleware,
@@ -68,6 +69,7 @@ func ProvideRouter(
 	subscriptionService *service.SubscriptionService,
 	opsService *service.OpsService,
 	settingService *service.SettingService,
+	compositeResolver *service.CompositeRouteResolver,
 	redisClient *redis.Client,
 	entClient *dbent.Client,
 	giftEngine *gift.Engine,
@@ -123,7 +125,7 @@ func ProvideRouter(
 	service.SetWebSearchHealthChecker(healthChecker)
 	healthChecker.Start()
 
-	return SetupRouter(r, handlers, jwtAuth, adminAuth, apiKeyAuth, auditLog, stepUpAuth, apiKeyService, subscriptionService, opsService, settingService, cfg, redisClient, entClient, giftEngine)
+	return SetupRouter(r, handlers, jwtAuth, optionalJWTAuth, adminAuth, apiKeyAuth, auditLog, stepUpAuth, apiKeyService, subscriptionService, opsService, settingService, compositeResolver, cfg, redisClient, entClient, giftEngine)
 }
 
 func configureTrustedProxies(r *gin.Engine, cfg config.ServerConfig) {

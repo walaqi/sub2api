@@ -32,7 +32,7 @@ const (
 
 // DefaultCSPPolicy is the default Content-Security-Policy with nonce support
 // __CSP_NONCE__ will be replaced with actual nonce at request time by the SecurityHeaders middleware
-const DefaultCSPPolicy = "default-src 'self'; script-src 'self' __CSP_NONCE__ https://challenges.cloudflare.com https://static.cloudflareinsights.com https://*.stripe.com https://static.airwallex.com https://checkout.airwallex.com https://static-demo.airwallex.com https://checkout-demo.airwallex.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://static.airwallex.com https://checkout.airwallex.com https://static-demo.airwallex.com https://checkout-demo.airwallex.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https:; frame-src https://challenges.cloudflare.com https://*.stripe.com https://checkout.airwallex.com https://checkout-demo.airwallex.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+const DefaultCSPPolicy = "default-src 'self'; worker-src 'self' blob:; script-src 'self' __CSP_NONCE__ https://challenges.cloudflare.com https://*.alicdn.com https://static.cloudflareinsights.com https://turing.captcha.qcloud.com https://turing.captcha.gtimg.com https://ca.turing.captcha.qcloud.com https://global.turing.captcha.gtimg.com https://www.tycaptcha.com https://cloudcache.tencentcs.com https://*.stripe.com https://static.airwallex.com https://checkout.airwallex.com https://static-demo.airwallex.com https://checkout-demo.airwallex.com; style-src 'self' 'unsafe-inline' https://*.captcha.gtimg.com https://fonts.googleapis.com https://*.alicdn.com https://static.airwallex.com https://checkout.airwallex.com https://static-demo.airwallex.com https://checkout-demo.airwallex.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://turing.captcha.qcloud.com https://www.tycaptcha.com https://rce.tencentrio.com https:; frame-src https://challenges.cloudflare.com https://turing.captcha.qcloud.com https://ca.turing.captcha.qcloud.com https://www.tycaptcha.com https://*.stripe.com https://checkout.airwallex.com https://checkout-demo.airwallex.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 
 // UMQ（用户消息队列）模式常量
 const (
@@ -73,6 +73,7 @@ type Config struct {
 	Ops                     OpsConfig                     `mapstructure:"ops"`
 	JWT                     JWTConfig                     `mapstructure:"jwt"`
 	Totp                    TotpConfig                    `mapstructure:"totp"`
+	WebAuthn                WebAuthnConfig                `mapstructure:"webauthn"`
 	LinuxDo                 LinuxDoConnectConfig          `mapstructure:"linuxdo_connect"`
 	WeChat                  WeChatConnectConfig           `mapstructure:"wechat_connect"`
 	OIDC                    OIDCConnectConfig             `mapstructure:"oidc_connect"`
@@ -97,6 +98,8 @@ type Config struct {
 	Update                  UpdateConfig                  `mapstructure:"update"`
 	Idempotency             IdempotencyConfig             `mapstructure:"idempotency"`
 	ImageStudio             ImageStudioConfig             `mapstructure:"image_studio"`
+	BatchImage              BatchImageConfig              `mapstructure:"batch_image"`
+	ImageStorage            ImageStorageConfig            `mapstructure:"image_storage"`
 }
 
 type LogConfig struct {
@@ -177,6 +180,99 @@ type IdempotencyConfig struct {
 	CleanupIntervalSeconds int `mapstructure:"cleanup_interval_seconds"`
 	// CleanupBatchSize 每次清理的最大记录数。
 	CleanupBatchSize int `mapstructure:"cleanup_batch_size"`
+}
+
+type BatchImageConfig struct {
+	Enabled                           bool   `mapstructure:"enabled"`
+	MaxItemsPerJobDefault             int    `mapstructure:"max_items_per_job_default"`
+	MaxItemsPerJobTrial               int    `mapstructure:"max_items_per_job_trial"`
+	MaxOutputImagesPerJob             int    `mapstructure:"max_output_images_per_job"`
+	MaxOutputImagesPerItem            int    `mapstructure:"max_output_images_per_item"`
+	MaxPromptCharsPerItem             int    `mapstructure:"max_prompt_chars_per_item"`
+	MaxReferenceImagesPerJob          int    `mapstructure:"max_reference_images_per_job"`
+	MaxReferenceInlineBytesPerJob     int    `mapstructure:"max_reference_inline_bytes_per_job"`
+	DefaultResponseMimeType           string `mapstructure:"default_response_mime_type"`
+	DefaultImageSize                  string `mapstructure:"default_image_size"`
+	MaxDownloadItemsZip               int    `mapstructure:"max_download_items_zip"`
+	MaxDownloadBytesPerRequest        int64  `mapstructure:"max_download_bytes_per_request"`
+	MaxDownloadDurationSeconds        int    `mapstructure:"max_download_duration_seconds"`
+	MaxDownloadConcurrencyPerUser     int    `mapstructure:"max_download_concurrency_per_user"`
+	InputRetentionAfterTerminalHours  int    `mapstructure:"input_retention_after_terminal_hours"`
+	OutputRetentionAfterTerminalHours int    `mapstructure:"output_retention_after_terminal_hours"`
+	OutputRetentionMaxDays            int    `mapstructure:"output_retention_max_days"`
+	CleanupIntervalMinutes            int    `mapstructure:"cleanup_interval_minutes"`
+	CleanupBatchSize                  int    `mapstructure:"cleanup_batch_size"`
+	QueueEnabled                      bool   `mapstructure:"queue_enabled"`
+	QueueReadyKey                     string `mapstructure:"queue_ready_key"`
+	QueueDelayedKey                   string `mapstructure:"queue_delayed_key"`
+	QueueActiveKey                    string `mapstructure:"queue_active_key"`
+	InflightKeyPrefix                 string `mapstructure:"inflight_key_prefix"`
+	LockKeyPrefix                     string `mapstructure:"lock_key_prefix"`
+	IdempotencyKeyPrefix              string `mapstructure:"idempotency_key_prefix"`
+	InflightTTLSeconds                int    `mapstructure:"inflight_ttl_seconds"`
+	JobLockTTLSeconds                 int    `mapstructure:"job_lock_ttl_seconds"`
+	DefaultRequeueDelaySeconds        int    `mapstructure:"default_requeue_delay_seconds"`
+	ErrorRetryDelaySeconds            int    `mapstructure:"error_retry_delay_seconds"`
+	LockConflictDelaySeconds          int    `mapstructure:"lock_conflict_delay_seconds"`
+	StaleActiveAfterSeconds           int    `mapstructure:"stale_active_after_seconds"`
+	DelayedMoverIntervalSeconds       int    `mapstructure:"delayed_mover_interval_seconds"`
+	RecoveryIntervalSeconds           int    `mapstructure:"recovery_interval_seconds"`
+	DelayedMoveLimit                  int    `mapstructure:"delayed_move_limit"`
+	RecoverLimit                      int    `mapstructure:"recover_limit"`
+	VertexEnabled                     bool   `mapstructure:"vertex_enabled"`
+	VertexProjectID                   string `mapstructure:"vertex_project_id"`
+	VertexLocation                    string `mapstructure:"vertex_location"`
+	// VertexManagedGCSBucket is a server-owned bucket for batch JSONL input/output.
+	// Disable Cloud Storage soft delete on this bucket to avoid retaining deleted batch objects.
+	VertexManagedGCSBucket       string `mapstructure:"vertex_managed_gcs_bucket"`
+	VertexManagedGCSPrefix       string `mapstructure:"vertex_managed_gcs_prefix"`
+	VertexInputRetentionHours    int    `mapstructure:"vertex_input_retention_hours"`
+	VertexOutputRetentionHours   int    `mapstructure:"vertex_output_retention_hours"`
+	VertexBatchPredictionBaseURL string `mapstructure:"vertex_batch_prediction_base_url"`
+	VertexGCSBaseURL             string `mapstructure:"vertex_gcs_base_url"`
+}
+
+// ImageStorageConfig 配置异步图片任务结果上传的 S3 兼容对象存储。
+// Enabled 同时作为异步图片任务功能的总开关：未启用或未配置完整凭证时，
+// 异步生图接口整体禁用，避免把上游返回的大 base64 结果塞进 Redis。
+type ImageStorageConfig struct {
+	Enabled         bool   `mapstructure:"enabled"`
+	Endpoint        string `mapstructure:"endpoint"` // e.g. https://<account_id>.r2.cloudflarestorage.com
+	Region          string `mapstructure:"region"`   // R2 用 "auto"
+	Bucket          string `mapstructure:"bucket"`
+	AccessKeyID     string `mapstructure:"access_key_id"`
+	SecretAccessKey string `mapstructure:"secret_access_key"`
+	Prefix          string `mapstructure:"prefix"`               // S3 key 前缀，如 "images/"
+	ForcePathStyle  bool   `mapstructure:"force_path_style"`     // MinIO/路径风格桶
+	PublicBaseURL   string `mapstructure:"public_base_url"`      // 配了则返回 public_base_url/key 直链；否则 presigned
+	PresignExpiry   int    `mapstructure:"presign_expiry_hours"` // public_base_url 为空时的 presigned 过期时长(小时)
+	MaxDownloadByte int64  `mapstructure:"max_download_bytes"`   // 下载上游 url 图片的字节上限
+}
+
+// IsConfigured 检查对象存储必要字段是否已配置
+func (c *ImageStorageConfig) IsConfigured() bool {
+	return c.Bucket != "" && c.AccessKeyID != "" && c.SecretAccessKey != ""
+}
+
+// Active 返回异步图片任务是否可用：开关打开且凭证齐全
+func (c *ImageStorageConfig) Active() bool {
+	return c.Enabled && c.IsConfigured()
+}
+
+// MissingCredentialKeys 返回 IsConfigured 所缺的配置键名。
+// 用于启动日志：只说"凭证不完整"会让运维以为自己漏填了，而实际可能是值填了却没被读到。
+func (c *ImageStorageConfig) MissingCredentialKeys() []string {
+	var missing []string
+	if c.Bucket == "" {
+		missing = append(missing, "image_storage.bucket")
+	}
+	if c.AccessKeyID == "" {
+		missing = append(missing, "image_storage.access_key_id")
+	}
+	if c.SecretAccessKey == "" {
+		missing = append(missing, "image_storage.secret_access_key")
+	}
+	return missing
 }
 
 type LinuxDoConnectConfig struct {
@@ -592,6 +688,16 @@ type CORSConfig struct {
 	AllowCredentials bool     `mapstructure:"allow_credentials"`
 }
 
+// WebAuthnConfig configures this deployment as a WebAuthn relying party.
+// RPID and RPOrigins are security boundaries and must never be inferred from
+// untrusted request Host or Origin headers.
+type WebAuthnConfig struct {
+	Enabled       bool     `mapstructure:"enabled"`
+	RPDisplayName string   `mapstructure:"rp_display_name"`
+	RPID          string   `mapstructure:"rp_id"`
+	RPOrigins     []string `mapstructure:"rp_origins"`
+}
+
 const MaxForwardedClientIPHeaders = 16
 
 type ForwardedClientIPSettings struct {
@@ -729,6 +835,10 @@ type ProxyProbeConfig struct {
 
 type BillingConfig struct {
 	CircuitBreaker CircuitBreakerConfig `mapstructure:"circuit_breaker"`
+	// MinimumBalanceReserve is the conservative preflight floor for balance billing.
+	// Requests in balance mode are rejected when the cached balance is below this
+	// amount, even if it is still positive. Set to 0 to keep the legacy balance > 0 gate.
+	MinimumBalanceReserve float64 `mapstructure:"minimum_balance_reserve"`
 	// UserPlatformQuotaCacheTTLSeconds 用户 × 平台 quota 缓存 TTL（秒），默认 86400=1天，覆盖典型 daily 窗口。
 	// 消费点：
 	//   - billing_cache_service.cacheWriteWorker 异步累加
@@ -798,6 +908,18 @@ type GatewayConfig struct {
 	// ForceCodexCLI: 强制将 OpenAI `/v1/responses` 请求按 Codex CLI 处理。
 	// 用于网关未透传/改写 User-Agent 时的兼容兜底（默认关闭，避免影响其他客户端）。
 	ForceCodexCLI bool `mapstructure:"force_codex_cli"`
+	// DisableCodexIdentityEnforcement: 关闭「强制统一 Codex 出站身份」。上游 /backend-api/codex
+	// 在容量紧张时按客户端身份分优先级降载，被降载的请求会拿到 HTTP 200 + 流内
+	// server_is_overloaded，该次请求失败。默认强制统一出口：所有 OAuth 出站的
+	// User-Agent / originator / version 都改写为网关规范身份，确保没有请求带着第三方或陈旧身份
+	// 出站。置 true 后退回「仅按最终 User-Agent 配对 originator」的收口语义，供上游策略变动时回滚。
+	//
+	// 取反义命名是为了让零值安全：该开关会发布为进程级快照，未经 viper 加载而手工构造的
+	// Config（测试、工具）其零值必须落在「强制统一开启」这一侧，否则会静默丢掉这层保护。
+	DisableCodexIdentityEnforcement bool `mapstructure:"disable_codex_identity_enforcement"`
+	// DisableCodexOriginatorNormalization: 已废弃，等价于 DisableCodexIdentityEnforcement。
+	// 保留以兼容既有配置文件；加载时会折叠进新键，不要在新代码里直接读取。
+	DisableCodexOriginatorNormalization bool `mapstructure:"disable_codex_originator_normalization"`
 	// CodexImageGenerationBridgeEnabled: 是否为 Codex `/v1/responses` 自动注入 image_generation 工具和桥接指令。
 	// 默认关闭，避免纯文本 Codex 请求被意外改写；显式携带 image_generation 工具的请求仍按分组能力转发。
 	CodexImageGenerationBridgeEnabled bool `mapstructure:"codex_image_generation_bridge_enabled"`
@@ -815,10 +937,14 @@ type GatewayConfig struct {
 	OpenAICompactModel string `mapstructure:"openai_compact_model"`
 	// OpenAIWS: OpenAI Responses WebSocket 配置（默认开启，可按需回滚到 HTTP）
 	OpenAIWS GatewayOpenAIWSConfig `mapstructure:"openai_ws"`
+	// Live: ChatGPT Frameless Live 会话配置。
+	Live GatewayLiveConfig `mapstructure:"live"`
 	// OpenAIScheduler: OpenAI 高级调度器粘性逃逸配置
 	OpenAIScheduler GatewayOpenAISchedulerConfig `mapstructure:"openai_scheduler"`
 	// OpenAIHTTP2: OpenAI HTTP 上游协议策略（默认启用 HTTP/2，可按代理能力回退 HTTP/1.1）
 	OpenAIHTTP2 GatewayOpenAIHTTP2Config `mapstructure:"openai_http2"`
+	// OpenAIProxyStreamCircuit: Responses SSE 代理断流熔断策略。
+	OpenAIProxyStreamCircuit GatewayOpenAIProxyStreamCircuitConfig `mapstructure:"openai_proxy_stream_circuit"`
 	// ImageConcurrency: 图片生成独立并发限制配置（默认关闭）
 	ImageConcurrency ImageConcurrencyConfig `mapstructure:"image_concurrency"`
 
@@ -897,6 +1023,44 @@ type GatewayConfig struct {
 	// UserMessageQueue: 用户消息串行队列配置
 	// 对 role:"user" 的真实用户消息实施账号级串行化 + RPM 自适应延迟
 	UserMessageQueue UserMessageQueueConfig `mapstructure:"user_message_queue"`
+
+	// Grok: Grok/xAI gateway scheduling and free-tier soft-gate settings.
+	Grok GatewayGrokConfig `mapstructure:"grok"`
+}
+
+// GatewayGrokConfig holds Grok-specific gateway scheduling knobs.
+//
+// Free-quota soft gate keys (gateway.grok.*):
+//   - free_quota_soft_gate_enabled: enable local rolling-window scheduling guard for
+//     OAuth accounts whose subscription_tier/plan_type is explicitly "free".
+//     Default true is safe only because free-tier detection is strict (unknown/paid fail open).
+//   - free_quota_token_limit: nominal rolling-window token allowance.
+//   - free_quota_soft_gate_percent: stop new scheduling before the nominal limit (1-100).
+//   - free_quota_window_hours: local usage rolling window length in hours.
+//   - free_quota_stats_cache_seconds: cache TTL for free-tier usage stats
+//     (hot path never blocks on DB; misses fail open and refresh in background).
+type GatewayGrokConfig struct {
+	// PasswordAuthEnabled controls the optional password-to-SSO OAuth flow.
+	// It defaults to false and must be explicitly enabled by the operator.
+	// When true, POST /admin/grok/oauth/password is functional (not ignored).
+	PasswordAuthEnabled bool `mapstructure:"password_auth_enabled"`
+	// FreeQuotaSoftGateEnabled enables a local rolling-window scheduling guard
+	// for explicitly free Grok OAuth accounts only.
+	FreeQuotaSoftGateEnabled bool `mapstructure:"free_quota_soft_gate_enabled"`
+	// FreeQuotaTokenLimit is the nominal rolling-window allowance.
+	FreeQuotaTokenLimit int64 `mapstructure:"free_quota_token_limit"`
+	// FreeQuotaSoftGatePercent stops new scheduling before the nominal limit.
+	FreeQuotaSoftGatePercent int `mapstructure:"free_quota_soft_gate_percent"`
+	// FreeQuotaWindowHours controls the local rolling usage window.
+	FreeQuotaWindowHours int `mapstructure:"free_quota_window_hours"`
+	// FreeQuotaStatsCacheSeconds is the soft-gate stats cache TTL. Hot path never
+	// waits on usage_logs; misses fail open and refresh asynchronously.
+	FreeQuotaStatsCacheSeconds int `mapstructure:"free_quota_stats_cache_seconds"`
+}
+
+type GatewayLiveConfig struct {
+	// MaxSessionDurationSeconds 是 Live 会话的硬上限。
+	MaxSessionDurationSeconds int `mapstructure:"max_session_duration_seconds"`
 }
 
 // GatewayOpenAIHTTP2Config OpenAI HTTP 上游协议配置。
@@ -912,6 +1076,19 @@ type GatewayOpenAIHTTP2Config struct {
 	FallbackWindowSeconds int `mapstructure:"fallback_window_seconds"`
 	// FallbackTTLSeconds: 触发后回退 HTTP/1.1 的持续时间（秒）
 	FallbackTTLSeconds int `mapstructure:"fallback_ttl_seconds"`
+}
+
+// GatewayOpenAIProxyStreamCircuitConfig controls the bounded, in-process
+// proxy-ID circuit used for incomplete OpenAI Responses SSE streams.
+type GatewayOpenAIProxyStreamCircuitConfig struct {
+	// Disabled: 完全关闭代理断流熔断（默认开启）。
+	Disabled bool `mapstructure:"disabled"`
+	// FailureThreshold: 统计窗口内多少次断流后隔离代理。
+	FailureThreshold int `mapstructure:"failure_threshold"`
+	// WindowSeconds: 断流统计窗口（秒）。
+	WindowSeconds int `mapstructure:"window_seconds"`
+	// TTLSeconds: 代理隔离持续时间（秒）。
+	TTLSeconds int `mapstructure:"ttl_seconds"`
 }
 
 // UserMessageQueueConfig 用户消息串行队列配置
@@ -1567,24 +1744,15 @@ func LoadForBootstrap() (*Config, error) {
 func load(allowMissingJWTSecret bool) (*Config, error) {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
-
-	// Add config paths in priority order
-	// 1. DATA_DIR environment variable (highest priority)
-	if dataDir := os.Getenv("DATA_DIR"); dataDir != "" {
-		viper.AddConfigPath(dataDir)
-	}
-	// 2. Docker data directory
-	viper.AddConfigPath("/app/data")
-	// 3. Current directory
-	viper.AddConfigPath(".")
-	// 4. Config subdirectory
-	viper.AddConfigPath("./config")
-	// 5. System config directory
-	viper.AddConfigPath("/etc/sub2api")
+	configureConfigSource(viper.SetConfigFile, viper.AddConfigPath)
 
 	// 环境变量支持
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	if tz, ok := os.LookupEnv("TZ"); ok && strings.TrimSpace(tz) != "" {
+		// AutomaticEnv 会先把 timezone 映射到 TIMEZONE；显式 Set 保证标准 TZ 变量优先。
+		viper.Set("timezone", strings.TrimSpace(tz))
+	}
 	if err := viper.BindEnv("server.enable_server_timing", "ENABLE_SERVER_TIMING"); err != nil {
 		return nil, fmt.Errorf("bind ENABLE_SERVER_TIMING: %w", err)
 	}
@@ -1620,6 +1788,9 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	if cfg.Gateway.OpenAIScheduler.StickyEscapeErrorRate == 0 {
 		cfg.Gateway.OpenAIScheduler.StickyEscapeErrorRate = 0.5
 	}
+	// Kept as a backstop: setEnvReachableDefaults now registers this key with its
+	// effective default (true), so IsSet always reports true and this branch no
+	// longer fires. It still guards the default if that registration is dropped.
 	if !cfg.Gateway.OpenAIScheduler.StickyEscapeEnabled && !viper.IsSet("gateway.openai_scheduler.sticky_escape_enabled") {
 		cfg.Gateway.OpenAIScheduler.StickyEscapeEnabled = true
 	}
@@ -1705,6 +1876,13 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 		cfg.ImageStudio.JWTPrivateKeyPEM = string(content)
 	}
 
+	// 兼容旧键 gateway.disable_codex_originator_normalization：语义已被
+	// disable_codex_identity_enforcement 取代（身份改写升级为强制统一出口），
+	// 任一为 true 即关闭强制统一。
+	if cfg.Gateway.DisableCodexOriginatorNormalization {
+		cfg.Gateway.DisableCodexIdentityEnforcement = true
+	}
+
 	// 兼容旧键 gateway.openai_ws.sticky_previous_response_ttl_seconds。
 	// 新键未配置（<=0）时回退旧键；新键优先。
 	if cfg.Gateway.OpenAIWS.StickyResponseIDTTLSeconds <= 0 && cfg.Gateway.OpenAIWS.StickyPreviousResponseTTLSeconds > 0 {
@@ -1767,6 +1945,22 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	return &cfg, nil
 }
 
+func configureConfigSource(setConfigFile, addConfigPath func(string)) {
+	if configFile := strings.TrimSpace(os.Getenv("CONFIG_FILE")); configFile != "" {
+		setConfigFile(configFile)
+		return
+	}
+
+	// Add config paths in priority order.
+	if dataDir := strings.TrimSpace(os.Getenv("DATA_DIR")); dataDir != "" {
+		addConfigPath(dataDir)
+	}
+	addConfigPath("/app/data")
+	addConfigPath(".")
+	addConfigPath("./config")
+	addConfigPath("/etc/sub2api")
+}
+
 func setDefaults() {
 	viper.SetDefault("run_mode", RunModeStandard)
 
@@ -1811,12 +2005,21 @@ func setDefaults() {
 	viper.SetDefault("cors.allowed_origins", []string{})
 	viper.SetDefault("cors.allow_credentials", true)
 
+	// WebAuthn / Passkeys are opt-in because every deployment must explicitly
+	// declare its relying-party domain and trusted browser origins.
+	viper.SetDefault("webauthn.enabled", false)
+	viper.SetDefault("webauthn.rp_display_name", "Sub2API")
+	viper.SetDefault("webauthn.rp_id", "")
+	viper.SetDefault("webauthn.rp_origins", []string{})
+
 	// Security
 	viper.SetDefault("security.url_allowlist.enabled", false)
 	viper.SetDefault("security.url_allowlist.upstream_hosts", []string{
 		"api.openai.com",
 		"api.anthropic.com",
 		"api.kimi.com",
+		"api.moonshot.ai",
+		"api.moonshot.cn",
 		"open.bigmodel.cn",
 		"api.minimaxi.com",
 		"generativelanguage.googleapis.com",
@@ -1848,6 +2051,7 @@ func setDefaults() {
 	viper.SetDefault("billing.circuit_breaker.failure_threshold", 5)
 	viper.SetDefault("billing.circuit_breaker.reset_timeout_seconds", 30)
 	viper.SetDefault("billing.circuit_breaker.half_open_requests", 3)
+	viper.SetDefault("billing.minimum_balance_reserve", 0.000001)
 	viper.SetDefault("billing.user_platform_quota_cache_ttl_seconds", 86400)
 	viper.SetDefault("billing.user_platform_quota_sentinel_ttl_seconds", 3600)
 
@@ -1958,6 +2162,70 @@ func setDefaults() {
 	// tokens a dedicated pool insulated from /v1/messages traffic spikes.
 	viper.SetDefault("redis.auth_pool_size", 0)
 	viper.SetDefault("redis.auth_min_idle_conns", 0)
+
+	// Batch Image queue
+	viper.SetDefault("batch_image.enabled", false)
+	viper.SetDefault("batch_image.max_items_per_job_default", 200)
+	viper.SetDefault("batch_image.max_items_per_job_trial", 50)
+	viper.SetDefault("batch_image.max_output_images_per_job", 200)
+	viper.SetDefault("batch_image.max_output_images_per_item", 4)
+	viper.SetDefault("batch_image.max_prompt_chars_per_item", 8000)
+	viper.SetDefault("batch_image.max_reference_images_per_job", 1000)
+	viper.SetDefault("batch_image.max_reference_inline_bytes_per_job", 134217728)
+	viper.SetDefault("batch_image.default_response_mime_type", "image/png")
+	viper.SetDefault("batch_image.default_image_size", "1K")
+	viper.SetDefault("batch_image.max_download_items_zip", 200)
+	viper.SetDefault("batch_image.max_download_bytes_per_request", 536870912)
+	viper.SetDefault("batch_image.max_download_duration_seconds", 600)
+	viper.SetDefault("batch_image.max_download_concurrency_per_user", 1)
+	viper.SetDefault("batch_image.input_retention_after_terminal_hours", 24)
+	viper.SetDefault("batch_image.output_retention_after_terminal_hours", 72)
+	viper.SetDefault("batch_image.output_retention_max_days", 7)
+	viper.SetDefault("batch_image.cleanup_interval_minutes", 30)
+	viper.SetDefault("batch_image.cleanup_batch_size", 100)
+	viper.SetDefault("batch_image.queue_enabled", false)
+	viper.SetDefault("batch_image.queue_ready_key", "batch_image:queue:ready")
+	viper.SetDefault("batch_image.queue_delayed_key", "batch_image:queue:delayed")
+	viper.SetDefault("batch_image.queue_active_key", "batch_image:queue:active")
+	viper.SetDefault("batch_image.inflight_key_prefix", "batch_image:queue:inflight:")
+	viper.SetDefault("batch_image.lock_key_prefix", "batch_image:queue:lock:")
+	viper.SetDefault("batch_image.idempotency_key_prefix", "batch_image:queue:idem:")
+	viper.SetDefault("batch_image.inflight_ttl_seconds", 604800)
+	viper.SetDefault("batch_image.job_lock_ttl_seconds", 300)
+	viper.SetDefault("batch_image.default_requeue_delay_seconds", 30)
+	viper.SetDefault("batch_image.error_retry_delay_seconds", 60)
+	viper.SetDefault("batch_image.lock_conflict_delay_seconds", 5)
+	viper.SetDefault("batch_image.stale_active_after_seconds", 600)
+	viper.SetDefault("batch_image.delayed_mover_interval_seconds", 5)
+	viper.SetDefault("batch_image.recovery_interval_seconds", 300)
+	viper.SetDefault("batch_image.delayed_move_limit", 100)
+	viper.SetDefault("batch_image.recover_limit", 100)
+	viper.SetDefault("batch_image.vertex_enabled", false)
+	viper.SetDefault("batch_image.vertex_project_id", "")
+	viper.SetDefault("batch_image.vertex_location", "global")
+	viper.SetDefault("batch_image.vertex_managed_gcs_bucket", "")
+	viper.SetDefault("batch_image.vertex_managed_gcs_prefix", "batch-image/{env}/{batch_id}")
+	viper.SetDefault("batch_image.vertex_input_retention_hours", 24)
+	viper.SetDefault("batch_image.vertex_output_retention_hours", 72)
+	viper.SetDefault("batch_image.vertex_batch_prediction_base_url", "")
+	viper.SetDefault("batch_image.vertex_gcs_base_url", "")
+
+	// Image storage (async image task result offload to S3-compatible object storage)
+	viper.SetDefault("image_storage.enabled", false)
+	viper.SetDefault("image_storage.region", "auto")
+	viper.SetDefault("image_storage.prefix", "images/")
+	viper.SetDefault("image_storage.force_path_style", false)
+	viper.SetDefault("image_storage.presign_expiry_hours", 24)
+	viper.SetDefault("image_storage.max_download_bytes", 33554432)
+	// Registered with empty defaults so AutomaticEnv can reach them: viper only
+	// decodes keys present in AllKeys(), so a credential that is supplied purely
+	// via IMAGE_STORAGE_* and never appears in config.yaml would be dropped and
+	// silently disable the whole async image feature.
+	viper.SetDefault("image_storage.endpoint", "")
+	viper.SetDefault("image_storage.bucket", "")
+	viper.SetDefault("image_storage.access_key_id", "")
+	viper.SetDefault("image_storage.secret_access_key", "")
+	viper.SetDefault("image_storage.public_base_url", "")
 
 	// Ops (vNext)
 	viper.SetDefault("ops.enabled", true)
@@ -2085,9 +2353,12 @@ func setDefaults() {
 	viper.SetDefault("gateway.max_account_switches", 10)
 	viper.SetDefault("gateway.max_account_switches_gemini", 3)
 	viper.SetDefault("gateway.force_codex_cli", false)
+	viper.SetDefault("gateway.disable_codex_identity_enforcement", false)
+	viper.SetDefault("gateway.disable_codex_originator_normalization", false)
 	viper.SetDefault("gateway.codex_image_generation_bridge_enabled", false)
 	viper.SetDefault("gateway.openai_passthrough_allow_timeout_headers", false)
 	viper.SetDefault("gateway.openai_compact_model", "gpt-5.4")
+	viper.SetDefault("gateway.live.max_session_duration_seconds", 3600)
 	// OpenAI Responses WebSocket（默认开启；可通过 force_http 紧急回滚）
 	viper.SetDefault("gateway.openai_ws.enabled", true)
 	viper.SetDefault("gateway.openai_ws.mode_router_v2_enabled", false)
@@ -2151,6 +2422,19 @@ func setDefaults() {
 	viper.SetDefault("gateway.openai_http2.fallback_error_threshold", 2)
 	viper.SetDefault("gateway.openai_http2.fallback_window_seconds", 60)
 	viper.SetDefault("gateway.openai_http2.fallback_ttl_seconds", 600)
+	viper.SetDefault("gateway.openai_proxy_stream_circuit.disabled", false)
+	viper.SetDefault("gateway.openai_proxy_stream_circuit.failure_threshold", 2)
+	viper.SetDefault("gateway.openai_proxy_stream_circuit.window_seconds", 60)
+	viper.SetDefault("gateway.openai_proxy_stream_circuit.ttl_seconds", 600)
+	// Grok free-tier local soft gate (scheduler-only; admin QueryQuota does not use this).
+	// Enabled by default because free detection requires an explicit free tier marker.
+	viper.SetDefault("gateway.grok.free_quota_soft_gate_enabled", true)
+	viper.SetDefault("gateway.grok.password_auth_enabled", false)
+	// Free soft-gate nominal limit: 500k tokens / rolling 24h (operator policy).
+	viper.SetDefault("gateway.grok.free_quota_token_limit", int64(500_000))
+	viper.SetDefault("gateway.grok.free_quota_soft_gate_percent", 95)
+	viper.SetDefault("gateway.grok.free_quota_window_hours", 24)
+	viper.SetDefault("gateway.grok.free_quota_stats_cache_seconds", 60)
 	viper.SetDefault("gateway.image_concurrency.enabled", false)
 	viper.SetDefault("gateway.image_concurrency.max_concurrent_requests", 0)
 	viper.SetDefault("gateway.image_concurrency.overflow_mode", ImageConcurrencyOverflowModeReject)
@@ -2254,6 +2538,76 @@ func setDefaults() {
 	viper.SetDefault("subscription_maintenance.worker_count", 2)
 	viper.SetDefault("subscription_maintenance.queue_size", 1024)
 
+	setEnvReachableDefaults()
+}
+
+// setEnvReachableDefaults registers zero-valued defaults for keys that are
+// documented in deploy/config.example.yaml but had no default of their own.
+//
+// viper.Unmarshal only decodes the keys returned by AllKeys(), which unions
+// SetDefault keys, config-file keys and explicitly bound BindEnv keys.
+// AutomaticEnv can override a key already in that union, but it never adds one,
+// and the viper_bind_struct escape hatch is compiled out (we build with
+// -tags embed). So a key that lives only in the example file was unreachable by
+// environment variable: the value was read from the process environment and
+// then silently dropped. Deployments driven purely by env — which is what
+// deploy/docker-compose.yml does — got the zero value with no warning.
+//
+// The values below are deliberately zero rather than the documented example
+// values: an absent key already unmarshalled to the zero value, so registering
+// zero keeps behavior identical while making the key addressable from the
+// environment. Any subsystem that wants a richer default still applies it after
+// unmarshal, exactly as before.
+func setEnvReachableDefaults() {
+	viper.SetDefault("gateway.forced_codex_instructions_template_file", "")
+	viper.SetDefault("gateway.session_idle_timeout_minutes", 0)
+	viper.SetDefault("gateway.user_message_queue.mode", "")
+	viper.SetDefault("update.proxy_url", "")
+
+	// sticky_escape_enabled is the one exception to the zero-value rule: its
+	// effective default is true, applied post-unmarshal via a viper.IsSet guard.
+	// Registering false would make IsSet always report true and permanently
+	// disable sticky escape, so register the effective default instead. An
+	// explicit false in config or env still wins.
+	viper.SetDefault("gateway.openai_scheduler.sticky_escape_enabled", true)
+	viper.SetDefault("gateway.openai_scheduler.sticky_escape_error_rate", 0.0)
+	viper.SetDefault("gateway.openai_scheduler.sticky_escape_ttft_ms", 0)
+
+	// Third-party login providers. These carry client secrets and are exactly
+	// the settings an operator expects to inject via the environment, but every
+	// key here was previously unreachable that way.
+	for _, provider := range []string{"github_oauth", "google_oauth"} {
+		viper.SetDefault(provider+".enabled", false)
+		viper.SetDefault(provider+".client_id", "")
+		viper.SetDefault(provider+".client_secret", "")
+		viper.SetDefault(provider+".authorize_url", "")
+		viper.SetDefault(provider+".token_url", "")
+		viper.SetDefault(provider+".userinfo_url", "")
+		viper.SetDefault(provider+".emails_url", "")
+		viper.SetDefault(provider+".scopes", "")
+		viper.SetDefault(provider+".redirect_url", "")
+		viper.SetDefault(provider+".frontend_redirect_url", "")
+	}
+
+	viper.SetDefault("dingtalk_connect.client_id", "")
+	viper.SetDefault("dingtalk_connect.client_secret", "")
+	viper.SetDefault("dingtalk_connect.internal_corp_id", "")
+	viper.SetDefault("dingtalk_connect.redirect_url", "")
+	viper.SetDefault("dingtalk_connect.bypass_registration", false)
+	viper.SetDefault("dingtalk_connect.username_attribute_key", "")
+	viper.SetDefault("dingtalk_connect.enable_attribute_matching", false)
+	viper.SetDefault("dingtalk_connect.enable_attribute_sync", false)
+	viper.SetDefault("dingtalk_connect.attribute_sync_fields", []string{})
+	viper.SetDefault("dingtalk_connect.attribute_sync_overwrite_policy", "")
+	viper.SetDefault("dingtalk_connect.sync_display_name", false)
+	viper.SetDefault("dingtalk_connect.sync_display_name_attr_key", "")
+	viper.SetDefault("dingtalk_connect.sync_display_name_attr_name", "")
+	viper.SetDefault("dingtalk_connect.sync_dept", false)
+	viper.SetDefault("dingtalk_connect.sync_dept_attr_key", "")
+	viper.SetDefault("dingtalk_connect.sync_dept_attr_name", "")
+	viper.SetDefault("dingtalk_connect.sync_corp_email", false)
+	viper.SetDefault("dingtalk_connect.sync_corp_email_attr_key", "")
+	viper.SetDefault("dingtalk_connect.sync_corp_email_attr_name", "")
 }
 
 func (c *Config) Validate() error {
@@ -2409,6 +2763,43 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("server.frontend_url invalid: must not include userinfo")
 		}
 		warnIfInsecureURL("server.frontend_url", c.Server.FrontendURL)
+	}
+	if c.WebAuthn.Enabled {
+		c.WebAuthn.RPDisplayName = strings.TrimSpace(c.WebAuthn.RPDisplayName)
+		c.WebAuthn.RPID = strings.ToLower(strings.TrimSpace(c.WebAuthn.RPID))
+		c.WebAuthn.RPOrigins = normalizeStringSlice(c.WebAuthn.RPOrigins)
+		if c.WebAuthn.RPDisplayName == "" {
+			return fmt.Errorf("webauthn.rp_display_name is required when passkeys are enabled")
+		}
+		if c.WebAuthn.RPID == "" {
+			return fmt.Errorf("webauthn.rp_id is required when passkeys are enabled")
+		}
+		if strings.Contains(c.WebAuthn.RPID, "://") || strings.ContainsAny(c.WebAuthn.RPID, "/:") {
+			return fmt.Errorf("webauthn.rp_id must be a domain without scheme, port, or path")
+		}
+		if len(c.WebAuthn.RPOrigins) == 0 {
+			return fmt.Errorf("webauthn.rp_origins must contain at least one origin when passkeys are enabled")
+		}
+		for i, origin := range c.WebAuthn.RPOrigins {
+			u, err := url.Parse(origin)
+			if err != nil || u.Scheme == "" || u.Host == "" {
+				return fmt.Errorf("webauthn.rp_origins contains invalid origin %q", origin)
+			}
+			if u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Path != "" {
+				return fmt.Errorf("webauthn.rp_origins entry %q must not include userinfo, path, query, or fragment", origin)
+			}
+			u.Scheme = strings.ToLower(u.Scheme)
+			u.Host = strings.ToLower(u.Host)
+			host := strings.ToLower(u.Hostname())
+			localDevelopment := host == "localhost" || host == "127.0.0.1" || host == "::1"
+			if u.Scheme != "https" && (u.Scheme != "http" || !localDevelopment) {
+				return fmt.Errorf("webauthn.rp_origins entry %q must use HTTPS (HTTP is allowed only for localhost)", origin)
+			}
+			if host != c.WebAuthn.RPID && !strings.HasSuffix(host, "."+c.WebAuthn.RPID) {
+				return fmt.Errorf("webauthn.rp_origins entry %q is not within relying party ID %q", origin, c.WebAuthn.RPID)
+			}
+			c.WebAuthn.RPOrigins[i] = u.Scheme + "://" + u.Host
+		}
 	}
 	if c.JWT.ExpireHour <= 0 {
 		return fmt.Errorf("jwt.expire_hour must be positive")
@@ -2618,6 +3009,9 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("billing.circuit_breaker.half_open_requests must be positive")
 		}
 	}
+	if c.Billing.MinimumBalanceReserve < 0 {
+		return fmt.Errorf("billing.minimum_balance_reserve must be non-negative")
+	}
 	if c.Database.MaxOpenConns <= 0 {
 		return fmt.Errorf("database.max_open_conns must be positive")
 	}
@@ -2659,6 +3053,61 @@ func (c *Config) Validate() error {
 	}
 	if c.Redis.AuthPoolSize > 0 && c.Redis.AuthMinIdleConns > c.Redis.AuthPoolSize {
 		return fmt.Errorf("redis.auth_min_idle_conns cannot exceed redis.auth_pool_size")
+	}
+	if c.BatchImage.QueueEnabled {
+		if strings.TrimSpace(c.BatchImage.QueueReadyKey) == "" {
+			return fmt.Errorf("batch_image.queue_ready_key must not be empty")
+		}
+		if strings.TrimSpace(c.BatchImage.QueueDelayedKey) == "" {
+			return fmt.Errorf("batch_image.queue_delayed_key must not be empty")
+		}
+		if strings.TrimSpace(c.BatchImage.QueueActiveKey) == "" {
+			return fmt.Errorf("batch_image.queue_active_key must not be empty")
+		}
+		if strings.TrimSpace(c.BatchImage.InflightKeyPrefix) == "" {
+			return fmt.Errorf("batch_image.inflight_key_prefix must not be empty")
+		}
+		if strings.TrimSpace(c.BatchImage.LockKeyPrefix) == "" {
+			return fmt.Errorf("batch_image.lock_key_prefix must not be empty")
+		}
+		if c.BatchImage.InflightTTLSeconds <= 0 {
+			return fmt.Errorf("batch_image.inflight_ttl_seconds must be positive")
+		}
+		if c.BatchImage.JobLockTTLSeconds <= 0 {
+			return fmt.Errorf("batch_image.job_lock_ttl_seconds must be positive")
+		}
+		if c.BatchImage.StaleActiveAfterSeconds <= 0 {
+			return fmt.Errorf("batch_image.stale_active_after_seconds must be positive")
+		}
+		if c.BatchImage.DelayedMoveLimit <= 0 {
+			return fmt.Errorf("batch_image.delayed_move_limit must be positive")
+		}
+		if c.BatchImage.RecoverLimit <= 0 {
+			return fmt.Errorf("batch_image.recover_limit must be positive")
+		}
+	}
+	if c.BatchImage.VertexEnabled {
+		if strings.TrimSpace(c.BatchImage.VertexManagedGCSBucket) == "" {
+			return fmt.Errorf("batch_image.vertex_managed_gcs_bucket must not be empty when vertex is enabled")
+		}
+		if strings.Contains(c.BatchImage.VertexManagedGCSBucket, "://") {
+			return fmt.Errorf("batch_image.vertex_managed_gcs_bucket must be a bucket name, not a URI")
+		}
+		if strings.TrimSpace(c.BatchImage.VertexLocation) == "" {
+			return fmt.Errorf("batch_image.vertex_location must not be empty when vertex is enabled")
+		}
+		if strings.TrimSpace(c.BatchImage.VertexManagedGCSPrefix) == "" {
+			return fmt.Errorf("batch_image.vertex_managed_gcs_prefix must not be empty when vertex is enabled")
+		}
+		if !strings.Contains(c.BatchImage.VertexManagedGCSPrefix, "{batch_id}") {
+			return fmt.Errorf("batch_image.vertex_managed_gcs_prefix must contain {batch_id}")
+		}
+		if c.BatchImage.VertexInputRetentionHours <= 0 {
+			return fmt.Errorf("batch_image.vertex_input_retention_hours must be positive")
+		}
+		if c.BatchImage.VertexOutputRetentionHours <= 0 {
+			return fmt.Errorf("batch_image.vertex_output_retention_hours must be positive")
+		}
 	}
 	if c.Dashboard.Enabled {
 		if c.Dashboard.StatsFreshTTLSeconds <= 0 {
@@ -2819,6 +3268,9 @@ func (c *Config) Validate() error {
 	if c.Gateway.OpenAIHighEffortFirstOutputTimeoutSeconds < 0 || c.Gateway.OpenAIHighEffortFirstOutputTimeoutSeconds > 1800 ||
 		(c.Gateway.OpenAIHighEffortFirstOutputTimeoutSeconds > 0 && c.Gateway.OpenAIHighEffortFirstOutputTimeoutSeconds < 30) {
 		return fmt.Errorf("gateway.openai_high_effort_first_output_timeout_seconds must be 0 or between 30-1800 seconds")
+	}
+	if c.Gateway.Live.MaxSessionDurationSeconds <= 0 {
+		c.Gateway.Live.MaxSessionDurationSeconds = 3600
 	}
 	if strings.TrimSpace(c.Gateway.ConnectionPoolIsolation) != "" {
 		switch c.Gateway.ConnectionPoolIsolation {
@@ -3028,6 +3480,15 @@ func (c *Config) Validate() error {
 	if c.Gateway.OpenAIHTTP2.FallbackTTLSeconds < 0 {
 		return fmt.Errorf("gateway.openai_http2.fallback_ttl_seconds must be non-negative")
 	}
+	if c.Gateway.OpenAIProxyStreamCircuit.FailureThreshold < 0 {
+		return fmt.Errorf("gateway.openai_proxy_stream_circuit.failure_threshold must be non-negative")
+	}
+	if c.Gateway.OpenAIProxyStreamCircuit.WindowSeconds < 0 {
+		return fmt.Errorf("gateway.openai_proxy_stream_circuit.window_seconds must be non-negative")
+	}
+	if c.Gateway.OpenAIProxyStreamCircuit.TTLSeconds < 0 {
+		return fmt.Errorf("gateway.openai_proxy_stream_circuit.ttl_seconds must be non-negative")
+	}
 	weights := c.Gateway.OpenAIWS.SchedulerScoreWeights
 	for _, weight := range []float64{
 		weights.Priority, weights.Load, weights.Queue, weights.ErrorRate, weights.TTFT,
@@ -3195,6 +3656,20 @@ func (c *Config) Validate() error {
 	if c.Concurrency.PingInterval < 5 || c.Concurrency.PingInterval > 30 {
 		return fmt.Errorf("concurrency.ping_interval must be between 5-30 seconds")
 	}
+	if c.Gateway.Grok.FreeQuotaSoftGateEnabled {
+		if c.Gateway.Grok.FreeQuotaTokenLimit <= 0 {
+			return fmt.Errorf("gateway.grok.free_quota_token_limit must be positive")
+		}
+		if c.Gateway.Grok.FreeQuotaSoftGatePercent < 1 || c.Gateway.Grok.FreeQuotaSoftGatePercent > 100 {
+			return fmt.Errorf("gateway.grok.free_quota_soft_gate_percent must be between 1 and 100")
+		}
+		if c.Gateway.Grok.FreeQuotaWindowHours <= 0 {
+			return fmt.Errorf("gateway.grok.free_quota_window_hours must be positive")
+		}
+	}
+	if c.Gateway.Grok.FreeQuotaStatsCacheSeconds < 0 {
+		return fmt.Errorf("gateway.grok.free_quota_stats_cache_seconds must be non-negative")
+	}
 	if err := ValidateDingTalkConfig(c.DingTalk); err != nil {
 		return fmt.Errorf("dingtalk_connect: %w", err)
 	}
@@ -3249,14 +3724,12 @@ func generateJWTSecret(byteLength int) (string, error) {
 // GetServerAddress returns the server address (host:port) from config file or environment variable.
 // This is a lightweight function that can be used before full config validation,
 // such as during setup wizard startup.
-// Priority: config.yaml > environment variables > defaults
+// Priority: environment variables > config file > defaults.
 func GetServerAddress() string {
 	v := viper.New()
 	v.SetConfigName("config")
 	v.SetConfigType("yaml")
-	v.AddConfigPath(".")
-	v.AddConfigPath("./config")
-	v.AddConfigPath("/etc/sub2api")
+	configureConfigSource(v.SetConfigFile, v.AddConfigPath)
 
 	// Support SERVER_HOST and SERVER_PORT environment variables
 	v.AutomaticEnv()

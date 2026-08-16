@@ -53,3 +53,15 @@ describe('AppSidebar header styles', () => {
     expect(sidebarBrandBlockMatch?.[0]).not.toContain('overflow: hidden;')
   })
 })
+
+describe('AppSidebar simple mode risk control', () => {
+  it('keeps current risk control visible and includes prompt audit', () => {
+    const riskControlItem = componentSource.match(/\{ path: '\/admin\/risk-control',[^\n]+\}/)?.[0]
+    const abuseItem = componentSource.match(/\{ path: '\/admin\/abuse',[^\n]+\}/)?.[0]
+
+    expect(riskControlItem).toBeDefined()
+    expect(riskControlItem).not.toContain('hideInSimpleMode')
+    expect(abuseItem).toContain('hideInSimpleMode: true')
+    expect(componentSource).toContain("path: '/admin/prompt-audit'")
+  })
+})

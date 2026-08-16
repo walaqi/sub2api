@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"crypto/sha256"
 	"net/http"
 	"strings"
 
@@ -12,11 +13,15 @@ import (
 	"go.uber.org/zap"
 )
 
-func (h *GatewayHandler) checkContentModeration(c *gin.Context, reqLog *zap.Logger, apiKey *service.APIKey, subject middleware2.AuthSubject, protocol string, model string, body []byte) *service.ContentModerationDecision {
-	if h == nil || h.contentModerationService == nil {
-		return nil
-	}
-	return runContentModeration(c, reqLog, h.contentModerationService, apiKey, subject, protocol, model, body)
+const contentModerationWSTurnContextKey = "sub2api.content_moderation.ws_turn"
+const contentModerationWSDedupeContextKey = "sub2api.content_moderation.ws_dedupe"
+
+type contentModerationWSDedupeEntry struct {
+	turn     int
+	protocol string
+	model    string
+	bodyHash [sha256.Size]byte
+	decision service.ContentModerationDecision
 }
 
 func contentModerationStatus(decision *service.ContentModerationDecision) int {
@@ -28,6 +33,21 @@ func contentModerationStatus(decision *service.ContentModerationDecision) int {
 
 func contentModerationErrorCode(decision *service.ContentModerationDecision) string {
 	return "content_policy_violation"
+}
+
+func clientRequestedModel(c *gin.Context, fallback string) string {
+	fallback = strings.TrimSpace(fallback)
+	if c == nil || c.Request == nil {
+		return fallback
+	}
+	if model, ok := service.RequestedPublicModelFromContext(c.Request.Context()); ok {
+		return model
+	}
+	return fallback
+}
+
+func clientRequestedUsageFields(c *gin.Context, mapping service.ChannelMappingResult, fallbackModel, upstreamModel string) service.ChannelUsageFields {
+	return mapping.ToUsageFields(clientRequestedModel(c, fallbackModel), upstreamModel)
 }
 
 func (h *OpenAIGatewayHandler) checkContentModeration(c *gin.Context, reqLog *zap.Logger, apiKey *service.APIKey, subject middleware2.AuthSubject, protocol string, model string, body []byte) *service.ContentModerationDecision {
@@ -42,21 +62,11 @@ func runContentModeration(c *gin.Context, reqLog *zap.Logger, svc *service.Conte
 		return nil
 	}
 	input := buildContentModerationInput(c, apiKey, subject, protocol, model, body)
-	if reqLog != nil {
-		reqLog.Info("content_moderation.gateway_check_start",
-			zap.String("request_id", input.RequestID),
-			zap.Int64("user_id", input.UserID),
-			zap.Int64("api_key_id", input.APIKeyID),
-			zap.String("api_key_name", input.APIKeyName),
-			zap.Int64p("group_id", input.GroupID),
-			zap.String("group_name", input.GroupName),
-			zap.String("endpoint", input.Endpoint),
-			zap.String("provider", input.Provider),
-			zap.String("protocol", input.Protocol),
-			zap.String("model", input.Model),
-			zap.Int("body_bytes", len(body)),
-		)
+	if decision := cachedContentModerationWSDecision(c, input, body); decision != nil {
+		logContentModerationDone(reqLog, input, decision, true)
+		return decision
 	}
+	logContentModerationStart(reqLog, input, len(body))
 	decision, err := svc.Check(c.Request.Context(), input)
 	if err != nil {
 		if reqLog != nil {
@@ -64,19 +74,87 @@ func runContentModeration(c *gin.Context, reqLog *zap.Logger, svc *service.Conte
 		}
 		return nil
 	}
-	if reqLog != nil && decision != nil {
-		reqLog.Info("content_moderation.gateway_check_done",
-			zap.String("request_id", input.RequestID),
-			zap.Bool("allowed", decision.Allowed),
-			zap.Bool("blocked", decision.Blocked),
-			zap.Bool("flagged", decision.Flagged),
-			zap.String("action", decision.Action),
-			zap.Int("status_code", decision.StatusCode),
-			zap.String("highest_category", decision.HighestCategory),
-			zap.Float64("highest_score", decision.HighestScore),
-		)
-	}
+	logContentModerationDone(reqLog, input, decision, false)
+	cacheContentModerationWSDecision(c, input, body, decision)
 	return decision
+}
+
+func logContentModerationStart(reqLog *zap.Logger, input service.ContentModerationCheckInput, bodyBytes int) {
+	if reqLog == nil {
+		return
+	}
+	reqLog.Info("content_moderation.gateway_check_start",
+		zap.String("request_id", input.RequestID),
+		zap.Int64("user_id", input.UserID),
+		zap.Int64("api_key_id", input.APIKeyID),
+		zap.String("api_key_name", input.APIKeyName),
+		zap.Int64p("group_id", input.GroupID),
+		zap.String("group_name", input.GroupName),
+		zap.String("endpoint", input.Endpoint),
+		zap.String("provider", input.Provider),
+		zap.String("protocol", input.Protocol),
+		zap.String("model", input.Model),
+		zap.Int("body_bytes", bodyBytes),
+		zap.Bool("cached", false),
+	)
+}
+
+func logContentModerationDone(reqLog *zap.Logger, input service.ContentModerationCheckInput, decision *service.ContentModerationDecision, cached bool) {
+	if reqLog == nil || decision == nil {
+		return
+	}
+	reqLog.Info("content_moderation.gateway_check_done",
+		zap.String("request_id", input.RequestID),
+		zap.Bool("allowed", decision.Allowed),
+		zap.Bool("blocked", decision.Blocked),
+		zap.Bool("flagged", decision.Flagged),
+		zap.String("action", decision.Action),
+		zap.Int("status_code", decision.StatusCode),
+		zap.String("highest_category", decision.HighestCategory),
+		zap.Float64("highest_score", decision.HighestScore),
+		zap.Bool("cached", cached),
+	)
+}
+
+func cachedContentModerationWSDecision(c *gin.Context, input service.ContentModerationCheckInput, body []byte) *service.ContentModerationDecision {
+	turn, ok := contentModerationWSTurn(c)
+	if !ok {
+		return nil
+	}
+	cached, exists := c.Get(contentModerationWSDedupeContextKey)
+	if !exists {
+		return nil
+	}
+	entry, ok := cached.(contentModerationWSDedupeEntry)
+	if !ok || entry.turn != turn || entry.protocol != input.Protocol || entry.model != input.Model || entry.bodyHash != sha256.Sum256(body) {
+		return nil
+	}
+	decision := entry.decision
+	return &decision
+}
+
+func cacheContentModerationWSDecision(c *gin.Context, input service.ContentModerationCheckInput, body []byte, decision *service.ContentModerationDecision) {
+	turn, ok := contentModerationWSTurn(c)
+	if !ok || !contentModerationDecisionIsPureAllow(decision) {
+		return
+	}
+	c.Set(contentModerationWSDedupeContextKey, contentModerationWSDedupeEntry{
+		turn: turn, protocol: input.Protocol, model: input.Model, bodyHash: sha256.Sum256(body), decision: *decision,
+	})
+}
+
+func contentModerationWSTurn(c *gin.Context) (int, bool) {
+	turn, exists := c.Get(contentModerationWSTurnContextKey)
+	if !exists {
+		return 0, false
+	}
+	turnNo, ok := turn.(int)
+	return turnNo, ok
+}
+
+func contentModerationDecisionIsPureAllow(decision *service.ContentModerationDecision) bool {
+	return decision != nil && decision.Allowed && !decision.Blocked && !decision.Flagged &&
+		decision.Action == service.ContentModerationActionAllow
 }
 
 func buildContentModerationInput(c *gin.Context, apiKey *service.APIKey, subject middleware2.AuthSubject, protocol string, model string, body []byte) service.ContentModerationCheckInput {
@@ -85,9 +163,12 @@ func buildContentModerationInput(c *gin.Context, apiKey *service.APIKey, subject
 		UserID:    subject.UserID,
 		Endpoint:  GetInboundEndpoint(c),
 		Provider:  contentModerationProvider(apiKey),
-		Model:     strings.TrimSpace(model),
+		Model:     clientRequestedModel(c, model),
 		Protocol:  protocol,
 		Body:      body,
+	}
+	if resolvedPlatform, ok := service.ResolvedTargetPlatformFromContext(c.Request.Context()); ok {
+		input.Provider = resolvedPlatform
 	}
 	if forcedPlatform, ok := middleware2.GetForcePlatformFromContext(c); ok {
 		input.Provider = strings.TrimSpace(forcedPlatform)
