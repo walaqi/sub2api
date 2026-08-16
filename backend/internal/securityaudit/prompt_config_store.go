@@ -134,14 +134,26 @@ func (m *ConfigManager) Reload(ctx context.Context) error {
 	}
 	now := m.clock.Now()
 	previous := m.snapshot.Load()
+	recovered := m.configUntrusted.Load() || m.hasLoadError()
 	m.snapshot.Store(&activeConfigSnapshot{storage: cloneStorageConfig(storage), active: cloneActiveConfig(active), loadedAt: now})
 	m.configUntrusted.Store(false)
 	m.clearLoadError()
 	m.logInvalidTokenEndpoints(previous, active)
-	LogInfo(EventConfigLoaded, map[string]any{
-		"config_version": storage.ConfigVersion, "status": "loaded",
-	})
+	if shouldLogConfigLoaded(previous, active, recovered) {
+		LogInfo(EventConfigLoaded, map[string]any{
+			"config_version": storage.ConfigVersion, "status": "loaded",
+		})
+	}
 	return nil
+}
+
+func shouldLogConfigLoaded(previous *activeConfigSnapshot, active ActiveConfig, recovered bool) bool {
+	if previous == nil || recovered {
+		return true
+	}
+	return previous.active.ConfigVersion != active.ConfigVersion ||
+		previous.active.RiskControlEnabled != active.RiskControlEnabled ||
+		previous.active.EffectiveMode() != active.EffectiveMode()
 }
 
 // logInvalidTokenEndpoints warns once per change (not on every 5s refresh)
@@ -495,6 +507,12 @@ func (m *ConfigManager) clearLoadError() {
 	m.lastLoadError = ""
 	m.lastErrorAt = nil
 	m.stateMu.Unlock()
+}
+
+func (m *ConfigManager) hasLoadError() bool {
+	m.stateMu.RLock()
+	defer m.stateMu.RUnlock()
+	return m.lastLoadError != ""
 }
 
 func cloneStorageConfig(cfg storageConfig) storageConfig {

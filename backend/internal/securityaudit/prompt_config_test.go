@@ -1,9 +1,11 @@
 package securityaudit
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 
@@ -90,6 +92,39 @@ func TestConfigRuntimeLoadErrorIsStableBoundedAndSecretFree(t *testing.T) {
 	require.Equal(t, stableErrorMessage("config_load_failed"), message)
 	require.NotContains(t, message, canary)
 	require.LessOrEqual(t, len([]rune(message)), 160)
+}
+
+func TestConfigManagerLogsSuccessfulLoadOnlyForMeaningfulTransitions(t *testing.T) {
+	storage := DefaultStorageConfig()
+	raw, err := json.Marshal(storage)
+	require.NoError(t, err)
+	repository := &switchableSettingRepository{staticSettingRepository: staticSettingRepository{values: map[string]string{
+		SettingKeyPromptAuditConfig: string(raw),
+		SettingKeyRiskControl:       "false",
+	}}}
+	manager := NewConfigManager(nil, repository, nil, prefixEncryptor{}, testTotpKeyConfig())
+
+	var output bytes.Buffer
+	previousLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&output, nil)))
+	t.Cleanup(func() { slog.SetDefault(previousLogger) })
+
+	require.NoError(t, manager.Reload(context.Background()))
+	require.NoError(t, manager.Reload(context.Background()))
+	require.Equal(t, 1, strings.Count(output.String(), EventConfigLoaded))
+
+	storage.ConfigVersion++
+	raw, err = json.Marshal(storage)
+	require.NoError(t, err)
+	repository.values[SettingKeyPromptAuditConfig] = string(raw)
+	require.NoError(t, manager.Reload(context.Background()))
+	require.Equal(t, 2, strings.Count(output.String(), EventConfigLoaded))
+
+	repository.loadErr = errors.New("settings unavailable")
+	require.Error(t, manager.Reload(context.Background()))
+	repository.loadErr = nil
+	require.NoError(t, manager.Reload(context.Background()))
+	require.Equal(t, 3, strings.Count(output.String(), EventConfigLoaded))
 }
 
 func TestConfigManagerPublicRequiresSuccessfullyLoadedSnapshot(t *testing.T) {
