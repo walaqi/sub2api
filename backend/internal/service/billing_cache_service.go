@@ -1131,10 +1131,6 @@ func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, userI
 		s.circuitBreaker.OnSuccess()
 	}
 
-	if s.balanceBelowEligibilityThreshold(balance) {
-		return ErrInsufficientBalance
-	}
-
 	// fail closed：非 simple 模式下 gift checker 是硬依赖，缺失即 misconfiguration。
 	if s.priorityGiftChecker == nil {
 		if s.cfg != nil && config.NormalizeRunMode(s.cfg.RunMode) == config.RunModeSimple {
@@ -1147,6 +1143,10 @@ func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, userI
 		}
 		logger.LegacyPrintf("service.billing_cache", "ALERT: priorityGiftChecker not wired for user %d (fail closed)", userID)
 		return ErrBillingServiceUnavailable
+	}
+
+	if s.balanceBelowEligibilityThreshold(balance) {
+		return ErrInsufficientBalance
 	}
 
 	// Compute rechargePool = balance - 全局 gift_balance.

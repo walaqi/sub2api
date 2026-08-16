@@ -75,6 +75,7 @@ func TestSyncBalanceCacheAfterDeduction_InvalidatesExhaustedBalance(t *testing.T
 	cfg.Billing.MinimumBalanceReserve = 0.01
 	svc := NewBillingCacheService(cache, userRepo, nil, nil, nil, nil, cfg, nil)
 	t.Cleanup(svc.Stop)
+	svc.SetPriorityGiftChecker(&priorityGiftCheckerStub{})
 
 	newBalance := -0.25
 	syncBalanceCacheAfterDeduction(context.Background(), &postUsageBillingParams{

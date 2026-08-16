@@ -2559,10 +2559,17 @@ func setDefaults() {
 // environment. Any subsystem that wants a richer default still applies it after
 // unmarshal, exactly as before.
 func setEnvReachableDefaults() {
+	viper.SetDefault("database.usage_billing_fingerprint_v2_enabled", false)
 	viper.SetDefault("gateway.forced_codex_instructions_template_file", "")
 	viper.SetDefault("gateway.session_idle_timeout_minutes", 0)
 	viper.SetDefault("gateway.user_message_queue.mode", "")
 	viper.SetDefault("update.proxy_url", "")
+
+	// These slices are parsed manually so explicit empty environment values keep
+	// their presence semantics. BindEnv registers the keys for Unmarshal/AllKeys
+	// without turning an absent value into a configured value.
+	_ = viper.BindEnv("security.forwarded_client_ip_headers", "SECURITY_FORWARDED_CLIENT_IP_HEADERS")
+	_ = viper.BindEnv("server.trusted_proxies", "SERVER_TRUSTED_PROXIES")
 
 	// sticky_escape_enabled is the one exception to the zero-value rule: its
 	// effective default is true, applied post-unmarshal via a viper.IsSet guard.

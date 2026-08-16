@@ -81,6 +81,15 @@ func TestLoadRedisUsernameFromEnvironment(t *testing.T) {
 	require.Equal(t, "app-user", cfg.Redis.Username)
 }
 
+func TestLoadUsageBillingFingerprintV2FromEnvironment(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	t.Setenv("DATABASE_USAGE_BILLING_FINGERPRINT_V2_ENABLED", "true")
+
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.True(t, cfg.Database.UsageBillingFingerprintV2Enabled)
+}
+
 func TestLoadHTTPIngressSafetyDefaults(t *testing.T) {
 	resetViperWithJWTSecret(t)
 	cfg, err := Load()
