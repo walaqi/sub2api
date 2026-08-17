@@ -197,6 +197,13 @@ func allowOpenAICompatibleMessagesDispatch(apiKey *service.APIKey) bool {
 	if apiKey.Group.Platform == service.PlatformGrok {
 		return true
 	}
+	// 国产供应商分组与 grok 同语义:/v1/messages 就是其主要服务形态(anthropic
+	// 协议账号原生直通 Claude Code),无需 allow_messages_dispatch 开关授权——
+	// 该开关对非 openai 平台恒被 sanitizeGroupMessagesDispatchFields 置 false,
+	// 若不豁免,CN 分组将永远 403。
+	if service.IsCNProvider(apiKey.Group.Platform) {
+		return true
+	}
 	return apiKey.Group.AllowMessagesDispatch
 }
 
@@ -610,6 +617,50 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		if err == nil && result != nil && result.FirstTokenMs != nil {
 			service.SetOpsLatencyMs(c, service.OpsTimeToFirstTokenMsKey, int64(*result.FirstTokenMs))
 		}
+		// #5148 对齐：错误返回携带的部分 result（流中断前上游已计量的 usage）照常
+		// 入账；failover 错误恒定 result=nil，不会重复计费。
+		submitResponsesUsage := func(res *service.OpenAIForwardResult) {
+			if res == nil {
+				return
+			}
+			userAgent := c.GetHeader("User-Agent")
+			clientIP := ip.GetClientIP(c)
+			requestPayloadHash := service.HashUsageRequestPayload(body)
+			inboundEndpoint := GetInboundEndpoint(c)
+			upstreamEndpoint := resolveOpenAIUpstreamEndpoint(c, account, res)
+			quotaPlatform := service.QuotaPlatform(c.Request.Context(), apiKey)
+			sessionID := service.ExtractClientSessionID(c)
+			cyberBlocked := service.GetOpsCyberPolicy(c) != nil
+			h.submitOpenAIUsageRecordTask(c.Request.Context(), res, func(ctx context.Context) {
+				if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
+					Result:             res,
+					APIKey:             apiKey,
+					User:               apiKey.User,
+					Account:            account,
+					Subscription:       subscription,
+					InboundEndpoint:    inboundEndpoint,
+					UpstreamEndpoint:   upstreamEndpoint,
+					UserAgent:          userAgent,
+					IPAddress:          clientIP,
+					RequestPayloadHash: requestPayloadHash,
+					APIKeyService:      h.apiKeyService,
+					QuotaPlatform:      quotaPlatform,
+					SessionID:          sessionID,
+					ChannelUsageFields: clientRequestedUsageFields(c, channelMapping, reqModel, res.UpstreamModel),
+					PricingAt:          pricingAt,
+					CyberBlocked:       cyberBlocked,
+				}); err != nil {
+					logger.L().With(
+						zap.String("component", "handler.openai_gateway.responses"),
+						zap.Int64("user_id", subject.UserID),
+						zap.Int64("api_key_id", apiKey.ID),
+						zap.Any("group_id", apiKey.GroupID),
+						zap.String("model", reqModel),
+						zap.Int64("account_id", account.ID),
+					).Error("openai.record_usage_failed", zap.Error(err))
+				}
+			})
+		}
 		if err != nil {
 			if result != nil && result.ImageCount > 0 {
 				reqLog.Warn("openai.forward_partial_error_with_image_result",
@@ -711,6 +762,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 					zap.Bool("upstream_error_response_already_written", upstreamErrorAlreadyCommunicated),
 					zap.Error(err),
 				}
+				submitResponsesUsage(result)
 				if shouldLogOpenAIForwardFailureAsWarn(c, wroteFallback) {
 					reqLog.Warn("openai.forward_failed", fields...)
 					return
@@ -1166,6 +1218,51 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		if err == nil && result != nil && result.FirstTokenMs != nil {
 			service.SetOpsLatencyMs(c, service.OpsTimeToFirstTokenMsKey, int64(*result.FirstTokenMs))
 		}
+		// Forward 与错误一起返回的部分结果：流中断/客户端断开排水前上游已计量的
+		// usage 照常入账，避免上游已产生消耗的请求完全漏记（#5148，对齐 anthropic
+		// 网关同名修复）。failover 错误恒定 result=nil，不会重复计费。
+		submitMessagesUsage := func(res *service.OpenAIForwardResult) {
+			if res == nil {
+				return
+			}
+			userAgent := c.GetHeader("User-Agent")
+			clientIP := ip.GetClientIP(c)
+			requestPayloadHash := service.HashUsageRequestPayload(body)
+			inboundEndpoint := GetInboundEndpoint(c)
+			upstreamEndpoint := resolveOpenAIUpstreamEndpoint(c, account, res)
+			quotaPlatform := service.QuotaPlatform(c.Request.Context(), apiKey)
+			sessionID := service.ExtractClientSessionID(c)
+			cyberBlocked := service.GetOpsCyberPolicy(c) != nil
+			h.submitOpenAIUsageRecordTask(c.Request.Context(), res, func(ctx context.Context) {
+				if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
+					Result:             res,
+					APIKey:             apiKey,
+					User:               apiKey.User,
+					Account:            account,
+					Subscription:       subscription,
+					InboundEndpoint:    inboundEndpoint,
+					UpstreamEndpoint:   upstreamEndpoint,
+					UserAgent:          userAgent,
+					IPAddress:          clientIP,
+					RequestPayloadHash: requestPayloadHash,
+					APIKeyService:      h.apiKeyService,
+					QuotaPlatform:      quotaPlatform,
+					SessionID:          sessionID,
+					ChannelUsageFields: clientRequestedUsageFields(c, channelMappingMsg, reqModel, res.UpstreamModel),
+					PricingAt:          pricingAt,
+					CyberBlocked:       cyberBlocked,
+				}); err != nil {
+					logger.L().With(
+						zap.String("component", "handler.openai_gateway.messages"),
+						zap.Int64("user_id", subject.UserID),
+						zap.Int64("api_key_id", apiKey.ID),
+						zap.Any("group_id", apiKey.GroupID),
+						zap.String("model", reqModel),
+						zap.Int64("account_id", account.ID),
+					).Error("openai_messages.record_usage_failed", zap.Error(err))
+				}
+			})
+		}
 		if err != nil {
 			if result != nil && result.ImageCount > 0 {
 				reqLog.Warn("openai_messages.forward_partial_error_with_image_result",
@@ -1240,6 +1337,9 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 						zap.Int64("account_id", account.ID),
 						zap.Error(err),
 					)
+					// 断开排水期间上游已计量的 usage 必须入账（此前直接 return 丢弃，
+					// payg 上游照常计费而平台漏记）。
+					submitMessagesUsage(result)
 					return
 				}
 				h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, account.GetMappedModel(currentRoutingModel), false, nil)
@@ -1249,6 +1349,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 					zap.Bool("fallback_error_response_written", wroteFallback),
 					zap.Error(err),
 				)
+				submitMessagesUsage(result)
 				return
 			}
 		}
