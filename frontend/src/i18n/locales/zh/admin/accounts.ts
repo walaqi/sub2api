@@ -550,6 +550,7 @@ export default {
         longContextParentRequired: '选中的账号全部是影子账号，请选择母账号修改长上下文计费。',
         mixedPlatformWarning: '所选账号跨越多个平台（{platforms}）。显示的模型映射预设为合并结果——请确保映射对每个平台都适用。',
         mixedPlatformBlocked: '所选账号跨越多个平台（{platforms}），无法批量编辑。请仅选择同一平台的账号后重试。'
+        mixedPlatformWarning: '所选账号跨越多个平台（{platforms}）。显示的模型映射预设为合并结果——请确保映射对每个平台都适用。'
       },
       bulkDeleteTitle: '批量删除账号',
       bulkDeleteConfirm: '确定要删除选中的 {count} 个账号吗？此操作无法撤销。',

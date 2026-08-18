@@ -472,6 +472,7 @@ export default {
         longContextParentRequired: 'All selected accounts are shadows. Select the parent account to change long-context billing.',
         mixedPlatformWarning: 'Selected accounts span multiple platforms ({platforms}). Model mapping presets shown are combined — ensure mappings are appropriate for each platform.',
         mixedPlatformBlocked: 'Selected accounts span multiple platforms ({platforms}) and cannot be bulk edited. Please select accounts from a single platform and try again.'
+        mixedPlatformWarning: 'Selected accounts span multiple platforms ({platforms}). Model mapping presets shown are combined — ensure mappings are appropriate for each platform.'
       },
       bulkDeleteTitle: 'Bulk Delete Accounts',
       bulkDeleteConfirm: 'Delete the selected {count} account(s)? This action cannot be undone.',
