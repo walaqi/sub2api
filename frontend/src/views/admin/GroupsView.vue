@@ -1589,9 +1589,9 @@
             </div>
           </div>
         </div>
-        <!-- OpenAI Live 开关（仅 openai 平台） -->
+        <!-- Codex Live 开关（OpenAI 与 Composite 平台） -->
         <div
-          v-if="createForm.platform === 'openai'"
+          v-if="supportsLivePlatform(createForm.platform)"
           class="border-t border-gray-200 dark:border-dark-400 pt-4 mt-4"
         >
           <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
@@ -3319,9 +3319,9 @@
             </div>
           </div>
         </div>
-        <!-- OpenAI Live 开关（仅 openai 平台） -->
+        <!-- Codex Live 开关（OpenAI 与 Composite 平台） -->
         <div
-          v-if="editForm.platform === 'openai'"
+          v-if="supportsLivePlatform(editForm.platform)"
           class="border-t border-gray-200 dark:border-dark-400 pt-4 mt-4"
         >
           <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
@@ -4517,6 +4517,9 @@ import {
   serializeVideoModelPrices,
   videoModelPriceFamilyRows,
 } from "./groupsVideoModelPricing";
+
+const supportsLivePlatform = (platform: string): boolean =>
+  platform === "openai" || platform === "composite";
 
 const emptyGroupPricing = (): PricingFormEntry => ({
   models: [],
@@ -6691,6 +6694,8 @@ watch(
     }
     if (newVal !== "openai") {
       resetMessagesDispatchFormState(createForm);
+    }
+    if (!supportsLivePlatform(newVal)) {
       createForm.allow_live = false;
     }
     if (!isProfitControlPlatform(newVal)) {
@@ -6739,6 +6744,8 @@ watch(
     }
     if (newVal !== "openai") {
       resetMessagesDispatchFormState(editForm);
+    }
+    if (!supportsLivePlatform(newVal)) {
       editForm.allow_live = false;
     }
     if (!isProfitControlPlatform(newVal)) {
@@ -6789,8 +6796,10 @@ watch(
     }
     if (newVal !== 'openai') {
       editForm.allow_messages_dispatch = false
-      editForm.allow_live = false
       editForm.default_mapped_model = ''
+    }
+    if (!supportsLivePlatform(newVal)) {
+      editForm.allow_live = false
     }
   }
 )
