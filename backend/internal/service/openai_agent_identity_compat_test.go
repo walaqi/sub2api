@@ -133,7 +133,7 @@ func TestOpenAIAgentIdentityPassthroughKeepsSessionAndPromptCacheHeaders(t *test
 	require.Equal(t, "account-agent-passthrough", req.Header.Get("chatgpt-account-id"))
 	require.NotEqual(t, "client-session", req.Header.Get("session_id"))
 	require.NotEqual(t, "client-conversation", req.Header.Get("conversation_id"))
-	convergedSessionID := resolveConvergedSessionID(account)
+	convergedSessionID := isolateOpenAISessionID(0, "client-session")
 	require.Equal(t, convergedSessionID, req.Header.Get("session_id"))
 	require.Equal(t, isolateOpenAISessionID(0, "client-conversation"), req.Header.Get("conversation_id"))
 	requestBody, err := io.ReadAll(req.Body)

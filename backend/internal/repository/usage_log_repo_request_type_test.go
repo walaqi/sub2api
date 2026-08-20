@@ -68,6 +68,8 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			log.CacheReadCost,
 			log.TotalCost,
 			log.ActualCost,
+			sqlmock.AnyArg(), // gift_cost
+			sqlmock.AnyArg(), // recharge_cost
 			log.RateMultiplier,
 			log.AccountRateMultiplier,
 			log.BillingType,
@@ -100,6 +102,8 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			sqlmock.AnyArg(), // account_stats_cost
 			sqlmock.AnyArg(), // session_id
 			createdAt,
+			sqlmock.AnyArg(), // device_id
+			sqlmock.AnyArg(), // client_fingerprint
 		).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(99), createdAt))
 
@@ -160,6 +164,8 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			log.CacheReadCost,
 			log.TotalCost,
 			log.ActualCost,
+			sqlmock.AnyArg(), // gift_cost
+			sqlmock.AnyArg(), // recharge_cost
 			log.RateMultiplier,
 			log.AccountRateMultiplier,
 			log.BillingType,
@@ -192,6 +198,8 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			sqlmock.AnyArg(), // account_stats_cost
 			sqlmock.AnyArg(), // session_id
 			createdAt,
+			sqlmock.AnyArg(), // device_id
+			sqlmock.AnyArg(), // client_fingerprint
 		).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(100), createdAt))
 
@@ -277,11 +285,11 @@ func TestPrepareUsageLogInsert_PersistsImageSizeMetadata(t *testing.T) {
 		CreatedAt:          time.Date(2025, 1, 6, 12, 0, 0, 0, time.UTC),
 	})
 
-	require.Equal(t, sql.NullString{String: imageSize, Valid: true}, prepared.args[38])
-	require.Equal(t, sql.NullString{String: inputSize, Valid: true}, prepared.args[39])
-	require.Equal(t, sql.NullString{String: outputSize, Valid: true}, prepared.args[40])
-	require.Equal(t, sql.NullString{String: source, Valid: true}, prepared.args[41])
-	breakdownJSON, ok := prepared.args[42].(string)
+	require.Equal(t, sql.NullString{String: imageSize, Valid: true}, prepared.args[40])
+	require.Equal(t, sql.NullString{String: inputSize, Valid: true}, prepared.args[41])
+	require.Equal(t, sql.NullString{String: outputSize, Valid: true}, prepared.args[42])
+	require.Equal(t, sql.NullString{String: source, Valid: true}, prepared.args[43])
+	breakdownJSON, ok := prepared.args[44].(string)
 	require.True(t, ok)
 	require.JSONEq(t, `{"1K":1,"4K":1}`, breakdownJSON)
 }
@@ -712,6 +720,12 @@ func TestUsageLogRepositoryGetUserSpendingRanking(t *testing.T) {
 	mock.ExpectQuery("WITH user_spend AS \\(").
 		WithArgs(start, end, 12).
 		WillReturnRows(rows)
+	mock.ExpectQuery("SELECT COUNT").
+		WithArgs(start, end).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(int64(2)))
+	mock.ExpectQuery("SELECT COUNT\\(DISTINCT user_id\\) FROM usage_logs").
+		WithArgs(start, end).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(int64(3)))
 
 	got, err := repo.GetUserSpendingRanking(context.Background(), start, end, 12)
 	require.NoError(t, err)
@@ -724,6 +738,8 @@ func TestUsageLogRepositoryGetUserSpendingRanking(t *testing.T) {
 		TotalActualCost: 40.0,
 		TotalRequests:   30,
 		TotalTokens:     2600,
+		NewUsers:        2,
+		ActiveUsers:     3,
 	}, got)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
@@ -808,6 +824,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			0, 0.0, // image_output_tokens, image_output_cost
 			0, 0.0, // image_input_tokens, image_input_cost
 			0.0, 0.0, 0.0, 0.0, 0.8, 0.8,
+			0.0, 0.0, // gift_cost, recharge_cost
 			1.0,
 			sql.NullFloat64{},
 			int16(service.BillingTypeBalance),
@@ -840,6 +857,8 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullFloat64{},
 			sql.NullString{},
 			now,
+			sql.NullString{}, // device_id
+			sql.NullString{}, // client_fingerprint
 		}})
 		require.NoError(t, err)
 		require.Equal(t, 2, log.ImageCount)
@@ -885,6 +904,8 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			0.4,               // cache_read_cost
 			1.0,               // total_cost
 			0.9,               // actual_cost
+			0.0,               // gift_cost
+			0.0,               // recharge_cost
 			1.0,               // rate_multiplier
 			sql.NullFloat64{}, // account_rate_multiplier
 			int16(service.BillingTypeBalance),
@@ -917,6 +938,8 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullFloat64{}, // account_stats_cost
 			sql.NullString{},  // session_id
 			now,
+			sql.NullString{}, // device_id
+			sql.NullString{}, // client_fingerprint
 		}})
 		require.NoError(t, err)
 		require.NotNil(t, log.ServiceTier)
@@ -945,6 +968,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			0, 0.0, // image_output_tokens, image_output_cost
 			0, 0.0, // image_input_tokens, image_input_cost
 			0.1, 0.2, 0.3, 0.4, 1.0, 0.9,
+			0.0, 0.0,
 			1.0,
 			sql.NullFloat64{},
 			int16(service.BillingTypeBalance),
@@ -977,6 +1001,8 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullFloat64{}, // account_stats_cost
 			sql.NullString{},  // session_id
 			now,
+			sql.NullString{}, // device_id
+			sql.NullString{}, // client_fingerprint
 		}})
 		require.NoError(t, err)
 		require.NotNil(t, log.ServiceTier)
@@ -1005,6 +1031,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			0, 0.0, // image_output_tokens, image_output_cost
 			0, 0.0, // image_input_tokens, image_input_cost
 			0.1, 0.2, 0.3, 0.4, 1.0, 0.9,
+			0.0, 0.0,
 			1.0,
 			sql.NullFloat64{},
 			int16(service.BillingTypeBalance),
@@ -1037,6 +1064,8 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullFloat64{}, // account_stats_cost
 			sql.NullString{},  // session_id
 			now,
+			sql.NullString{}, // device_id
+			sql.NullString{}, // client_fingerprint
 		}})
 		require.NoError(t, err)
 		require.NotNil(t, log.ServiceTier)

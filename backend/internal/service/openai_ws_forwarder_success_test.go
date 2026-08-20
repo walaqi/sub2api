@@ -798,8 +798,8 @@ func TestOpenAIGatewayService_Forward_WSv2_OAuthStoreFalseByDefault(t *testing.T
 	require.Equal(t, "native-wsv2", gjson.Get(requestJSON, "input.0.namespace").String(), "OAuth WSv2 应保留原生 namespace")
 	require.Equal(t, openAIWSBetaV2Value, captureDialer.lastHeaders.Get("OpenAI-Beta"))
 	require.Equal(t, "remote_compaction_v2", captureDialer.lastHeaders.Get("x-codex-beta-features"))
-	// 未显式配置时，OAuth 账号默认收敛 session；conversation_id 仍按 API key 隔离。
-	convergedSessionID := resolveConvergedSessionID(account)
+	// 未显式配置指纹收敛时，session 仍按 API key 与客户端会话隔离。
+	convergedSessionID := isolateOpenAISessionID(0, "sess-oauth-1")
 	require.Equal(t, convergedSessionID, captureDialer.lastHeaders.Get("session_id"))
 	require.Equal(t, isolateOpenAISessionID(0, "conv-oauth-1"), captureDialer.lastHeaders.Get("conversation_id"))
 }
@@ -1023,8 +1023,8 @@ func TestOpenAIGatewayService_Forward_WSv2_HeaderSessionFallbackFromPromptCacheK
 	require.NotNil(t, result)
 	require.Equal(t, "resp_prompt_cache_key", result.RequestID)
 
-	// 未显式配置时，OAuth 账号默认使用账号级 session 指纹收敛。
-	require.Equal(t, resolveConvergedSessionID(account), captureDialer.lastHeaders.Get("session_id"))
+	// 未显式配置指纹收敛时，prompt_cache_key 仅作为隔离 session 的输入。
+	require.Equal(t, isolateOpenAISessionID(0, "pcache_123"), captureDialer.lastHeaders.Get("session_id"))
 	require.Empty(t, captureDialer.lastHeaders.Get("conversation_id"))
 	require.NotNil(t, captureConn.lastWrite)
 	require.True(t, gjson.Get(requestToJSONString(captureConn.lastWrite), "stream").Exists())

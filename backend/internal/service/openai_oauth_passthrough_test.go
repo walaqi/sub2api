@@ -1902,12 +1902,11 @@ func TestOpenAIGatewayService_OAuthPassthrough_OfficialIdentityUnified(t *testin
 	require.Equal(t, codexCLIUserAgent, upstream.lastReq.Header.Get("User-Agent"))
 	require.Equal(t, openai.CodexDefaultOriginator, upstream.lastReq.Header.Get("originator"))
 	require.Equal(t, codexCLIVersion, upstream.lastReq.Header.Get("version"))
-	convergedSessionID := resolveConvergedSessionID(account)
-	require.Equal(t, resolveConvergedInstallationID(account), upstream.lastReq.Header.Get("x-codex-installation-id"))
-	require.Equal(t, convergedSessionID, upstream.lastReq.Header.Get("session-id"))
-	require.Equal(t, convergedSessionID, upstream.lastReq.Header.Get("thread-id"))
-	require.Equal(t, convergedSessionID, gjson.GetBytes(upstream.lastBody, "client_metadata.session_id").String())
-	require.Equal(t, convergedSessionID, gjson.GetBytes(upstream.lastBody, "client_metadata.thread_id").String())
+	require.Empty(t, upstream.lastReq.Header.Get("x-codex-installation-id"), "fingerprint convergence is opt-in when no seed is configured")
+	require.Empty(t, upstream.lastReq.Header.Get("session-id"))
+	require.Empty(t, upstream.lastReq.Header.Get("thread-id"))
+	require.Empty(t, gjson.GetBytes(upstream.lastBody, "client_metadata.session_id").String())
+	require.Empty(t, gjson.GetBytes(upstream.lastBody, "client_metadata.thread_id").String())
 	require.Equal(t, upstream.lastReq.Header.Get("x-codex-window-id"), gjson.GetBytes(upstream.lastBody, "client_metadata.x-codex-window-id").String())
 }
 
