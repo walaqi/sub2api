@@ -621,19 +621,13 @@ type PublicSettingsInjectionPayload struct {
 	ChannelMonitorHideThroughput bool `json:"channel_monitor_hide_throughput"`
 	// ChannelMonitorShowQuota gates the user-facing quota/balance display on
 	// monitors; fail-closed (absent/false = hidden). Admin UI always shows it.
-	ChannelMonitorShowQuota  bool `json:"channel_monitor_show_quota"`
-	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
-	ModelPlazaEnabled        bool `json:"model_plaza_enabled"`
-	ModelPlazaRequireAuth    bool `json:"model_plaza_require_auth"`
-	ImageStudioEnabled       bool `json:"image_studio_enabled"`
-	AffiliateEnabled         bool `json:"affiliate_enabled"`
-	ReferralRewardEnabled    bool `json:"referral_reward_enabled"`
-	RiskControlEnabled       bool `json:"risk_control_enabled"`
 	ChannelMonitorShowQuota    bool `json:"channel_monitor_show_quota"`
 	AvailableChannelsEnabled   bool `json:"available_channels_enabled"`
 	ModelPlazaEnabled          bool `json:"model_plaza_enabled"`
 	ModelPlazaRequireAuth      bool `json:"model_plaza_require_auth"`
+	ImageStudioEnabled         bool `json:"image_studio_enabled"`
 	AffiliateEnabled           bool `json:"affiliate_enabled"`
+	ReferralRewardEnabled      bool `json:"referral_reward_enabled"`
 	RiskControlEnabled         bool `json:"risk_control_enabled"`
 	AllowUserViewErrorRequests bool `json:"allow_user_view_error_requests"`
 }

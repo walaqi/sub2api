@@ -1,0 +1,165 @@
+index	sha	parents	committer_date	subject
+1	5e72deb7d4229716465ca6bf5dc7b8da26e83c76\t48912014a16e2dd1cfca8b7cad785d0e8e7bfeec\t2026-05-01T14:16:49+08:00\tfeat: ops 错误详情弹窗支持自定义时间区间
+2	3bff4b64b1c6a5460ed9c53889db777cbf0053f7\te316ebf52838a89d57fc790981cce7520f819ac8\t2026-07-10T23:43:16+08:00\tfix(ui): localize user role label in app header
+3	7d796f1119a36f0cb48541de54e07f443def1a21\te316ebf52838a89d57fc790981cce7520f819ac8\t2026-07-11T00:08:26+08:00\tfix(ui): adapt native form controls to dark mode via color-scheme
+4	a6d868f27b64e6b2e2dd96a69560f82b7243846a\te316ebf52838a89d57fc790981cce7520f819ac8\t2026-07-11T17:18:25+08:00\tfix(dashboard): include cache tokens in token card breakdown
+5	35e8ba2a3ea1e8b351f958f49df66eef80b407d1\te316ebf52838a89d57fc790981cce7520f819ac8\t2026-07-11T18:28:21+08:00\tfix(announcements): use proper empty-state copy instead of error message
+6	0d5e3ca9b03bd555329110ba9dffa7275f5866ec\te316ebf52838a89d57fc790981cce7520f819ac8\t2026-07-11T19:48:08+08:00\tfix(ops): show neutral SLA card when window has no requests
+7	9c36b75a7d2feaf20db7de25b3ab33f108e04279\t1e618dbc299fc0a82e9a690bcf2d5843be817113\t2026-08-11T16:57:38+08:00\tfix(claude): strip cache control from deferred tools
+8	0b35370a7ab9fd419574922411bf94531e4350ee\t9c36b75a7d2feaf20db7de25b3ab33f108e04279\t2026-08-11T16:57:38+08:00\tfix(claude): support top-level deferred tools
+9	2321c0e771a7638127f9931cd964ad5d84ab5277\t0b35370a7ab9fd419574922411bf94531e4350ee\t2026-08-11T16:57:38+08:00\tchore: retry CI checks
+10	1afb8264e53c4952cdd1a860a3605351e5ac330a\t2321c0e771a7638127f9931cd964ad5d84ab5277\t2026-08-11T16:57:38+08:00\tfix(lint): use require.NotNil for staticcheck SA5011
+11	5ea03c178df54d0e8d7346c72935df6633fb634e\t1afb8264e53c4952cdd1a860a3605351e5ac330a\t2026-08-11T16:57:39+08:00\tfix(lint): resolve remaining nil dereference warnings
+12	145b0ac35e06b168cddfab754b074afb20d234d5\t5ea03c178df54d0e8d7346c72935df6633fb634e\t2026-08-11T16:57:39+08:00\tfix(lint): make remaining pointer assertions explicit
+13	e087f1b73699d31a1077b03e10dae0e8c3992a9c\t145b0ac35e06b168cddfab754b074afb20d234d5\t2026-08-11T16:57:39+08:00\tfix(lint): use fatal pointer assertions in usage tests
+14	c3fc4331c1b150998a9b2dd9dfc3fe5d4d4d64bf\te087f1b73699d31a1077b03e10dae0e8c3992a9c\t2026-08-11T16:57:39+08:00\tfix(lint): make compatibility test assertions fatal
+15	c91fbeb0c008b2323e98ca5b73cedf074c8543dd\tc3fc4331c1b150998a9b2dd9dfc3fe5d4d4d64bf\t2026-08-11T16:57:39+08:00\tchore: remove unrelated test refactors
+16	76a13a5a8d56dca2befb8a3d70daf356c540f336\t5935e674a84341c3536e27e6a968384f67d9062b\t2026-08-13T02:43:03+08:00\tfix(gateway): handle Anthropic SSE overload errors
+17	a288bab73ace3ec789dd3af26ca8e98f3277c766\tfbfdcef8184ae4b2e224d5cfc47cf1d0e3742710\t2026-08-13T12:40:06+08:00\tfix(gateway): align passthrough model discovery
+18	674570ca17be336f2015d229495c8ceeda9d6c04\tfbfdcef8184ae4b2e224d5cfc47cf1d0e3742710\t2026-08-14T00:25:55+08:00\tfix: preserve group pricing in auth snapshots
+19	44ef88f659a02ca9b725ce11b110e03cd43d814d\tc204d33b09ebfefe96c1d4dcb16a88590992257e\t2026-08-15T11:02:59+08:00\tfix(openai): restore API-key custom tools
+20	8219dcfc87ac270fe11414a98e326b06f5b4309f\t1d3b9665c8824d3b7f5a03a3f50419e812261e91\t2026-08-15T16:34:47+08:00\tfix(openai): relay x-codex-turn-state and guard cross-account echo
+21	8ae6d8f67e72b099ed581b1455840ca62bb25561\t8219dcfc87ac270fe11414a98e326b06f5b4309f\t2026-08-15T16:35:08+08:00\tfix(openai): send session-level beta features and probe native compaction v2
+22	fce41e318f147cca42d04944754ed4e693714ddf\t8ae6d8f67e72b099ed581b1455840ca62bb25561\t2026-08-15T16:35:26+08:00\tfix(openai): make Codex fingerprint convergence opt-in and cover passthrough
+23	4d9fedee204012ee51089259ce28e25add21e541\tfce41e318f147cca42d04944754ed4e693714ddf\t2026-08-15T16:44:30+08:00\tfix(test): check type assertions in turn-state provenance tests
+24	d677d67dda8a961dff7671ce5c9bf24bff26b505\t1d3b9665c8824d3b7f5a03a3f50419e812261e91\t2026-08-15T16:48:40+08:00\tfeat: OpenAI Team 联动熔断
+25	073e92d17178a1ccdb0a27017f572f10c9c7ab62\t1d3b9665c8824d3b7f5a03a3f50419e812261e91 4d9fedee204012ee51089259ce28e25add21e541\t2026-08-15T17:10:18+08:00\tMerge pull request #5668 from Wei-Shaw/fix/codex-turn-state-and-fingerprint-optin
+26	901a0439f1575a45c29150e04d2ccc3ed87f4948\t073e92d17178a1ccdb0a27017f572f10c9c7ab62\t2026-08-15T10:37:51+00:00\tfeat: 国产供应商一等支持（Kimi/Zhipu/DeepSeek 多协议 + 配额/余额监控）
+27	c3063e01a4bf8c389bcd9dbef1ef6bd92477e107\t073e92d17178a1ccdb0a27017f572f10c9c7ab62\t2026-08-15T21:30:56+08:00\tfix(openai): recover message-only capacity failures
+28	baeac1f3de21d37b129405f092ef86c24b3f203d\t073e92d17178a1ccdb0a27017f572f10c9c7ab62\t2026-08-15T13:40:21+00:00\tchore: sync VERSION to 0.1.177 [skip ci]
+29	539064798965888f14605eb76c2733cd58851c7f\tc3063e01a4bf8c389bcd9dbef1ef6bd92477e107\t2026-08-15T22:54:21+08:00\tfix(openai): complete request-scoped capacity recovery
+30	a600dd1c0aefa85df0a7aaea904c25c8a252ee5f\t539064798965888f14605eb76c2733cd58851c7f baeac1f3de21d37b129405f092ef86c24b3f203d\t2026-08-15T22:54:27+08:00\tMerge remote-tracking branch 'origin/main' into agent/openai-capacity-failover
+31	11e1e228829ad770c7e0e42723ddc37b17b5770d\tbaeac1f3de21d37b129405f092ef86c24b3f203d\t2026-08-16T06:17:43+00:00\tfix(docker): bump Go builder image to 1.26.6 to match go.mod
+32	e8ff2017c061dd559b4f9ac0b7a5ada72573118a\tbaeac1f3de21d37b129405f092ef86c24b3f203d\t2026-08-16T18:04:52+08:00\tfix(admin): show category labels in ops error distribution legend
+33	cb7841d85ce7a74a1b0ff8fa279ce8a0e11767cb\tbaeac1f3de21d37b129405f092ef86c24b3f203d\t2026-08-16T18:48:49+08:00\tfix(i18n): add missing expired key to account status block used by proxy list
+34	22fc0cdbf58c76d49f2b5941aa3fd97d8bd0244d\tbaeac1f3de21d37b129405f092ef86c24b3f203d\t2026-08-16T23:49:21+08:00\tfix(frontend): clarify OpenAI Fast/Flex policy rules
+35	51016bb03a4e6ae916aa4ee1d12296a92950270a\tbaeac1f3de21d37b129405f092ef86c24b3f203d 11e1e228829ad770c7e0e42723ddc37b17b5770d\t2026-08-17T09:30:48+08:00\tMerge pull request #5690 from luckydududu/fix/dockerfile-golang-image-follows-gomod
+36	396a9d1130c9a8ab977e6a959a4fdd2d9f95dd27\t51016bb03a4e6ae916aa4ee1d12296a92950270a 22fc0cdbf58c76d49f2b5941aa3fd97d8bd0244d\t2026-08-17T09:40:53+08:00\tMerge pull request #5703 from InCerryGit/fix/clarify-openai-fast-policy-ui
+37	5f19433103f5d5fb78ca31fced71e86bbf235868\t396a9d1130c9a8ab977e6a959a4fdd2d9f95dd27\t2026-08-17T10:52:57+08:00\tfix(ops): avoid single-insert fallback after batch failure
+38	79c2eb50201568b47f6ebff4d9c4665347d4eba4\t396a9d1130c9a8ab977e6a959a4fdd2d9f95dd27\t2026-08-17T10:59:43+08:00\tfix: skip expiry reminders without SMTP config
+39	1977810cf24fa36d939cce694e7808347e516259\t396a9d1130c9a8ab977e6a959a4fdd2d9f95dd27\t2026-08-17T11:04:50+08:00\tfix(frontend): isolate account helper data loading
+40	4b667ccd45747162ac58545cdbb6f6d88737bf04\t901a0439f1575a45c29150e04d2ccc3ed87f4948\t2026-08-17T04:07:06+00:00\tfix(review): 处理 PR #5666 四个阻断项（B1-B4）
+41	e7285453829930e2889432dcd18d7a0c2ba18481\t4b667ccd45747162ac58545cdbb6f6d88737bf04\t2026-08-17T04:26:22+00:00\tstyle: gofmt 迁移测试注释（CI golangci-lint gofmt）
+42	9aac3b73f7f6d03ca40a151647f48a49757b41d8\t396a9d1130c9a8ab977e6a959a4fdd2d9f95dd27\t2026-08-16T21:33:53-07:00\tadd Ollama usage query action
+43	cb5e03a72027e26d18abbfa0be4dce0f77864693\t396a9d1130c9a8ab977e6a959a4fdd2d9f95dd27\t2026-08-17T12:36:58+08:00\tfix(antigravity): preserve mixed Gemini tool config
+44	8a0a76aeb52e6c96adfd3627d4a442951b8fc585\t396a9d1130c9a8ab977e6a959a4fdd2d9f95dd27 9aac3b73f7f6d03ca40a151647f48a49757b41d8\t2026-08-16T21:40:44-07:00\tMerge pull request #1 from xiaobo121388/codex/add-ollama-usage-query
+45	76b70b1685e45e6c722a71887b7ff0e1dd5681ad\t396a9d1130c9a8ab977e6a959a4fdd2d9f95dd27\t2026-08-17T13:34:41+08:00\tfix(openai): validate bulk account settings
+46	b8642ef674ba80ce827cbb71df6edd091db8c3d9\tbaeac1f3de21d37b129405f092ef86c24b3f203d\t2026-08-17T13:49:46+08:00\tfix(auth): make invitation code consumption atomic with user creation
+47	8d82bb069c89c72d96b4d986f00d3bf561b70b36\t76b70b1685e45e6c722a71887b7ff0e1dd5681ad\t2026-08-17T13:56:16+08:00\tfix(openai): expose bulk account settings
+48	e330c243a8f142f8963d784916da0093ab7084ee\t396a9d1130c9a8ab977e6a959a4fdd2d9f95dd27 e7285453829930e2889432dcd18d7a0c2ba18481\t2026-08-17T14:55:20+08:00\tMerge pull request #5666 from Randark-JMT/feat/cn-providers-kimi-zhipu-deepseek
+49	3c3bb2fa1949c7e5d0dd4e9b4cb07cab61595cd3\te330c243a8f142f8963d784916da0093ab7084ee\t2026-08-17T15:23:49+08:00\tfix(gemini): support includeServerSideToolInvocations in GeminiToolConfig
+50	612436a5a7cbb7ab9d4ce4174fcdff948fab31fb\te330c243a8f142f8963d784916da0093ab7084ee\t2026-08-17T16:48:36+08:00\tfix(openai-compat): Responses→Chat 桥接按 reasoning item id 缓存回注 reasoning_content
+51	971544570d6da41c6486d0e92f225bf28dfe2d7a\tcb5e03a72027e26d18abbfa0be4dce0f77864693\t2026-08-17T17:11:33+08:00\ttest(antigravity): check tool config assertions
+52	7cdca9e4958045dab38a77769b2b82402c83a365\te330c243a8f142f8963d784916da0093ab7084ee\t2026-08-17T17:28:51+08:00\tfeat(groups): 放行 kimi/zhipu/deepseek 平台分组创建入口
+53	10c8b70203feac8fbd744d386af6600aa87c3837\t7cdca9e4958045dab38a77769b2b82402c83a365\t2026-08-17T17:28:53+08:00\tfix(cn-providers): 修复 CN 分组五项功能缺陷(调度闸门/计费/断开漏记/count_tokens/403)
+54	c38c5beef81227f19b27356053a6db7c7e4072f4\t10c8b70203feac8fbd744d386af6600aa87c3837\t2026-08-17T17:44:33+08:00\tfix(i18n): CN 余额单元格误引 grokBalance 键致渲染原始 key
+55	401dd43b4b27883ae60d27c8270942a5fdbf2d07\t612436a5a7cbb7ab9d4ce4174fcdff948fab31fb\t2026-08-17T18:51:17+08:00\tfix(apicompat): 链式工具调用回放本轮 reasoning_content
+56	9f24a55305c7650443d555922c083051997fe2db\te330c243a8f142f8963d784916da0093ab7084ee\t2026-08-17T19:45:07+08:00\t功能：支持渠道模型分时倍率定价
+57	6793d5ac85f4ca469cc49a9cec29285c78e445b1\te330c243a8f142f8963d784916da0093ab7084ee\t2026-08-17T20:25:28+08:00\tfix(openai): make Codex convergence identity consistent
+58	ab28a2d10b3e228719d072f8c59376f32c5e0b46\te330c243a8f142f8963d784916da0093ab7084ee c38c5beef81227f19b27356053a6db7c7e4072f4\t2026-08-17T20:29:54+08:00\tMerge pull request #5730 from Wei-Shaw/fix/cn-provider-group-entry-and-correctness
+59	c46d07ca07ee28413fd1dfa20406722e554a1c7b\tab28a2d10b3e228719d072f8c59376f32c5e0b46\t2026-08-17T21:15:12+08:00\tfix: normalize Grok response model audit aliases
+60	6bf335965aee18bca344d155c904fd54aeb12a0d\t9f24a55305c7650443d555922c083051997fe2db ab28a2d10b3e228719d072f8c59376f32c5e0b46\t2026-08-17T22:27:22+08:00\tmerge main 并修复与 #5730 的语义冲突
+61	5253bb72b08586c619f5b369b2f1dc7547b0e97a\tab28a2d10b3e228719d072f8c59376f32c5e0b46 6bf335965aee18bca344d155c904fd54aeb12a0d\t2026-08-17T22:38:41+08:00\tMerge pull request #5737 from lyen1688/feat/channel-time-pricing
+62	7e45634df955ddf8a2ae014f2895bd6139544f41\t5253bb72b08586c619f5b369b2f1dc7547b0e97a\t2026-08-18T00:51:30+00:00\tchore: remove leftover Sora references after platform removal
+63	b2d1c3859ab77f7a71b342ca99b4660486bc2feb\t5253bb72b08586c619f5b369b2f1dc7547b0e97a 6793d5ac85f4ca469cc49a9cec29285c78e445b1\t2026-08-18T09:57:05+08:00\tMerge pull request #5738 from okbexx/fix/codex-identity-snapshot
+64	7d633f5fc3dcedea83c77ce77bc25dc497b88e0a\tb2d1c3859ab77f7a71b342ca99b4660486bc2feb c46d07ca07ee28413fd1dfa20406722e554a1c7b\t2026-08-18T10:03:26+08:00\tMerge pull request #5742 from heathermhuang/codex/fix-grok-response-model-audit
+65	f66a42c40e36b3052e0ec3c32a8f62a687de87cc\t7d633f5fc3dcedea83c77ce77bc25dc497b88e0a e8ff2017c061dd559b4f9ac0b7a5ada72573118a\t2026-08-18T10:05:39+08:00\tMerge pull request #5697 from feitianbubu/fix/ops-error-distribution-legend-labels
+66	8869775ed385fe985e05d4e9f414c9062b64af5a\tf66a42c40e36b3052e0ec3c32a8f62a687de87cc cb7841d85ce7a74a1b0ff8fa279ce8a0e11767cb\t2026-08-18T10:06:56+08:00\tMerge pull request #5636 from feitianbubu/fix/proxy-status-expired-i18n-key
+67	ab0fcd1a0e6fa8f9974ba21c6c3478bebdd07be4\t8869775ed385fe985e05d4e9f414c9062b64af5a\t2026-08-18T11:24:39+08:00\tfix(gemini): Skipped 错误策略对齐 OpenAI，上游 4xx 不再硬改 500
+68	615e6901ea41530c5439679b57bf291e31948e95\t8869775ed385fe985e05d4e9f414c9062b64af5a\t2026-08-18T03:50:01+00:00\tfeat(channel-monitor): add quota mode schema (migration 226 + ent)
+69	c44711ac98dd7f2cafacff18aa9b3bfa9e7bcbb1\t615e6901ea41530c5439679b57bf291e31948e95\t2026-08-18T04:03:13+00:00\tfeat(channel-monitor): quota mode service layer (fetcher + dispatch + repo)
+70	6a6fd304f68e2a8f5dbe6a96e424c4baffc203c6\tc44711ac98dd7f2cafacff18aa9b3bfa9e7bcbb1\t2026-08-18T04:06:18+00:00\tfeat(settings): channel_monitor_show_quota public setting (default off)
+71	41344c20ff54e4a828a09fa0ca77d0167a66b7f4\t6a6fd304f68e2a8f5dbe6a96e424c4baffc203c6\t2026-08-18T04:14:15+00:00\tfeat(monitor): wire quota fetcher & expose check_mode in handlers
+72	7ab6d3db66c4862013a6ee998c014327c843b3ca\t41344c20ff54e4a828a09fa0ca77d0167a66b7f4\t2026-08-18T04:51:02+00:00\ttest(channel-monitor): quota mode unit/integration/migration coverage
+73	c51fd7d0b351da9df3459da280778d30b182a24e\t7ab6d3db66c4862013a6ee998c014327c843b3ca\t2026-08-18T04:51:06+00:00\ttest(channel-monitor): adapt checker body test to 3-arg normalizeMonitorPrimaryModel
+74	bb6c3b4f6a0543788dac7cafb8025846ae293709\t8869775ed385fe985e05d4e9f414c9062b64af5a\t2026-08-18T13:03:22+08:00\tfix: unify Codex OAuth outbound identity onto the inference resolver
+75	16e4f7ecc33ad895587a3581b8f8d1c6f3dbf44e\t5253bb72b08586c619f5b369b2f1dc7547b0e97a\t2026-08-18T13:08:28+08:00\t修复 Codex 额度探针模型兼容性
+76	a20e1c00cc1736378d7510c48ab52cac66489739\tc51fd7d0b351da9df3459da280778d30b182a24e\t2026-08-18T05:09:58+00:00\tfeat(monitor-ui): 配额模式表单、用量快照视图与 8 平台支持
+77	302a10b88608392617dbe8e228711a86a236ac0d\ta20e1c00cc1736378d7510c48ab52cac66489739\t2026-08-18T05:10:10+00:00\ttest(monitor-ui): 配额视图渲染与开关门控用例
+78	a7a321232f1979064f1ebd9d3dd034ff3c37f8c6\t8869775ed385fe985e05d4e9f414c9062b64af5a 76a13a5a8d56dca2befb8a3d70daf356c540f336\t2026-08-18T13:49:59+08:00\tMerge pull request #5567 from wucm667/fix/issue-5563-anthropic-sse-overload
+79	cddb03c0f1a887fe7344bc2f13827dcc5c31be21\ta7a321232f1979064f1ebd9d3dd034ff3c37f8c6 674570ca17be336f2015d229495c8ceeda9d6c04\t2026-08-18T13:50:13+08:00\tMerge pull request #5609 from wucm667/fix/issue-5607-auth-pricing-snapshot
+80	853234474595223bc915ad21324f4c6165f9daae\tcddb03c0f1a887fe7344bc2f13827dcc5c31be21 1977810cf24fa36d939cce694e7808347e516259\t2026-08-18T13:50:39+08:00\tMerge pull request #5715 from wucm667/fix/issue-3917-current-main
+81	1a3ecd2b9451193dcca387e848fcb236ebfd1e57\t853234474595223bc915ad21324f4c6165f9daae c91fbeb0c008b2323e98ca5b73cedf074c8543dd\t2026-08-18T13:50:57+08:00\tMerge pull request #5004 from wucm667/fix/issue-4990-deferred-tool-cache-control
+82	3d9a0a71bdd6fe66ee6735c8e5444adecd1c1cd0\t1a3ecd2b9451193dcca387e848fcb236ebfd1e57 0d5e3ca9b03bd555329110ba9dffa7275f5866ec\t2026-08-18T13:51:09+08:00\tMerge pull request #4057 from feitianbubu/fix/ops-sla-zero-window
+83	632b4f4faa5480c46a293b3d622a2cb41137dd48\t3d9a0a71bdd6fe66ee6735c8e5444adecd1c1cd0 35e8ba2a3ea1e8b351f958f49df66eef80b407d1\t2026-08-18T13:51:21+08:00\tMerge pull request #4053 from feitianbubu/fix/announcements-empty-state-copy
+84	5dfac8bffa5f832f39ac40f6599666f22a713150\t632b4f4faa5480c46a293b3d622a2cb41137dd48 a6d868f27b64e6b2e2dd96a69560f82b7243846a\t2026-08-18T13:51:42+08:00\tMerge pull request #4049 from feitianbubu/fix/dashboard-token-cache-breakdown
+85	f6d6613ec6cbebc0fab156cb70b42a2a2eddb513\t5dfac8bffa5f832f39ac40f6599666f22a713150 7d796f1119a36f0cb48541de54e07f443def1a21\t2026-08-18T13:51:57+08:00\tMerge pull request #4006 from feitianbubu/fix/native-controls-dark-mode
+86	5c129602855cf041e926d62aa1923bedd799c285\tf6d6613ec6cbebc0fab156cb70b42a2a2eddb513 3bff4b64b1c6a5460ed9c53889db777cbf0053f7\t2026-08-18T13:52:15+08:00\tMerge pull request #4005 from feitianbubu/fix/header-role-i18n
+87	c76ff559974b73b729dfe77efdeba2d92a47697b\t5c129602855cf041e926d62aa1923bedd799c285 5e72deb7d4229716465ca6bf5dc7b8da26e83c76\t2026-08-18T13:52:34+08:00\tMerge pull request #2148 from feitianbubu/pr/ops-error-detail-support-custom-time
+88	c0325d24f949e3f4ccb17e40f751be27bad842e8\tc76ff559974b73b729dfe77efdeba2d92a47697b 16e4f7ecc33ad895587a3581b8f8d1c6f3dbf44e\t2026-08-18T13:53:49+08:00\tMerge pull request #5759 from o2e/codex/fix-codex-usage-probe-model-clean
+89	baaf59d417677df26491ffea20a5db8c4fe83302\tc0325d24f949e3f4ccb17e40f751be27bad842e8 ab0fcd1a0e6fa8f9974ba21c6c3478bebdd07be4\t2026-08-18T13:54:06+08:00\tMerge pull request #5755 from feeeei/feat/gemini
+90	6259940ef25adf0f37342e7444a23913d29e0f08\tbaaf59d417677df26491ffea20a5db8c4fe83302 d677d67dda8a961dff7671ce5c9bf24bff26b505\t2026-08-18T13:54:32+08:00\tMerge pull request #5669 from feeeei/main
+91	ed2da8239653f23da154759f839033133675d9fb\t6259940ef25adf0f37342e7444a23913d29e0f08 971544570d6da41c6486d0e92f225bf28dfe2d7a\t2026-08-18T13:55:24+08:00\tMerge pull request #5711 from wucm667/fix/issue-5709-antigravity-tool-config
+92	1ea4150bf04524dfe815bb70a552439a9dd36043\ted2da8239653f23da154759f839033133675d9fb a288bab73ace3ec789dd3af26ca8e98f3277c766\t2026-08-18T13:56:02+08:00\tMerge pull request #5581 from wucm667/fix/issue-5574-passthrough-model-discovery
+93	7376f4a48cc0bdcf78232e1ed77063f0e0152c5a\t302a10b88608392617dbe8e228711a86a236ac0d\t2026-08-18T05:57:41+00:00\tfix(lint): gofmt 对齐 + 移除未使用的 isSupportedProvider
+94	c792b44bb2fb2421e8489c4361e68a3e47f34df3\t1ea4150bf04524dfe815bb70a552439a9dd36043 8a0a76aeb52e6c96adfd3627d4a442951b8fc585\t2026-08-18T14:05:27+08:00\tMerge pull request #5712 from xiaobo121388/main
+95	4d19836189bdccd730a57b0c0f4c03c252cf6355\tc792b44bb2fb2421e8489c4361e68a3e47f34df3 79c2eb50201568b47f6ebff4d9c4665347d4eba4\t2026-08-18T14:06:32+08:00\tMerge pull request #5716 from wucm667/fix/issue-2695-current-main
+96	938f1868ae0a53ea9203f1b406ccf3334e05ba75\t4d19836189bdccd730a57b0c0f4c03c252cf6355 5f19433103f5d5fb78ca31fced71e86bbf235868\t2026-08-18T14:11:42+08:00\tMerge pull request #5714 from wucm667/fix/issue-2733-current-main
+97	a9514a68d20bddc971f31f956e682b50edfdc183\t938f1868ae0a53ea9203f1b406ccf3334e05ba75\t2026-08-18T14:26:19+08:00\tperf(usage): aggregate stats in one scan
+98	ebcae03afda0ddec1ff744973ea3d3cced12c3dd\t7376f4a48cc0bdcf78232e1ed77063f0e0152c5a\t2026-08-18T06:29:43+00:00\tfix(lint): 补齐 setting_public.go 与配额 fetcher 测试的 gofmt 对齐
+99	7e579cb28df5f2e7ed9ef84bc8bca6370acfa8f7\t938f1868ae0a53ea9203f1b406ccf3334e05ba75\t2026-08-18T14:42:30+08:00\tfix(openai): adapt client tools in WS HTTP bridge
+100	269fbcac0e5b78dd2167c8b15267ed3a9fe7efa5\t938f1868ae0a53ea9203f1b406ccf3334e05ba75\t2026-08-18T14:50:57+08:00\tfeat: Grok 用量条补齐本站 24h/7d/30d 聚合
+101	1870b58c1d04eba8db0087df03c1ce40ac5c85d6\t938f1868ae0a53ea9203f1b406ccf3334e05ba75 8d82bb069c89c72d96b4d986f00d3bf561b70b36\t2026-08-18T14:53:55+08:00\tMerge pull request #5721 from lyy0709/codex/bulk-openai-settings
+102	fd42d3722d11ae4980bddd718e94105e42b5ce4f\t269fbcac0e5b78dd2167c8b15267ed3a9fe7efa5\t2026-08-18T14:55:08+08:00\tfix: hide Grok prepaid and used/limit when they are empty
+103	9617775f9a5b4999e7ee59e15d96184253f8f2e4\tb8642ef674ba80ce827cbb71df6edd091db8c3d9\t2026-08-18T15:02:25+08:00\tfix(repo): tolerate ErrTxStarted for tx-bound clients and harden test stubs
+104	1ba92449c7372493b2c94d42e290c0959f4cf760\t3c3bb2fa1949c7e5d0dd4e9b4cb07cab61595cd3\t2026-08-18T15:05:54+08:00\tfix(gemini): wire includeServerSideToolInvocations into the typed transform path
+105	a341239596caa92d3a546c84126283787de5670e\tbb6c3b4f6a0543788dac7cafb8025846ae293709\t2026-08-18T15:20:08+08:00\tfix(fingerprint): align credential-face identity with the real client and de-drift models version
+106	37732dcd346d1515ce829709cbd2b45607908eca\t1870b58c1d04eba8db0087df03c1ce40ac5c85d6 1ba92449c7372493b2c94d42e290c0959f4cf760\t2026-08-18T15:35:01+08:00\tMerge pull request #5725 from tamseno/fix/gemini-include-server-side-tool-invocations
+107	f211a630c85e5031da13d405a45a89861e3a47e4\t37732dcd346d1515ce829709cbd2b45607908eca 9617775f9a5b4999e7ee59e15d96184253f8f2e4\t2026-08-18T15:35:16+08:00\tMerge pull request #5720 from tamseno/fix/invitation-code-toctou-race
+108	1ed3b6aef6180abadd63386b1ba8b5149bf83603\tf211a630c85e5031da13d405a45a89861e3a47e4 a341239596caa92d3a546c84126283787de5670e\t2026-08-18T15:35:34+08:00\tMerge pull request #5760 from spongehah/feature/unify-codex-outbound-identity
+109	685455985b5238b1fdc6a8c56ee62f277ec2ff70\t1ed3b6aef6180abadd63386b1ba8b5149bf83603 fd42d3722d11ae4980bddd718e94105e42b5ce4f\t2026-08-18T15:35:42+08:00\tMerge pull request #5765 from IanShaw027/feat/grok-from-personal-main
+110	58ea46e894b0650c29a705555069b9f998e69bab\t685455985b5238b1fdc6a8c56ee62f277ec2ff70 44ef88f659a02ca9b725ce11b110e03cd43d814d\t2026-08-18T15:47:50+08:00\tMerge pull request #5661 from wucm667/fix/issue-5659-openai-custom-tools
+111	26cb59df05b6340ddc591af0178fa1425e17c56b\t58ea46e894b0650c29a705555069b9f998e69bab 7e579cb28df5f2e7ed9ef84bc8bca6370acfa8f7\t2026-08-18T15:47:59+08:00\tMerge pull request #5764 from hansnow/fix/ws-http-bridge-custom-tools
+112	c253bd2c72dcce1aee21a4bc671ad23eb1bf5a34\t7e579cb28df5f2e7ed9ef84bc8bca6370acfa8f7\t2026-08-18T15:48:02+08:00\tfix(openai): restore client tools in terminal events
+113	58ccea4eaa031758974fa70bb588d42bc5876019\t26cb59df05b6340ddc591af0178fa1425e17c56b c253bd2c72dcce1aee21a4bc671ad23eb1bf5a34\t2026-08-18T16:21:50+08:00\tMerge pull request #5767 from hansnow/fix/ws-http-bridge-custom-tools
+114	8f6f459835779efa2e3308b90addfa20e81a4a66\t58ccea4eaa031758974fa70bb588d42bc5876019\t2026-08-18T17:12:01+08:00\tfix(channels): support kimi/zhipu/deepseek platforms in channel pricing
+115	22df600d090479ea42070eb79c42c520ea9e1eab\tebcae03afda0ddec1ff744973ea3d3cced12c3dd\t2026-08-18T09:14:20+00:00\tfix(channel-monitor): 配额快照识别值通道失败并加 60s 负缓存与 singleflight
+116	03c3f3b6fcf51e2c7c1dcc7a6c2fdbd4931bf67d\t22df600d090479ea42070eb79c42c520ea9e1eab\t2026-08-18T09:14:31+00:00\tfeat(ui): Select 组件支持可选远程搜索（remote/loading props + search 事件）
+117	5cbd0c96a2eec8133cc504946767fcc7e83b9f1a\t03c3f3b6fcf51e2c7c1dcc7a6c2fdbd4931bf67d\t2026-08-18T09:14:44+00:00\tfix(monitor-ui): 关联账号选择器改服务端搜索+回填，OpenAI 配额模式加消耗提示
+118	dd04503e1ff0298d8e61b8adf61febec9210f6a2\t58ccea4eaa031758974fa70bb588d42bc5876019 8f6f459835779efa2e3308b90addfa20e81a4a66\t2026-08-18T17:27:43+08:00\tMerge pull request #5773 from Wei-Shaw/fix/channel-pricing-cn-platforms
+119	e0c48a19ed794a565e3858662520afe0a1f9f0ba\tdd04503e1ff0298d8e61b8adf61febec9210f6a2 5cbd0c96a2eec8133cc504946767fcc7e83b9f1a\t2026-08-18T17:36:27+08:00\tMerge pull request #5761 from Randark-JMT/feat/channel-monitor-quota-mode
+120	49504adc98d2b6d539491e865a340e644548979e\te0c48a19ed794a565e3858662520afe0a1f9f0ba\t2026-08-18T10:03:19+00:00\tchore: sync VERSION to 0.1.178 [skip ci]
+121	3d21d61609f7f7db4d4f99182372a1f1baa4f648\t401dd43b4b27883ae60d27c8270942a5fdbf2d07\t2026-08-18T18:20:09+08:00\tchore: retrigger CI（上游 flaky 测试 TestApplyCodexFingerprintClientMetadataRaw_MatchesMapVariant 毫秒边界误报，与本 PR 无关）
+122	1128df2592d9a505df22c9df953374899b3eee70\t49504adc98d2b6d539491e865a340e644548979e\t2026-08-18T10:28:28+00:00\tfix(monitor): align quota-fetcher credential/balance semantics with scheduler
+123	c41ae19e529e0297df1d3212627410d731cb27ea\t1128df2592d9a505df22c9df953374899b3eee70\t2026-08-18T10:28:28+00:00\tfix(monitor): reject unusable quota data sources and invalid mode combos at write time
+124	e2dfb3b8cb6e7c8e217f1551850d7b67e2f147f1\tc41ae19e529e0297df1d3212627410d731cb27ea\t2026-08-18T10:28:28+00:00\trefactor(monitor): pass loaded account through quota sources (single load per fetch)
+125	c9effc45603f1051d9dcad7fbfd1cc209c227c7a\te2dfb3b8cb6e7c8e217f1551850d7b67e2f147f1\t2026-08-18T10:28:28+00:00\tfix(frontend): monitor form check-mode restore, account unbinding and mode badge
+126	2c250bfd7354728bd61f82abce695ea3ba7d4301\tc9effc45603f1051d9dcad7fbfd1cc209c227c7a\t2026-08-18T10:35:57+00:00\tfix(monitor-ui): localize the "quota" placeholder model across monitor views
+127	ac6208de16348b2a6a974834da016930227bec3d\t49504adc98d2b6d539491e865a340e644548979e\t2026-08-18T08:46:28-04:00\tfix(accounts): route CN provider chat tests correctly
+128	85cb732cdb0cfc61d4232956d5952cc403d009b4\t49504adc98d2b6d539491e865a340e644548979e\t2026-08-18T18:47:23+00:00\tdocs: fix broken star history chart in README
+129	214210e1b249bb404cfe597103fb8e6247cbda1c\t49504adc98d2b6d539491e865a340e644548979e ac6208de16348b2a6a974834da016930227bec3d\t2026-08-19T09:37:45+08:00\tMerge pull request #5782 from UnlastingR/fix/cn-provider-account-test-routing
+130	359fd12b2e0a4ab37143b9ecb7714236a1fc375c\t214210e1b249bb404cfe597103fb8e6247cbda1c 7e45634df955ddf8a2ae014f2895bd6139544f41\t2026-08-19T09:41:25+08:00\tMerge pull request #5749 from Randark-JMT/chore/remove-sora-leftovers
+131	b228b93e9c40ae9d3452890425c7dcea8a3a336b\t359fd12b2e0a4ab37143b9ecb7714236a1fc375c\t2026-08-19T10:41:47+08:00\tfix(openai): 修复 Chat 非流式缓冲读取错误未触发故障转移
+132	c6f4fbde49fa0d45ec2838327a657c03889f4287\t359fd12b2e0a4ab37143b9ecb7714236a1fc375c a600dd1c0aefa85df0a7aaea904c25c8a252ee5f\t2026-08-19T11:11:23+08:00\tMerge pull request #5676 from Perfecto23/agent/openai-capacity-failover
+133	e61595fb3536a568e7b69245dac231de78c35a16\tc6f4fbde49fa0d45ec2838327a657c03889f4287 2c250bfd7354728bd61f82abce695ea3ba7d4301\t2026-08-19T11:21:35+08:00\tMerge pull request #5780 from Randark-JMT/fix/channel-monitor-p2
+134	82f7dd14f717bef480879f73cba288791b9b9663\te61595fb3536a568e7b69245dac231de78c35a16 85cb732cdb0cfc61d4232956d5952cc403d009b4\t2026-08-19T11:23:33+08:00\tMerge pull request #5794 from Dessalines39394/fix/star-history-chart
+135	bfac49fef9e9ba7543e312327c3625ab5210668f\t82f7dd14f717bef480879f73cba288791b9b9663\t2026-08-19T11:34:18+08:00\tfix(codex): handle responses input token preflight
+136	892787723f30b84f6b00b49a74e834be623ed4c8\t82f7dd14f717bef480879f73cba288791b9b9663\t2026-08-19T03:38:11+00:00\tfix(grok): preserve xhigh effort for grok-4.6
+137	58e147fba6f6343ae5c2078de96803635b2cab4f\t82f7dd14f717bef480879f73cba288791b9b9663\t2026-08-19T04:40:32+00:00\tfeat(composite): support Codex endpoints
+138	b171bb0e4a84509ec5afaba8ec8c750d1857e246\t82f7dd14f717bef480879f73cba288791b9b9663\t2026-08-19T13:01:25+08:00\tfix(composite): support CN providers
+139	e943f817b118936eb776f20a3a4040a4123dcfff\t82f7dd14f717bef480879f73cba288791b9b9663 3d21d61609f7f7db4d4f99182372a1f1baa4f648\t2026-08-19T14:03:03+08:00\tMerge pull request #5729 from lbyxiaolizi/fix/responses-chat-reasoning-content-passback
+140	4d3b300a255a6158d00f450e2d249c3403f8b5e7\tb171bb0e4a84509ec5afaba8ec8c750d1857e246\t2026-08-19T14:05:52+08:00\ttest(scheduler): update CN platform expectations
+141	2a5ae2b2dc4b8ffe016f44d66245bfe234a1a398\te943f817b118936eb776f20a3a4040a4123dcfff 58e147fba6f6343ae5c2078de96803635b2cab4f\t2026-08-19T14:19:26+08:00\tMerge pull request #5816 from kingsleydon/fix/composite-codex-support
+142	7d9c958482eaf4f81a820702a98b40db6cbddf54\t2a5ae2b2dc4b8ffe016f44d66245bfe234a1a398 bfac49fef9e9ba7543e312327c3625ab5210668f\t2026-08-19T14:43:33+08:00\tMerge pull request #5810 from Pluviobyte/codex/fix-responses-input-tokens
+143	bd1ccd97366540496dfebbeb6d20f2ae1a7edd21\t4d3b300a255a6158d00f450e2d249c3403f8b5e7 7d9c958482eaf4f81a820702a98b40db6cbddf54\t2026-08-19T14:47:34+08:00\tMerge remote-tracking branch 'origin/main' into fix/issue-5796-composite-new-platforms
+144	aa673062e2d1c17d0e599d6feb03a221184d95ea\tbd1ccd97366540496dfebbeb6d20f2ae1a7edd21\t2026-08-19T14:58:32+08:00\tfix(composite): keep CN rollout on fully supported paths
+145	b94e484e23698621f8fd3b339eb9df8679009d64\t7d9c958482eaf4f81a820702a98b40db6cbddf54\t2026-08-19T15:19:33+08:00\tfix(openai): preserve client tools across WS bridge turns
+146	499a8ee4235eea151b9907b5cda408b43dc29c0d\taa673062e2d1c17d0e599d6feb03a221184d95ea\t2026-08-19T15:24:26+08:00\tfix(composite): exempt resolved grok/CN targets from messages dispatch gate
+147	e4896c41d2de453684b0524fa7efd778263934d6\tb94e484e23698621f8fd3b339eb9df8679009d64\t2026-08-19T15:26:19+08:00\ttest(apicompat): satisfy client tool type assertions
+148	fefd0d5145232ff43c105f76d7f719c414ff3059\te4896c41d2de453684b0524fa7efd778263934d6\t2026-08-19T15:31:18+08:00\ttest(apicompat): avoid unchecked tool history assertions
+149	6a945b3cadfec1cc593490caf7eaccb4b244feae\t7d9c958482eaf4f81a820702a98b40db6cbddf54 499a8ee4235eea151b9907b5cda408b43dc29c0d\t2026-08-19T15:36:38+08:00\tMerge pull request #5817 from wucm667/fix/issue-5796-composite-new-platforms
+150	e8b53c9195d1840231993c618f9dc5a58b104f69\t6a945b3cadfec1cc593490caf7eaccb4b244feae b228b93e9c40ae9d3452890425c7dcea8a3a336b\t2026-08-19T16:41:33+08:00\tMerge pull request #5801 from MokoYee/fix/openai-chat-buffered-stream-failover
+151	89d28037f21321d07f0501b0e4e53ebefc7a8ae0\te8b53c9195d1840231993c618f9dc5a58b104f69 fefd0d5145232ff43c105f76d7f719c414ff3059\t2026-08-19T16:42:28+08:00\tMerge pull request #5822 from hansnow/fix/ws-http-bridge-followup-client-tools
+152	ae62854abcb1285e0abc4e69d7465e78518d7d4b\t89d28037f21321d07f0501b0e4e53ebefc7a8ae0 892787723f30b84f6b00b49a74e834be623ed4c8\t2026-08-19T16:42:52+08:00\tMerge pull request #5815 from 771373073/fix/grok46-xhigh
+153	f917d19d3e27e140ba53de816c842c56e039d06a\tae62854abcb1285e0abc4e69d7465e78518d7d4b\t2026-08-19T16:47:11+08:00\ttest(frontend): align Grok API key placeholder assertion
+154	994fbfeddba8c03c427ac9464f0ba9563db216d5\tae62854abcb1285e0abc4e69d7465e78518d7d4b\t2026-08-19T16:47:51+08:00\tfix(frontend): prevent CN quota labels overlapping bars
+155	99a8b84701ba70ada7bc62da0fe50cf459286432\tae62854abcb1285e0abc4e69d7465e78518d7d4b\t2026-08-19T18:36:53+08:00\t修复 Grok 内联图片与 view_image 冲突
+156	82cbe6aff7d963e5096d26df73671236a707ad24\tae62854abcb1285e0abc4e69d7465e78518d7d4b\t2026-08-19T18:51:21+08:00\tfix(openai): resume later websocket turns after 429
+157	1b30a2d747a401096238f8f9d6834b2cfc86f7ee\tae62854abcb1285e0abc4e69d7465e78518d7d4b\t2026-08-19T19:03:39+08:00\tfeat(accounts): support header overrides for CN providers
+158	b0cdea303afd81071f0b0ccc762cb5141480133a\t99a8b84701ba70ada7bc62da0fe50cf459286432\t2026-08-19T19:04:53+08:00\t补全 Grok 多入口内联图片工具适配
+159	68666e1f86f3a899991b9ce72ab22bf18ea06e58\tae62854abcb1285e0abc4e69d7465e78518d7d4b 82cbe6aff7d963e5096d26df73671236a707ad24\t2026-08-19T19:21:49+08:00\tMerge pull request #5845 from vincenthcui/fix/openai-ws-later-turn-429-failover
+160	23dc9377bcea49e0e2aaf011ac93d3a790fd5fc1\t68666e1f86f3a899991b9ce72ab22bf18ea06e58 b0cdea303afd81071f0b0ccc762cb5141480133a\t2026-08-19T19:22:08+08:00\tMerge pull request #5844 from lyen1688/fix/grok-inline-image-view-image
+161	b7fe8ebaad2d7e6d2391f3be3d0900ef411fb61b\t23dc9377bcea49e0e2aaf011ac93d3a790fd5fc1 a9514a68d20bddc971f31f956e682b50edfdc183\t2026-08-19T20:27:42+08:00\tMerge pull request #5762 from jaxxjj/codex/perf-usage-stats-grouping-sets
+162	38a5f266e9289ee8914a4bd044bbb7de29fb70ad\tb7fe8ebaad2d7e6d2391f3be3d0900ef411fb61b f917d19d3e27e140ba53de816c842c56e039d06a\t2026-08-19T20:28:19+08:00\tMerge pull request #5839 from xuhaihan/test/fix-grok-api-key-placeholder
+163	32ecd5cc6269b67f73835ba607146b9f7f87452a\t38a5f266e9289ee8914a4bd044bbb7de29fb70ad 1b30a2d747a401096238f8f9d6834b2cfc86f7ee\t2026-08-19T20:28:36+08:00\tMerge pull request #5847 from wucm667/feat/issue-5826-cn-header-overrides
+164	32a0d9ba2d537875f605e0360c28c7f8d418a29a\t32ecd5cc6269b67f73835ba607146b9f7f87452a 994fbfeddba8c03c427ac9464f0ba9563db216d5\t2026-08-19T21:05:26+08:00\tMerge pull request #5837 from xuhaihan/fix/cn-provider-quota-cell-layout

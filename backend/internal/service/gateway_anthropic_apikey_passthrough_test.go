@@ -778,7 +778,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_StripsDeferredToolCacheContro
 	account := &Account{Platform: PlatformAnthropic, Type: AccountTypeAPIKey}
 	body := []byte(`{"tools":[{"name":"deferred","custom":{"defer_loading":true},"cache_control":{"type":"ephemeral"}},{"name":"top-level-deferred","defer_loading":true,"cache_control":{"type":"ephemeral"}},{"name":"ordinary","defer_loading":false,"cache_control":{"type":"ephemeral"}},{"name":"malformed","defer_loading":"true","cache_control":{"type":"ephemeral"}}]}`)
 
-	_, wireBody, err := svc.buildUpstreamRequestAnthropicAPIKeyPassthrough(context.Background(), c, account, body, "k")
+	_, wireBody, err := svc.buildUpstreamRequestAnthropicAPIKeyPassthrough(context.Background(), c, account, body, "k", "")
 	require.NoError(t, err)
 	require.False(t, gjson.GetBytes(wireBody, "tools.0.cache_control").Exists())
 	require.False(t, gjson.GetBytes(wireBody, "tools.1.cache_control").Exists())

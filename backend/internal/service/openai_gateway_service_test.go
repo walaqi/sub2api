@@ -249,8 +249,6 @@ func TestFailoverOpenAIUpstreamHTTPError_CommittedResponseSkipsTempUnschedulable
 	got := svc.failoverOpenAIUpstreamHTTPError(
 		context.Background(), c, account, resp, body,
 		"Our servers are currently overloaded.", "gpt-5.4",
-		context.Background(), nil, account, resp, body,
-		"Custom temporary outage.", "gpt-5.4",
 	)
 
 	require.Nil(t, got, "a committed response must never be replayed on another account")

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -226,7 +227,11 @@ func deriveStableUUIDv4(seed string) string {
 
 // resolveConvergedInstallationID 返回账号级恒定的 installation_id。
 // 优先使用管理员配置的真实 device_id，无则从系统管理的账号随机种子确定性派生。
-func resolveConvergedInstallationID(account *Account, seed string) string {
+func resolveConvergedInstallationID(account *Account, seeds ...string) string {
+	seed := ""
+	if len(seeds) > 0 {
+		seed = seeds[0]
+	}
 	if account == nil {
 		return ""
 	}
@@ -240,11 +245,22 @@ func resolveConvergedInstallationID(account *Account, seed string) string {
 }
 
 // resolveConvergedSessionID 返回账号级恒定的 session_id。
-func resolveConvergedSessionID(seed string) string {
-	if seed == "" {
+func resolveConvergedSessionID(seed any) string {
+	seedValue := ""
+	switch value := seed.(type) {
+	case string:
+		seedValue = value
+	case *Account:
+		if value != nil {
+			seedValue = strconv.FormatInt(value.ID, 10)
+		}
+	case Account:
+		seedValue = strconv.FormatInt(value.ID, 10)
+	}
+	if seedValue == "" {
 		return ""
 	}
-	return deriveStableUUIDv4("sub2api:codex-session-id:v2:" + seed)
+	return deriveStableUUIDv4("sub2api:codex-session-id:v2:" + seedValue)
 }
 
 // resolveConvergedThreadID 按客户端原始 session-id 确定性派生 thread_id。
@@ -484,6 +500,7 @@ func applyCodexFingerprintClientMetadataToJSON(body []byte, ids *codexFingerprin
 		return body, nil
 	}
 	return json.Marshal(decoded)
+}
 func captureCodexFingerprintOriginalBodySessionID(ids *codexFingerprintIDs, clientMetadata any) {
 	if ids == nil || ids.originalBodySessionIDCaptured {
 		return
