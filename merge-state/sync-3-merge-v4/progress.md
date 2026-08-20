@@ -10,6 +10,6 @@
 - Empty/duplicate applications: 57
 - Failed/blocked: 0
 - Awaiting user: 0
-- Last action: all 164 entries processed automatically; backend packages compile and frontend typecheck pass.
-- Verification: `go test -run '^$' ./internal/service ./internal/handler ./internal/repository` passed; `pnpm run typecheck` passed. Full service/repository tests were attempted but the sandbox denies `httptest` listener creation (`operation not permitted`).
+- Last action: all 164 entries processed automatically; post-merge backend and frontend verification completed.
+- Verification: `go test ./internal/repository` and `go test ./internal/service` passed outside the restricted sandbox; focused handler/repository compile checks and `pnpm run typecheck` passed. Full tests require allowing local `httptest` listeners outside the sandbox.
 - Important adaptation: usage statistics commit `a9514a68d` was resolved using the complete upstream one-scan grouping-sets implementation, with current public settings and dependency wiring retained where they conflicted.
