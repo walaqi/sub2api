@@ -235,6 +235,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyAvailableChannelsEnabled,
 		SettingKeyModelPlazaEnabled,
 		SettingKeyModelPlazaRequireAuth,
+		SettingKeyPluginManagementEnabled,
 		SettingKeyAffiliateEnabled,
 		SettingKeyReferralRewardEnabled,
 		SettingKeyRiskControlEnabled,
@@ -361,8 +362,9 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 
 		AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true",
 
-		ModelPlazaEnabled:     settings[SettingKeyModelPlazaEnabled] == "true",
-		ModelPlazaRequireAuth: settings[SettingKeyModelPlazaRequireAuth] == "true",
+		ModelPlazaEnabled:       settings[SettingKeyModelPlazaEnabled] == "true",
+		ModelPlazaRequireAuth:   settings[SettingKeyModelPlazaRequireAuth] == "true",
+		PluginManagementEnabled: settings[SettingKeyPluginManagementEnabled] == "true",
 
 		ImageStudioEnabled: s.cfg != nil && s.cfg.ImageStudio.Enabled,
 
@@ -626,6 +628,7 @@ type PublicSettingsInjectionPayload struct {
 	ModelPlazaEnabled          bool `json:"model_plaza_enabled"`
 	ModelPlazaRequireAuth      bool `json:"model_plaza_require_auth"`
 	ImageStudioEnabled         bool `json:"image_studio_enabled"`
+	PluginManagementEnabled    bool `json:"plugin_management_enabled"`
 	AffiliateEnabled           bool `json:"affiliate_enabled"`
 	ReferralRewardEnabled      bool `json:"referral_reward_enabled"`
 	RiskControlEnabled         bool `json:"risk_control_enabled"`
@@ -708,6 +711,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ModelPlazaEnabled:                    settings.ModelPlazaEnabled,
 		ModelPlazaRequireAuth:                settings.ModelPlazaRequireAuth,
 		ImageStudioEnabled:                   settings.ImageStudioEnabled,
+		PluginManagementEnabled:              settings.PluginManagementEnabled,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
 		ReferralRewardEnabled:                settings.ReferralRewardEnabled,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
