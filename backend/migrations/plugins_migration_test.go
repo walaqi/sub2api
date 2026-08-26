@@ -8,7 +8,7 @@ import (
 )
 
 func TestPluginsMigrationKeepsAccountSchemaUnchanged(t *testing.T) {
-	content, err := FS.ReadFile("229_plugins.sql")
+	content, err := FS.ReadFile("240_plugins.sql")
 	require.NoError(t, err)
 
 	sql := strings.Join(strings.Fields(string(content)), " ")
@@ -25,7 +25,7 @@ func TestPluginsMigrationKeepsAccountSchemaUnchanged(t *testing.T) {
 }
 
 func TestPluginArtifactMigrationSupportsExistingInstallations(t *testing.T) {
-	content, err := FS.ReadFile("230_plugin_artifacts.sql")
+	content, err := FS.ReadFile("241_plugin_artifacts.sql")
 	require.NoError(t, err)
 
 	sql := strings.Join(strings.Fields(string(content)), " ")
