@@ -76,6 +76,7 @@ func (s *OpenAIGatewayService) forwardAsRawChatCompletions(
 	billingModel, explicitlyMapped := resolveOpenAIForwardModelDetailed(account, originalModel, defaultMappedModel)
 	explicitlyMapped = explicitlyMapped || OpenAIChannelModelMappedFromContext(ctx)
 	upstreamModel := normalizeOpenAIModelForUpstreamWithPolicy(account, billingModel, explicitlyMapped)
+	SetOpsUpstreamModel(c, upstreamModel)
 	grokCacheIdentity := ""
 	if account.Platform == PlatformGrok {
 		// Resolve before image bridging or other body rewrites so the fallback is
