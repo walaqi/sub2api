@@ -347,7 +347,13 @@ func TestAuthServiceBindEmailIdentity_RejectsNewAliasWhenAnotherUserSharesCurren
 		"123456",
 		"current-password",
 	)
-	require.ErrorIs(t, err, service.ErrEmailExists)
+	// Fork policy divergence (sync-4 #6166): the fork forbids changing an
+	// already-bound REAL email from the profile (ErrEmailChangeNotAllowed),
+	// which fires before upstream's alias-collision check (ErrEmailExists).
+	// currentUser here already has a real bound email (inbox+own@gmail.com), so
+	// the fork rejects the rebind entirely — a stricter, still-safe outcome
+	// (bind rejected, stored email unchanged). Assert the fork's error.
+	require.ErrorIs(t, err, service.ErrEmailChangeNotAllowed)
 	require.Nil(t, updatedUser)
 
 	storedUser, err := client.User.Get(ctx, currentUser.ID)
