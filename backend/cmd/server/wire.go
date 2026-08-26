@@ -128,6 +128,7 @@ func provideCleanup(
 	upstreamBillingProbe *service.UpstreamBillingProbeService,
 	ollamaCloudUsage *service.OllamaCloudUsageService,
 	auditLog *service.AuditLogService,
+	openAIAutoReset *service.OpenAIQuotaAutoResetService,
 	promptAudit *securityaudit.PromptService,
 	pluginManager *service.PluginManager,
 ) func() {
@@ -151,6 +152,12 @@ func provideCleanup(
 			{"PluginManager", func() error {
 				if pluginManager != nil {
 					pluginManager.Stop()
+				}
+				return nil
+			}},
+			{"OpenAIQuotaAutoResetService", func() error {
+				if openAIAutoReset != nil {
+					openAIAutoReset.Stop()
 				}
 				return nil
 			}},
