@@ -219,6 +219,23 @@ function reasoningCellText(wrapper: ReturnType<typeof mount>): string {
 
 describe('usage reasoning effort page display', () => {
   beforeEach(() => {
+    // fork 差异：fork 的 DataTable.vue 在 setup 阶段读 window.matchMedia 做响应式视口判断，
+    // 上游同名组件没有该逻辑，故上游 #6188 的测试不需要这个 stub。沿用 DataTable.spec.ts
+    // 既有做法，按桌面视口打桩。
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      configurable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: true,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    })
     localStorage.clear()
     userQuery.mockReset().mockResolvedValue({ items: [userMappedLog], total: 1, pages: 1 })
     userGetStats.mockReset().mockResolvedValue(emptyStats)
