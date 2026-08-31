@@ -615,7 +615,7 @@ func openAIImagesUpstreamErrorFromSSEPayload(payload []byte) *OpenAIImagesUpstre
 // extractOpenAIImagesModelText collects textual terminal output from an image
 // request. A text response is evidence that the image tool did not produce an
 // image; its semantics still need classification before choosing a client error.
-func extractOpenAIImagesModelText(body []byte) string {
+func extractOpenAIImagesModelText(body []byte) string { //nolint:unused // WIP streaming images support
 	var b strings.Builder
 	collect := func(s string) {
 		if s = strings.TrimSpace(s); s != "" {
@@ -667,7 +667,7 @@ func extractOpenAIImagesModelText(body []byte) string {
 	return text
 }
 
-func isOpenAIImagesContentPolicyRefusal(text string) bool {
+func isOpenAIImagesContentPolicyRefusal(text string) bool { //nolint:unused // WIP streaming images support
 	lower := strings.ToLower(text)
 	for _, marker := range []string{
 		"content policy", "content_policy", "content filter", "content_filter",
@@ -683,7 +683,7 @@ func isOpenAIImagesContentPolicyRefusal(text string) bool {
 
 // extractOpenAIImagesModelRefusal returns only text with an explicit safety or
 // moderation signal. Plain prompt suggestions are capability failures instead.
-func extractOpenAIImagesModelRefusal(body []byte) string {
+func extractOpenAIImagesModelRefusal(body []byte) string { //nolint:unused // WIP streaming images support
 	text := extractOpenAIImagesModelText(body)
 	if !isOpenAIImagesContentPolicyRefusal(text) {
 		return ""
@@ -691,11 +691,11 @@ func extractOpenAIImagesModelRefusal(body []byte) string {
 	return text
 }
 
-func openAIImagesTextFallbackError(body []byte) *OpenAIImagesUpstreamError {
+func openAIImagesTextFallbackError(body []byte) *OpenAIImagesUpstreamError { //nolint:unused // WIP streaming images support
 	return openAIImagesTextFallbackErrorForText(extractOpenAIImagesModelText(body))
 }
 
-func openAIImagesTextFallbackErrorForText(text string) *OpenAIImagesUpstreamError {
+func openAIImagesTextFallbackErrorForText(text string) *OpenAIImagesUpstreamError { //nolint:unused // WIP streaming images support
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return nil
@@ -723,7 +723,7 @@ func openAIImagesTextFallbackErrorForText(text string) *OpenAIImagesUpstreamErro
 // summarizeOpenAIImagesNoOutputBody 从上游 SSE 响应体提取诊断摘要，用于软失败时
 // 记录到 ops 日志（上游无图、无标准错误的场景）。提取最终事件类型、response.status、
 // incomplete_details.reason，并附 body 截断片段，便于事后定位上游到底返回了什么。
-func summarizeOpenAIImagesNoOutputBody(body []byte) string {
+func summarizeOpenAIImagesNoOutputBody(body []byte) string { //nolint:unused // WIP streaming images support
 	var lastType, status, incompleteReason string
 	forEachOpenAISSEDataPayload(string(body), func(payload []byte) {
 		if !gjson.ValidBytes(payload) {
@@ -768,7 +768,7 @@ func summarizeOpenAIImagesNoOutputBody(body []byte) string {
 // incomplete_details.reason 常见取值：max_output_tokens / content_filter 等。
 // content_filter 视为客户端错误（400，重试无意义）；其余（生成超时/截断）视为
 // 可重试的 502，触发 failover 换账号重试。
-func openAIImagesIncompleteUpstreamError(response gjson.Result) *OpenAIImagesUpstreamError {
+func openAIImagesIncompleteUpstreamError(response gjson.Result) *OpenAIImagesUpstreamError { //nolint:unused // WIP streaming images support
 	if !response.Exists() {
 		return nil
 	}
