@@ -205,7 +205,7 @@
           </template>
 
           <template #cell-reasoning_effort="{ row }">
-            <span class="text-sm text-gray-900 dark:text-white">
+            <span data-testid="reasoning-effort-cell" class="text-sm text-gray-900 dark:text-white">
               {{ formatReasoningEffort(row.reasoning_effort) }}
             </span>
           </template>

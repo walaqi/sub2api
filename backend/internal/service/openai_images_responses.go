@@ -37,6 +37,13 @@ type OpenAIImagesUpstreamError struct {
 	Message           string
 	Param             string
 	UpstreamRequestID string
+
+	// SynthesizedFromModelText marks an error the gateway inferred from the
+	// model's plain-text output instead of reading it off a structured upstream
+	// error frame. Such a verdict describes this one turn ("the model answered
+	// with words instead of an image"), not the account — see
+	// shouldCoolOpenAIImagesToolForError.
+	SynthesizedFromModelText bool
 }
 
 func (e *OpenAIImagesUpstreamError) Error() string {
@@ -602,6 +609,187 @@ func openAIImagesUpstreamErrorFromSSEPayload(payload []byte) *OpenAIImagesUpstre
 		return openAIImagesUpstreamErrorFromGJSON(response.Get("error"), response.Get("id").String())
 	default:
 		return nil
+	}
+}
+
+// extractOpenAIImagesModelText collects textual terminal output from an image
+// request. A text response is evidence that the image tool did not produce an
+// image; its semantics still need classification before choosing a client error.
+func extractOpenAIImagesModelText(body []byte) string { //nolint:unused // WIP streaming images support
+	var b strings.Builder
+	collect := func(s string) {
+		if s = strings.TrimSpace(s); s != "" {
+			if b.Len() > 0 {
+				_ = b.WriteByte(' ')
+			}
+			_, _ = b.WriteString(s)
+		}
+	}
+	consumePayload := func(payload []byte) {
+		if !gjson.ValidBytes(payload) {
+			return
+		}
+		switch gjson.GetBytes(payload, "type").String() {
+		case "response.output_text.delta":
+			collect(gjson.GetBytes(payload, "delta").String())
+		case "response.completed", "response.output_item.done":
+			gjson.GetBytes(payload, "response.output").ForEach(func(_, item gjson.Result) bool {
+				if item.Get("type").String() == "message" {
+					item.Get("content").ForEach(func(_, part gjson.Result) bool {
+						if part.Get("type").String() == "output_text" {
+							collect(part.Get("text").String())
+						}
+						return true
+					})
+				}
+				return true
+			})
+			if item := gjson.GetBytes(payload, "item"); item.Get("type").String() == "message" {
+				item.Get("content").ForEach(func(_, part gjson.Result) bool {
+					if part.Get("type").String() == "output_text" {
+						collect(part.Get("text").String())
+					}
+					return true
+				})
+			}
+		}
+	}
+	if gjson.ValidBytes(body) {
+		consumePayload(body)
+	} else {
+		forEachOpenAISSEDataPayload(string(body), consumePayload)
+	}
+	text := strings.TrimSpace(b.String())
+	const maxText = 600
+	if len(text) > maxText {
+		return text[:maxText]
+	}
+	return text
+}
+
+func isOpenAIImagesContentPolicyRefusal(text string) bool { //nolint:unused // WIP streaming images support
+	lower := strings.ToLower(text)
+	for _, marker := range []string{
+		"content policy", "content_policy", "content filter", "content_filter",
+		"safety system", "safety policy", "safety violation", "moderation",
+		"安全系统", "安全策略", "安全政策", "内容政策", "内容审核", "违规内容", "不适合生成",
+	} {
+		if strings.Contains(lower, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+// extractOpenAIImagesModelRefusal returns only text with an explicit safety or
+// moderation signal. Plain prompt suggestions are capability failures instead.
+func extractOpenAIImagesModelRefusal(body []byte) string { //nolint:unused // WIP streaming images support
+	text := extractOpenAIImagesModelText(body)
+	if !isOpenAIImagesContentPolicyRefusal(text) {
+		return ""
+	}
+	return text
+}
+
+func openAIImagesTextFallbackError(body []byte) *OpenAIImagesUpstreamError { //nolint:unused // WIP streaming images support
+	return openAIImagesTextFallbackErrorForText(extractOpenAIImagesModelText(body))
+}
+
+func openAIImagesTextFallbackErrorForText(text string) *OpenAIImagesUpstreamError { //nolint:unused // WIP streaming images support
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return nil
+	}
+	if isOpenAIImagesContentPolicyRefusal(text) {
+		return &OpenAIImagesUpstreamError{
+			StatusCode: http.StatusBadRequest,
+			ErrorType:  "image_generation_user_error",
+			Code:       "content_policy_violation",
+			Message:    sanitizeUpstreamErrorMessage(text),
+		}
+	}
+	return &OpenAIImagesUpstreamError{
+		StatusCode: http.StatusBadGateway,
+		ErrorType:  "upstream_error",
+		Code:       "image_generation_unavailable",
+		Message:    "Upstream did not execute image generation",
+		// Inferred from the model's own words, not from an upstream error frame:
+		// good enough to fail this turn over to another account, not evidence that
+		// this account's image tool is down for the next 30 minutes.
+		SynthesizedFromModelText: true,
+	}
+}
+
+// summarizeOpenAIImagesNoOutputBody 从上游 SSE 响应体提取诊断摘要，用于软失败时
+// 记录到 ops 日志（上游无图、无标准错误的场景）。提取最终事件类型、response.status、
+// incomplete_details.reason，并附 body 截断片段，便于事后定位上游到底返回了什么。
+func summarizeOpenAIImagesNoOutputBody(body []byte) string { //nolint:unused // WIP streaming images support
+	var lastType, status, incompleteReason string
+	forEachOpenAISSEDataPayload(string(body), func(payload []byte) {
+		if !gjson.ValidBytes(payload) {
+			return
+		}
+		if t := strings.TrimSpace(gjson.GetBytes(payload, "type").String()); t != "" {
+			lastType = t
+		}
+		if resp := gjson.GetBytes(payload, "response"); resp.Exists() {
+			if s := strings.TrimSpace(resp.Get("status").String()); s != "" {
+				status = s
+			}
+			if r := strings.TrimSpace(resp.Get("incomplete_details.reason").String()); r != "" {
+				incompleteReason = r
+			}
+		}
+	})
+	var b strings.Builder
+	_, _ = b.WriteString("no_image_output")
+	if lastType != "" {
+		fmt.Fprintf(&b, " last_event=%s", lastType)
+	}
+	if status != "" {
+		fmt.Fprintf(&b, " status=%s", status)
+	}
+	if incompleteReason != "" {
+		fmt.Fprintf(&b, " incomplete_reason=%s", incompleteReason)
+	}
+	// 附 body 截断片段（脱敏后），上限 1KB，避免日志膨胀。
+	snippet := strings.TrimSpace(string(body))
+	const maxSnippet = 1024
+	if len(snippet) > maxSnippet {
+		snippet = snippet[:maxSnippet] + "...(truncated)"
+	}
+	if snippet != "" {
+		fmt.Fprintf(&b, " body=%s", snippet)
+	}
+	return b.String()
+}
+
+// openAIImagesIncompleteUpstreamError 从 response.incomplete 事件构建可重试的上游错误。
+// incomplete_details.reason 常见取值：max_output_tokens / content_filter 等。
+// content_filter 视为客户端错误（400，重试无意义）；其余（生成超时/截断）视为
+// 可重试的 502，触发 failover 换账号重试。
+func openAIImagesIncompleteUpstreamError(response gjson.Result) *OpenAIImagesUpstreamError { //nolint:unused // WIP streaming images support
+	if !response.Exists() {
+		return nil
+	}
+	reason := strings.TrimSpace(response.Get("incomplete_details.reason").String())
+	statusCode := http.StatusBadGateway // 默认可重试（生成未完成）
+	errType := "incomplete_error"
+	if strings.Contains(strings.ToLower(reason), "content_filter") ||
+		strings.Contains(strings.ToLower(reason), "moderation") {
+		statusCode = http.StatusBadRequest // 内容过滤，重试无意义
+		errType = "image_generation_user_error"
+	}
+	message := "Upstream did not complete image generation"
+	if reason != "" {
+		message = fmt.Sprintf("Upstream image generation incomplete: %s", reason)
+	}
+	return &OpenAIImagesUpstreamError{
+		StatusCode:        statusCode,
+		ErrorType:         errType,
+		Code:              "response_incomplete",
+		Message:           sanitizeUpstreamErrorMessage(message),
+		UpstreamRequestID: strings.TrimSpace(response.Get("id").String()),
 	}
 }
 
@@ -1485,6 +1673,45 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 	}, nil
 }
 
+const (
+	openAIImagesOAuthUnavailableCooldown = 30 * time.Minute
+	openAIImagesOAuthUnavailableReason   = "openai_images_oauth_tool_unavailable"
+)
+
+// shouldCoolOpenAIImagesToolForError decides whether an image_generation_unavailable
+// verdict is durable enough to park the account's image tool for
+// openAIImagesOAuthUnavailableCooldown.
+//
+// Only an upstream error frame that names the condition qualifies. A verdict the
+// gateway synthesized from the model's plain-text reply does not: it merely says
+// this prompt produced words instead of an image, which is prompt-dependent and
+// happens on healthy accounts. Writing a 30-minute account-level cooldown from it
+// is doubly wrong because the very same error is classified retryable
+// (IsOpenAIImagesRetryableUpstreamError: status >= 500) and drives
+// newOpenAIAccountFailoverError — so one such reply walks the pool and cools every
+// account the retry touches.
+//
+// This mirrors the rule the alpha/search path already states in words: a
+// tool-endpoint failure "仍允许本次请求换号，但不修改任何账号状态"
+// (see shouldApplyOpenAIAlphaSearchAccountErrorSideEffects).
+func shouldCoolOpenAIImagesToolForError(upstreamErr *OpenAIImagesUpstreamError) bool {
+	return upstreamErr != nil && !upstreamErr.SynthesizedFromModelText
+}
+
+func (s *OpenAIGatewayService) coolOpenAIImagesOAuthTool(ctx context.Context, account *Account) {
+	if s == nil || s.accountRepo == nil || account == nil || account.Platform != PlatformOpenAI {
+		return
+	}
+	stateCtx, cancel := openAIAccountStateContext(ctx)
+	defer cancel()
+	resetAt := time.Now().Add(openAIImagesOAuthUnavailableCooldown)
+	if err := s.accountRepo.SetModelRateLimit(stateCtx, account.ID, openAIImageGenerationRateLimitKey, resetAt, openAIImagesOAuthUnavailableReason); err != nil {
+		logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Images OAuth tool cooldown write failed account_id=%d error=%v", account.ID, err)
+		return
+	}
+	logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Images OAuth tool unavailable account_id=%d reset_in=%s", account.ID, time.Until(resetAt).Truncate(time.Second))
+}
+
 func (s *OpenAIGatewayService) handleOpenAIImagesOAuthResponseError(
 	ctx context.Context,
 	c *gin.Context,
@@ -1561,11 +1788,27 @@ func (s *OpenAIGatewayService) handleOpenAIImagesOAuthResponseError(
 		Message:            upstreamErr.clientMessage(),
 	})
 
+	responseBody := openAIImagesUpstreamErrorResponseBody(upstreamErr)
+	if upstreamErr.Code == "image_generation_unavailable" {
+		if shouldCoolOpenAIImagesToolForError(upstreamErr) {
+			s.coolOpenAIImagesOAuthTool(ctx, account)
+		}
+		if responseWritten {
+			return err
+		}
+		return s.newOpenAIAccountFailoverError(
+			account,
+			upstreamErr.StatusCode,
+			headers,
+			responseBody,
+			upstreamErr.clientMessage(),
+			false,
+			false,
+		)
+	}
 	if !retryable || responseWritten {
 		return err
 	}
-
-	responseBody := openAIImagesUpstreamErrorResponseBody(upstreamErr)
 	shouldDisable := s.handleOpenAIAccountUpstreamError(ctx, account, upstreamErr.StatusCode, headers, responseBody, requestedModel)
 	return s.newOpenAIAccountFailoverError(
 		account,

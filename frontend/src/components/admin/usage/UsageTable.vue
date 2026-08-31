@@ -75,7 +75,15 @@
         </template>
 
         <template #cell-reasoning_effort="{ row }">
-          <span class="text-sm text-gray-900 dark:text-white">
+          <div v-if="hasReasoningEffortMapping(row)" data-testid="reasoning-effort-cell" class="space-y-0.5 text-xs">
+            <div class="font-medium text-gray-900 dark:text-white">
+              {{ formatReasoningEffort(row.reasoning_effort) }}
+            </div>
+            <div class="text-gray-500 dark:text-gray-400">
+              <span class="mr-0.5">↳</span>{{ formatReasoningEffort(row.upstream_reasoning_effort) }}
+            </div>
+          </div>
+          <span v-else data-testid="reasoning-effort-cell" class="text-sm text-gray-900 dark:text-white">
             {{ formatReasoningEffort(row.reasoning_effort) }}
           </span>
         </template>
@@ -469,7 +477,7 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
-import { formatDateTime, formatReasoningEffort } from '@/utils/format'
+import { formatDateTime, formatReasoningEffort, reasoningEffortValuesEqual } from '@/utils/format'
 import { formatCacheTokens, formatMultiplier } from '@/utils/formatters'
 import { formatTokenPricePerMillion } from '@/utils/usagePricing'
 import { getUsageServiceTierLabel } from '@/utils/usageServiceTier'
@@ -545,6 +553,15 @@ const isLikelyModelVariant = (row: AdminUsageLog): boolean => {
   const sent = sentUpstreamModel(row)
   const response = row.upstream_response_model?.trim() || ''
   return sent !== '' && response !== '' && normalizeModelVariant(sent) === normalizeModelVariant(response)
+}
+
+// #6188：客户端请求的档位与实际转发给上游的档位不一致时，单元格展示 "requested ↳ forwarded"。
+// 上游同一 hunk 里还有 IP 归属地工具栏（ipGeoBatchLoading/showIpGeoToolbar），那部分依赖
+// fork 未合入的 #3615，故此处只保留档位映射本身。
+const hasReasoningEffortMapping = (row: AdminUsageLog): boolean => {
+  const requested = row.reasoning_effort?.trim() || ''
+  const forwarded = row.upstream_reasoning_effort?.trim() || ''
+  return requested !== '' && forwarded !== '' && !reasoningEffortValuesEqual(requested, forwarded)
 }
 
 const modelAuditTitle = (row: AdminUsageLog): string => [
