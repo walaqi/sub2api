@@ -1264,7 +1264,7 @@ func emailAliasOwnerIDWithClient(ctx context.Context, client *dbent.Client, emai
 		Where(dbuser.Or(preds...)).
 		// fork: +1 保留截断检测（见下方 fail-closed 守卫）；upstream: 需要 ID 以区分
 		// 自己/他人占用，故 Select(ID, Email).All 取代 fork 原来的 Strings(Email)。
-		Limit(emailAliasCandidateLimit + 1).
+		Limit(emailAliasCandidateLimit+1).
 		Select(dbuser.FieldID, dbuser.FieldEmail).
 		All(ctx)
 	if err != nil {

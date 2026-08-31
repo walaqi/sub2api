@@ -515,12 +515,6 @@ func (m *ConfigManager) clearLoadError() bool {
 	return recovered
 }
 
-func (m *ConfigManager) hasLoadError() bool {
-	m.stateMu.RLock()
-	defer m.stateMu.RUnlock()
-	return m.lastLoadError != ""
-}
-
 func cloneStorageConfig(cfg storageConfig) storageConfig {
 	cfg.Scanners = append([]string(nil), cfg.Scanners...)
 	cfg.GroupIDs = append([]int64(nil), cfg.GroupIDs...)
