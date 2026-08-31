@@ -444,7 +444,7 @@ func (s *AnnouncementService) listUserReadStatusByReadAt(
 	if searchTrimmed != "" {
 		whereClauses = append(whereClauses, fmt.Sprintf("(u.email ILIKE '%%' || $%d || '%%' OR u.username ILIKE '%%' || $%d || '%%')", countArgIdx, countArgIdx))
 		countArgs = append(countArgs, searchTrimmed)
-		countArgIdx++ //nolint:ineffassign // kept for clarity matching dataArgIdx pattern
+		countArgIdx++ //nolint:ineffassign,staticcheck // kept for clarity matching dataArgIdx pattern
 	}
 
 	where := strings.Join(whereClauses, " AND ")
