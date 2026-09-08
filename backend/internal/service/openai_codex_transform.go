@@ -1315,9 +1315,6 @@ func normalizeOpenAIModelForUpstreamWithPolicy(account *Account, model string, e
 }
 
 func SupportsVerbosity(model string) bool {
-	if strings.EqualFold(strings.TrimSpace(model), openAIImagesResponsesMainModel) {
-		return true
-	}
 	if !strings.HasPrefix(model, "gpt-") {
 		return true
 	}
