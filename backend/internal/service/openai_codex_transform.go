@@ -266,6 +266,11 @@ func applyCodexOAuthTransformWithOptions(reqBody map[string]any, opts codexOAuth
 	if normalizeCodexTools(reqBody) {
 		result.Modified = true
 	}
+	// ChatGPT's Codex Responses endpoint exposes image_generation as a hosted
+	// tool but rejects tool_choice when it tries to force that tool explicitly.
+	if stripOpenAIResponsesImageGenerationToolChoice(reqBody) {
+		result.Modified = true
+	}
 	// Collect aliases only after prompt/functions/function_call compatibility
 	// has produced the final Responses protocol nodes. Otherwise references
 	// introduced by those migrations can retain the reserved name.
@@ -1141,6 +1146,17 @@ func openAIAnyToolChoiceSelectsNativeImageGeneration(choice any) bool {
 	default:
 		return false
 	}
+}
+
+func stripOpenAIResponsesImageGenerationToolChoice(reqBody map[string]any) bool {
+	if len(reqBody) == 0 || !hasOpenAIImageGenerationTool(reqBody) {
+		return false
+	}
+	if !openAIAnyToolChoiceSelectsNativeImageGeneration(reqBody["tool_choice"]) {
+		return false
+	}
+	delete(reqBody, "tool_choice")
+	return true
 }
 
 func ensureOpenAIResponsesImageGenerationToolChoiceAuto(reqBody map[string]any) bool {
