@@ -1340,7 +1340,9 @@ func TestEnsureOpenAIResponsesImageGenerationToolForExplicitChoice(t *testing.T)
 
 	require.True(t, ensureOpenAIResponsesImageGenerationToolForExplicitChoice(reqBody))
 	require.True(t, hasOpenAIImageGenerationTool(reqBody))
-	require.Equal(t, "image_generation", reqBody["tool_choice"].(map[string]any)["type"])
+	choice, ok := reqBody["tool_choice"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "image_generation", choice["type"])
 }
 
 func TestEnsureOpenAIResponsesImageGenerationToolForExplicitChoiceIgnoresNamespace(t *testing.T) {
