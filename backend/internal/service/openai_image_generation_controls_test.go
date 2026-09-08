@@ -205,7 +205,7 @@ func TestOpenAIGatewayServiceForward_RepairsExplicitImageToolChoiceWithoutTools(
 	require.Equal(t, "image_generation", gjson.GetBytes(upstream.lastBody, "tool_choice.type").String())
 }
 
-func TestOpenAIGatewayServiceForward_OAuthImageToolDropsToolChoice(t *testing.T) {
+func TestOpenAIGatewayServiceForward_OAuthImageToolPreservesToolChoice(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	upstream := &httpUpstreamRecorder{
@@ -229,7 +229,7 @@ func TestOpenAIGatewayServiceForward_OAuthImageToolDropsToolChoice(t *testing.T)
 	require.NotNil(t, upstream.lastReq)
 	require.Equal(t, "gpt-5.4-mini", gjson.GetBytes(upstream.lastBody, "model").String())
 	require.True(t, gjson.GetBytes(upstream.lastBody, `tools.#(type=="image_generation")`).Exists())
-	require.False(t, gjson.GetBytes(upstream.lastBody, "tool_choice").Exists())
+	require.Equal(t, "image_generation", gjson.GetBytes(upstream.lastBody, "tool_choice.type").String())
 }
 
 func TestOpenAIGatewayServiceForward_AccountPolicyStripsExplicitImageTool(t *testing.T) {
