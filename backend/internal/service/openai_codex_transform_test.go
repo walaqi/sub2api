@@ -1331,6 +1331,28 @@ func TestNormalizeOpenAIResponsesImageOnlyModel_BuildsImageToolRequest(t *testin
 	require.Equal(t, "image_generation", choice["type"])
 }
 
+func TestEnsureOpenAIResponsesImageGenerationToolForExplicitChoice(t *testing.T) {
+	reqBody := map[string]any{
+		"model":       "gpt-5.4-mini",
+		"input":       "draw a cat",
+		"tool_choice": map[string]any{"type": "image_generation"},
+	}
+
+	require.True(t, ensureOpenAIResponsesImageGenerationToolForExplicitChoice(reqBody))
+	require.True(t, hasOpenAIImageGenerationTool(reqBody))
+	require.Equal(t, "image_generation", reqBody["tool_choice"].(map[string]any)["type"])
+}
+
+func TestEnsureOpenAIResponsesImageGenerationToolForExplicitChoiceIgnoresNamespace(t *testing.T) {
+	reqBody := map[string]any{
+		"model":       "gpt-5.4-mini",
+		"tool_choice": map[string]any{"type": "namespace", "name": "image_gen"},
+	}
+
+	require.False(t, ensureOpenAIResponsesImageGenerationToolForExplicitChoice(reqBody))
+	require.False(t, hasOpenAIImageGenerationTool(reqBody))
+}
+
 func TestNormalizeOpenAIResponsesImageOnlyModel_PreservesExistingImageTool(t *testing.T) {
 	reqBody := map[string]any{
 		"model": "gpt-image-2",
