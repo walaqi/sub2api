@@ -1118,6 +1118,31 @@ func ensureOpenAIResponsesImageGenerationTool(reqBody map[string]any) bool {
 	return true
 }
 
+func ensureOpenAIResponsesImageGenerationToolForExplicitChoice(reqBody map[string]any) bool {
+	if len(reqBody) == 0 || isCodexSparkModel(firstNonEmptyString(reqBody["model"])) {
+		return false
+	}
+	if !openAIAnyToolChoiceSelectsNativeImageGeneration(reqBody["tool_choice"]) {
+		return false
+	}
+	return ensureOpenAIResponsesImageGenerationTool(reqBody)
+}
+
+func openAIAnyToolChoiceSelectsNativeImageGeneration(choice any) bool {
+	switch value := choice.(type) {
+	case string:
+		return isOpenAIImageGenerationType(value)
+	case map[string]any:
+		if isOpenAIImageGenerationType(firstNonEmptyString(value["type"])) {
+			return true
+		}
+		tool, ok := value["tool"].(map[string]any)
+		return ok && openAIAnyToolChoiceSelectsNativeImageGeneration(tool)
+	default:
+		return false
+	}
+}
+
 func ensureOpenAIResponsesImageGenerationToolChoiceAuto(reqBody map[string]any) bool {
 	if len(reqBody) == 0 || hasCodexImageGenerationFunctionTool(reqBody) || !hasOpenAIImageGenerationTool(reqBody) {
 		return false
