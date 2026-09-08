@@ -1355,7 +1355,7 @@ func TestEnsureOpenAIResponsesImageGenerationToolForExplicitChoiceIgnoresNamespa
 	require.False(t, hasOpenAIImageGenerationTool(reqBody))
 }
 
-func TestStripOpenAIResponsesImageGenerationToolChoice(t *testing.T) {
+func TestApplyCodexOAuthTransformPreservesImageGenerationToolChoice(t *testing.T) {
 	reqBody := map[string]any{
 		"model": "gpt-5.4-mini",
 		"tools": []any{
@@ -1364,9 +1364,10 @@ func TestStripOpenAIResponsesImageGenerationToolChoice(t *testing.T) {
 		"tool_choice": map[string]any{"type": "image_generation"},
 	}
 
-	require.True(t, stripOpenAIResponsesImageGenerationToolChoice(reqBody))
-	_, exists := reqBody["tool_choice"]
-	require.False(t, exists)
+	applyCodexOAuthTransform(reqBody, false, false)
+	choice, exists := reqBody["tool_choice"]
+	require.True(t, exists)
+	require.Equal(t, map[string]any{"type": "image_generation"}, choice)
 	require.True(t, hasOpenAIImageGenerationTool(reqBody))
 }
 
