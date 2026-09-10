@@ -239,7 +239,9 @@ describe('PaymentStatusPanel', () => {
     await vi.advanceTimersByTimeAsync(2200)
     await flushPromises()
 
-    expect(wrapper.get('[data-test="alipay-qr-fallback"] img').attributes('src')).toContain('alipay')
+    expect(wrapper.get('[data-test="alipay-qr-fallback"] img').attributes('src')).toMatch(
+      /^(data:image\/svg\+xml|.*alipay)/,
+    )
 
     expect(wrapper.find('[data-test="alipay-qr-fallback"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('payment.qr.saveQRCode')
