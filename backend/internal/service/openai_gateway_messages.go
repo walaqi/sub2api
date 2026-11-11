@@ -111,8 +111,9 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 	compatReplayTrimmed := false
 	compatReplayGuardEnabled := shouldAutoInjectPromptCacheKeyForCompat(upstreamModel)
 	compatContinuationEnabled := openAICompatContinuationEnabled(account, upstreamModel)
+	compatContinuationRetried := openAICompatContinuationRetried(ctx)
 	previousResponseID := ""
-	if compatContinuationEnabled {
+	if compatContinuationEnabled && !compatContinuationRetried {
 		previousResponseID = s.getOpenAICompatSessionResponseID(ctx, c, account, promptCacheKey)
 	}
 	compatContinuationDisabled := compatContinuationEnabled &&
@@ -121,7 +122,9 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 	// ChatGPT/Codex credentials rely on session_id + x-codex-turn-state; trimming to a
 	// sliding 12-message window makes the cached prefix stall at system/tools.
 	// Keep full replay there so upstream prompt caching can grow turn by turn.
-	if compatReplayGuardEnabled && !account.UsesOpenAICodexProtocol() && previousResponseID == "" && !compatContinuationDisabled {
+	// Recovery must replay the original history, even if another request has
+	// rebound a session response ID while this request was retrying.
+	if compatReplayGuardEnabled && !account.UsesOpenAICodexProtocol() && previousResponseID == "" && !compatContinuationDisabled && !compatContinuationRetried {
 		compatReplayTrimmed = applyAnthropicCompatFullReplayGuard(&anthropicReq)
 	}
 
@@ -431,7 +434,7 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 			}
 			return s.ForwardAsAnthropic(markAgentIdentityTaskRecoveryTried(ctx), c, account, body, promptCacheKey, defaultMappedModel)
 		}
-		if previousResponseID != "" && (isOpenAICompatPreviousResponseNotFound(resp.StatusCode, upstreamMsg, respBody) || isOpenAICompatPreviousResponseUnsupported(resp.StatusCode, upstreamMsg, respBody)) {
+		if !compatContinuationRetried && previousResponseID != "" && (isOpenAICompatPreviousResponseNotFound(resp.StatusCode, upstreamMsg, respBody) || isOpenAICompatPreviousResponseUnsupported(resp.StatusCode, upstreamMsg, respBody)) {
 			if isOpenAICompatPreviousResponseUnsupported(resp.StatusCode, upstreamMsg, respBody) {
 				s.disableOpenAICompatSessionContinuation(ctx, c, account, promptCacheKey)
 			} else {
@@ -442,7 +445,7 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 				zap.String("previous_response_id", truncateOpenAIWSLogValue(previousResponseID, openAIWSIDValueMaxLen)),
 				zap.String("upstream_model", upstreamModel),
 			)
-			return s.ForwardAsAnthropic(ctx, c, account, body, promptCacheKey, defaultMappedModel)
+			return s.ForwardAsAnthropic(markOpenAICompatContinuationRetried(ctx), c, account, body, promptCacheKey, defaultMappedModel)
 		}
 		// Grok account-switched history often fails decrypt; strip encrypted
 		// reasoning once at the client-body level so failover accounts can accept

@@ -20,6 +20,17 @@ type openAICompatSessionResponseBinding struct {
 	ExpiresAt            time.Time
 }
 
+type openAICompatContinuationRetryContextKey struct{}
+
+func markOpenAICompatContinuationRetried(ctx context.Context) context.Context {
+	return context.WithValue(ctx, openAICompatContinuationRetryContextKey{}, true)
+}
+
+func openAICompatContinuationRetried(ctx context.Context) bool {
+	retried, _ := ctx.Value(openAICompatContinuationRetryContextKey{}).(bool)
+	return retried
+}
+
 func openAICompatContinuationEnabled(account *Account, model string) bool {
 	if account == nil || account.Type != AccountTypeAPIKey {
 		return false
@@ -111,6 +122,7 @@ func isOpenAICompatPreviousResponseNotFound(statusCode int, upstreamMsg string, 
 	check := func(s string) bool {
 		lower := strings.ToLower(strings.TrimSpace(s))
 		return strings.Contains(lower, "previous_response_not_found") ||
+			(statusCode == http.StatusBadRequest && lower == "previous_response_id is not available for this user") ||
 			(strings.Contains(lower, "previous response") && strings.Contains(lower, "not found")) ||
 			(strings.Contains(lower, "unsupported parameter") && strings.Contains(lower, "previous_response_id"))
 	}
